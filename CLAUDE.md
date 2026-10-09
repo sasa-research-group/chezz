@@ -3,6 +3,8 @@
 ## What's live
 Escape from Exile: `src/main.tsx` → `src/App.tsx` → `src/game/exile.ts` (rules),
 `src/components/PieceArt.tsx`, `src/exile.css`. Rules doc: `docs/exile-run.md`.
+Lab: `lab.html` → `src/lab/` (pure `duel.ts` and solver). Plan:
+`reports/Simultaneous chess tactics design.md`. Notes: `docs/lab.md`.
 `engine.ts`, `content.ts`, `simultaneous.ts`, `src/render/`, `Art.tsx`,
 `AttackPreview.tsx`, `sound.ts`, `style.css`, `tests/browser/game.spec.ts` and
 `scripts/playtest.ts` are earlier-prototype leftovers the app doesn't import.

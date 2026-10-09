@@ -39,6 +39,7 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
 - **tests/exile.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
 
 Rules, scope and playtest questions are in [docs/exile-run.md](docs/exile-run.md).
+Rule experiments live on the lab page (`lab.html`, [docs/lab.md](docs/lab.md)).
 Working notes are in [CLAUDE.md](CLAUDE.md) and [docs/HANDOFF.md](docs/HANDOFF.md).
 
 ---
