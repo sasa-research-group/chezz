@@ -54,6 +54,10 @@ describe("duel resolution", () => {
     const r = resolve(s, { hp: [3, 3], progress: [1, 0] }, "advance", "guard");
     expect(r.state.progress).toEqual([2, 0]); expect(r.winner).toBe(0);
   });
+  it("doesn't advance a piece that dies this turn", () => {
+    const r = resolve({ ...defaultSettings, rule: "free" }, { hp: [3, 2], progress: [0, 0] }, "strike", "advance");
+    expect(r.state.progress).toEqual([0, 0]); expect(r.text.join(" ")).not.toContain("advances"); expect(r.winner).toBe(0);
+  });
   it("only offers sidestep to a side that can flee, and advance only with a goal", () => {
     const s: Settings = { ...defaultSettings, canFlee: [false, true], goal: 0 };
     expect(options(s, 0)).toEqual(["strike", "guard"]);

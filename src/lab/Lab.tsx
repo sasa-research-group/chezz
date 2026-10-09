@@ -16,7 +16,14 @@ type Entry = { at: string; settings: Settings; turns: { you: Choice; enemy: Choi
 
 function readLog(): Entry[] { try { return JSON.parse(localStorage.getItem(LOG_KEY) ?? "[]"); } catch { return []; } }
 function saveLog(log: Entry[]) { try { localStorage.setItem(LOG_KEY, JSON.stringify(log)); } catch { /* private mode */ } }
+/** Adds or replaces one entry (matched by its timestamp) in the stored log. */
+function upsert(entry: Entry): Entry[] {
+  const log = readLog().filter(e => e.at !== entry.at);
+  const next = [...log, entry].sort((a, b) => a.at.localeCompare(b.at));
+  saveLog(next); return next;
+}
 const pick = (mix: number[]) => { let r = Math.random(); for (let i = 0; i < mix.length; i++) if ((r -= mix[i]) < 0) return i; return mix.length - 1; };
+const solved = new Map<string, Map<string, Solution>>();
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 
 export default function Lab() {
@@ -27,16 +34,21 @@ export default function Lab() {
   const [last, setLast] = useState<Turn | null>(null);
   const [log, setLog] = useState<Entry[]>(readLog);
   const [rated, setRated] = useState(false);
+  const [finished, setFinished] = useState<Entry | null>(null);
   const [note, setNote] = useState("");
 
+  // HP doesn't change the solve (one solve covers every starting HP).
+  const solveKey = JSON.stringify([settings.rule, settings.guard, settings.goal, settings.canFlee]);
   useEffect(() => {
+    const cached = solved.get(solveKey);
+    if (cached) { setSolution(cached); return; }
     setSolution(null);
-    // Let "Solving…" paint before the (up to a few seconds) solve.
-    const id = setTimeout(() => setSolution(solveDuel(settings)), 30);
+    // Let "Solving…" paint before the solve (up to about 1.5 s).
+    const id = setTimeout(() => { const sol = solveDuel(settings); solved.set(solveKey, sol); setSolution(sol); }, 30);
     return () => clearTimeout(id);
-  }, [settings]);
+  }, [solveKey]);
 
-  const restart = (s = settings) => { setState({ hp: s.hp, progress: [0, 0] }); setTurns([]); setLast(null); setRated(false); setNote(""); };
+  const restart = (s = settings) => { setState({ hp: s.hp, progress: [0, 0] }); setTurns([]); setLast(null); setRated(false); setNote(""); setFinished(null); };
   const change = (patch: Partial<Settings>) => { const s = { ...settings, ...patch }; setSettings(s); restart(s); };
   const here = solution?.get(stateKey(state));
   const over = last?.winner != null;
@@ -48,17 +60,17 @@ export default function Lab() {
     const turn = resolve(settings, state, you, enemy);
     const all = [...turns, { you, enemy, text: turn.text }];
     setTurns(all); setLast(turn); setState(turn.state);
-    if (turn.winner != null) {
-      const entry: Entry = { at: new Date().toISOString(), settings, turns: all, result: turn.winner === 0 ? "win" : turn.winner === 1 ? "loss" : "draw" };
-      const next = [...log, entry]; setLog(next); saveLog(next);
-    } else if (all.length >= 30) {
-      const entry: Entry = { at: new Date().toISOString(), settings, turns: all, result: "stalemate" };
-      const next = [...log, entry]; setLog(next); saveLog(next); setLast({ ...turn, winner: "draw" });
+    const stalled = turn.winner == null && all.length >= 30;
+    if (turn.winner != null || stalled) {
+      const entry: Entry = { at: new Date().toISOString(), settings, turns: all, result: stalled ? "stalemate" : turn.winner === 0 ? "win" : turn.winner === 1 ? "loss" : "draw" };
+      setFinished(entry); setLog(upsert(entry));
+      if (stalled) setLast({ ...turn, winner: "draw" });
     }
   };
   const rate = (rating: number) => {
-    const next = log.map((e, i) => (i === log.length - 1 ? { ...e, rating, note: note || undefined } : e));
-    setLog(next); saveLog(next); setRated(true);
+    if (!finished) return;
+    const entry = { ...finished, rating, note: note || undefined };
+    setFinished(entry); setLog(upsert(entry)); setRated(true);
   };
   const exportLog = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ experiment: "duel", entries: log }, null, 2)], { type: "application/json" }));
@@ -98,10 +110,10 @@ export default function Lab() {
         </div>
         <div className="duel-caption" aria-live="polite">{!solution ? "Solving this rule set…" : last ? last.text.map((t, i) => <p key={i}>{t}</p>) : <p>Pick your move. The enemy picks at the same time.</p>}</div>
         {over ? <div className="duel-over"><h2>{result}</h2>
-          {!rated ? <><p>Did that duel feel like reading your opponent, or like flipping a coin?</p>
+          {!rated ? <><label className="feedback-label">Anything you noticed? (optional, saved with your rating)<textarea value={note} onChange={e => setNote(e.target.value)} /></label>
+            <p>Did that duel feel like reading your opponent, or like flipping a coin?</p>
             <div className="rating" role="group" aria-label="Read or coin flip">{[1, 2, 3, 4, 5].map(n => <button key={n} onClick={() => rate(n)}>{n}</button>)}</div>
-            <div className="rating-scale"><span>1 · coin flip</span><span>5 · I read them</span></div>
-            <label className="feedback-label">Anything else? (optional)<textarea value={note} onChange={e => setNote(e.target.value)} /></label></>
+            <div className="rating-scale"><span>1 · coin flip</span><span>5 · I read them</span></div></>
             : <p>Thanks, saved.</p>}
           <button className="primary-button" onClick={() => restart()}>New duel</button></div>
           : <div className="duel-choices">{options(settings, 0).map(c => <button key={c} disabled={!here} onClick={() => play(c)}><strong>{LABEL[c]}</strong><small>{HINT[c]}</small></button>)}</div>}

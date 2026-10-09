@@ -56,7 +56,7 @@ export function resolve(s: Settings, st: State, a: Choice, b: Choice): Turn {
     text.push(`${NAME[side]} strike${side ? "s" : ""} for ${dealt}${returns ? ` and take${side ? "s" : ""} ${back} back` : ", no return hit"}${guarded ? " (guarded)" : ""}.`);
   }
   const progress: Pair<number> = [...st.progress];
-  for (const side of [0, 1] as const) if (picks[side] === "advance" && s.goal > 0) { progress[side]++; text.push(`${NAME[side]} advance${side ? "s" : ""} toward the gate (${progress[side]}/${s.goal}).`); }
+  for (const side of [0, 1] as const) if (picks[side] === "advance" && s.goal > 0 && st.hp[side] > damage[side]) { progress[side]++; text.push(`${NAME[side]} advance${side ? "s" : ""} toward the gate (${progress[side]}/${s.goal}).`); }
   if (!text.length) text.push("Nobody lands a blow.");
   const state: State = { hp: [Math.max(0, st.hp[0] - damage[0]), Math.max(0, st.hp[1] - damage[1])], progress };
   return { state, damage, text, winner: winnerOf(s, state) };
@@ -65,10 +65,16 @@ export function resolve(s: Settings, st: State, a: Choice, b: Choice): Turn {
 /** Zero-sum matrix game (row maximises). Uses Shapley–Snow: some optimal
  * pair is supported on a square nonsingular submatrix, so enumerating equal-
  * size supports is exact. Small matrices only (≤ 4×4 here). */
-export function solveMatrix(m: number[][]): { value: number; row: number[]; col: number[] } {
+export type MatrixSolution = { value: number; row: number[]; col: number[]; support: [number[], number[]] };
+export function solveMatrix(m: number[][], hint?: [number[], number[]]): MatrixSolution {
   const rows = m.length, cols = m[0].length, eps = 1e-9;
   const subsets = (n: number, k: number): number[][] => k === 0 ? [[]] : n < k ? [] : [...subsets(n - 1, k), ...subsets(n - 1, k - 1).map(s => [...s, n - 1])];
-  for (let k = 1; k <= Math.min(rows, cols); k++) for (const I of subsets(rows, k)) for (const J of subsets(cols, k)) {
+  const candidates = function* (): Generator<[number[], number[]]> {
+    if (hint) yield hint;
+    for (let k = 1; k <= Math.min(rows, cols); k++) for (const I of subsets(rows, k)) for (const J of subsets(cols, k)) yield [I, J];
+  };
+  for (const [I, J] of candidates()) {
+    const k = I.length;
     // x·M[I][J] = v for each j, Σx = 1.  M[I][J]·y = w for each i, Σy = 1.
     const xv = linear([...J.map(j => [...I.map(i => m[i][j]), -1]), [...I.map(() => 1), 0]], [...J.map(() => 0), 1]);
     const yw = linear([...I.map(i => [...J.map(j => m[i][j]), -1]), [...J.map(() => 1), 0]], [...I.map(() => 0), 1]);
@@ -79,7 +85,7 @@ export function solveMatrix(m: number[][]): { value: number; row: number[]; col:
     I.forEach((i, n) => (row[i] = Math.max(0, xv[n]))); J.forEach((j, n) => (col[j] = Math.max(0, yw[n])));
     const colOk = Array.from({ length: cols }, (_, j) => row.reduce((t, p, i) => t + p * m[i][j], 0)).every(x => x >= v - 1e-7);
     const rowOk = m.every(r => r.reduce((t, x, j) => t + x * col[j], 0) <= v + 1e-7);
-    if (colOk && rowOk) return { value: v, row, col };
+    if (colOk && rowOk) return { value: v, row, col, support: [I, J] };
   }
   throw new Error("no equilibrium found");
 }
@@ -96,9 +102,12 @@ function linear(a: number[][], b: number[]): number[] | null {
 }
 
 /** Solves every duel state up to MAX_HP by Shapley value iteration. Win = 1,
- * loss = -1, draw = 0, from your side. A small discount makes endless
- * stalling worth 0 (a draw). */
-export function solveDuel(s: Settings, discount = 0.95): Map<string, Solution> {
+ * loss = -1, draw = 0, from your side. The discount is close to 1 so a win
+ * ten turns away still counts almost fully; it only makes endless stalling
+ * worth 0 (a draw). Each state starts from last sweep's support, which keeps
+ * the many sweeps this needs fast. Ignores settings.hp: one solve covers
+ * every starting HP. */
+export function solveDuel(s: Settings, discount = 0.999): Map<string, Solution> {
   const states: State[] = [];
   const goal = Math.max(1, s.goal);
   for (let a = 1; a <= MAX_HP; a++) for (let b = 1; b <= MAX_HP; b++) for (let p = 0; p < goal; p++) for (let q = 0; q < goal; q++) states.push({ hp: [a, b], progress: [p, q] });
@@ -106,16 +115,18 @@ export function solveDuel(s: Settings, discount = 0.95): Map<string, Solution> {
   const next = new Map(states.map(st => [stateKey(st), opts[0].map(a => opts[1].map(b => resolve(s, st, a, b)))]));
   const value = new Map(states.map(st => [stateKey(st), 0]));
   const payoff = (t: Turn) => t.winner === 0 ? 1 : t.winner === 1 ? -1 : t.winner === "draw" ? 0 : discount * value.get(stateKey(t.state))!;
-  for (let sweep = 0; sweep < 500; sweep++) {
+  const hints = new Map<string, [number[], number[]]>();
+  for (let sweep = 0; sweep < 20000; sweep++) {
     let delta = 0;
     for (const st of states) {
-      const key = stateKey(st), v = solveMatrix(next.get(key)!.map(r => r.map(payoff))).value;
-      delta = Math.max(delta, Math.abs(v - value.get(key)!)); value.set(key, v);
+      const key = stateKey(st), r = solveMatrix(next.get(key)!.map(row => row.map(payoff)), hints.get(key));
+      hints.set(key, r.support);
+      delta = Math.max(delta, Math.abs(r.value - value.get(key)!)); value.set(key, r.value);
     }
-    if (delta < 1e-9) break;
+    if (delta < 1e-10) break;
   }
   return new Map(states.map(st => {
-    const key = stateKey(st), r = solveMatrix(next.get(key)!.map(row => row.map(payoff)));
+    const key = stateKey(st), r = solveMatrix(next.get(key)!.map(row => row.map(payoff)), hints.get(key));
     return [key, { value: r.value, options: opts, mix: [r.row, r.col] }];
   }));
 }

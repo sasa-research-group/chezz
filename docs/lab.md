@@ -28,7 +28,8 @@ board.
 
 **Enemy.** The enemy plays the optimal mixed strategy for the current state,
 found by Shapley value iteration with an exact small matrix-game solver. Win
-scores +1, loss −1, draw 0, and endless stalling counts as a draw.
+scores +1, loss −1, draw 0. A discount of 0.999 per turn makes endless
+stalling count as a draw while still valuing a slow win almost fully.
 
 **Feedback.** After each duel the player rates it from 1 (coin flip) to 5 (I
 read them) and can add a note. The log is kept in `localStorage`
@@ -45,11 +46,19 @@ always right.
 | Free hits | as in game | off | Pure Strike, then mutual destruction. |
 | Always trade | as in game | 3 | Pure Advance. Fighting is irrelevant. |
 | Free hits | as in game | 3 | Pure Strike at equal HP. |
-| Free hits | full block | 3 | **Mixed: about 9% Strike, 46% Guard, 46% Advance.** |
+| Free hits | full block | 3 | **Mixed: about 10% Strike, 45% Guard, 45% Advance.** |
 
 Only Free hits with a Full block Guard and a reason to do something else
-(the gate) produces real guessing at equal HP. That matches the report's
-prediction. Unequal HP (3 v 2) mixes more often in every mode.
+(the gate) produces real guessing at equal HP: about 10% Strike, 45% Guard and
+45% Advance. That matches the report's prediction.
+
+Unequal HP (3 v 2):
+- **Gate off:** every unequal cell is pure. The weaker piece sidesteps or
+  guards forever, and the duel stalls into a draw.
+- **Gate on:** every unequal cell mixes, but in most modes the stronger side
+  wins almost surely (value 0.9 to 1.0).
+- **Exception:** Free hits with Full block stays close (0.38) and keeps all
+  three of Strike, Guard and Advance in play.
 
 The "Show the math" panel shows the full HP grid for the current rules.
 
