@@ -6,7 +6,9 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:5173",
     viewport: { width: 1440, height: 1000 },
     headless: true,
-    launchOptions: { args: ["--enable-unsafe-swiftshader"] },
+    // Set PLAYWRIGHT_CHROMIUM_PATH to use a preinstalled Chromium (e.g. in a
+    // cloud container) instead of the browser Playwright downloads.
+    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH, args: ["--enable-unsafe-swiftshader"] },
   },
   webServer: {
     command: "npm run dev -- --port 5173",

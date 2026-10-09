@@ -1,0 +1,46 @@
+# Handoff
+
+## State
+Escape from Exile is the live game (see `CLAUDE.md`). The repo moved from
+`mracette/chezz` to `sasa-research-group/chezz`. Pushes to `main` deploy to Pages.
+The new URL should be sasa-research-group.github.io/chezz, but nothing has
+deployed since the transfer. Check that Pages is set to GitHub Actions and that
+`PAGES_ENABLED` is `true` on the new repo.
+
+## What the foundation pass did (`claude/foundation-pass`)
+- **Fixed dodge bug in `resolveTurn`:** if a target's own move failed, its
+  attacker used to enter the vacated square for no damage, then bounce back.
+  The log also said the target "moves away". Damage and moves now run inside
+  `settle()`. Targets whose dodge failed are marked stuck and the turn
+  re-settles. Each pass pins only the failures that don't depend on another
+  failure, so a piece that really leaves is never hit.
+- **Kingless boards:** `enemyOrders` returns `[]` instead of throwing.
+  `resolveTurn(g, black?)` computes enemy orders only after the early return.
+  `readRun` now rejects a kingless save that isn't in defeat, and any
+  non-integer unit x/y.
+- **Replaced the hard-coded king max HP of 5 with `HP.king`** in the app and
+  in the rules.
+- **Playwright:** `PLAYWRIGHT_CHROMIUM_PATH` sets the browser executable.
+- **Docs:** README, meta description, exile-run (stuck-target rule, deploy
+  note), art-direction status, plus this file and `CLAUDE.md`.
+- **Tests:** 59 vitest and 4 e2e, all green.
+
+## Open items
+- Removing the dead prototype code is waiting on Mark.
+- `exile-preview.yml` is redundant now that `main` deploys. Delete it.
+- `prototype/familiar-opening` is unmerged and still on the old engine.
+- Test gaps:
+  - Longer collision chains.
+  - `readRun` negatives (bad mode, phase, HP, out-of-bounds).
+  - Rook recruit.
+  - `campReason` branches.
+  - The full-run test bot sees enemy orders, so it's stronger than a real player.
+- App debt:
+  - `App.tsx` is dense.
+  - There's an empty header feedback export.
+  - Modals lack Escape and a focus trap.
+  - The Between Worlds dev lab was lost.
+
+## Next
+The design conversation on **Always trade vs Free hits**: which combat model to
+keep, or what hybrid. Use playtest exports from both modes.

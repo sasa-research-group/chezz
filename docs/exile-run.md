@@ -1,6 +1,6 @@
 # Escape from Exile: first playable slice
 
-This branch tests the vision discussed in the September 15 Mark/Wesley meeting:
+This slice tests the vision discussed in the September 15 Mark/Wesley meeting:
 an exiled king recruiting an army to reclaim his kingdom, with familiar chess
 movement, smaller varied boards, permanent casualties, and comic medieval art.
 The notes and full transcript were both read. Combat was still an open design
@@ -34,6 +34,9 @@ The encounters and enemy policy are identical for both choices.
 
 Trades can kill either or both units. A surviving defender stays on its square.
 A surviving attacker occupies its target only when the defender dies or vacates.
+A target vacates only if it actually leaves. When its own move fails, attacks
+on it land as normal and its own attack still lands: in Always trade a stuck
+piece both deals its hit and returns one; in Free hits it returns nothing.
 Equal unprotected trades destroy both. Current HP doubles as attack strength;
 watch whether lasting king damage makes runs feel hopeless too early.
 
@@ -71,17 +74,8 @@ compete meaningfully with recruiting? Which rule produced clearer decisions?
 Export playtest JSON includes mode, choices, orders, results, and your feedback.
 Browser-local saves use `chezz.exile.v1`, separate from the earlier prototypes.
 
-The preview workflow rebuilds the unchanged main branch at `/chezz/` and adds
-this branch at `/chezz/exile/`. It requires the exact prototype branch to be
-allowed by the existing Pages environment. A later main-only Pages deployment
-can remove this temporary preview until this workflow publishes again.
-
-Branch pushes build and validate an artifact without deploying. Publication is
-currently blocked because the connected account has push access, not admin
-access. A repository admin must add `prototype/exile-run` to the `github-pages`
-environment's allowed deployment branches, then manually run the preview
-workflow on that branch with `publish` enabled. This keeps automatic checks
-useful without creating deployments that the environment will reject.
+Pushes to `main` deploy the game to GitHub Pages; PR #1 merged this slice on
+September 15. The temporary `exile-preview.yml` workflow is no longer needed.
 
 ## Deferred ideas
 
