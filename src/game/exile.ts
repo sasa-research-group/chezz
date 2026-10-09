@@ -77,7 +77,7 @@ function spawn(g: Run, army: Unit[]): Run {
 }
 export function newRun(mode: Mode = "retaliation"): Run {
   const g: Run = { version: 1, mode, encounter: 0, turn: 1, phase: "planning", gold: 2, units: [], planned: [], cleanupTargets: [], log: [], history: [], nextId: 1 };
-  return spawn(g, [{ id: "king", side: "white", kind: "king", hp: 5, x: 1, y: 3 }]);
+  return spawn(g, [{ id: "king", side: "white", kind: "king", hp: HP.king, x: 1, y: 3 }]);
 }
 export function plan(g: Run, order: Order): Run {
   if (g.phase !== "planning") return g;
@@ -89,7 +89,8 @@ export function plan(g: Run, order: Order): Run {
 }
 export function unplan(g: Run, id: string): Run { return g.phase === "planning" ? { ...g, planned: g.planned.filter(o => o.unitId !== id) } : g; }
 export function enemyOrders(g: Run): Order[] {
-  const king = g.units.find(u => u.id === "king")!;
+  const king = g.units.find(u => u.id === "king");
+  if (!king) return [];
   const choices: { order: Order; score: number }[] = [];
   for (const u of g.units.filter(u => u.side === "black")) {
     for (const to of legal(g, u)) {
@@ -119,80 +120,99 @@ function finish(g: Run): Run {
 
 /** All hit damage is calculated from the same starting snapshot. Playback is
  * a presentation of those results, and cannot alter the outcome. */
-export function resolveTurn(g: Run, black = enemyOrders(g)): Resolution {
+export function resolveTurn(g: Run, black?: Order[]): Resolution {
   const before = g.units.map(u => ({ ...u }));
   if (g.phase !== "planning" || !g.planned.length) return { run: g, orders: [], before, beats: [] };
-  const orders = [...g.planned, ...black];
+  const orders = [...g.planned, ...(black ?? enemyOrders(g))];
   const orderById = new Map(orders.map(o => [o.unitId, o]));
   const byId = new Map(before.map(u => [u.id, u]));
   const moving = (o: Order | undefined) => !!o && !o.defend && !held(g, o);
-  const damage = new Map<string, number>(), moves = new Map<string, Pos>();
-  const interactions: { text: string; ids: string[]; focus: Pos[] }[] = [];
-  const paired = new Set<string>(), killers = new Map<string, string>();
-  const hit = (victim: Unit, attacker: Unit) => {
-    const guarded = g.mode === "retaliation" && orderById.get(victim.id)?.defend;
-    const amount = Math.max(0, attacker.hp - (guarded ? 1 : 0));
-    damage.set(victim.id, (damage.get(victim.id) ?? 0) + amount);
-    killers.set(victim.id, attacker.id);
-    return amount;
+  // A target only vacates if it actually leaves. Targets whose own move fails
+  // are pinned here and the turn is settled again from the same snapshot.
+  const stuck = new Set<string>();
+  const escaping = (id: string) => !stuck.has(id) && moving(orderById.get(id));
+  const settle = () => {
+    const damage = new Map<string, number>(), moves = new Map<string, Pos>();
+    const interactions: { text: string; ids: string[]; focus: Pos[] }[] = [];
+    const paired = new Set<string>(), killers = new Map<string, string>(), dodged = new Set<string>();
+    const hit = (victim: Unit, attacker: Unit) => {
+      const guarded = g.mode === "retaliation" && orderById.get(victim.id)?.defend;
+      const amount = Math.max(0, attacker.hp - (guarded ? 1 : 0));
+      damage.set(victim.id, (damage.get(victim.id) ?? 0) + amount);
+      killers.set(victim.id, attacker.id);
+      return amount;
+    };
+    for (let i = 0; i < orders.length; i++) for (let j = i + 1; j < orders.length; j++) {
+      const a = byId.get(orders[i].unitId)!, b = byId.get(orders[j].unitId)!;
+      if (a.side === b.side || !moving(orders[i]) || !moving(orders[j])) continue;
+      const reciprocal = same(orders[i].to, b) && same(orders[j].to, a);
+      const contest = same(orders[i].to, orders[j].to);
+      if ((!reciprocal && !contest) || paired.has(a.id) || paired.has(b.id)) continue;
+      paired.add(a.id); paired.add(b.id); hit(a, b); hit(b, a);
+      moves.set(a.id, orders[i].to); moves.set(b.id, orders[j].to);
+      interactions.push({ text: `${label(a)} and ${label(b)} clash. Both trade HP.`, ids: [a.id, b.id], focus: [orders[i].to, orders[j].to] });
+    }
+    for (const o of orders) {
+      const a = byId.get(o.unitId)!;
+      if (o.defend || held(g, o) || paired.has(a.id)) continue;
+      const b = at(g, o.to), bOrder = b && orderById.get(b.id);
+      if (b && !escaping(b.id)) {
+        const dealt = hit(b, a);
+        const counters = g.mode === "retaliation" || bOrder?.defend;
+        const received = counters ? hit(a, b) : 0;
+        interactions.push({ text: `${label(a)} hits ${label(b)} for ${dealt}${counters ? ` and takes ${received} back` : " with no return damage"}.`, ids: [a.id, b.id], focus: [o.to] });
+        moves.set(a.id, o.to);
+      } else {
+        if (b) dodged.add(b.id);
+        moves.set(a.id, o.to);
+        interactions.push({ text: b ? `${label(a)} reaches ${coord(g, o.to)} as ${label(b)} moves away.` : `${label(a)} moves to ${coord(g, o.to)}.`, ids: [], focus: [o.to] });
+      }
+    }
+    for (const o of orders.filter(o => held(g, o))) {
+      const pawn = byId.get(o.unitId)!;
+      const entrant = orders.find(other => byId.get(other.unitId)!.side !== pawn.side && moving(other) && same(other.to, o.to));
+      if (entrant) {
+        const b = byId.get(entrant.unitId)!; hit(b, pawn);
+        if (g.mode === "retaliation") hit(pawn, b);
+        moves.set(pawn.id, o.to);
+        interactions.push({ text: `${label(pawn)} ambushes ${label(b)} at ${coord(g, o.to)}${g.mode === "retaliation" ? "; the target counterattacks" : ""}.`, ids: [pawn.id, b.id], focus: [o.to] });
+      } else interactions.push({ text: `${label(pawn)} watches ${coord(g, o.to)}. No enemy enters; the order is spent.`, ids: [], focus: [o.to] });
+    }
+    const survivors = before.filter(u => u.hp > (damage.get(u.id) ?? 0)).map(u => ({ ...u, hp: u.hp - (damage.get(u.id) ?? 0) }));
+    for (const survivor of survivors) {
+      const to = moves.get(survivor.id);
+      if (!to) continue;
+      const occupant = at(g, to);
+      const stillThere = occupant && survivors.some(u => u.id === occupant.id) && !escaping(occupant.id);
+      const ambush = orderById.get(survivor.id);
+      const livingEntrant = ambush && held(g, ambush) && survivors.some(u => u.side !== survivor.side && same(moves.get(u.id) ?? u, to));
+      if (!stillThere && !livingEntrant) { survivor.x = to.x; survivor.y = to.y; }
+    }
+    // Failed captures leave attackers in place. Cancel arrivals into an occupied
+    // square until dependencies settle; pieces never overlap after resolution.
+    let cancelled = true;
+    while (cancelled) {
+      cancelled = false;
+      for (const u of survivors) {
+        const origin = byId.get(u.id)!;
+        if (same(u, origin) || !survivors.some(v => v.id !== u.id && same(v, u))) continue;
+        u.x = origin.x; u.y = origin.y; cancelled = true;
+        interactions.push({ text: `${label(u)} stays back: its destination is still occupied.`, ids: [], focus: [{ x: u.x, y: u.y }] });
+      }
+    }
+    return { damage, interactions, killers, survivors, dodged };
   };
-  for (let i = 0; i < orders.length; i++) for (let j = i + 1; j < orders.length; j++) {
-    const a = byId.get(orders[i].unitId)!, b = byId.get(orders[j].unitId)!;
-    if (a.side === b.side || !moving(orders[i]) || !moving(orders[j])) continue;
-    const reciprocal = same(orders[i].to, b) && same(orders[j].to, a);
-    const contest = same(orders[i].to, orders[j].to);
-    if ((!reciprocal && !contest) || paired.has(a.id) || paired.has(b.id)) continue;
-    paired.add(a.id); paired.add(b.id); hit(a, b); hit(b, a);
-    moves.set(a.id, orders[i].to); moves.set(b.id, orders[j].to);
-    interactions.push({ text: `${label(a)} and ${label(b)} clash. Both trade HP.`, ids: [a.id, b.id], focus: [orders[i].to, orders[j].to] });
+  let settled = settle();
+  for (;;) {
+    const failed = [...settled.dodged].filter(id => !stuck.has(id) && settled.survivors.some(u => u.id === id && same(u, byId.get(id)!)));
+    if (!failed.length) break;
+    // Pin only failures that do not wait on another failure; a piece blocked
+    // by a pinned piece may still get through once that piece is resolved.
+    const independent = failed.filter(id => { const t = at(g, orderById.get(id)!.to); return !t || !failed.includes(t.id); });
+    for (const id of independent.length ? independent : [failed[0]]) stuck.add(id);
+    settled = settle();
   }
-  for (const o of orders) {
-    const a = byId.get(o.unitId)!;
-    if (o.defend || held(g, o) || paired.has(a.id)) continue;
-    const b = at(g, o.to), bOrder = b && orderById.get(b.id);
-    if (b && !moving(bOrder)) {
-      const dealt = hit(b, a);
-      const counters = g.mode === "retaliation" || bOrder?.defend;
-      const received = counters ? hit(a, b) : 0;
-      interactions.push({ text: `${label(a)} hits ${label(b)} for ${dealt}${counters ? ` and takes ${received} back` : " with no return damage"}.`, ids: [a.id, b.id], focus: [o.to] });
-      moves.set(a.id, o.to);
-    } else {
-      moves.set(a.id, o.to);
-      interactions.push({ text: b ? `${label(a)} reaches ${coord(g, o.to)} as ${label(b)} moves away.` : `${label(a)} moves to ${coord(g, o.to)}.`, ids: [], focus: [o.to] });
-    }
-  }
-  for (const o of orders.filter(o => held(g, o))) {
-    const pawn = byId.get(o.unitId)!;
-    const entrant = orders.find(other => byId.get(other.unitId)!.side !== pawn.side && moving(other) && same(other.to, o.to));
-    if (entrant) {
-      const b = byId.get(entrant.unitId)!; hit(b, pawn);
-      if (g.mode === "retaliation") hit(pawn, b);
-      moves.set(pawn.id, o.to);
-      interactions.push({ text: `${label(pawn)} ambushes ${label(b)} at ${coord(g, o.to)}${g.mode === "retaliation" ? "; the target counterattacks" : ""}.`, ids: [pawn.id, b.id], focus: [o.to] });
-    } else interactions.push({ text: `${label(pawn)} watches ${coord(g, o.to)}. No enemy enters; the order is spent.`, ids: [], focus: [o.to] });
-  }
-  const survivors = before.filter(u => u.hp > (damage.get(u.id) ?? 0)).map(u => ({ ...u, hp: u.hp - (damage.get(u.id) ?? 0) }));
-  for (const survivor of survivors) {
-    const to = moves.get(survivor.id);
-    if (!to) continue;
-    const occupant = at(g, to);
-    const stillThere = occupant && survivors.some(u => u.id === occupant.id) && !moving(orderById.get(occupant.id));
-    const ambush = orderById.get(survivor.id);
-    const livingEntrant = ambush && held(g, ambush) && survivors.some(u => u.side !== survivor.side && same(moves.get(u.id) ?? u, to));
-    if (!stillThere && !livingEntrant) { survivor.x = to.x; survivor.y = to.y; }
-  }
-  // Failed captures leave attackers in place. Cancel arrivals into an occupied
-  // square until dependencies settle; pieces never overlap after resolution.
-  let cancelled = true;
-  while (cancelled) {
-    cancelled = false;
-    for (const u of survivors) {
-      const origin = byId.get(u.id)!;
-      if (same(u, origin) || !survivors.some(v => v.id !== u.id && same(v, u))) continue;
-      u.x = origin.x; u.y = origin.y; cancelled = true;
-      interactions.push({ text: `${label(u)} stays back: its destination is still occupied.`, ids: [], focus: [{ x: u.x, y: u.y }] });
-    }
-  }
+  const { damage, interactions, killers, survivors } = settled;
   const whiteLosses = before.filter(u => u.side === "white" && !survivors.some(v => v.id === u.id));
   let next: Run = { ...g, units: survivors, planned: [], cleanupTargets: [], turn: g.turn + 1, log: interactions.map(i => i.text), history: [...g.history, `Battle ${g.encounter + 1}, turn ${g.turn}: ${JSON.stringify(orders)}`, ...interactions.map(i => i.text)] };
   const targets = [...new Set(whiteLosses.map(u => killers.get(u.id)).filter((id): id is string => !!id))];
@@ -232,13 +252,13 @@ export const COST: Record<CampChoice, number> = { bishop: 6, rook: 8, heal: 4 };
 export function campReason(g: Run, choice: CampChoice): string {
   if (g.phase !== "camp") return "Camp is closed";
   if (g.gold < COST[choice]) return "Not enough gold";
-  if (choice === "heal" && g.units.find(u => u.id === "king")!.hp >= 5) return "King at full health";
+  if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= HP.king) return "King at full health";
   return "";
 }
 export function leaveCamp(g: Run, choice: CampChoice | "save"): Run {
   if (g.phase !== "camp" || (choice !== "save" && campReason(g, choice))) return g;
   const army = g.units.filter(u => u.side === "white").map(u => ({ ...u }));
-  if (choice === "heal") { const king = army.find(u => u.id === "king")!; king.hp = Math.min(5, king.hp + 2); }
+  if (choice === "heal") { const king = army.find(u => u.id === "king")!; king.hp = Math.min(HP.king, king.hp + 2); }
   else if (choice !== "save") army.push({ id: `ally-${g.nextId}`, side: "white", kind: choice, hp: HP[choice], x: 0, y: 0 });
   return spawn({ ...g, encounter: g.encounter + 1, gold: g.gold - (choice === "save" ? 0 : COST[choice]), nextId: g.nextId + (choice === "bishop" || choice === "rook" ? 1 : 0), history: [...g.history, `Camp: ${choice}`] }, army);
 }
@@ -246,7 +266,8 @@ export function readRun(raw: string | null): Run | null {
   try {
     const g = JSON.parse(raw ?? "null") as Run | null;
     if (!g || g.version !== 1 || !["retaliation", "ambush"].includes(g.mode) || !Number.isInteger(g.encounter) || !ENCOUNTERS[g.encounter] || !["planning", "cleanup", "camp", "victory", "defeat"].includes(g.phase) || !Array.isArray(g.units) || !Array.isArray(g.planned) || !Array.isArray(g.cleanupTargets) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId)) return null;
-    if (g.units.some(u => !HP[u.kind] || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
+    if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
+    if (g.units.some(u => !Number.isInteger(u.x) || !Number.isInteger(u.y) || !HP[u.kind] || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;
   } catch { return null; }

@@ -1,37 +1,54 @@
 # Chezz — Escape from Exile
 
-This branch is a three-encounter prototype: a lone king, two recruitment/healing
-choices, permanent losses, persistent health, a tilted cartoon board, and
-animated simultaneous orders. Choose **Always trade** or **Free hits** at the
-start to compare the two combat models on identical boards.
+A browser tactics game with chess pieces. An exiled king fights through three
+small boards, recruits followers at camp, and keeps every wound and loss.
+Both sides plan orders at the same time, then the turn resolves and plays back
+as animation. Pick **Always trade** or **Free hits** at the start to compare
+the two combat models on the same boards.
+
+Play at **[sasa-research-group.github.io/chezz](https://sasa-research-group.github.io/chezz/)**.
+Every push to `main` deploys there after CI passes. The repository moved from
+`mracette/chezz`, and GitHub does not redirect Pages sites after a transfer.
+
+## Commands
+
+Use Node **24**.
 
 ```sh
 npm ci
-npm run dev
+npm run dev        # local game at http://127.0.0.1:5173
+npm test           # rules tests (vitest)
+npm run build      # tsc -b + production build
+npm run test:e2e   # Playwright browser suite (tests/browser/exile.spec.ts)
 ```
 
-Open the local URL, begin the rebellion, select the king and a highlighted
-destination, then Resolve. One order per piece, up to three as your army grows.
-The enemy plan appears during playback. Defeat every enemy to reach camp.
+If Chromium is already installed (for example in a cloud container), point
+Playwright at it instead of downloading a browser:
 
-`npm test`, `npm run build`, and `npm run test:e2e` validate the exile slice.
-The current browser suite covers this interface; earlier browser scenarios
-remain in the repository as references to the previous prototype.
+```sh
+PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
+```
 
-See [docs/exile-run.md](docs/exile-run.md) for the rules, scope, and playtest
-questions. The preview workflow builds a deployable artifact on branch pushes.
-Public publication is pending repository-admin approval: allow the exact
-`prototype/exile-run` branch in the `github-pages` environment, then manually
-run the preview workflow with `publish` enabled. Its intended URL is
-[mracette.github.io/chezz/exile](https://mracette.github.io/chezz/exile/).
-The workflow preserves the main game at its usual root URL.
+## Live code
+
+- **src/main.tsx → src/App.tsx**: screens, planning UI, playback and autosave.
+- **src/game/exile.ts**: pure, deterministic rules (orders, simultaneous
+  resolution, camp, save validation). Animation can't change the outcome.
+- **src/components/PieceArt.tsx** and **src/exile.css**: SVG cartoon pieces on a
+  CSS-tilted parchment board.
+- **tests/exile.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
+
+Rules, scope and playtest questions are in [docs/exile-run.md](docs/exile-run.md).
+Working notes are in [CLAUDE.md](CLAUDE.md) and [docs/HANDOFF.md](docs/HANDOFF.md).
 
 ---
 
-The documentation below describes the earlier Between Worlds prototype, whose
-content and engine remain available for reference.
-
 # Chezz — Between Worlds (earlier prototype)
+
+> **Earlier-prototype code.** The current app does not import it.
+> `engine.ts`, `content.ts`, `simultaneous.ts`, `src/render/`, `Art.tsx` and
+> related tests are still in the repository for reference. The developer lab,
+> settings and shortcuts described below are not in the current build.
 
 A browser tactics game with chess pieces. A complete first-floor prototype: five battles, a boss, shops, an event, two starting sets, gambits, upgrades, consumables, and local save/resume.
 

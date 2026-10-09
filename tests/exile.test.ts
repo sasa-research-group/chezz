@@ -99,6 +99,58 @@ describe("Escape from Exile", () => {
     g.units.push({ ...g.units[0], id: "duplicate" });
     expect(readRun(JSON.stringify(g))).toBeNull();
   });
+  it("hits a target whose own move fails instead of letting it slip away", () => {
+    const rook: Unit = { id: "rook", side: "white", kind: "rook", hp: 5, x: 3, y: 5 };
+    const wall: Unit = { id: "wall", side: "white", kind: "rook", hp: 5, x: 2, y: 1 };
+    const knight: Unit = { id: "n", side: "black", kind: "knight", hp: 2, x: 3, y: 3 };
+    const g = { ...arena("ambush", [king, rook, wall, knight]), encounter: 2 };
+    const result = resolveTurn(plan(g, { unitId: rook.id, to: knight }), [{ unitId: knight.id, to: wall }]).run;
+    expect(result.units.find(u => u.id === knight.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === rook.id)).toMatchObject({ x: 3, y: 3, hp: 5 });
+    expect(result.units.find(u => u.id === wall.id)!.hp).toBe(3);
+    expect(result.log.join(" ")).not.toContain("moves away");
+  });
+  it("only pins the stuck piece in a dodge cascade; pieces that really leave are not hit", () => {
+    const k: Unit = { ...king, x: 1, y: 2 };
+    const c: Unit = { id: "c", side: "black", kind: "rook", hp: 2, x: 1, y: 1 };
+    const b: Unit = { id: "b", side: "white", kind: "rook", hp: 3, x: 2, y: 1 };
+    const a: Unit = { id: "a", side: "black", kind: "rook", hp: 1, x: 3, y: 1 };
+    const g = arena("ambush", [k, c, b, a]);
+    const result = resolveTurn(plan(g, { unitId: b.id, to: c }), [{ unitId: c.id, to: k }, { unitId: a.id, to: b }]).run;
+    expect(result.units.find(u => u.id === c.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === b.id)).toMatchObject({ x: 1, y: 1, hp: 3 });
+    expect(result.units.find(u => u.id === a.id)).toMatchObject({ x: 2, y: 1, hp: 1 });
+    expect(result.units.find(u => u.id === "king")!.hp).toBe(3);
+  });
+  it("rejects kingless live saves and never throws on a kingless board", () => {
+    const g = { ...newRun(), units: newRun().units.filter(u => u.id !== "king") };
+    expect(readRun(JSON.stringify(g))).toBeNull();
+    expect(readRun(JSON.stringify({ ...g, units: [{ ...g.units[0], x: 0.5 }] }))).toBeNull();
+    const lost = { ...g, phase: "defeat" as const };
+    expect(readRun(JSON.stringify(lost))).not.toBeNull();
+    expect(() => enemyOrders(g)).not.toThrow();
+    expect(enemyOrders(g)).toEqual([]);
+    expect(() => resolveTurn(g)).not.toThrow();
+    expect(() => resolveTurn(lost)).not.toThrow();
+  });
+  it("trades HP when two pieces contest an empty square", () => {
+    const bishop: Unit = { id: "bishop", side: "white", kind: "bishop", hp: 3, x: 3, y: 3 };
+    const p: Unit = { ...pawn, x: 2, y: 1 };
+    const g = arena("ambush", [king, bishop, p]);
+    const result = resolveTurn(plan(g, { unitId: bishop.id, to: { x: 2, y: 2 } }), [{ unitId: p.id, to: { x: 2, y: 2 } }]).run;
+    expect(result.units.find(u => u.id === p.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === bishop.id)).toMatchObject({ x: 2, y: 2, hp: 2 });
+  });
+  it("lets a held pawn strike an entrant; only Always trade hits back", () => {
+    for (const mode of ["retaliation", "ambush"] as const) {
+      const ally: Unit = { id: "ally", side: "white", kind: "pawn", hp: 1, x: 1, y: 2 };
+      const bishop: Unit = { id: "guard", side: "black", kind: "bishop", hp: 3, x: 3, y: 0 };
+      const g = arena(mode, [king, ally, bishop]);
+      const result = resolveTurn(plan(g, { unitId: ally.id, to: { x: 2, y: 1 } }), [{ unitId: bishop.id, to: { x: 2, y: 1 } }]).run;
+      expect(result.units.find(u => u.id === bishop.id)!.hp).toBe(2);
+      expect(!!result.units.find(u => u.id === ally.id)).toBe(mode === "ambush");
+    }
+  });
   for (const mode of ["retaliation", "ambush"] as const) it(`can complete the three-encounter run in ${mode} with legal plans`, () => {
     let g = newRun(mode), turns = 0;
     while (!["victory", "defeat"].includes(g.phase) && turns++ < 65) {

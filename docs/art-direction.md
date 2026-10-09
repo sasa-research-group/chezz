@@ -1,5 +1,9 @@
 # Chezz art direction and provenance
 
+> **Status:** this describes the old Between Worlds look. The live Escape from
+> Exile slice uses SVG cartoon pieces (`src/components/PieceArt.tsx`) on a
+> CSS-tilted parchment board (`src/exile.css`).
+
 The chosen direction is hyperdimensional cosmic limbo: chess-like artifacts floating outside time. The board stays readable while the environment and special effects suggest impossible geometry.
 
 ## Production assets
