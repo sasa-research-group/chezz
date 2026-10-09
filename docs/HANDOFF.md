@@ -3,11 +3,13 @@
 ## State
 Escape from Exile is the live game (see `CLAUDE.md`). The repo moved from
 `mracette/chezz` to `sasa-research-group/chezz`. Pushes to `main` deploy to Pages.
-The new URL should be sasa-research-group.github.io/chezz, but nothing has
-deployed since the transfer. Check that Pages is set to GitHub Actions and that
-`PAGES_ENABLED` is `true` on the new repo.
+It deploys to sasa-research-group.github.io/chezz (verified Oct 9).
+The design is being rebuilt from basics:
+- Research report: `reports/Simultaneous chess tactics design.md`.
+- Experiments: the lab page (`lab.html`, `src/lab/`, `docs/lab.md`).
+- Experiment 1, the Duel, is live. Next: Wesley plays it and rates the duels.
 
-## What the foundation pass did (`claude/foundation-pass`)
+## Foundation pass (PR #2, merged)
 - **Fixed dodge bug in `resolveTurn`:** if a target's own move failed, its
   attacker used to enter the vacated square for no damage, then bounce back.
   The log also said the target "moves away". Damage and moves now run inside
