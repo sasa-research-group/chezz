@@ -26,7 +26,11 @@ deployed since the transfer. Check that Pages is set to GitHub Actions and that
 - **Tests:** 59 vitest and 4 e2e, all green.
 
 ## Open items
-- Removing the dead prototype code is waiting on Mark.
+- Removing the dead prototype code is waiting on Mark. Its three vitest suites
+  would go with it.
+- `readRun` still accepts any `planned` orders. A save with a ghost `unitId`
+  makes Resolve throw, and an illegal order teleports a piece. Fix: drop orders
+  that `plan()` wouldn't accept.
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
 - `prototype/familiar-opening` is unmerged and still on the old engine.
 - Test gaps:

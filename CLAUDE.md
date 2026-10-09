@@ -5,8 +5,9 @@ Escape from Exile: `src/main.tsx` → `src/App.tsx` → `src/game/exile.ts` (rul
 `src/components/PieceArt.tsx`, `src/exile.css`. Rules doc: `docs/exile-run.md`.
 `engine.ts`, `content.ts`, `simultaneous.ts`, `src/render/`, `Art.tsx`,
 `AttackPreview.tsx`, `sound.ts`, `style.css`, `tests/browser/game.spec.ts` and
-`scripts/playtest.ts` are earlier-prototype leftovers that nothing imports.
-Don't edit them. Removing them is waiting on Mark.
+`scripts/playtest.ts` are earlier-prototype leftovers the app doesn't import.
+`tests/engine.test.ts`, `balance.test.ts` and `simultaneous.test.ts` still test
+them under `npm test`. Don't edit them. Removing them is waiting on Mark.
 
 ## Rules-code invariants
 - `exile.ts` is pure and deterministic: no DOM, no randomness, no mutating inputs.
