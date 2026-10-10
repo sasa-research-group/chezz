@@ -9,6 +9,12 @@ The design is being rebuilt from basics:
 - Experiments: the lab page (`lab.html`, `src/lab/`, `docs/lab.md`).
 - Experiment 1, the Duel, is live. Next: Wesley plays it and rates the duels.
 
+## Threat rules (`claude/threat-rules`)
+From Wesley's playtest:
+- A piece hits back only if it could legally attack the attacker's square.
+  So pawns hit back only diagonally, and knights and bishops can hit and run.
+- A slider is stopped by an enemy stepping onto its path, and strikes it there.
+
 ## Foundation pass (PR #2, merged)
 - **Fixed dodge bug in `resolveTurn`:** if a target's own move failed, its
   attacker used to enter the vacated square for no damage, then bounce back.

@@ -133,13 +133,72 @@ describe("Escape from Exile", () => {
     expect(() => resolveTurn(g)).not.toThrow();
     expect(() => resolveTurn(lost)).not.toThrow();
   });
-  it("trades HP when two pieces contest an empty square", () => {
+  it("trades HP when two pieces contest an empty square, but a pawn stepping forward can't hit", () => {
     const bishop: Unit = { id: "bishop", side: "white", kind: "bishop", hp: 3, x: 3, y: 3 };
     const p: Unit = { ...pawn, x: 2, y: 1 };
     const g = arena("ambush", [king, bishop, p]);
     const result = resolveTurn(plan(g, { unitId: bishop.id, to: { x: 2, y: 2 } }), [{ unitId: p.id, to: { x: 2, y: 2 } }]).run;
     expect(result.units.find(u => u.id === p.id)).toBeUndefined();
-    expect(result.units.find(u => u.id === bishop.id)).toMatchObject({ x: 2, y: 2, hp: 2 });
+    expect(result.units.find(u => u.id === bishop.id)).toMatchObject({ x: 2, y: 2, hp: 3 });
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 1, x: 0, y: 1 };
+    const g2 = arena("ambush", [king, bishop, n]);
+    const traded = resolveTurn(plan(g2, { unitId: bishop.id, to: { x: 2, y: 2 } }), [{ unitId: n.id, to: { x: 2, y: 2 } }]).run;
+    expect(traded.units.find(u => u.id === bishop.id)).toMatchObject({ x: 2, y: 2, hp: 2 });
+  });
+  it("only hits back if the target could attack the attacker's square", () => {
+    const rook: Unit = { id: "rook", side: "white", kind: "rook", hp: 5, x: 1, y: 3 };
+    const far = { ...king, x: 3, y: 3 };
+    for (const kind of ["knight", "rook"] as const) {
+      const foe: Unit = { id: "foe", side: "black", kind, hp: 3, x: 1, y: 1 };
+      const g = arena("retaliation", [far, rook, foe]);
+      const result = resolveTurn(plan(g, { unitId: rook.id, to: foe }), []).run;
+      // A knight two squares away can't reach the rook; a rook on the same file can.
+      expect(result.units.find(u => u.id === rook.id)!.hp).toBe(kind === "knight" ? 5 : 2);
+    }
+    for (const mode of ["retaliation", "ambush"] as const) {
+      const p: Unit = { id: "p", side: "black", kind: "pawn", hp: 1, x: 1, y: 2 };
+      const g = arena(mode, [far, rook, p]);
+      // A pawn guards straight ahead in vain: it only strikes diagonally.
+      const result = resolveTurn(plan(g, { unitId: rook.id, to: p }), [{ unitId: p.id, to: p, defend: true }]).run;
+      expect(result.units.find(u => u.id === rook.id)).toMatchObject({ hp: 5, x: 1, y: 2 });
+    }
+  });
+  it("stops a slider at an enemy that steps into its path, and hits it there", () => {
+    const rook: Unit = { id: "rook", side: "white", kind: "rook", hp: 5, x: 1, y: 3 };
+    const p: Unit = { id: "p", side: "black", kind: "pawn", hp: 1, x: 1, y: 1 };
+    const far = { ...king, x: 3, y: 3 };
+    for (const mode of ["retaliation", "ambush"] as const) {
+      const g = arena(mode, [far, rook, p]);
+      const result = resolveTurn(plan(g, { unitId: rook.id, to: p }), [{ unitId: p.id, to: { x: 1, y: 2 } }]).run;
+      expect(result.units.find(u => u.id === p.id)).toBeUndefined();
+      expect(result.units.find(u => u.id === rook.id)).toMatchObject({ x: 1, y: 2, hp: 5 });
+      expect(result.log.join(" ")).not.toContain("moves away");
+    }
+    // A survivor keeps the square it stepped into; the slider stays back.
+    const r2: Unit = { ...rook, x: 0, y: 3, hp: 2 };
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 3, x: 2, y: 2 };
+    const g = arena("retaliation", [far, r2, n]);
+    const result = resolveTurn(plan(g, { unitId: r2.id, to: { x: 0, y: 0 } }), [{ unitId: n.id, to: { x: 0, y: 1 } }]).run;
+    expect(result.units.find(u => u.id === n.id)).toMatchObject({ x: 0, y: 1, hp: 1 });
+    expect(result.units.find(u => u.id === r2.id)).toMatchObject({ x: 0, y: 3, hp: 2 });
+  });
+  it("treats two sliders stopping each other as one exchange", () => {
+    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 5, x: 0, y: 3 };
+    const b: Unit = { id: "b", side: "black", kind: "rook", hp: 2, x: 0, y: 0 };
+    const g = arena("retaliation", [{ ...king, x: 3, y: 3 }, w, b]);
+    const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 0, y: 1 } }), [{ unitId: b.id, to: { x: 0, y: 2 } }]).run;
+    expect(result.units.find(u => u.id === b.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === w.id)!.hp).toBe(3);
+  });
+  it("doesn't let a slider that was stopped early block another slider", () => {
+    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 5, x: 1, y: 3 };
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 1, x: 3, y: 3 };
+    const r: Unit = { id: "r", side: "black", kind: "rook", hp: 3, x: 3, y: 0 };
+    const g = arena("retaliation", [{ ...king, x: 3, y: 2 }, w, n, r]);
+    const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 1, y: 0 } }), [{ unitId: n.id, to: { x: 1, y: 2 } }, { unitId: r.id, to: { x: 0, y: 0 } }]).run;
+    expect(result.units.find(u => u.id === w.id)).toMatchObject({ x: 1, y: 2, hp: 5 });
+    expect(result.units.find(u => u.id === r.id)).toMatchObject({ x: 0, y: 0, hp: 3 });
+    expect(result.log.join(" ")).not.toContain("Enemy knight moves to");
   });
   it("lets a held pawn strike an entrant; only Always trade hits back", () => {
     for (const mode of ["retaliation", "ambush"] as const) {

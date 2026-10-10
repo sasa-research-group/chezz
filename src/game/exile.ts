@@ -61,6 +61,20 @@ export function held(g: Run, o: Order) {
   const u = g.units.find(u => u.id === o.unitId);
   return !!u && !o.defend && u.kind === "pawn" && o.to.x !== u.x && !at(g, o.to);
 }
+/** Could u, standing on `from`, strike `target` this turn? Pawns strike only
+ * diagonally forward; sliders need a clear line on the starting board. */
+export function threatens(g: Run, u: Unit, from: Pos, target: Pos): boolean {
+  const dx = target.x - from.x, dy = target.y - from.y, ax = Math.abs(dx), ay = Math.abs(dy);
+  if (u.kind === "pawn") return ax === 1 && dy === (u.side === "white" ? -1 : 1);
+  if (u.kind === "knight") return ax * ay === 2;
+  if (u.kind === "king") return Math.max(ax, ay) === 1;
+  const straight = (dx === 0) !== (dy === 0), diagonal = ax === ay && ax > 0;
+  if (!(u.kind === "rook" ? straight : u.kind === "bishop" ? diagonal : straight || diagonal)) return false;
+  const sx = Math.sign(dx), sy = Math.sign(dy);
+  for (let x = from.x + sx, y = from.y + sy; x !== target.x || y !== target.y; x += sx, y += sy)
+    if (!passable(g, { x, y }) || g.units.some(v => v.id !== u.id && v.x === x && v.y === y)) return false;
+  return true;
+}
 export function route(g: Run, o: Order): Pos[] {
   const u = g.units.find(u => u.id === o.unitId);
   if (!u || o.defend) return [];
@@ -130,6 +144,8 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
   // A target only vacates if it actually leaves. Targets whose own move fails
   // are pinned here and the turn is settled again from the same snapshot.
   const stuck = new Set<string>();
+  // Pieces that would stop a slider but never reach the square themselves.
+  const absent = new Set<string>();
   const escaping = (id: string) => !stuck.has(id) && moving(orderById.get(id));
   const settle = () => {
     const damage = new Map<string, number>(), moves = new Map<string, Pos>();
@@ -148,34 +164,73 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
       const reciprocal = same(orders[i].to, b) && same(orders[j].to, a);
       const contest = same(orders[i].to, orders[j].to);
       if ((!reciprocal && !contest) || paired.has(a.id) || paired.has(b.id)) continue;
-      paired.add(a.id); paired.add(b.id); hit(a, b); hit(b, a);
+      // Each side strikes only if its move could capture there (a pawn stepping forward can't).
+      const aStrikes = threatens(g, a, a, orders[i].to), bStrikes = threatens(g, b, b, orders[j].to);
+      paired.add(a.id); paired.add(b.id);
+      if (aStrikes) hit(b, a);
+      if (bStrikes) hit(a, b);
       moves.set(a.id, orders[i].to); moves.set(b.id, orders[j].to);
-      interactions.push({ text: `${label(a)} and ${label(b)} clash. Both trade HP.`, ids: [a.id, b.id], focus: [orders[i].to, orders[j].to] });
+      const one = aStrikes ? a : b, other = aStrikes ? b : a;
+      interactions.push({ text: aStrikes && bStrikes ? `${label(a)} and ${label(b)} clash. Both trade HP.` : aStrikes || bStrikes ? `${label(one)} and ${label(other)} meet. Only the ${one.kind} can strike.` : `${label(a)} and ${label(b)} meet. Neither can strike.`, ids: [a.id, b.id], focus: [orders[i].to, orders[j].to] });
     }
+    // A slider is stopped by the first enemy that steps onto a square it passes
+    // through, and strikes that enemy there instead of reaching its target.
+    const intercepts = new Map<string, { by: Unit; at: Pos }>();
+    for (const o of orders) {
+      const a = byId.get(o.unitId)!;
+      if (!moving(o) || paired.has(a.id) || a.kind === "knight") continue;
+      for (const p of route(g, o).slice(1, -1)) {
+        const e = orders.find(x => byId.get(x.unitId)!.side !== a.side && !paired.has(x.unitId) && !absent.has(x.unitId) && escaping(x.unitId) && same(x.to, p));
+        if (e) { intercepts.set(a.id, { by: byId.get(e.unitId)!, at: p }); break; }
+      }
+    }
+    // Two sliders that stop each other meet once, like a reciprocal clash.
+    for (const [id, stop] of intercepts) {
+      const back = intercepts.get(stop.by.id);
+      if (back?.by.id !== id || paired.has(id)) continue;
+      const a = byId.get(id)!, e = stop.by;
+      paired.add(a.id); paired.add(e.id); hit(e, a); hit(a, e);
+      moves.set(a.id, stop.at); moves.set(e.id, back.at);
+      interactions.push({ text: `${label(a)} and ${label(e)} run into each other. Both trade HP.`, ids: [a.id, e.id], focus: [stop.at, back.at] });
+    }
+    for (const [id, stop] of intercepts) if (!paired.has(id) && paired.has(stop.by.id)) intercepts.delete(id);
+    const interceptors = new Set([...intercepts].filter(([id]) => !paired.has(id)).map(([, stop]) => stop.by.id));
     for (const o of orders) {
       const a = byId.get(o.unitId)!;
       if (o.defend || held(g, o) || paired.has(a.id)) continue;
+      const stop = intercepts.get(a.id);
+      if (stop) {
+        const e = stop.by, dealt = hit(e, a);
+        const counters = g.mode === "retaliation" && threatens(g, e, stop.at, a);
+        const received = counters ? hit(a, e) : 0;
+        dodged.add(e.id);
+        moves.set(a.id, stop.at);
+        interactions.push({ text: `${label(e)} steps into ${label(a)}'s path at ${coord(g, stop.at)} and takes ${dealt}${counters ? `; it hits back for ${received}` : ""}.`, ids: [a.id, e.id], focus: [stop.at] });
+        continue;
+      }
       const b = at(g, o.to), bOrder = b && orderById.get(b.id);
       if (b && !escaping(b.id)) {
         const dealt = hit(b, a);
-        const counters = g.mode === "retaliation" || bOrder?.defend;
+        const counters = (g.mode === "retaliation" || bOrder?.defend) && threatens(g, b, b, a);
         const received = counters ? hit(a, b) : 0;
         interactions.push({ text: `${label(a)} hits ${label(b)} for ${dealt}${counters ? ` and takes ${received} back` : " with no return damage"}.`, ids: [a.id, b.id], focus: [o.to] });
         moves.set(a.id, o.to);
       } else {
         if (b) dodged.add(b.id);
         moves.set(a.id, o.to);
-        interactions.push({ text: b ? `${label(a)} reaches ${coord(g, o.to)} as ${label(b)} moves away.` : `${label(a)} moves to ${coord(g, o.to)}.`, ids: [], focus: [o.to] });
+        // A piece that stepped into a slider's path was already narrated there.
+        if (!interceptors.has(a.id)) interactions.push({ text: b ? `${label(a)} reaches ${coord(g, o.to)} as ${label(b)} moves away.` : `${label(a)} moves to ${coord(g, o.to)}.`, ids: [], focus: [o.to] });
       }
     }
     for (const o of orders.filter(o => held(g, o))) {
       const pawn = byId.get(o.unitId)!;
-      const entrant = orders.find(other => byId.get(other.unitId)!.side !== pawn.side && moving(other) && same(other.to, o.to));
+      const entrant = orders.find(other => byId.get(other.unitId)!.side !== pawn.side && moving(other) && !intercepts.has(other.unitId) && same(other.to, o.to));
       if (entrant) {
         const b = byId.get(entrant.unitId)!; hit(b, pawn);
-        if (g.mode === "retaliation") hit(pawn, b);
+        const counters = g.mode === "retaliation" && threatens(g, b, o.to, pawn);
+        if (counters) hit(pawn, b);
         moves.set(pawn.id, o.to);
-        interactions.push({ text: `${label(pawn)} ambushes ${label(b)} at ${coord(g, o.to)}${g.mode === "retaliation" ? "; the target counterattacks" : ""}.`, ids: [pawn.id, b.id], focus: [o.to] });
+        interactions.push({ text: `${label(pawn)} ambushes ${label(b)} at ${coord(g, o.to)}${counters ? "; the target counterattacks" : ""}.`, ids: [pawn.id, b.id], focus: [o.to] });
       } else interactions.push({ text: `${label(pawn)} watches ${coord(g, o.to)}. No enemy enters; the order is spent.`, ids: [], focus: [o.to] });
     }
     const survivors = before.filter(u => u.hp > (damage.get(u.id) ?? 0)).map(u => ({ ...u, hp: u.hp - (damage.get(u.id) ?? 0) }));
@@ -186,7 +241,9 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
       const stillThere = occupant && survivors.some(u => u.id === occupant.id) && !escaping(occupant.id);
       const ambush = orderById.get(survivor.id);
       const livingEntrant = ambush && held(g, ambush) && survivors.some(u => u.side !== survivor.side && same(moves.get(u.id) ?? u, to));
-      if (!stillThere && !livingEntrant) { survivor.x = to.x; survivor.y = to.y; }
+      const stop = intercepts.get(survivor.id);
+      const blocked = stop && survivors.some(u => u.id === stop.by.id);
+      if (!stillThere && !livingEntrant && !blocked) { survivor.x = to.x; survivor.y = to.y; }
     }
     // Failed captures leave attackers in place. Cancel arrivals into an occupied
     // square until dependencies settle; pieces never overlap after resolution.
@@ -200,12 +257,20 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
         interactions.push({ text: `${label(u)} stays back: its destination is still occupied.`, ids: [], focus: [{ x: u.x, y: u.y }] });
       }
     }
-    return { damage, interactions, killers, survivors, dodged };
+    return { damage, interactions, killers, survivors, dodged, intercepts, interceptors };
   };
   let settled = settle();
   for (;;) {
     const failed = [...settled.dodged].filter(id => !stuck.has(id) && settled.survivors.some(u => u.id === id && same(u, byId.get(id)!)));
-    if (!failed.length) break;
+    // A piece that stopped a slider but didn't reach its own square (it was
+    // stopped itself, or bounced) can't have stopped anyone there.
+    const noShow = [...settled.interceptors].filter(id => !absent.has(id) && settled.survivors.some(u => u.id === id && !same(u, orderById.get(id)!.to)));
+    if (!failed.length && !noShow.length) break;
+    if (noShow.length) {
+      const free = noShow.filter(id => { const by = settled.intercepts.get(id)?.by.id; return !by || !noShow.includes(by); });
+      for (const id of free.length ? free : [noShow[0]]) absent.add(id);
+      if (!failed.length) { settled = settle(); continue; }
+    }
     // Pin only failures that do not wait on another failure; a piece blocked
     // by a pinned piece may still get through once that piece is resolved.
     const independent = failed.filter(id => { const t = at(g, orderById.get(id)!.to); return !t || !failed.includes(t.id); });
