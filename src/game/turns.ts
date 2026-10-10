@@ -78,6 +78,15 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
   return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
+/** Squares u could step to and then strike the target from this turn, priced move + strike. Empty when
+ * u can already strike it where it stands (no walk needed) or the pool can't cover both. */
+export function approaches(g: Run, id: string, targetId: string): Target[] {
+  const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
+  if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
+  const strikeCost = u.kind === "knight" ? 3 : 2;
+  return moveTargets(g, u).filter(t => t.cost + strikeCost <= g.energy && reaches(g, u, t, v)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
+}
+
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
 export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
   const dx = target.x - from.x, dy = target.y - from.y, ax = Math.abs(dx), ay = Math.abs(dy);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, attack, attackTargets, buy, campReason, defend, endTurn, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, defend, endTurn, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -58,6 +58,21 @@ describe("turn-based rules", () => {
     const bishop: Unit = { id: "b", side: "white", kind: "bishop", x: 0, y: 3, hp: 3 };
     expect(attackTargets(board([bishop, { ...foe, x: 2, y: 1 }, { ...king, x: 3, y: 3 }]), bishop)).toEqual([]);
     expect(attackTargets(board([bishop, { ...foe, x: 1, y: 2 }, { ...king, x: 3, y: 3 }]), bishop)).toEqual([{ x: 1, y: 2, cost: 2, id: "f" }]);
+  });
+
+  it("lists the squares a piece can step to and strike a target from, with the total cost", () => {
+    // A rook down the file has one way in: the square in front of the target.
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
+    const foe: Unit = { id: "f", side: "black", kind: "pawn", x: 0, y: 0, hp: 1 };
+    const g = board([rook, foe, { ...king, x: 3, y: 3 }]);
+    expect(approaches(g, "r", "f")).toEqual([{ x: 0, y: 1, cost: 2 + 2 }]);
+    // The king two squares from a pawn can strike it from either of two squares.
+    const k = board([{ ...king, x: 1, y: 3 }, { ...foe, x: 1, y: 1 }]);
+    expect(approaches(k, "king", "f").map(t => `${t.x},${t.y}:${t.cost}`).sort()).toEqual(["0,2:3", "1,2:3", "2,2:3"]);
+    // Out of energy for the walk plus the strike: no way in.
+    expect(approaches({ ...g, energy: 3 }, "r", "f")).toEqual([]);
+    // Already next to it: no walk needed, so no approach squares.
+    expect(approaches(board([{ ...king, x: 1, y: 3 }, { ...foe, x: 1, y: 2 }]), "king", "f")).toEqual([]);
   });
 
   it("keeps the attacker on its own square even when it kills", () => {

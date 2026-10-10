@@ -22,6 +22,10 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Fixed damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 3, queen 3.
   HP no longer doubles as attack strength. A pawn's strike deals 0 to a
   defender.
+- Tapping an enemy strikes it. If the selected piece isn't next to it yet but
+  can walk up and strike this turn (`approaches`: move + strike within the
+  pool), it does: automatically when only one square works, otherwise you
+  pick the square. Red dots show the cheapest total cost.
 - No return hit. Strikes land from where the striker stands: it never moves
   onto the target's square, even on a kill (unlike chess).
 
