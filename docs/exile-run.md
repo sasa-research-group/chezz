@@ -32,11 +32,23 @@ The encounters and enemy policy are identical for both choices.
 - **Free hits:** idle targets take current-HP damage without returning a hit.
   Defenders, reciprocal attacks, and contested destinations exchange HP.
 
+**Only a piece that could strike back does.** In both modes, a return hit
+(retaliation, a Defend counter, a held pawn's victim countering) happens only
+if the target could legally attack the attacker's square:
+- A pawn strikes only diagonally forward.
+- A knight strikes only a knight's move away.
+- A slider needs a clear line on the starting board.
+
+So a rook attacking a knight two squares away, or a pawn straight ahead,
+takes nothing back. In a contested square, a piece deals damage only if its
+move could capture there; a pawn stepping forward can't.
+
 Trades can kill either or both units. A surviving defender stays on its square.
 A surviving attacker occupies its target only when the defender dies or vacates.
 A target vacates only if it actually leaves. When its own move fails, attacks
 on it land as normal and its own attack still lands: in Always trade a stuck
-piece both deals its hit and returns one; in Free hits it returns nothing.
+piece both deals its hit and returns one (if it could reach the attacker); in
+Free hits it returns nothing.
 Equal unprotected trades destroy both. Current HP doubles as attack strength;
 watch whether lasting king damage makes runs feel hopeless too early.
 
@@ -57,7 +69,10 @@ watch whether lasting king damage makes runs feel hopeless too early.
   legally attack its surviving killer, take one free strike or decline before
   planning resumes. This existing rule is retained in both combat models.
 - Walls block sliding movement; knights can leap over them. Collision uses
-  destinations, not intermediate path interception. No check, castling,
+  destinations, with one exception. If an enemy ends its move on a square a
+  sliding piece passes through, the slider stops there and strikes it. If
+  that enemy dies, the slider takes the square; otherwise the slider stays
+  back. Knights leap, so they are never stopped this way. No check, castling,
   en passant, promotion, specials, or move-then-special chain in this slice.
 
 Original cartoon SVG characters and CSS perspective establish the art direction
