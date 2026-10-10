@@ -7,7 +7,7 @@ import type { CSSProperties, ReactNode } from "react";
  * body/arms/prop/head) are animated by CSS in src/rig.css. */
 export type RigKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type RigSide = "white" | "black";
-export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer";
+export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "morph-out" | "morph-in";
 export type PatrolHue = "blue" | "red";
 
 const INK = "#382f2e", GOLD = "#e7ba58", GOLD_SH = "#c0913c", STEEL = "#cfd6d8", STEEL_SH = "#9aa6aa";

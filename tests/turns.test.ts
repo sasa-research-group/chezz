@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAMAGE, ENCOUNTERS, ENERGY, attack, attackTargets, defend, endTurn, leaveCamp, move, moveTargets, newRun, readRun } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, attack, attackTargets, campReason, defend, endTurn, leaveCamp, move, moveTargets, newRun, promote, readRun } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -130,22 +130,62 @@ describe("turn-based rules", () => {
     // On 3 HP it survives the hit anyway, so bracing would be wasted.
     expect(unit(endTurn(board([{ ...king, x: 2, y: 3 }, { ...knight, hp: 3 }])).run, "n")!.defending).toBeFalsy();
   });
-  it("doesn't march pawns onto the last rank or away from every target", () => {
-    // King behind the pawn's line: the pawn has nothing ahead of it to chase.
-    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 };
-    const { run } = endTurn(board([{ ...king, x: 0, y: 0 }, pawn]));
-    expect(unit(run, "p")).toMatchObject({ x: 3, y: 2 });
+  it("doesn't march pawns away from every target when they can't promote yet", () => {
+    // King behind the pawn's line on the 6×6 bridge: nothing ahead to chase, and the far row is too far.
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 2, y: 1, hp: 1 };
+    const { run } = endTurn(board([{ ...king, x: 0, y: 0 }, pawn], { encounter: 2 }));
+    expect(unit(run, "p")).toMatchObject({ x: 2, y: 1 });
   });
   it("ends the run when the king falls", () => {
     const g = board([{ ...king, hp: 1 }, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }]);
     expect(endTurn(g).run.phase).toBe("defeat");
   });
 
+  it("promotes your pawn on the far row into the piece you pick, which can still act", () => {
+    const pawn: Unit = { id: "p", side: "white", kind: "pawn", x: 0, y: 1, hp: 1 };
+    const foe: Unit = { id: "f", side: "black", kind: "rook", x: 2, y: 0, hp: 5 };
+    const g = board([{ ...king, x: 3, y: 3 }, pawn, foe]);
+    const reached = move(g, "p", { x: 0, y: 0 });
+    expect(reached.promoting).toBe("p");
+    // Nothing else happens until the choice is made.
+    expect(defend(reached, "king")).toBe(reached);
+    expect(endTurn(reached).run).toBe(reached);
+    expect(promote(reached, "p", "pawn" as never).run).toBe(reached);
+    const { run, step } = promote(reached, "p", "rook");
+    expect(run.promoting).toBeUndefined();
+    expect(unit(run, "p")).toMatchObject({ kind: "rook", hp: HP.rook, x: 0, y: 0 });
+    expect(step).toMatchObject({ actor: "p", kind: "promote", from: "pawn" });
+    // Moved this turn, but it can still strike as its new self.
+    expect(attackTargets(run, unit(run, "p")!).map(t => t.id)).toContain("f");
+  });
+  it("turns an enemy pawn that reaches your end into a full-health queen", () => {
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 };
+    const { run, steps } = endTurn(board([{ ...king, x: 0, y: 3 }, pawn]));
+    expect(unit(run, "p")).toMatchObject({ kind: "queen", hp: HP.queen, x: 3, y: 3 });
+    expect(steps.map(s => s.kind)).toEqual(["move", "promote"]);
+  });
+  it("starts every army square on a file with a clear run to the far row", () => {
+    // A recruited pawn must be able to march all the way and promote on every map.
+    ENCOUNTERS.forEach((e, i) => e.starts.forEach(st => {
+      for (let y = st.y - 1; y >= 0; y--) expect(e.walls.some(w => w.x === st.x && w.y === y), `encounter ${i} start ${st.x},${st.y}`).toBe(false);
+    }));
+  });
+  it("offers a cheap pawn recruit at camp", () => {
+    const g = { ...newRun(), phase: "camp" as const, gold: COST.pawn };
+    expect(campReason(g, "pawn")).toBe("");
+    const next = leaveCamp(g, "pawn");
+    expect(next.units.filter(u => u.side === "white" && u.kind === "pawn")).toHaveLength(1);
+    expect(next.gold).toBe(0);
+  });
   it("restores valid saves and rejects broken ones", () => {
     const g = newRun(); expect(readRun(JSON.stringify(g))).toEqual(g);
     expect(readRun(JSON.stringify({ ...g, energy: -1 }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { ...g.units[0], id: "dup" }] }))).toBeNull();
     expect(readRun("{")).toBeNull();
+    expect(readRun(JSON.stringify({ ...g, promoting: "king" }))).toBeNull();
+    const onFarRow = { ...g, units: [...g.units, { id: "ally-9", side: "white", kind: "pawn", x: 0, y: 0, hp: 1 }] };
+    expect(readRun(JSON.stringify({ ...onFarRow, promoting: "ally-9" }))).not.toBeNull();
+    expect(readRun(JSON.stringify({ ...onFarRow, phase: "camp", promoting: "ally-9" }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();

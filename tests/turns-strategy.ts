@@ -1,12 +1,13 @@
-import { DAMAGE, attack, attackTargets, defend, move, moveTargets } from "../src/game/turns";
+import { DAMAGE, attack, attackTargets, defend, move, moveTargets, promote } from "../src/game/turns";
 import type { Pos, Run } from "../src/game/turns";
 
-export type Action = { type: "move"; id: string; to: Pos } | { type: "attack"; id: string; targetId: string; to: Pos } | { type: "defend"; id: string };
+export type Action = { type: "move"; id: string; to: Pos } | { type: "attack"; id: string; targetId: string; to: Pos } | { type: "defend"; id: string } | { type: "promote"; id: string };
 
 // A simple greedy player for tests: kill or hit what it can, otherwise walk
 // toward the nearest enemy, then brace the king with what's left. It shows the
 // run is reachable, not that it's fun.
 export function nextAction(g: Run): Action | null {
+  if (g.promoting) return { type: "promote", id: g.promoting };
   if (g.phase !== "player" || g.energy <= 0) return null;
   let best: { score: number; action: Action } | null = null;
   const enemies = g.units.filter(u => u.side === "black");
@@ -31,7 +32,7 @@ export function nextAction(g: Run): Action | null {
 }
 
 export function apply(g: Run, a: Action): Run {
-  return a.type === "move" ? move(g, a.id, a.to) : a.type === "attack" ? attack(g, a.id, a.targetId).run : defend(g, a.id);
+  return a.type === "move" ? move(g, a.id, a.to) : a.type === "attack" ? attack(g, a.id, a.targetId).run : a.type === "promote" ? promote(g, a.id, "queen").run : defend(g, a.id);
 }
 
 export function playTurn(start: Run): Run {

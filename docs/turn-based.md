@@ -25,6 +25,14 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   queens strike the first piece along a clear line at any distance, paying
   distance + 1.
 
+## Promotion
+- A pawn that moves onto the far row promotes at full health of its new
+  piece. Yours pauses play for a picker (queen, rook, bishop or knight) and
+  can still strike or defend that turn; nothing else can happen until you
+  choose. An enemy pawn always becomes a queen, and the enemy races for the
+  far row when it can; a fresh queen may still strike that turn if the enemy
+  has energy left. A two-part animation shows the pawn transforming.
+
 ## Defend
 - Costs 1. Until that side's next turn, the piece takes 1 less damage per hit
   and, if it survives, hits each attacker back with its own damage when it
@@ -36,8 +44,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   and the king most), minus any counter it would actually take (heavily if
   the counter would kill it); it never strikes for 0 damage. Otherwise pieces
   close in on your king or your nearest piece. Pawns keep marching toward
-  pieces still ahead of them when they can't close in yet, but never onto
-  the last rank. When no move is worth making, a piece braces (defends,
+  pieces still ahead of them when they can't close in yet, and race for the
+  far row to promote. When no move is worth making, a piece braces (defends,
   1 energy) if one of your pieces threatens it and only the brace would let
   it survive the hit, or it could hit back. Otherwise it simply waits.
 
@@ -48,7 +56,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   only.
 
 ## Run
-- Three encounters, camp between them: recruit a bishop (6 gold) or rook (8),
+- Three encounters, camp between them: recruit a pawn (3 gold), bishop (6) or rook (8),
   heal the king 2 (4), or save. HP carries over; fallen allies stay gone; king
   death ends the run. The order pool, combat modes, pawn ambushes and cleanup
   strikes from the simultaneous slice are gone.
