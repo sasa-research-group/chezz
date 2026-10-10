@@ -227,8 +227,11 @@ describe("turn-based rules", () => {
     expect(readRun(JSON.stringify(shopped))).toEqual(shopped);
     expect(readRun(JSON.stringify({ ...shopped, recruits: ["queen"] }))).toBeNull();
     expect(readRun(JSON.stringify({ ...newRun(), recruits: ["pawn"] }))).toBeNull();
+    // More recruits than the next road has squares for would leave pieces with nowhere to stand.
+    expect(readRun(JSON.stringify({ ...shopped, recruits: ["pawn", "pawn", "pawn"] }))).toBeNull();
     const next = leaveCamp(shopped);
     expect(next).toMatchObject({ phase: "player", encounter: 1, recruits: undefined });
+    expect(next.history.slice(-3)).toEqual(["Camp: pawn", "Camp: bishop", "Camp: road"]);
     expect(next.units.filter(u => u.side === "white").map(u => [u.kind, u.hp])).toEqual([["king", 4], ["pawn", HP.pawn], ["bishop", HP.bishop]]);
   });
   it("refuses recruits once the next road has no room for them", () => {

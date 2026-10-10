@@ -73,6 +73,16 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
   const [walking, setWalking] = useState(false);
   const [open, setOpen] = useState<PlaceId | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const panel = useRef<HTMLElement>(null);
+  const doors = useRef<Partial<Record<PlaceId, HTMLButtonElement | null>>>({});
+  const lastOpen = useRef<PlaceId | null>(null);
+  // Focus moves into a panel when it opens and back to its building when it closes.
+  useEffect(() => {
+    if (open) { lastOpen.current = open; panel.current?.focus(); }
+    else if (lastOpen.current) doors.current[lastOpen.current]?.focus();
+  }, [open]);
+  // A purchase can disable the button that had focus; keep focus inside the panel.
+  useEffect(() => { if (open && (!document.activeElement || document.activeElement === document.body)) panel.current?.focus(); }, [run, open]);
   const stop = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => stop, []);
   useEffect(() => {
@@ -98,6 +108,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
   const place = PLACES.find(p => p.id === open);
   const left = (x: number) => `${(x / W) * 100}%`, top = (y: number) => `${(y / H) * 100}%`;
   return <section className="hub-screen" role="dialog" aria-modal="true" aria-label="Rebel hideout">
+    <div className="hub-body" inert={!!place}>
     <header className="hub-header">
       <div><p className="kicker">PATROL DEFEATED · +{reward} GOLD</p><h1>The rebel hideout</h1><p>Tap a building and the king will walk over. Take the road when you're ready.</p></div>
       <div className="hub-stats">
@@ -117,7 +128,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
             onClick={() => { if (!blocked(p)) walkTo(p); }} />;
         })}
       </div>
-      {PLACES.map(b => <button key={b.id} className={`hub-place ${b.id} ${b.soon ? "soon" : ""}`} style={{ left: left(b.at.x), top: top(b.at.y), width: left(b.size.x), height: top(b.size.y) }}
+      {PLACES.map(b => <button key={b.id} ref={el => { doors.current[b.id] = el; }} className={`hub-place ${b.id} ${b.soon ? "soon" : ""}`} style={{ left: left(b.at.x), top: top(b.at.y), width: left(b.size.x), height: top(b.size.y) }}
         aria-label={`${b.name}: ${b.tagline}`} onClick={() => walkTo(b.door, b.id)}>
         <PlaceArt id={b.id} /><span className="hub-sign"><b>{b.name}</b><small>{b.tagline}</small></span>
       </button>)}
@@ -125,8 +136,9 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
         <PieceRig kind="king" side="white" action={walking ? "move" : "idle"} seed="king" />
       </div>
     </div>
+    </div>
     {place && <div className="exile-modal-shade" onClick={ev => { if (ev.target === ev.currentTarget) setOpen(null); }}>
-      <section className={`exile-modal camp-modal hub-panel ${place.id}`} role="dialog" aria-modal="true" aria-label={place.name}>
+      <section className={`exile-modal camp-modal hub-panel ${place.id}`} role="dialog" aria-modal="true" aria-label={place.name} ref={panel} tabIndex={-1}>
         {place.id === "barracks" ? <>
           <p className="kicker">THE BARRACKS</p><h1>New blood, warm soup.</h1>
           <p>Recruits join in the next battle. Buy as many as your gold and the next road allow ({next?.starts.length ?? 0} squares).</p>
