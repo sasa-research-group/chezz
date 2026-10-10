@@ -164,6 +164,12 @@ describe("turn-based rules", () => {
     expect(unit(run, "p")).toMatchObject({ kind: "queen", hp: HP.queen, x: 3, y: 3 });
     expect(steps.map(s => s.kind)).toEqual(["move", "promote"]);
   });
+  it("starts every army square on a file with a clear run to the far row", () => {
+    // A recruited pawn must be able to march all the way and promote on every map.
+    ENCOUNTERS.forEach((e, i) => e.starts.forEach(st => {
+      for (let y = st.y - 1; y >= 0; y--) expect(e.walls.some(w => w.x === st.x && w.y === y), `encounter ${i} start ${st.x},${st.y}`).toBe(false);
+    }));
+  });
   it("offers a cheap pawn recruit at camp", () => {
     const g = { ...newRun(), phase: "camp" as const, gold: COST.pawn };
     expect(campReason(g, "pawn")).toBe("");
@@ -177,6 +183,9 @@ describe("turn-based rules", () => {
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { ...g.units[0], id: "dup" }] }))).toBeNull();
     expect(readRun("{")).toBeNull();
     expect(readRun(JSON.stringify({ ...g, promoting: "king" }))).toBeNull();
+    const onFarRow = { ...g, units: [...g.units, { id: "ally-9", side: "white", kind: "pawn", x: 0, y: 0, hp: 1 }] };
+    expect(readRun(JSON.stringify({ ...onFarRow, promoting: "ally-9" }))).not.toBeNull();
+    expect(readRun(JSON.stringify({ ...onFarRow, phase: "camp", promoting: "ally-9" }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();

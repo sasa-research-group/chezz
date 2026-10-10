@@ -30,7 +30,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   piece. Yours pauses play for a picker (queen, rook, bishop or knight) and
   can still strike or defend that turn; nothing else can happen until you
   choose. An enemy pawn always becomes a queen, and the enemy races for the
-  far row when it can. A two-part animation shows the pawn transforming.
+  far row when it can; a fresh queen may still strike that turn if the enemy
+  has energy left. A two-part animation shows the pawn transforming.
 
 ## Defend
 - Costs 1. Until that side's next turn, the piece takes 1 less damage per hit
@@ -43,8 +44,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   and the king most), minus any counter it would actually take (heavily if
   the counter would kill it); it never strikes for 0 damage. Otherwise pieces
   close in on your king or your nearest piece. Pawns keep marching toward
-  pieces still ahead of them when they can't close in yet, but never onto
-  the last rank. When no move is worth making, a piece braces (defends,
+  pieces still ahead of them when they can't close in yet, and race for the
+  far row to promote. When no move is worth making, a piece braces (defends,
   1 energy) if one of your pieces threatens it and only the brace would let
   it survive the hit, or it could hit back. Otherwise it simply waits.
 

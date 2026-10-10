@@ -11,8 +11,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   `art.html`). Wesley calls it placeholder while mechanics settle.
 - **Phone layout + busier enemy** (`claude/mobile-and-ai`): the game fits an
   iPhone screen (height-fitted board, bottom action bar); the enemy closes in
-  on any of your pieces, pawns march toward targets (never onto the last
-  rank), pieces brace only when it helps; a battle ends with a celebration
+  on any of your pieces, pawns march toward targets and race to promote, pieces brace only when it helps; a battle ends with a celebration
   banner before the menu.
 - **Promotion** (`claude/promotion`, on top of #9): pawns on the far row
   promote (you pick; enemy becomes a queen) with a morph animation; camp

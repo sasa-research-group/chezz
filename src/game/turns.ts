@@ -26,7 +26,7 @@ export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop
 export const ENCOUNTERS: Encounter[] = [
   { title: "The roadside patrol", story: "Two royal lackeys. One very annoyed former king. Clear the road.", reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
   { title: "The first follower", story: "The old toll gate is closed. Find a way around, and bring everyone home.", reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
-  { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 1, y: 5 }, { x: 4, y: 5 }] },
+  { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
 ];
 export type CampChoice = "pawn" | "bishop" | "rook" | "heal";
 export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
@@ -106,7 +106,7 @@ function spawn(g: Run, army: Unit[]): Run {
   const e = ENCOUNTERS[g.encounter];
   const whites = army.map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map(([kind, x, y, hp], i) => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black" as const, x, y, hp }));
-  return { ...g, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
+  return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
 }
 export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
@@ -274,7 +274,7 @@ export function readRun(raw: string | null): Run | null {
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;
-    if (g.promoting !== undefined && !g.units.some(u => u.id === g.promoting && u.side === "white" && u.kind === "pawn" && u.y === 0)) return null;
+    if (g.promoting !== undefined && (g.phase !== "player" || !g.units.some(u => u.id === g.promoting && u.side === "white" && u.kind === "pawn" && u.y === 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;

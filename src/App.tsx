@@ -52,7 +52,7 @@ function Board({ run, units, selected, flash, onSquare, locked, stage, spd }: { 
         return <div key={piece.id} className={`exile-piece ${piece.side} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""}`}
           style={{ left: `${(piece.x + .5) / e.width * 100}%`, top: `${(piece.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(piece.y * 10 + (ghost ? 29 : 30)) }}>
           <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
-          {!ghost && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
+          {!ghost && !stage.morph[piece.id] && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
 
         </div>;
