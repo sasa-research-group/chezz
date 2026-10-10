@@ -20,9 +20,10 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Fixed damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 3, queen 3.
   HP no longer doubles as attack strength. A pawn's strike deals 0 to a
   defender.
-- No return hit. A kill moves the striker onto the target's square. If the
-  target survives, a sliding piece stops on the square before it; others
-  stay where they are.
+- No return hit. Strikes land from where the striker stands: it never moves
+  onto the target's square, even on a kill (unlike chess). Rooks, bishops and
+  queens strike the first piece along a clear line at any distance, paying
+  distance + 1.
 
 ## Defend
 - Costs 1. Until that side's next turn, the piece takes 1 less damage per hit

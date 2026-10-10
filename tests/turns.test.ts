@@ -49,14 +49,14 @@ describe("turn-based rules", () => {
     const { run } = attack(g, "r", "f");
     expect(run.energy).toBe(ENERGY - 4);
     expect(unit(run, "f")!.hp).toBe(5 - DAMAGE.rook);
-    // The survivor stays; the rook stops next to it and takes nothing.
-    expect(unit(run, "r")).toMatchObject({ x: 0, y: 1, hp: 5 });
+    // Strikes land from where the piece stands: the rook doesn't move and takes nothing.
+    expect(unit(run, "r")).toMatchObject({ x: 0, y: 3, hp: 5 });
   });
 
-  it("moves the attacker onto the square of a piece it kills", () => {
+  it("keeps the attacker on its own square even when it kills", () => {
     const g = board([king, { id: "p", side: "black", kind: "pawn", x: 2, y: 2, hp: 1 }]);
     const { run } = attack(g, "king", "p");
-    expect(unit(run, "p")).toBeUndefined(); expect(unit(run, "king")).toMatchObject({ x: 2, y: 2 });
+    expect(unit(run, "p")).toBeUndefined(); expect(unit(run, "king")).toMatchObject({ x: 1, y: 3 });
     expect(run.phase).toBe("camp");
   });
 
@@ -87,10 +87,18 @@ describe("turn-based rules", () => {
     expect(unit(run, "p")).toBeDefined();
     expect(unit(run, "king")!.hp).toBe(5);
   });
+  it("lets a defender counter a ranged striker only if it can reach the striker's square", () => {
+    // A rook strikes a defending rook from two squares away; the target can reach back along the line.
+    const mine: Unit = { id: "m", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
+    const theirs: Unit = { id: "t", side: "black", kind: "rook", x: 0, y: 1, hp: 5 };
+    const { run } = endTurn(defend(board([{ ...king, x: 3, y: 3 }, mine, theirs], { encounter: 1 }), "m"));
+    expect(unit(run, "m")!.hp).toBe(5 - (DAMAGE.rook - 1));
+    expect(unit(run, "t")).toMatchObject({ x: 0, y: 1, hp: 5 - DAMAGE.rook });
+  });
   it("doesn't counter an attacker the defender can't reach", () => {
-    // A black rook attacks a defending knight from afar and stops next to it; knights can't hit adjacent squares.
+    // A black rook strikes a defending knight from the next square; knights can't hit adjacent squares.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
-    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 0, y: 1, hp: 5 };
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 0, y: 2, hp: 5 };
     const g = defend(board([{ ...king, x: 3, y: 3 }, knight, rook], { encounter: 1 }), "n");
     const { run } = endTurn(g);
     expect(unit(run, "n")!.hp).toBe(3 - (DAMAGE.rook - 1));
