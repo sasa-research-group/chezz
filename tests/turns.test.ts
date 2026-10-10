@@ -114,6 +114,28 @@ describe("turn-based rules", () => {
     expect(a.run.units.filter(u => u.side === "white").every(u => !u.moved && !u.acted && !u.defending)).toBe(true);
   });
 
+  it("keeps stuck enemy pawns busy when they can do something useful", () => {
+    // King steps to a2: the pawn on a3 is blocked and bracing wouldn't save it, so it waits; the c-pawn marches.
+    const { run, steps } = endTurn(move(newRun(), "king", { x: 0, y: 2 }));
+    expect(unit(run, "enemy-0-0")).toMatchObject({ x: 0, y: 1 });
+    expect(unit(run, "enemy-0-0")!.defending).toBeFalsy();
+    expect(unit(run, "enemy-0-1")).toMatchObject({ x: 2, y: 2 });
+    expect(steps.map(s => s.kind)).toEqual(["move"]);
+  });
+  it("braces only when it would survive the hit or could hit back", () => {
+    // An enemy knight on 2 HP next to the king (2 damage): only the block keeps it alive, so it braces.
+    const knight: Unit = { id: "n", side: "black", kind: "knight", x: 3, y: 2, hp: 2 };
+    const { run } = endTurn(board([{ ...king, x: 2, y: 3 }, knight]));
+    expect(unit(run, "n")!.defending).toBe(true);
+    // On 3 HP it survives the hit anyway, so bracing would be wasted.
+    expect(unit(endTurn(board([{ ...king, x: 2, y: 3 }, { ...knight, hp: 3 }])).run, "n")!.defending).toBeFalsy();
+  });
+  it("doesn't march pawns onto the last rank or away from every target", () => {
+    // King behind the pawn's line: the pawn has nothing ahead of it to chase.
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 };
+    const { run } = endTurn(board([{ ...king, x: 0, y: 0 }, pawn]));
+    expect(unit(run, "p")).toMatchObject({ x: 3, y: 2 });
+  });
   it("ends the run when the king falls", () => {
     const g = board([{ ...king, hp: 1 }, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }]);
     expect(endTurn(g).run.phase).toBe("defeat");

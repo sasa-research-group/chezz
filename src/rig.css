@@ -104,6 +104,15 @@
 @keyframes rig-fade{0%,62%{opacity:1}100%{opacity:0}}
 @keyframes rig-smoke{0%,55%{opacity:0;transform:scale(.4)}72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
 
+/* Cheer: victory bounces with arms up, a big open-mouthed shout and stars. */
+.rig.act-cheer .hop{animation:rig-cheer-hop calc(.7s * var(--spd,1)) var(--ease-soft) 2 both}
+.rig.act-cheer .squash{animation:rig-hop-squash calc(.7s * var(--spd,1)) linear 2 both}
+.rig.act-cheer .arm-front,.rig.act-cheer .arm-back{animation:rig-arms-up calc(1.4s * var(--spd,1)) var(--ease-back) both}
+.rig.act-cheer .arm-front{transform-origin:60px 70px}.rig.act-cheer .arm-back{transform-origin:40px 70px}
+.rig.act-cheer .mouth-yell{opacity:1}
+.rig.act-cheer .fx-stars{animation:rig-stars calc(1.4s * var(--spd,1)) ease-out both}
+@keyframes rig-cheer-hop{0%,20%{transform:translateY(0)}55%{transform:translateY(-20px)}85%,100%{transform:translateY(0)}}
+@keyframes rig-arms-up{0%{transform:none}20%,85%{transform:rotate(-35deg)}100%{transform:none}}
 @media(prefers-reduced-motion:reduce){
   .rig .flip{filter:none!important}
   .rig .pupil,.rig .sweat,.rig .fx-lines,.rig .fx-burst{animation:none!important}
