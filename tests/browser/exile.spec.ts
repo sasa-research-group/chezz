@@ -40,6 +40,43 @@ test("the winning blow plays out and celebrates before the hideout", async ({ pa
   await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
 });
 
+test("tap an enemy to walk up and strike it when there's one way in", async ({ page }) => {
+  const start = newRun();
+  const pawn = (id: string, x: number, y: number) => ({ id, side: "black" as const, kind: "pawn" as const, x, y, hp: 1 });
+  // A rook down the a-file has one way in: the square in front of the pawn.
+  const g = { ...start, units: [{ ...start.units[0], x: 2, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 3, hp: 5 }, pawn("enemy-0-0", 0, 0), pawn("enemy-0-1", 2, 1), pawn("enemy-0-2", 3, 0)] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a1 white rook/ }).click();
+  await page.getByRole("button", { name: /^a4 black pawn, 1 HP, strike for 4/ }).click();
+  await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
+  const now = await saved(page);
+  expect(now.units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 1 });
+  expect(now.energy).toBe(0);
+});
+
+test("with several squares to strike from, you pick one", async ({ page }) => {
+  const start = newRun();
+  const pawn = (id: string, x: number, y: number) => ({ id, side: "black" as const, kind: "pawn" as const, x, y, hp: 1 });
+  const now = { ...start, units: [start.units[0], pawn("enemy-0-1", 1, 1), pawn("enemy-0-2", 3, 0)] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(now));
+  await page.goto("/");
+  const king = now.units[0], target = now.units[1];
+  await cell(page, now, king).click();
+  await cell(page, now, target).click();
+  await expect(page.getByRole("status")).toHaveText(/Pick a square to strike the pawn from/);
+  const picks = page.getByRole("button", { name: /walk here and strike the pawn/ });
+  expect(await picks.count()).toBeGreaterThan(1);
+  await page.screenshot({ path: "test-results/exile-pick-square.png" });
+  // Tapping an empty square that isn't a pick cancels; it doesn't move the king.
+  await page.getByRole("button", { name: /^d1 empty/ }).click();
+  await expect(picks).toHaveCount(0);
+  expect((await saved(page)).energy).toBe(4);
+  await cell(page, now, target).click();
+  await picks.first().click();
+  await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-1")).toBe(false);
+});
+
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
