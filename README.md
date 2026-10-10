@@ -2,9 +2,8 @@
 
 A browser tactics game with chess pieces. An exiled king fights through three
 small boards, recruits followers at camp, and keeps every wound and loss.
-Both sides plan orders at the same time, then the turn resolves and plays back
-as animation. Pick **Always trade** or **Free hits** at the start to compare
-the two combat models on the same boards.
+You act, then the enemy acts; each turn you spend 4 energy to move pieces in
+their chess shapes and to strike or defend.
 
 Play at **[sasa-research-group.github.io/chezz](https://sasa-research-group.github.io/chezz/)**.
 Every push to `main` deploys there after CI passes. The repository moved from
@@ -31,14 +30,16 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
 
 ## Live code
 
-- **src/main.tsx → src/App.tsx**: screens, planning UI, playback and autosave.
-- **src/game/exile.ts**: pure, deterministic rules (orders, simultaneous
-  resolution, camp, save validation). Animation can't change the outcome.
+- **src/main.tsx → src/App.tsx**: screens, turn controls, enemy-turn playback and autosave.
+- **src/game/turns.ts**: pure, deterministic turn-based rules (energy, moves,
+  strikes, defend, enemy turn, camp, save validation).
+- **src/game/exile.ts**: the previous simultaneous-orders engine, still used
+  by the lab Duel.
 - **src/components/PieceArt.tsx** and **src/exile.css**: SVG cartoon pieces on a
   CSS-tilted parchment board.
-- **tests/exile.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
+- **tests/turns.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
 
-Rules, scope and playtest questions are in [docs/exile-run.md](docs/exile-run.md).
+Rules are in [docs/turn-based.md](docs/turn-based.md); the earlier simultaneous slice is in [docs/exile-run.md](docs/exile-run.md).
 Rule experiments live on the lab page (`lab.html`, [docs/lab.md](docs/lab.md)).
 Working notes are in [CLAUDE.md](CLAUDE.md) and [docs/HANDOFF.md](docs/HANDOFF.md).
 
