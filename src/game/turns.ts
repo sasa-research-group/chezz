@@ -1,7 +1,7 @@
 /** Escape from Exile, turn-based: you act, then the enemy acts. Each side
  * spends a per-turn energy pool. Each piece may move once (1 energy per
  * square in its chess shape; a knight's jump costs 2), then strike the next
- * square in its shape (2; a knight's jump 3) or defend (1). Pure and
+ * square in its shape (2) or defend (1). Pure and
  * deterministic: no DOM, no randomness, inputs are never mutated. */
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
@@ -24,6 +24,8 @@ export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
 
 export const ENERGY = 4;
+/** Every strike costs the same, knights included: a knight can jump (2) and strike (2) in one turn. */
+export const STRIKE_COST = 2;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
 export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop: 2, knight: 2, pawn: 1 };
 export const ENCOUNTERS: Encounter[] = [
@@ -73,7 +75,7 @@ export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
 /** Enemies a piece can strike this turn: the next square along its capture shape (a knight's jump). */
 export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Target[] {
   if (u.acted) return [];
-  const cost = u.kind === "knight" ? 3 : 2;
+  const cost = STRIKE_COST;
   if (cost > energy) return [];
   return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
@@ -83,7 +85,7 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
 export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
-  const strikeCost = u.kind === "knight" ? 3 : 2;
+  const strikeCost = STRIKE_COST;
   const energy = energyOf(g, u.side);
   return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
@@ -211,7 +213,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const ahead = whites.some(w => (w.y - u.y) * forward(u) > 0);
         const march = u.kind === "pawn" && gain <= 0 && ahead ? 1 : 0;
         // Strikes only reach the next square, so a square to strike from is worth a step.
-        const strikeCost = u.kind === "knight" ? 3 : 2;
+        const strikeCost = STRIKE_COST;
         const lineUp = !u.acted && energy - t.cost >= strikeCost && whites.some(w => reaches(run, u, t, w));
         if (gain <= 0 && !march && !crowning && !lineUp) continue;
         choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
@@ -223,7 +225,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       // Brace only when it matters (a threat it survives only thanks to the block, or one it
       // could hit back), and only when no move is worth making.
       // A threat is one of your pieces that can strike u next turn, stepping in first if its pool allows.
-      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + (w.kind === "knight" ? 3 : 2) <= ENERGY && reaches(run, w, t, u));
+      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + STRIKE_COST <= ENERGY && reaches(run, w, t, u));
       const worthIt = whites.some(w => threat(w) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
       if (!u.acted && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
         const text = `${label(u)} braces to defend.`;

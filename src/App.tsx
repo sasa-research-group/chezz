@@ -25,13 +25,17 @@ type Picking = { target: Unit; options: Target[] };
 type Playback = { steps: Step[]; before: Run; index: number };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
-type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind> };
-const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750 };
+/** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land. */
+type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind>; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean };
+const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge: {}, doomed: [], holdFlash: false };
+const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420 };
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
-function Board({ run, units, selected, flash, onSquare, locked, stage, spd, picking }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null }) {
+function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage, spd, picking }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null }) {
   const e = ENCOUNTERS[run.encounter];
+  // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
+  const flash = stage.holdFlash ? null : rawFlash;
   const moves = selected && !locked ? moveTargets(run, selected) : [];
   // Strikes in place, plus enemies the piece can walk up to and strike this turn (cheapest way in).
   const strikes = selected && !locked ? [...attackTargets(run, selected), ...run.units.filter(v => v.side === "black").flatMap(v => {
@@ -58,9 +62,11 @@ function Board({ run, units, selected, flash, onSquare, locked, stage, spd, pick
       <div className="piece-layer" aria-hidden="true" style={{ "--spd": spd } as CSSProperties}>{[...units, ...stage.ghosts.filter(gh => !units.some(u => u.id === gh.id))].map(piece => {
         const damage = flash?.damage.find(d => d.id === piece.id);
         const spent = piece.side === "white" && piece.acted;
-        const ghost = !units.includes(piece), anim = ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
-        return <div key={piece.id} className={`exile-piece ${piece.side} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""}`}
-          style={{ left: `${(piece.x + .5) / e.width * 100}%`, top: `${(piece.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(piece.y * 10 + (ghost ? 29 : 30)) }}>
+        const ghost = !units.includes(piece), doomed = ghost && stage.doomed.includes(piece.id);
+        const anim = doomed ? stage.anims[piece.id] ?? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
+        const lunge = stage.lunge[piece.id], spot = lunge && lunge !== "home" ? lunge : piece;
+        return <div key={piece.id} className={`exile-piece ${piece.side} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
+          style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
           <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
           {!ghost && !stage.morph[piece.id] && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
@@ -81,12 +87,12 @@ export default function App() {
   const [playback, setPlayback] = useState<Playback | null>(null);
   const [flash, setFlash] = useState<Step | null>(null);
   const [fast, setFast] = useState(false);
-  const [stage, setStage] = useState<Stage>({ anims: {}, facing: {}, ghosts: [], morph: {} });
+  const [stage, setStage] = useState<Stage>(EMPTY_STAGE);
   const animKey = useRef(1);
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Animation time scale, matched to the enemy-turn step interval (800ms, 250ms fast, 90ms reduced).
   const spd = reducedMotion ? .1 : fast ? .3 : 1;
-  const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage({ anims: {}, facing: {}, ghosts: [], morph: {} }); setStriding(false); setPicking(null); };
+  const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage(EMPTY_STAGE); setStriding(false); setPicking(null); };
   const [picking, setPicking] = useState<Picking | null>(null);
   // True while a piece walks up to strike: the strike lands when the walk ends.
   const [striding, setStriding] = useState(false);
@@ -120,14 +126,38 @@ export default function App() {
     }
     if (step.kind === "move") { const to = step.units.find(u => u.id === actor.id); if (to) face(actor.id, actor, to); animate(actor.id, "move"); return; }
     if (target) face(actor.id, actor, target);
-    animate(actor.id, "attack");
+    // Knights show off: front-flip over to the target, smack it, backflip home. The rules still strike from
+    // the knight's own square; this is only how it looks. Everything else waits for the blow to land.
+    const leaps = actor.kind === "knight" && !!target;
+    const impact = leaps ? DURATION.leap : 0, home = impact + 380;
+    const actorDies = step.killed.includes(actor.id);
+    const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms * spd));
+    const dropLunge = () => setStage(st => { const lunge = { ...st.lunge }; delete lunge[actor.id]; return { ...st, lunge }; });
+    if (leaps) {
+      const near = { x: actor.x + (target.x - actor.x) * .62, y: actor.y + (target.y - actor.y) * .62 };
+      setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: near }, holdFlash: true }));
+      later(impact + 230, () => setStage(st => ({ ...st, holdFlash: false })));
+      animate(actor.id, "leap");
+      animate(actor.id, "attack", impact);
+      // A knight killed by a counter falls where it struck; otherwise it backflips home.
+      if (!actorDies) {
+        later(home, () => { setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: "home" } })); animate(actor.id, "leap-back"); });
+        later(home + DURATION["leap-back"], dropLunge);
+      }
+    } else animate(actor.id, "attack");
     const dying = beforeUnits.filter(u => step.killed.includes(u.id));
     if (dying.length) {
-      setStage(st => ({ ...st, ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying] }));
-      timers.current.push(setTimeout(() => setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => !step.killed.includes(g.id)) })), (230 + DURATION.death) * spd));
+      // Each fallen piece waits for the blow that fells it: the target at impact, a countered attacker after.
+      const fallsAt = (id: string) => (id === actor.id ? impact + 520 : impact + 230);
+      setStage(st => ({ ...st, ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying], doomed: leaps || actorDies ? [...st.doomed, ...step.killed] : st.doomed }));
+      for (const id of step.killed) {
+        if (leaps || actorDies) later(fallsAt(id), () => setStage(st => ({ ...st, doomed: st.doomed.filter(d => d !== id) })));
+        later(fallsAt(id) + DURATION.death, () => { setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => g.id !== id) })); if (id === actor.id) dropLunge(); });
+      }
     }
-    if (target && !step.killed.includes(target.id)) animate(target.id, "hit", 230);
-    if (step.damage.some(d => d.id === actor.id) && !step.killed.includes(actor.id)) animate(actor.id, "hit", 520);
+    if (target && !step.killed.includes(target.id)) animate(target.id, "hit", impact + 230);
+    // A surviving knight takes its counter after landing home, so the backflip isn't cut short.
+    if (step.damage.some(d => d.id === actor.id) && !actorDies) animate(actor.id, "hit", leaps ? home + DURATION["leap-back"] : 520);
   };
   const [help, setHelp] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -150,8 +180,8 @@ export default function App() {
     const celebrate = setTimeout(() => {
       setBanner(run.phase === "defeat" ? "defeat" : run.phase === "victory" ? "victory" : "cleared");
       if (run.phase !== "defeat") run.units.filter(u => u.side === "white").forEach((u, i) => animate(u.id, "cheer", i * 120));
-    }, (DURATION.death + 250) * spd);
-    const done = setTimeout(() => { setBanner(""); setOutroDone(key); }, (DURATION.death + 250) * spd + 1900 * scale);
+    }, (DURATION.leap + DURATION.death + 250) * spd);
+    const done = setTimeout(() => { setBanner(""); setOutroDone(key); }, (DURATION.leap + DURATION.death + 250) * spd + 1900 * scale);
     return () => { clearTimeout(celebrate); clearTimeout(done); };
   }, [outro, playback, intro, key]);
   const skipOutro = () => { setBanner(""); setOutroDone(key); };
@@ -169,12 +199,13 @@ export default function App() {
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
     perform(playback.steps[playback.index], prev);
   }, [playback?.steps, playback?.index]);
-  useEffect(() => { if (!flash) return; const id = setTimeout(() => setFlash(null), 700); return () => clearTimeout(id); }, [flash]);
+  useEffect(() => { if (!flash || stage.holdFlash) return; const id = setTimeout(() => setFlash(null), 700); return () => clearTimeout(id); }, [flash, stage.holdFlash]);
 
   const strikeNow = (g: Run, attacker: Unit, target: Unit) => {
     const { run: next, step } = attack(g, attacker.id, target.id);
     if (next === g) return false;
-    setRun(next); setFlash(step); setNotice("");
+    setRun(next); setNotice("");
+    setFlash(step);
     if (step) perform(step, g.units);
     if (!next.units.some(v => v.id === attacker.id)) setSelectedId(null);
     return true;
@@ -250,7 +281,7 @@ export default function App() {
           {selected && !locked ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{selected.kind} · {selected.hp} HP · hits for {DAMAGE[selected.kind]}</strong><p>{HINT[selected.kind]} Green dots: move cost. Red dots: strike cost (tap an enemy to walk up and strike).</p></div></div> : <p>Select a piece. Each piece may move once, then strike or defend.</p>}
           {selected && !locked && <button className="secondary-button" disabled={selected.acted || run.energy < 1} onClick={() => { setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); }}>Defend · 1 energy<span>blocks 1, counters</span></button>}
           <button className="primary-button" disabled={locked} onClick={finishTurn}>{playback ? "Enemy turn…" : "End turn"}<span>→</span></button>
-          <p className="small-print">Energy refills every turn. Strikes reach only the next square in a piece's shape and cost 2 (knights 3). Defending pieces take 1 less damage and hit back if they can reach.</p>
+          <p className="small-print">Energy refills every turn. Strikes reach only the next square in a piece's shape and cost 2. Defending pieces take 1 less damage and hit back if they can reach.</p>
           {notice && <p role="status" className="notice">{notice}</p>}
         </section>
         <section className="resolution-panel"><details><summary>Battle log</summary>{run.log.map((text, i) => <p key={i}>{text}</p>)}</details><button className="text-button" onClick={() => exportRun(run, feedback)}>Export playtest ↗</button></section>
@@ -261,6 +292,6 @@ export default function App() {
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><p className="kicker">YOUR PAWN MADE IT</p><h1>Promotion!</h1><p>It reached the far row. Pick what it becomes, at full health. It can still strike or defend this turn.</p><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kind[0].toUpperCase() + kind.slice(1)}</h2><p>{HP[kind]} HP, hits for {DAMAGE[kind]}.</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Exile run complete" : "Rebellion ended"}><p className="kicker">{run.phase === "victory" ? "THREE PATROLS DOWN" : "THE CROWN HAS FALLEN"}</p><h1>{run.phase === "victory" ? "A very small rebellion." : "Long live… somebody else."}</h1><p>{run.phase === "victory" ? `You crossed the bridge with ${run.units.filter(u => u.side === "white").length} surviving pieces and ${king?.hp ?? 0} king HP. This is the end of the prototype.` : "Your king fell. Your next attempt starts with a fresh crown and questionable confidence."}</p><label className="feedback-label">What felt clever? What was confusing?<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} placeholder="Leave a note for the next design pass…" /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export feedback and action history</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
-    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="How to play"><p className="kicker">A FEW ROYAL DECREES</p><h1>Move. Strike. Survive.</h1><ol><li>You act, then the enemy acts. You get {ENERGY} energy each turn; the enemy has its own pool.</li><li>Select a piece. It may move once in its chess shape: 1 energy per square, or 2 for a knight's jump. Pieces and walls block slides.</li><li>Then it may strike or defend. Tap an enemy to strike it: if your piece isn't next to it yet, it walks up first (paying for both), and if there's more than one square to strike from, you pick one. A strike reaches only the next square in the piece's shape (a knight's jump for knights), so a rook across the board must travel first. It costs 2 (a knight's 3) and deals fixed damage: pawn 1, knight and bishop 2, king 2, rook and queen 3. The striker stays where it is, even on a kill.</li><li>Defend costs 1. Until your next turn, that piece takes 1 less damage per hit and hits back any attacker it can reach.</li><li>A pawn that reaches the far row promotes: yours becomes the piece you pick, an enemy pawn becomes a queen. Both arrive at full health.</li><li>Defeat all enemies to reach the rebel hideout. Walk the king to the barracks to recruit or heal, then take the road out. Surviving HP carries over, fallen allies stay gone, and king death ends the run.</li></ol><button className="primary-button" onClick={() => setHelp(false)}>Back to the road<span>→</span></button></section></div>}
+    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="How to play"><p className="kicker">A FEW ROYAL DECREES</p><h1>Move. Strike. Survive.</h1><ol><li>You act, then the enemy acts. You get {ENERGY} energy each turn; the enemy has its own pool.</li><li>Select a piece. It may move once in its chess shape: 1 energy per square, or 2 for a knight's jump. Pieces and walls block slides.</li><li>Then it may strike or defend. Tap an enemy to strike it: if your piece isn't next to it yet, it walks up first (paying for both), and if there's more than one square to strike from, you pick one. A strike reaches only the next square in the piece's shape (a knight's jump for knights), so a rook across the board must travel first. It costs 2 and deals fixed damage: pawn 1, knight and bishop 2, king 2, rook and queen 3. The striker stays where it is, even on a kill.</li><li>Defend costs 1. Until your next turn, that piece takes 1 less damage per hit and hits back any attacker it can reach.</li><li>A pawn that reaches the far row promotes: yours becomes the piece you pick, an enemy pawn becomes a queen. Both arrive at full health.</li><li>Defeat all enemies to reach the rebel hideout. Walk the king to the barracks to recruit or heal, then take the road out. Surviving HP carries over, fallen allies stay gone, and king death ends the run.</li></ol><button className="primary-button" onClick={() => setHelp(false)}>Back to the road<span>→</span></button></section></div>}
   </main>;
 }

@@ -133,3 +133,17 @@
   .rig.act-death .flip,.rig.act-death .rig-shadow{animation:rig-fade .2s linear both!important}
   .rig .fx-dust,.rig .fx-smear,.rig .fx-smoke{animation:none!important}
 }
+
+/* Knight stunts: jumps flip; strikes front-flip over to the target and backflip home. */
+.rig.rig-knight.act-move .hop,.rig.act-leap .hop,.rig.act-leap-back .hop{transform-origin:50px 64px}
+.rig.rig-knight.act-move .hop{animation-name:rig-flip-hop}
+.rig.act-leap .hop{animation:rig-front-flip calc(.34s * var(--spd,1)) cubic-bezier(.3,.1,.5,1) both}
+.rig.act-leap .squash{animation:rig-hop-squash calc(.34s * var(--spd,1)) linear both}
+.rig.act-leap .fx-lines{animation:rig-lines calc(.34s * var(--spd,1)) linear both}
+.rig.act-leap .mouth-yell{animation:rig-show-mid calc(.34s * var(--spd,1)) steps(1) both}
+.rig.act-leap-back .hop{animation:rig-back-flip calc(.42s * var(--spd,1)) cubic-bezier(.3,.1,.5,1) both}
+.rig.act-leap-back .squash{animation:rig-hop-squash calc(.42s * var(--spd,1)) linear both}
+.rig.act-leap-back .fx-dust{animation:rig-dust calc(.42s * var(--spd,1)) ease-out both}
+@keyframes rig-flip-hop{0%,18%{transform:translateY(0) rotate(0)}50%{transform:translateY(-36px) rotate(180deg)}84%,100%{transform:translateY(0) rotate(360deg)}}
+@keyframes rig-front-flip{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-30px) rotate(200deg)}100%{transform:translateY(0) rotate(360deg)}}
+@keyframes rig-back-flip{0%{transform:translateY(0) rotate(0)}45%{transform:translateY(-34px) rotate(-200deg)}85%,100%{transform:translateY(0) rotate(-360deg)}}

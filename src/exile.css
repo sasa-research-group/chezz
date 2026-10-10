@@ -57,3 +57,5 @@
 .approach-dot{background:#f1c99a;border-color:#a74c42;box-shadow:0 0 0 5px #a74c4244;animation:approach-pulse 1.1s ease-in-out infinite}.approach-dot .cost-label{color:#7d2f27;font-size:10px;white-space:nowrap}
 .exile-cell.aimed{box-shadow:inset 0 0 0 4px #a74c42}
 @keyframes approach-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+/* A knight mid-stunt travels fast, not with the usual stroll. */
+.exile-piece.lunging{transition-duration:calc(.34s * var(--spd,1)),calc(.34s * var(--spd,1)),.35s,.25s;transition-timing-function:cubic-bezier(.3,.1,.5,1)}

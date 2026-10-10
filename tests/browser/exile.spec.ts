@@ -55,6 +55,21 @@ test("tap an enemy to walk up and strike it when there's one way in", async ({ p
   expect(now.energy).toBe(0);
 });
 
+test("a knight flips over to strike for 2 and lands back home", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "knight" as const, x: 0, y: 3, hp: 3 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 1, y: 1, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a1 white knight/ }).click();
+  await page.getByRole("button", { name: /^b3 black pawn, 1 HP, strike for 2/ }).click();
+  await expect(page.locator(".exile-piece.lunging")).toHaveCount(1);
+  await expect.poll(async () => (await saved(page)).energy).toBe(2);
+  // The stunt ends with the knight home and the fallen pawn gone from the board.
+  await expect(page.locator(".exile-piece.lunging")).toHaveCount(0);
+  await expect(page.locator(".exile-piece.ghost")).toHaveCount(0);
+  await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
+});
+
 test("with several squares to strike from, you pick one", async ({ page }) => {
   const start = newRun();
   const pawn = (id: string, x: number, y: number) => ({ id, side: "black" as const, kind: "pawn" as const, x, y, hp: 1 });
@@ -102,7 +117,7 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   const hub = page.getByRole("dialog", { name: "Rebel hideout" });
   await expect(hub).toBeVisible();
   await page.screenshot({ path: "test-results/hub-mobile.png" });
-  for (const name of [/^Barracks/, /^Training grounds/, /^Merchant/, /^Road out/]) {
+  for (const name of [/^Barracks/, /^Training grounds/, /^Merchant/, /^Grandmaster.s Guild/, /^Road out/]) {
     const box = (await hub.getByRole("button", { name }).boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(664);
   }
@@ -113,6 +128,11 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   await expect(training.getByRole("button")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(training).toBeHidden();
+  await page.getByRole("button", { name: /^Grandmaster.s Guild/ }).click();
+  const guild = page.getByRole("dialog", { name: "Grandmaster's Guild" });
+  await expect(guild.getByRole("button")).toHaveCount(1);
+  await page.screenshot({ path: "test-results/hub-guild.png" });
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Barracks/ }).click();
   const barracks = page.getByRole("dialog", { name: "Barracks" });
   await barracks.getByRole("button", { name: /Recruit a pawn/ }).click();

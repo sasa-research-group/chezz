@@ -6,13 +6,14 @@ import { PieceRig } from "./PieceRig";
 import "../hub.css";
 
 /** The hub between battles: a small village the king walks around. Presentation only; the rules
- * live in turns.ts (buy, leaveCamp). Training grounds and the merchant are placeholders for now. */
-type PlaceId = "barracks" | "training" | "merchant" | "road";
+ * live in turns.ts (buy, leaveCamp). Training grounds, the merchant and the Grandmaster's Guild are placeholders for now. */
+type PlaceId = "barracks" | "training" | "merchant" | "guild" | "road";
 type Place = { id: PlaceId; name: string; tagline: string; at: Pos; size: Pos; door: Pos; soon?: boolean };
 const W = 7, H = 5;
 const PLACES: Place[] = [
   { id: "barracks", name: "Barracks", tagline: "Recruit and rest", at: { x: 0, y: 0 }, size: { x: 2, y: 2 }, door: { x: 2, y: 1 } },
   { id: "training", name: "Training grounds", tagline: "Coming soon", at: { x: 5, y: 0 }, size: { x: 2, y: 2 }, door: { x: 4, y: 1 }, soon: true },
+  { id: "guild", name: "Grandmaster's Guild", tagline: "Coming soon", at: { x: 3, y: 3 }, size: { x: 2, y: 2 }, door: { x: 3, y: 2 }, soon: true },
   { id: "merchant", name: "Merchant", tagline: "Coming soon", at: { x: 0, y: 3 }, size: { x: 2, y: 2 }, door: { x: 2, y: 3 }, soon: true },
   { id: "road", name: "Road out", tagline: "Next battle", at: { x: 6, y: 3 }, size: { x: 1, y: 2 }, door: { x: 5, y: 4 } },
 ];
@@ -54,6 +55,14 @@ function PlaceArt({ id }: { id: PlaceId }) {
     <path d="M30 100V40M90 100V40M22 46h76" stroke="#8a5a3c" strokeWidth="7" strokeLinecap="round" /><path d="M30 100V40M90 100V40M22 46h76" stroke={ink} strokeWidth="2" strokeLinecap="round" opacity=".5" />
     <circle cx="60" cy="38" r="12" fill="#e8c784" stroke={ink} strokeWidth="4" /><path d="M60 50v40M46 62h28" stroke="#c99f55" strokeWidth="9" strokeLinecap="round" /><path d="M60 50v40M46 62h28" stroke={ink} strokeWidth="3" strokeLinecap="round" opacity=".6" />
     <circle cx="60" cy="70" r="8" fill="none" stroke="#c4553f" strokeWidth="4" />
+    <path d="M4 100h112" stroke={ink} strokeWidth="5" strokeLinecap="round" /></svg>;
+  if (id === "guild") return <svg viewBox="0 0 120 110" aria-hidden="true">
+    <path d="M14 46L60 14l46 32z" fill="#5b4a72" stroke={ink} strokeWidth="5" strokeLinejoin="round" />
+    <path d="M20 46h80v52H20z" fill="#efe3c4" stroke={ink} strokeWidth="5" strokeLinejoin="round" />
+    <path d="M32 54v38M88 54v38" stroke="#c9b48a" strokeWidth="7" /><path d="M32 54v38M88 54v38" stroke={ink} strokeWidth="2" opacity=".45" />
+    <path d="M44 98V70a16 16 0 0132 0v28z" fill="#3c2f45" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M52 40c0-9 6-14 13-12l3 4-4 3 3 5H52z" fill="#e8c784" stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+    {[0, 1, 2, 3].map(i => <rect key={i} x={46 + i * 7} y="82" width="7" height="7" fill={i % 2 ? "#e8c784" : ink} opacity=".9" />)}
     <path d="M4 100h112" stroke={ink} strokeWidth="5" strokeLinecap="round" /></svg>;
   if (id === "merchant") return <svg viewBox="0 0 120 110" aria-hidden="true">
     <path d="M18 40h84l-8 16H26z" fill="#f3ead7" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
@@ -154,8 +163,8 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
           <button className="primary-button" onClick={onLeave}>March out<span>→</span></button>
         </> : <>
           <p className="kicker">{place.name.toUpperCase()} · COMING SOON</p>
-          <h1>{place.id === "training" ? "Nobody's training yet." : "The merchant is still unpacking."}</h1>
-          <p>{place.id === "training" ? "Upgrades for your pieces will live here. For now the dummy just stands there, judging you." : "Consumables will be sold here. For now the cart is empty and the merchant is \"between suppliers\"."}</p>
+          <h1>{place.id === "training" ? "Nobody's training yet." : place.id === "guild" ? "The grandmasters are thinking." : "The merchant is still unpacking."}</h1>
+          <p>{place.id === "training" ? "Upgrades for your pieces will live here. For now the dummy just stands there, judging you." : place.id === "guild" ? "The guild opens its doors soon. For now every grandmaster is mid-game, and none of them will look up." : "Consumables will be sold here. For now the cart is empty and the merchant is \"between suppliers\"."}</p>
         </>}
         <button className="text-button" onClick={() => setOpen(null)}>Back to the hideout</button>
       </section>
