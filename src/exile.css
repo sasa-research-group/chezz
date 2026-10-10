@@ -39,3 +39,10 @@
   .action-bar .notice{grid-column:1/-1;margin:0!important;font-size:11px}
   .resolution-panel{margin-top:10px}.exile-footer{display:none}
 }
+/* End-of-battle banner, shown over the board before the camp or end menu. */
+.battle-banner{position:absolute;left:50%;top:42%;z-index:90;transform:translate(-50%,-50%);border:4px solid #382f2e;background:#ffd34d;color:#382f2e;border-radius:14px;padding:14px 28px 10px;box-shadow:0 6px 0 #382f2e,0 18px 40px #382f2e55;display:flex;flex-direction:column;align-items:center;gap:2px;animation:banner-pop .5s cubic-bezier(.34,1.56,.64,1) both;cursor:pointer}
+.battle-banner span{font-family:Georgia,serif;font-weight:900;font-size:clamp(28px,6vw,46px);letter-spacing:-1px;white-space:nowrap}
+.battle-banner small{font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;opacity:.7}
+.battle-banner.victory{background:#7fd38c}.battle-banner.defeat{background:#4b3f3a;color:#fff3d9;box-shadow:0 6px 0 #241d1b,0 18px 40px #382f2e55}
+@keyframes banner-pop{0%{transform:translate(-50%,-50%) scale(.3) rotate(-8deg);opacity:0}70%{transform:translate(-50%,-50%) scale(1.08) rotate(2deg);opacity:1}100%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}}
+.exile-cell:disabled{opacity:1}

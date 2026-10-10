@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { coord } from "../../src/game/turns";
+import { coord, newRun } from "../../src/game/turns";
 import type { Run } from "../../src/game/turns";
 import { nextAction } from "../turns-strategy";
 
@@ -23,6 +23,21 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
   await expect.poll(async () => (await saved(page)).turn).toBe(2);
   await page.reload();
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeEnabled();
+});
+
+test("the winning blow plays out and celebrates before the camp menu", async ({ page }) => {
+  // One pawn left, diagonally in front of the king.
+  const g = { ...newRun(), units: [newRun().units[0], { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 2, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await page.getByRole("button", { name: /^c2 black pawn/ }).click();
+  await expect(page.getByRole("dialog", { name: "Roadside camp" })).toBeHidden();
+  const banner = page.getByRole("button", { name: /Road cleared!/ });
+  await expect(banner).toBeVisible();
+  await page.screenshot({ path: "test-results/exile-victory-banner.png" });
+  await banner.click();
+  await expect(page.getByRole("dialog", { name: "Roadside camp" })).toBeVisible();
 });
 
 test("compact layout fits an iPhone screen without scrolling", async ({ page }) => {

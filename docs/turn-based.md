@@ -39,6 +39,12 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   when they can't close in yet, and a piece with nothing better to do braces
   (defends, 1 energy) if one of your pieces could strike it next turn.
 
+## End of a battle
+- The final blow plays out in full, then a short celebration ("Road
+  cleared!" or "Victory!" while your pieces cheer, or "The crown falls…")
+  before the camp or end menu. Tapping the banner skips ahead. Presentation
+  only.
+
 ## Run
 - Three encounters, camp between them: recruit a bishop (6 gold) or rook (8),
   heal the king 2 (4), or save. HP carries over; fallen allies stay gone; king
