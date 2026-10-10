@@ -25,19 +25,19 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeEnabled();
 });
 
-test("the winning blow plays out and celebrates before the camp menu", async ({ page }) => {
+test("the winning blow plays out and celebrates before the hideout", async ({ page }) => {
   // One pawn left, diagonally in front of the king.
   const g = { ...newRun(), units: [newRun().units[0], { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 2, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await page.getByRole("button", { name: /^c2 black pawn/ }).click();
-  await expect(page.getByRole("dialog", { name: "Roadside camp" })).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeHidden();
   const banner = page.getByRole("button", { name: /Road cleared!/ });
   await expect(banner).toBeVisible();
   await page.screenshot({ path: "test-results/exile-victory-banner.png" });
   await banner.click();
-  await expect(page.getByRole("dialog", { name: "Roadside camp" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
 });
 
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
@@ -54,6 +54,39 @@ test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   await expect(picker).toBeHidden();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")?.kind).toBe("knight");
   await page.screenshot({ path: "test-results/exile-promotion.png" });
+});
+
+test("the hideout: walk to the barracks, recruit, peek at placeholders, take the road", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, phase: "camp" as const, gold: 20, units: [{ ...start.units[0], hp: 3 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.setViewportSize({ width: 390, height: 664 });
+  await page.goto("/");
+  const hub = page.getByRole("dialog", { name: "Rebel hideout" });
+  await expect(hub).toBeVisible();
+  await page.screenshot({ path: "test-results/hub-mobile.png" });
+  for (const name of [/^Barracks/, /^Training grounds/, /^Merchant/, /^Road out/]) {
+    const box = (await hub.getByRole("button", { name }).boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(664);
+  }
+  await page.getByRole("button", { name: /^Training grounds/ }).click();
+  const training = page.getByRole("dialog", { name: "Training grounds" });
+  await expect(training).toBeVisible();
+  // A placeholder: nothing to do there yet but leave.
+  await expect(training.getByRole("button")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(training).toBeHidden();
+  await page.getByRole("button", { name: /^Barracks/ }).click();
+  const barracks = page.getByRole("dialog", { name: "Barracks" });
+  await barracks.getByRole("button", { name: /Recruit a pawn/ }).click();
+  await barracks.getByRole("button", { name: /Recruit a bishop/ }).click();
+  await expect(barracks.getByRole("button", { name: /Recruit a pawn/ })).toBeDisabled();
+  await page.screenshot({ path: "test-results/hub-barracks.png" });
+  await barracks.getByRole("button", { name: "Back to the hideout" }).click();
+  await page.getByRole("button", { name: /^Road out/ }).click();
+  await page.getByRole("button", { name: "March out" }).click();
+  await expect.poll(async () => (await saved(page)).units.filter(u => u.side === "white").map(u => u.kind)).toEqual(["king", "pawn", "bishop"]);
+  await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
 });
 
 test("compact layout fits an iPhone screen without scrolling", async ({ page }) => {
@@ -81,10 +114,14 @@ test("complete the exile run through browser controls", async ({ page }) => {
     const g = await saved(page);
     if (g.phase === "victory" || g.phase === "defeat") break;
     if (g.phase === "camp") {
-      await expect(page.getByRole("dialog", { name: "Roadside camp" })).toBeVisible();
-      if (g.encounter === 0) await page.screenshot({ path: "test-results/exile-camp.png", fullPage: true });
+      await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
       const king = g.units.find(u => u.id === "king")!;
-      await page.getByRole("button", { name: king.hp < 3 ? /Mend the king/ : g.gold >= 8 ? /Recruit a rook/ : /Recruit a bishop/ }).click();
+      await page.getByRole("button", { name: /^Barracks/ }).click();
+      const barracks = page.getByRole("dialog", { name: "Barracks" });
+      await barracks.getByRole("button", { name: king.hp < 3 ? /Mend the king/ : g.gold >= 8 ? /Recruit a rook/ : /Recruit a bishop/ }).click();
+      await barracks.getByRole("button", { name: "Back to the hideout" }).click();
+      await page.getByRole("button", { name: /^Road out/ }).click();
+      await page.getByRole("button", { name: "March out" }).click();
       await expect.poll(async () => (await saved(page)).encounter).toBe(g.encounter + 1);
       continue;
     }

@@ -15,7 +15,10 @@ export type Run = {
   gold: number; energy: number; units: Unit[]; log: string[]; history: string[]; nextId: number;
   /** Your pawn that reached the far row and is waiting for you to pick its new piece. */
   promoting?: string;
+  /** Recruits bought at the hub, waiting in the barracks until you take the road. */
+  recruits?: Recruit[];
 };
+export type Recruit = "pawn" | "bishop" | "rook";
 export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
 export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
@@ -28,7 +31,7 @@ export const ENCOUNTERS: Encounter[] = [
   { title: "The first follower", story: "The old toll gate is closed. Find a way around, and bring everyone home.", reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
   { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
 ];
-export type CampChoice = "pawn" | "bishop" | "rook" | "heal";
+export type CampChoice = Recruit | "heal";
 export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
 
 export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
@@ -245,14 +248,23 @@ export function campReason(g: Run, choice: CampChoice): string {
   if (g.phase !== "camp") return "Camp is closed";
   if (g.gold < COST[choice]) return "Not enough gold";
   if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= HP.king) return "King at full health";
+  const army = g.units.filter(u => u.side === "white").length + (g.recruits?.length ?? 0);
+  if (choice !== "heal" && army >= (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0)) return "No room on the next road";
   return "";
 }
-export function leaveCamp(g: Run, choice: CampChoice | "save"): Run {
-  if (g.phase !== "camp" || (choice !== "save" && campReason(g, choice))) return g;
-  const army = g.units.filter(u => u.side === "white").map(u => ({ ...u }));
-  if (choice === "heal") { const king = army.find(u => u.id === "king")!; king.hp = Math.min(HP.king, king.hp + 2); }
-  else if (choice !== "save") army.push({ id: `ally-${g.nextId}`, side: "white", kind: choice, hp: HP[choice], x: 0, y: 0 });
-  return spawn({ ...g, encounter: g.encounter + 1, gold: g.gold - (choice === "save" ? 0 : COST[choice]), nextId: g.nextId + (choice === "heal" || choice === "save" ? 0 : 1), history: [...g.history, `Camp: ${choice}`] }, army);
+/** Spend gold at the hub: mend the king now, or add a recruit to the barracks. You can buy as often as gold and room allow. */
+export function buy(g: Run, choice: CampChoice): Run {
+  if (campReason(g, choice)) return g;
+  const paid = { ...g, gold: g.gold - COST[choice], history: [...g.history, `Camp: ${choice}`] };
+  if (choice === "heal") return { ...paid, units: g.units.map(u => (u.id === "king" ? { ...u, hp: Math.min(HP.king, u.hp + 2) } : u)) };
+  return { ...paid, recruits: [...(g.recruits ?? []), choice] };
+}
+/** Take the road: the army and any recruits march into the next battle. */
+export function leaveCamp(g: Run): Run {
+  if (g.phase !== "camp") return g;
+  const recruits = g.recruits ?? [];
+  const army = [...g.units.filter(u => u.side === "white"), ...recruits.map((kind, i): Unit => ({ id: `ally-${g.nextId + i}`, side: "white", kind, hp: HP[kind], x: 0, y: 0 }))];
+  return spawn({ ...g, encounter: g.encounter + 1, nextId: g.nextId + recruits.length, recruits: undefined }, army);
 }
 
 export function readRun(raw: string | null): Run | null {
@@ -262,6 +274,7 @@ export function readRun(raw: string | null): Run | null {
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;
+    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)))) return null;
     if (g.promoting !== undefined && (g.phase !== "player" || !g.units.some(u => u.id === g.promoting && u.side === "white" && u.kind === "pawn" && u.y === 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;

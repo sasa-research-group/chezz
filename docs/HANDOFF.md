@@ -10,21 +10,25 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
   Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`, style sheet
   `art.html`). Wesley calls it placeholder while mechanics settle.
-- **Phone layout + busier enemy** (`claude/mobile-and-ai`): the game fits an
+- **Phone layout + busier enemy** (#9): the game fits an
   iPhone screen (height-fitted board, bottom action bar); the enemy closes in
   on any of your pieces, pawns march toward targets and race to promote, pieces brace only when it helps; a battle ends with a celebration
   banner before the menu.
-- **Promotion** (`claude/promotion`, on top of #9): pawns on the far row
-  promote (you pick; enemy becomes a queen) with a morph animation; camp
-  sells a 3-gold pawn.
-- Encounters are too easy (bot wins with the king near full HP). Tune enemies
-  and energy from Wesley's play.
+- **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
+  a queen) with a morph animation; the barracks sells a 3-gold pawn.
+- **Next-square strikes** (#11): sliders must travel next to a target to hit it.
+- **Hideout hub** (`claude/hub`): between battles the king walks a little
+  village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), road
+  out; training grounds and merchant are placeholders to build out.
+- Difficulty needs tuning from Wesley's play; encounter 2 now punishes
+  letting a pawn promote.
 - Research report: `reports/Simultaneous chess tactics design.md`.
 
 ## History (merged PRs)
 - #2 foundation pass; #3 research + lab Duel; #4–#5 simultaneous-engine rule
   changes (reach-based return hits, pass-through, order pool); #6 turn-based
-  rebuild; #7 art pass; #8 strike in place.
+  rebuild; #7 art pass; #8 strike in place; #9 phone layout + busier enemy;
+  #10 promotion.
 
 ## Open items
 - Removing the dead prototype code is waiting on Mark. Its three vitest suites

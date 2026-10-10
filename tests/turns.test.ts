@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, attack, attackTargets, campReason, defend, endTurn, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, attack, attackTargets, buy, campReason, defend, endTurn, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -212,9 +212,32 @@ describe("turn-based rules", () => {
   it("offers a cheap pawn recruit at camp", () => {
     const g = { ...newRun(), phase: "camp" as const, gold: COST.pawn };
     expect(campReason(g, "pawn")).toBe("");
-    const next = leaveCamp(g, "pawn");
+    const next = leaveCamp(buy(g, "pawn"));
     expect(next.units.filter(u => u.side === "white" && u.kind === "pawn")).toHaveLength(1);
     expect(next.gold).toBe(0);
+  });
+  it("lets you shop more than once at the hub, then take the road", () => {
+    const hurt = { ...newRun(), phase: "camp" as const, gold: 20, units: [{ ...king, hp: 2 }] };
+    const healed = buy(hurt, "heal");
+    expect(unit(healed, "king")!.hp).toBe(4);
+    const shopped = buy(buy(healed, "pawn"), "bishop");
+    expect(shopped.gold).toBe(20 - COST.heal - COST.pawn - COST.bishop);
+    expect(shopped.recruits).toEqual(["pawn", "bishop"]);
+    // Recruits wait in the barracks (off the board) until you leave, so saves stay valid.
+    expect(readRun(JSON.stringify(shopped))).toEqual(shopped);
+    expect(readRun(JSON.stringify({ ...shopped, recruits: ["queen"] }))).toBeNull();
+    expect(readRun(JSON.stringify({ ...newRun(), recruits: ["pawn"] }))).toBeNull();
+    const next = leaveCamp(shopped);
+    expect(next).toMatchObject({ phase: "player", encounter: 1, recruits: undefined });
+    expect(next.units.filter(u => u.side === "white").map(u => [u.kind, u.hp])).toEqual([["king", 4], ["pawn", HP.pawn], ["bishop", HP.bishop]]);
+  });
+  it("refuses recruits once the next road has no room for them", () => {
+    // The next battle has three start squares: king + two recruits fill them.
+    const g = { ...newRun(), phase: "camp" as const, gold: 99, units: [king] };
+    const full = buy(buy(g, "pawn"), "pawn");
+    expect(campReason(full, "rook")).toBe("No room on the next road");
+    expect(buy(full, "rook")).toBe(full);
+    expect(buy({ ...g, gold: 1 }, "pawn").gold).toBe(1);
   });
   it("restores valid saves and rejects broken ones", () => {
     const g = newRun(); expect(readRun(JSON.stringify(g))).toEqual(g);
@@ -233,7 +256,7 @@ describe("turn-based rules", () => {
   it("can complete the three-battle run with a simple strategy", () => {
     let g = newRun(), turns = 0;
     while (!["victory", "defeat"].includes(g.phase) && turns++ < 80) {
-      if (g.phase === "camp") { g = leaveCamp(g, unit(g, "king")!.hp < 3 ? "heal" : "rook"); continue; }
+      if (g.phase === "camp") { g = leaveCamp(buy(g, unit(g, "king")!.hp < 3 ? "heal" : "rook")); continue; }
       g = playTurn(g);
       if (g.phase === "player") g = endTurn(g).run;
       expect(new Set(g.units.map(u => `${u.x},${u.y}`)).size).toBe(g.units.length);
