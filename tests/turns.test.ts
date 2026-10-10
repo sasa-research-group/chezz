@@ -68,14 +68,19 @@ describe("turn-based rules", () => {
   });
 
   it("makes a defender block 1 and counter an attacker it can reach", () => {
-    // Enemy pawn attacks the defending king diagonally: blocked to 0, king counters for 2.
-    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 3 };
-    const g = defend(board([king, pawn]), "king");
+    // An enemy bishop strikes the defending king diagonally: 2 - 1 = 1 damage, and the king counters for 2.
+    const bishop: Unit = { id: "b", side: "black", kind: "bishop", x: 0, y: 2, hp: 3 };
+    const g = defend(board([king, bishop]), "king");
     const { run } = endTurn(g);
-    expect(unit(run, "king")!.hp).toBe(5);
-    expect(unit(run, "p")!.hp).toBe(3 - DAMAGE.king);
+    expect(unit(run, "king")!.hp).toBe(5 - (DAMAGE.bishop - 1));
+    expect(unit(run, "b")!.hp).toBe(3 - DAMAGE.king);
   });
-
+  it("doesn't make the enemy strike for 0 into a defender", () => {
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 };
+    const { run } = endTurn(defend(board([king, pawn]), "king"));
+    expect(unit(run, "p")).toBeDefined();
+    expect(unit(run, "king")!.hp).toBe(5);
+  });
   it("doesn't counter an attacker the defender can't reach", () => {
     // A black rook attacks a defending knight from afar and stops next to it; knights can't hit adjacent squares.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
@@ -105,6 +110,9 @@ describe("turn-based rules", () => {
     expect(readRun(JSON.stringify({ ...g, energy: -1 }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { ...g.units[0], id: "dup" }] }))).toBeNull();
     expect(readRun("{")).toBeNull();
+    expect(readRun(JSON.stringify({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
+    expect(readRun(JSON.stringify({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
+    expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();
   });
 
   it("can complete the three-battle run with a simple strategy", () => {

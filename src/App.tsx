@@ -17,7 +17,7 @@ const HINT: Record<Unit["kind"], string> = {
   knight: "Jumps in an L for 2 energy, over anything.",
   pawn: "Steps forward. Strikes diagonally forward.",
 };
-type Playback = { steps: Step[]; run: Run; index: number };
+type Playback = { steps: Step[]; before: Run; index: number };
 
 function Board({ run, units, selected, flash, onSquare, locked }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean }) {
   const e = ENCOUNTERS[run.encounter];
@@ -71,7 +71,7 @@ export default function App() {
     if (!playback) return;
     timer.current = setTimeout(() => {
       if (playback.index + 1 < playback.steps.length) setPlayback({ ...playback, index: playback.index + 1 });
-      else { setRun(playback.run); setPlayback(null); }
+      else setPlayback(null);
     }, reduced ? 90 : fast ? 250 : 800);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [playback, fast, reduced]);
@@ -97,8 +97,9 @@ export default function App() {
     if (locked) return;
     const result = endTurn(run);
     setSelectedId(null); setNotice("");
-    if (!result.steps.length) { setRun(result.run); return; }
-    setPlayback({ steps: result.steps, run: result.run, index: 0 });
+    // Commit the enemy's result at once (autosave included); playback only shows it.
+    setRun(result.run);
+    if (result.steps.length) setPlayback({ steps: result.steps, before: run, index: 0 });
   };
   function start() { if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(newRun()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
   const step = playback ? playback.steps[playback.index] : null;
@@ -106,11 +107,11 @@ export default function App() {
   const caption = step ? step.text : run.phase === "player" ? (selected ? `${selected.kind}: ${selected.acted ? "done this turn" : selected.moved ? "moved; can still strike or defend" : "ready"}.` : "Select one of your pieces.") : "";
   return <main className="exile-app">
     <header className="exile-header"><div className="exile-brand">CHEZZ<span>A SMALL REBELLION</span></div><div className="header-controls"><button onClick={() => setHelp(true)}>How to play</button><button disabled={!!playback} onClick={() => setIntro(true)}>New run</button></div></header>
-    <section className="run-heading"><div><p className="kicker">ESCAPE FROM EXILE · {run.encounter + 1} / 3</p><h1>{e.title}</h1><p>{e.story}</p></div><div className="run-stats"><span>♛ <b>{king?.hp ?? 0} / {HP.king}</b><small>KING HEALTH</small></span><span>⚡ <b>{playback ? 0 : run.energy} / {ENERGY}</b><small>ENERGY</small></span><span>✦ <b>{run.gold}</b><small>GOLD</small></span></div></section>
+    <section className="run-heading"><div><p className="kicker">ESCAPE FROM EXILE · {run.encounter + 1} / 3</p><h1>{e.title}</h1><p>{e.story}</p></div><div className="run-stats"><span>♛ <b>{shown.find(u => u.id === "king")?.hp ?? 0} / {HP.king}</b><small>KING HEALTH</small></span><span>⚡ <b>{playback ? 0 : run.energy} / {ENERGY}</b><small>ENERGY</small></span><span>✦ <b>{run.gold}</b><small>GOLD</small></span></div></section>
     <div className="exile-layout">
       <section className="exile-arena"><div className="arena-topline"><span>{playback ? "ENEMY TURN" : `TURN ${run.turn} · YOUR MOVE`}</span><span>{shown.filter(u => u.side === "black").length} ENEMIES · DEFEAT THE PATROL</span></div>
-        <Board run={run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} />
-        <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setRun(playback.run); setPlayback(null); }}>Skip enemy turn</button>}</div>
+        <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} />
+        <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setPlayback(null); }}>Skip enemy turn</button>}</div>
       </section>
       <aside className="exile-sidebar">
         <section className="plan-panel"><p className="kicker">⚡ {playback ? 0 : run.energy} OF {ENERGY} ENERGY LEFT</p><h2>{playback ? "The patrol answers." : "Your move, Your Majesty."}</h2>

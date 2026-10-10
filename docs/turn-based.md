@@ -10,7 +10,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Each piece may first **move** once in its chess shape: 1 energy per square
   for king, pawn, rook, bishop and queen, or 2 for a knight's jump. Slides stop
   at pieces and walls; knights leap. Pawns step forward only.
-- Then it may **strike** or **defend**, not both. It can't move after striking.
+- Then it may **strike** or **defend**, not both. It can't move after either.
 
 ## Strikes
 - Cost: the squares from the piece to its target, + 1. A rook 3 squares away
@@ -18,7 +18,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   strike costs 3. Targets follow chess capture shapes (pawns diagonally
   forward; sliders need a clear line).
 - Fixed damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 3, queen 3.
-  HP no longer doubles as attack strength.
+  HP no longer doubles as attack strength. A pawn's strike deals 0 to a
+  defender.
 - No return hit. A kill moves the striker onto the target's square. If the
   target survives, a sliding piece stops on the square before it; others
   stay where they are.
@@ -31,8 +32,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 ## Enemy turn
 - Deterministic and basic: it takes the best-scoring affordable action until
   nothing is worth doing or its pool is spent. Strikes score highest (kills
-  and the king most), minus the counter it would take; otherwise pieces step
-  toward your king.
+  and the king most), minus any counter it would actually take (heavily if
+  the counter would kill it); it never strikes for 0 damage. Otherwise pieces
+  step toward your king.
 
 ## Run
 - Three encounters, camp between them: recruit a bishop (6 gold) or rook (8),

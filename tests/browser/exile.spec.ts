@@ -7,15 +7,13 @@ import { nextAction } from "../turns-strategy";
 const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("chezz.turns.v1")!) as Run);
 const cell = (page: Page, g: Run, p: { x: number; y: number }) => page.getByRole("button", { name: new RegExp(`^${coord(g, p)} `) });
 
-test("move, defend, end turn, watch the enemy, and resume after reload", async ({ page }) => {
+test("move, end turn, watch the enemy, and resume after reload", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Begin the rebellion" }).click();
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await expect(page.getByRole("button", { name: /^b2 empty, move for 1/ })).toBeVisible();
   await page.getByRole("button", { name: /^b2 empty/ }).click();
   await expect.poll(async () => (await saved(page)).energy).toBe(3);
-  await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
-  await expect.poll(async () => (await saved(page)).energy).toBe(2);
   await page.screenshot({ path: "test-results/exile-board.png", fullPage: true });
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
@@ -31,7 +29,8 @@ test("compact layout remains usable on a phone", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Begin the rebellion" }).click();
   await page.getByRole("button", { name: /^b1 white king/ }).click();
-  await expect(page.getByRole("button", { name: /^Defend · 1 energy/ })).toBeEnabled();
+  await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
+  await expect.poll(async () => (await saved(page)).energy).toBe(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/exile-mobile.png", fullPage: true });
 });

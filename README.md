@@ -30,7 +30,7 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
 
 ## Live code
 
-- **src/main.tsx → src/App.tsx**: screens, planning UI, playback and autosave.
+- **src/main.tsx → src/App.tsx**: screens, turn controls, enemy-turn playback and autosave.
 - **src/game/turns.ts**: pure, deterministic turn-based rules (energy, moves,
   strikes, defend, enemy turn, camp, save validation).
 - **src/game/exile.ts**: the previous simultaneous-orders engine, still used

@@ -180,7 +180,11 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       for (const t of attackTargets(run, u, energy)) {
         const v = run.units.find(w => w.id === t.id)!;
         const dealt = Math.max(0, DAMAGE[u.kind] - (v.defending ? 1 : 0));
-        const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - (v.defending ? DAMAGE[v.kind] * 8 : 0) - t.cost;
+        if (dealt === 0) continue;
+        // A surviving defender counters if it can reach where the striker ends up.
+        const stop = slides(u.kind) ? { x: v.x - Math.sign(v.x - u.x), y: v.y - Math.sign(v.y - u.y) } : u;
+        const countered = v.defending && dealt < v.hp && reaches(run, v, v, stop) ? DAMAGE[v.kind] : 0;
+        const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0) - t.cost;
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => ({ ...strike(run, u, t), cost: t.cost }) });
       }
       const dist = (p: Pos) => Math.max(Math.abs(p.x - king.x), Math.abs(p.y - king.y));
@@ -229,10 +233,11 @@ export function leaveCamp(g: Run, choice: CampChoice | "save"): Run {
 export function readRun(raw: string | null): Run | null {
   try {
     const g = JSON.parse(raw ?? "null") as Run | null;
-    if (!g || g.version !== 2 || !Number.isInteger(g.encounter) || !ENCOUNTERS[g.encounter] || !["player", "camp", "victory", "defeat"].includes(g.phase)) return null;
+    if (!g || g.version !== 2 || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !ENCOUNTERS[g.encounter] || !["player", "camp", "victory", "defeat"].includes(g.phase)) return null;
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
-    if (g.units.some(u => !Number.isInteger(u.x) || !Number.isInteger(u.y) || !HP[u.kind] || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
+    if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;
+    if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;
   } catch { return null; }
