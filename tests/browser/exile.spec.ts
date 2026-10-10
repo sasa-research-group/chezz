@@ -65,9 +65,14 @@ test("with several squares to strike from, you pick one", async ({ page }) => {
   await cell(page, now, king).click();
   await cell(page, now, target).click();
   await expect(page.getByRole("status")).toHaveText(/Pick a square to strike the pawn from/);
-  const picks = page.getByRole("button", { name: /strike from here/ });
+  const picks = page.getByRole("button", { name: /walk here and strike the pawn/ });
   expect(await picks.count()).toBeGreaterThan(1);
   await page.screenshot({ path: "test-results/exile-pick-square.png" });
+  // Tapping an empty square that isn't a pick cancels; it doesn't move the king.
+  await page.getByRole("button", { name: /^d1 empty/ }).click();
+  await expect(picks).toHaveCount(0);
+  expect((await saved(page)).energy).toBe(4);
+  await cell(page, now, target).click();
   await picks.first().click();
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-1")).toBe(false);
 });

@@ -49,7 +49,7 @@ function Board({ run, units, selected, flash, onSquare, locked, stage, spd, pick
           const focus = flash?.focus.some(q => same(p, q));
           return <button key={i} disabled={locked || !passable(run, p)}
             className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""}`}
-            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${m ? `, move for ${m.cost}` : ""}${s ? `, strike for ${s.cost}` : ""}${pick ? `, strike from here for ${pick.cost}` : ""}${aimed ? ", target" : ""}`}
+            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${m ? `, move for ${m.cost}` : ""}${s ? `, strike for ${s.cost}${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${pick ? `, walk here and strike the ${picking!.target.kind} for ${pick.cost}` : ""}${aimed ? ", target" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
             {(m || s) && <span className={`target-dot ${s ? "attack-dot" : ""}`}><b className="cost-label">{(m ?? s)!.cost}</b></span>}
             {pick && <span className="target-dot approach-dot"><b className="cost-label">⚔{pick.cost}</b></span>}</button>;
@@ -183,14 +183,14 @@ export default function App() {
   const strikeFrom = (from: Pos, attacker: Unit, target: Unit) => {
     setPicking(null);
     const walked = move(run, attacker.id, from);
-    if (walked === run || walked.promoting) { if (walked !== run) setRun(walked); return; }
+    if (walked === run) { setNotice("That piece can't get there this turn."); return; }
     face(attacker.id, attacker, from); animate(attacker.id, "move");
     setRun(walked); setNotice(""); setStriding(true);
     timers.current.push(setTimeout(() => {
       setStriding(false);
       const moved = walked.units.find(v => v.id === attacker.id)!;
       face(attacker.id, moved, target);
-      strikeNow(walked, moved, target);
+      if (!strikeNow(walked, moved, target)) setNotice("The strike didn't land; try again from here.");
     }, DURATION.move * spd));
   };
   const square = (p: Pos) => {
@@ -199,7 +199,8 @@ export default function App() {
       const pick = picking.options.find(t => same(t, p));
       setPicking(null);
       if (pick) { strikeFrom(pick, selected, picking.target); return; }
-      if (same(picking.target, p)) { setNotice(""); return; }
+      // Any other tap cancels; only another piece (yours or an enemy) carries on as a fresh tap.
+      if (!at(run, p) || same(picking.target, p)) { setNotice(""); return; }
     }
     const u = at(run, p);
     if (u?.side === "white") { setSelectedId(u.id); setNotice(""); return; }

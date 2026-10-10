@@ -66,11 +66,18 @@ describe("turn-based rules", () => {
     const foe: Unit = { id: "f", side: "black", kind: "pawn", x: 0, y: 0, hp: 1 };
     const g = board([rook, foe, { ...king, x: 3, y: 3 }]);
     expect(approaches(g, "r", "f")).toEqual([{ x: 0, y: 1, cost: 2 + 2 }]);
-    // The king two squares from a pawn can strike it from either of two squares.
+    // The king two squares from a pawn can strike it from any of three squares.
     const k = board([{ ...king, x: 1, y: 3 }, { ...foe, x: 1, y: 1 }]);
     expect(approaches(k, "king", "f").map(t => `${t.x},${t.y}:${t.cost}`).sort()).toEqual(["0,2:3", "1,2:3", "2,2:3"]);
     // Out of energy for the walk plus the strike: no way in.
     expect(approaches({ ...g, energy: 3 }, "r", "f")).toEqual([]);
+    // A knight's way in costs its jump (2) plus its strike (3); a piece that already moved has none.
+    const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
+    // (With the usual 4 energy a knight can't jump and strike in one turn.)
+    const kg = board([knight, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }], { energy: 5 });
+    expect(approaches(kg, "n", "f").map(t => `${t.x},${t.y}:${t.cost}`).sort()).toEqual(["1,1:5", "2,2:5"]);
+    expect(approaches({ ...kg, energy: ENERGY }, "n", "f")).toEqual([]);
+    expect(approaches({ ...g, units: g.units.map(u => (u.id === "r" ? { ...u, moved: true } : u)) }, "r", "f")).toEqual([]);
     // Already next to it: no walk needed, so no approach squares.
     expect(approaches(board([{ ...king, x: 1, y: 3 }, { ...foe, x: 1, y: 2 }]), "king", "f")).toEqual([]);
   });

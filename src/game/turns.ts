@@ -84,7 +84,8 @@ export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
   const strikeCost = u.kind === "knight" ? 3 : 2;
-  return moveTargets(g, u).filter(t => t.cost + strikeCost <= g.energy && reaches(g, u, t, v)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
+  const energy = energyOf(g, u.side);
+  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
 
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
