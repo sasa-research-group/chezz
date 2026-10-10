@@ -5,10 +5,10 @@
 .rig .hop,.rig .squash{transform-origin:50px 108px}
 .rig .head,.rig .head-tilt{transform-origin:50px 74px}
 .rig .eyes{transform-box:fill-box;transform-origin:center}
-.rig .prop{transform-origin:74px 92px}
-.rig .shield{transform-origin:27px 90px;transform:scale(0);transition:transform .25s var(--ease-back)}
+.rig .prop{transform-origin:var(--prop-origin,74px 92px)}
+.rig .shield{transform:scale(0);transition:transform .25s var(--ease-back)}
 .rig.is-defending .shield{transform:scale(1)}
-.rig .door{opacity:0;transform-origin:50px 44px;transform:scaleY(0);transition:transform .2s var(--ease-back),opacity .1s}
+.rig .door{opacity:0;transform-origin:50px 22px;transform:scaleY(0);transition:transform .2s var(--ease-back),opacity .1s}
 .rig.rig-rook .shield{display:none}
 .rig.rig-rook.is-defending .door{opacity:1;transform:scaleY(1)}
 .rig .ko-eyes,.rig .fx-dust,.rig .fx-smear,.rig .fx-stars,.rig .fx-smoke{opacity:0}
@@ -48,7 +48,7 @@
 .rig.act-attack .prop{animation:rig-swing .56s linear both}
 .rig.act-attack .fx-smear{animation:rig-smear .56s linear both}
 .rig.act-attack .fx-stars{animation:rig-stars .56s ease-out both}
-.rig.rig-queen.act-attack .arm-front{animation:rig-slap .56s linear both;transform-origin:62px 82px}
+.rig.rig-queen.act-attack .arm-front{animation:rig-slap .56s linear both;transform-origin:57px 50px}
 @keyframes rig-attack{0%{transform:none}28%{transform:translateX(-4px) rotate(-12deg) scale(1.1,.9)}40%{transform:translateX(16px) rotate(10deg) scale(.86,1.18)}58%{transform:translateX(16px) rotate(10deg) scale(.86,1.18)}100%{transform:none}}
 @keyframes rig-swing{0%{transform:none}28%{transform:rotate(-55deg)}40%,58%{transform:rotate(65deg)}100%{transform:none}}
 @keyframes rig-slap{0%,28%{transform:none}40%,58%{transform:rotate(-70deg)}100%{transform:none}}
