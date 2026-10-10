@@ -54,17 +54,24 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 ## End of a battle
 - The final blow plays out in full, then a short celebration ("Road
   cleared!" or "Victory!" while your pieces cheer, or "The crown falls…")
-  before the camp or end menu. Tapping the banner skips ahead. Presentation
+  before the hideout or end menu. Tapping the banner skips ahead. Presentation
   only.
 
 ## Run
-- Three encounters, camp between them: recruit a pawn (3 gold), bishop (6) or rook (8),
-  heal the king 2 (4), or save. HP carries over; fallen allies stay gone; king
-  death ends the run. The order pool, combat modes, pawn ambushes and cleanup
+- Three encounters with the rebel hideout between them (`buy`, `leaveCamp`).
+  The king walks between buildings (`src/components/Hub.tsx`):
+  - Barracks: recruit a pawn (3 gold), bishop (6) or rook (8), or heal the king
+    2 (4). Buy as often as gold allows; recruits wait in the barracks
+    (`run.recruits`) and are refused once the army would outnumber the next
+    map's start squares.
+  - Training grounds (upgrades) and the merchant (consumables): placeholders
+    with no actions yet.
+  - Road out: march into the next battle.
+- HP carries over; fallen allies stay gone; king death ends the run. The order pool, combat modes, pawn ambushes and cleanup
   strikes from the simultaneous slice are gone.
 
 ## Known gaps
-- Encounters are the old ones and are too easy under these rules: the test
-  bot wins every run with the king near full HP. Next: tougher enemies and
-  energy tuning from playtests.
+- Encounters are the old ones and need tuning from playtests. With
+  next-square strikes, encounter 2 is a real puzzle: a greedy player loses it
+  to a pawn that promotes, so the test player looks two turns ahead.
 - Enemy intent isn't shown; you see the enemy act after your turn.

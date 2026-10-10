@@ -1,0 +1,37 @@
+/* The hub between battles: a little village the king walks around. */
+.hub-screen{position:fixed;inset:0;z-index:90;overflow:auto;background:#f3ead7 radial-gradient(ellipse at 20% 30%,#dbdfba88,transparent 55%);padding:24px 48px 32px;display:flex;flex-direction:column;gap:18px;align-items:center}
+.hub-header{width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:end;gap:24px}
+.hub-header h1{font-family:Georgia,serif;letter-spacing:-1.5px;font-size:clamp(28px,3vw,40px);line-height:1.1;margin-bottom:6px}
+.hub-header p:not(.kicker){font-size:13px;color:#766a58;line-height:1.5}
+.hub-stats{display:flex;gap:22px;align-items:end;flex-shrink:0}.hub-stats>span{font-size:16px;display:block}.hub-stats small{font-size:8px;letter-spacing:1px;display:block;margin-top:5px;color:#766a58}
+.hub-army{display:flex!important;flex-wrap:wrap;align-items:end;gap:2px;max-width:170px}.hub-army small{flex-basis:100%}.hub-army i{width:28px;height:34px;display:block}.hub-army i svg{width:100%;height:100%}.hub-army i.new{filter:drop-shadow(0 0 3px #e6b34f)}
+.hub-map{position:relative;width:100%;max-width:min(900px,calc((100dvh - 190px) * 7 / 5));border:9px solid #675448;border-radius:8px;box-shadow:0 8px 0 #483b34,0 22px 28px #5e513550;background:#9aaf87;overflow:hidden;container-type:inline-size}
+.hub-ground{position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(5,1fr)}
+.hub-tile{cursor:pointer}.hub-tile.grass{background:#9aaf87}.hub-tile.grass.alt{background:#a3b78f}.hub-tile.path{background:#e3cfa3;box-shadow:inset 0 0 0 1px #d6bf8f}.hub-tile.lot{background:#b9a77f;cursor:default}
+.hub-place{position:absolute;border:0;background:none;padding:6px 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:end;z-index:2}
+.hub-place svg{width:auto;height:72%;max-width:100%;filter:drop-shadow(0 4px 0 #382f2e33);transition:transform .15s}
+.hub-place:hover svg,.hub-place:focus-visible svg{transform:translateY(-3px) rotate(-2deg)}
+.hub-place.road{padding:4px 0 0}
+/* Signs scale with the map (cqw), so they stay inside their lot at any size. */
+.hub-sign{position:absolute;left:50%;top:.7cqw;transform:translateX(-50%) rotate(-2deg);background:#fcf5de;border:2px solid #382f2e;border-radius:7px;box-shadow:0 2px 0 #382f2e;padding:.35cqw .9cqw;white-space:nowrap;text-align:center;line-height:1.15;max-width:96%}
+.hub-sign b{display:block;font-size:max(6px,1.35cqw);font-family:Georgia,serif}.hub-sign small{display:block;font-size:max(4.5px,.9cqw);letter-spacing:.08em;color:#766a58;font-weight:800;text-transform:uppercase}
+.hub-place.soon .hub-sign{background:#efe6d0}.hub-place.soon svg{filter:grayscale(.35) drop-shadow(0 4px 0 #382f2e33)}
+.hub-place.road .hub-sign{top:auto;bottom:.5cqw;transform:translateX(-50%) rotate(2deg);padding:.35cqw .4cqw}.hub-place.road .hub-sign b{font-size:max(5.5px,1.2cqw)}.hub-place.road .hub-sign small{font-size:max(4px,.75cqw);letter-spacing:0}
+.hub-king{position:absolute;width:calc(100% / 7 * .72);transform:translate(-50%,-62%);transition-property:left,top;transition-timing-function:linear;z-index:3;pointer-events:none}
+.hub-king svg{width:100%;height:auto;display:block}
+.hub-panel .primary-button{max-width:280px;margin:6px auto 0}
+.hub-panel.training,.hub-panel.merchant,.hub-panel.road{max-width:520px}
+@media(max-width:700px){
+  .hub-screen{padding:16px 12px 24px;gap:12px}
+  .hub-header{flex-direction:column;align-items:start;gap:10px}.hub-header h1{font-size:26px}.hub-header p:not(.kicker){font-size:12px}
+  .hub-stats{gap:16px}.hub-stats>span{font-size:13px}
+  .hub-map{border-width:6px}
+  .hub-sign{border-width:1.5px;border-radius:5px}
+}
+.hub-body{display:contents}.hub-panel:focus{outline:none}
+/* Phone landscape: a slimmer header leaves room for a bigger map. */
+@media(max-height:500px){
+  .hub-screen{padding:10px 16px 14px;gap:8px}
+  .hub-header{flex-direction:row;align-items:center}.hub-header h1{font-size:22px;margin:0}.hub-header p:not(.kicker){display:none}.hub-header .kicker{margin-bottom:2px}
+  .hub-map{max-width:min(900px,calc((100dvh - 110px) * 7 / 5));border-width:6px}
+}
