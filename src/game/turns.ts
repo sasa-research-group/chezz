@@ -1,8 +1,8 @@
 /** Escape from Exile, turn-based: you act, then the enemy acts. Each side
  * spends a per-turn energy pool. Each piece may move once (1 energy per
- * square in its chess shape; a knight's jump costs 2), then attack (distance
- * + 1) or defend (1). Pure and deterministic: no DOM, no randomness, inputs
- * are never mutated. */
+ * square in its chess shape; a knight's jump costs 2), then strike the next
+ * square in its shape (2; a knight's jump 3) or defend (1). Pure and
+ * deterministic: no DOM, no randomness, inputs are never mutated. */
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
@@ -67,39 +67,22 @@ export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
   return out;
 }
 
-/** Enemies a piece can strike this turn: distance + 1, along its capture shape. */
+/** Enemies a piece can strike this turn: the next square along its capture shape (a knight's jump). */
 export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Target[] {
   if (u.acted) return [];
-  const out: Target[] = [];
-  const foe = (p: Pos) => { const v = at(g, p); return v && v.side !== u.side ? v : undefined; };
-  const dirs = slides(u.kind);
-  if (dirs) {
-    for (const [dx, dy] of dirs) for (let n = 1; ; n++) {
-      const p = { x: u.x + dx * n, y: u.y + dy * n };
-      if (!passable(g, p)) break;
-      const v = at(g, p);
-      if (v) { if (v.side !== u.side && n + 1 <= energy) out.push({ ...p, cost: n + 1, id: v.id }); break; }
-    }
-  } else {
-    const shape = u.kind === "knight" ? LEAPS : u.kind === "king" ? [...STRAIGHTS, ...DIAGONALS] : [[-1, forward(u)], [1, forward(u)]];
-    const cost = u.kind === "knight" ? 3 : 2;
-    if (cost <= energy) for (const [dx, dy] of shape) { const p = { x: u.x + dx, y: u.y + dy }, v = foe(p); if (v) out.push({ ...p, cost, id: v.id }); }
-  }
-  return out;
+  const cost = u.kind === "knight" ? 3 : 2;
+  if (cost > energy) return [];
+  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
-/** Could u, standing on `from`, strike `target` (ignoring energy)? */
+/** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
 export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
   const dx = target.x - from.x, dy = target.y - from.y, ax = Math.abs(dx), ay = Math.abs(dy);
   if (u.kind === "pawn") return ax === 1 && dy === forward(u);
   if (u.kind === "knight") return ax * ay === 2;
-  if (u.kind === "king") return Math.max(ax, ay) === 1;
-  const straight = (dx === 0) !== (dy === 0), diagonal = ax === ay && ax > 0;
-  if (!(u.kind === "rook" ? straight : u.kind === "bishop" ? diagonal : straight || diagonal)) return false;
-  const sx = Math.sign(dx), sy = Math.sign(dy);
-  for (let x = from.x + sx, y = from.y + sy; x !== target.x || y !== target.y; x += sx, y += sy)
-    if (!passable(g, { x, y }) || g.units.some(v => v.id !== u.id && v.x === x && v.y === y)) return false;
-  return true;
+  if (Math.max(ax, ay) !== 1) return false;
+  const diagonal = ax === 1 && ay === 1;
+  return u.kind === "rook" ? !diagonal : u.kind === "bishop" ? diagonal : true;
 }
 
 function spawn(g: Run, army: Unit[]): Run {
@@ -214,8 +197,11 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const crowning = u.kind === "pawn" && t.y === lastRank(run, u);
         const ahead = whites.some(w => (w.y - u.y) * forward(u) > 0);
         const march = u.kind === "pawn" && gain <= 0 && ahead ? 1 : 0;
-        if (gain <= 0 && !march && !crowning) continue;
-        choices.push({ score: crowning ? 30 : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
+        // Strikes only reach the next square, so a square to strike from is worth a step.
+        const strikeCost = u.kind === "knight" ? 3 : 2;
+        const lineUp = !u.acted && energy - t.cost >= strikeCost && whites.some(w => reaches(run, u, t, w));
+        if (gain <= 0 && !march && !crowning && !lineUp) continue;
+        choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
           const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
@@ -223,7 +209,9 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       }
       // Brace only when it matters (a threat it survives only thanks to the block, or one it
       // could hit back), and only when no move is worth making.
-      const worthIt = whites.some(w => reaches(run, w, w, u) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
+      // A threat is one of your pieces that can strike u next turn, stepping in first if its pool allows.
+      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + (w.kind === "knight" ? 3 : 2) <= ENERGY && reaches(run, w, t, u));
+      const worthIt = whites.some(w => threat(w) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
       if (!u.acted && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
         const text = `${label(u)} braces to defend.`;
         const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);

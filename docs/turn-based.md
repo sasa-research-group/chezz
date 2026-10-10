@@ -13,17 +13,17 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Then it may **strike** or **defend**, not both. It can't move after either.
 
 ## Strikes
-- Cost: the squares from the piece to its target, + 1. A rook 3 squares away
-  costs 4. Adjacent strikes, pawn diagonals and king strikes cost 2; a knight
-  strike costs 3. Targets follow chess capture shapes (pawns diagonally
-  forward; sliders need a clear line).
+- Reach: one square in the piece's capture shape. Kings and queens strike any
+  adjacent square, rooks the four straight neighbours, bishops the four
+  diagonal ones, pawns diagonally forward, knights a knight's jump away. A rook
+  across the board has to travel next to its target first.
+- Cost: 2 (a knight's strike 3). A piece may move and then strike in the same
+  turn, paying for both.
 - Fixed damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 3, queen 3.
   HP no longer doubles as attack strength. A pawn's strike deals 0 to a
   defender.
 - No return hit. Strikes land from where the striker stands: it never moves
-  onto the target's square, even on a kill (unlike chess). Rooks, bishops and
-  queens strike the first piece along a clear line at any distance, paying
-  distance + 1.
+  onto the target's square, even on a kill (unlike chess).
 
 ## Promotion
 - A pawn that moves onto the far row promotes at full health of its new
@@ -41,13 +41,15 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 ## Enemy turn
 - Deterministic and basic: it takes the best-scoring affordable action until
   nothing is worth doing or its pool is spent. Strikes score highest (kills
-  and the king most), minus any counter it would actually take (heavily if
-  the counter would kill it); it never strikes for 0 damage. Otherwise pieces
-  close in on your king or your nearest piece. Pawns keep marching toward
-  pieces still ahead of them when they can't close in yet, and race for the
-  far row to promote. When no move is worth making, a piece braces (defends,
-  1 energy) if one of your pieces threatens it and only the brace would let
-  it survive the hit, or it could hit back. Otherwise it simply waits.
+  and the king most), minus any counter it would actually take (heavily if the
+  counter would kill it); it never strikes for 0 damage. Next, a piece steps
+  onto a square it can strike from, if the pool covers the move and the
+  strike. Otherwise pieces close in on your king or your nearest piece. Pawns
+  keep marching toward pieces still ahead of them when they can't close in
+  yet, and race for the far row to promote. When no move is worth making, a
+  piece braces (defends, 1 energy) if one of your pieces could strike it next
+  turn (stepping in first if its pool allows) and only the brace would let it
+  survive the hit, or it could hit back. Otherwise it simply waits.
 
 ## End of a battle
 - The final blow plays out in full, then a short celebration ("Road
