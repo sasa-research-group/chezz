@@ -35,9 +35,11 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   nothing is worth doing or its pool is spent. Strikes score highest (kills
   and the king most), minus any counter it would actually take (heavily if
   the counter would kill it); it never strikes for 0 damage. Otherwise pieces
-  close in on your king or your nearest piece. Pawns keep marching forward
-  when they can't close in yet, and a piece with nothing better to do braces
-  (defends, 1 energy) if one of your pieces could strike it next turn.
+  close in on your king or your nearest piece. Pawns keep marching toward
+  pieces still ahead of them when they can't close in yet, but never onto
+  the last rank. When nothing else is worth doing, a piece braces (defends,
+  1 energy) if one of your pieces threatens it and the brace would let it
+  survive the hit or hit back. A pawn with no useful move simply waits.
 
 ## End of a battle
 - The final blow plays out in full, then a short celebration ("Road

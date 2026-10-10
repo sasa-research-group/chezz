@@ -114,12 +114,25 @@ describe("turn-based rules", () => {
     expect(a.run.units.filter(u => u.side === "white").every(u => !u.moved && !u.acted && !u.defending)).toBe(true);
   });
 
-  it("keeps stuck enemy pawns busy: they advance when they can and defend when threatened", () => {
-    // King steps to a2: the pawn on a3 is blocked and threatened, the pawn on c3 can still march.
+  it("keeps stuck enemy pawns busy when they can do something useful", () => {
+    // King steps to a2: the pawn on a3 is blocked and bracing wouldn't save it, so it waits; the c-pawn marches.
     const { run, steps } = endTurn(move(newRun(), "king", { x: 0, y: 2 }));
-    expect(unit(run, "enemy-0-0")).toMatchObject({ x: 0, y: 1, defending: true });
+    expect(unit(run, "enemy-0-0")).toMatchObject({ x: 0, y: 1 });
+    expect(unit(run, "enemy-0-0")!.defending).toBeFalsy();
     expect(unit(run, "enemy-0-1")).toMatchObject({ x: 2, y: 2 });
-    expect(steps.map(s => s.kind)).toEqual(expect.arrayContaining(["defend", "move"]));
+    expect(steps.map(s => s.kind)).toEqual(["move"]);
+  });
+  it("braces only when it would survive the hit or could hit back", () => {
+    // An enemy knight (3 HP) threatened by the king (2 damage): bracing leaves it alive, so it braces.
+    const knight: Unit = { id: "n", side: "black", kind: "knight", x: 3, y: 2, hp: 3 };
+    const { run } = endTurn(board([{ ...king, x: 2, y: 3 }, knight]));
+    expect(unit(run, "n")!.defending || unit(run, "king")!.hp < 5).toBe(true);
+  });
+  it("doesn't march pawns onto the last rank or away from every target", () => {
+    // King behind the pawn's line: the pawn has nothing ahead of it to chase.
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 };
+    const { run } = endTurn(board([{ ...king, x: 0, y: 0 }, pawn]));
+    expect(unit(run, "p")).toMatchObject({ x: 3, y: 2 });
   });
   it("ends the run when the king falls", () => {
     const g = board([{ ...king, hp: 1 }, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }]);

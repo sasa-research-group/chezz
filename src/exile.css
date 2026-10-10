@@ -21,7 +21,7 @@
 /* Phone layout: everything needed to play fits one screen. The board sizes to
    the screen height; actions sit in a bar fixed to the bottom. */
 @media(max-width:700px){
-  .exile-app{padding:10px 12px calc(150px + env(safe-area-inset-bottom,0px));min-height:100dvh}
+  .exile-app{padding:10px 12px calc(176px + env(safe-area-inset-bottom,0px));min-height:100dvh}
   .exile-header{padding-bottom:8px;gap:10px}.exile-brand{font-size:22px;letter-spacing:-1px}.exile-brand span{display:none}.header-controls button{font-size:11px}
   .run-heading{display:flex!important;align-items:center;justify-content:space-between;padding:8px 0 6px;gap:10px}.run-heading .kicker,.run-heading>div>p:last-child{display:none}.run-heading h1{font-size:19px!important;margin:0;letter-spacing:-.5px}
   .run-stats{margin:0!important;gap:12px!important}.run-stats>span{font-size:13px!important}.run-stats small{display:none}
