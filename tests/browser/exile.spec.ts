@@ -55,6 +55,21 @@ test("tap an enemy to walk up and strike it when there's one way in", async ({ p
   expect(now.energy).toBe(0);
 });
 
+test("a knight flips over to strike for 2 and lands back home", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "knight" as const, x: 0, y: 3, hp: 3 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 1, y: 1, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a1 white knight/ }).click();
+  await page.getByRole("button", { name: /^b3 black pawn, 1 HP, strike for 2/ }).click();
+  await expect(page.locator(".exile-piece.lunging")).toHaveCount(1);
+  await expect.poll(async () => (await saved(page)).energy).toBe(2);
+  // The stunt ends with the knight home and the fallen pawn gone from the board.
+  await expect(page.locator(".exile-piece.lunging")).toHaveCount(0);
+  await expect(page.locator(".exile-piece.ghost")).toHaveCount(0);
+  await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
+});
+
 test("with several squares to strike from, you pick one", async ({ page }) => {
   const start = newRun();
   const pawn = (id: string, x: number, y: number) => ({ id, side: "black" as const, kind: "pawn" as const, x, y, hp: 1 });

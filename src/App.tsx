@@ -26,14 +26,16 @@ type Playback = { steps: Step[]; before: Run; index: number };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
 /** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land. */
-type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind>; lunge: Record<string, Pos | "home">; doomed: string[] };
-const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge: {}, doomed: [] };
+type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind>; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean };
+const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge: {}, doomed: [], holdFlash: false };
 const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420 };
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
-function Board({ run, units, selected, flash, onSquare, locked, stage, spd, picking }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null }) {
+function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage, spd, picking }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null }) {
   const e = ENCOUNTERS[run.encounter];
+  // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
+  const flash = stage.holdFlash ? null : rawFlash;
   const moves = selected && !locked ? moveTargets(run, selected) : [];
   // Strikes in place, plus enemies the piece can walk up to and strike this turn (cheapest way in).
   const strikes = selected && !locked ? [...attackTargets(run, selected), ...run.units.filter(v => v.side === "black").flatMap(v => {
@@ -61,10 +63,10 @@ function Board({ run, units, selected, flash, onSquare, locked, stage, spd, pick
         const damage = flash?.damage.find(d => d.id === piece.id);
         const spent = piece.side === "white" && piece.acted;
         const ghost = !units.includes(piece), doomed = ghost && stage.doomed.includes(piece.id);
-        const anim = doomed ? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
+        const anim = doomed ? stage.anims[piece.id] ?? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
         const lunge = stage.lunge[piece.id], spot = lunge && lunge !== "home" ? lunge : piece;
         return <div key={piece.id} className={`exile-piece ${piece.side} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
-          style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (ghost ? 29 : lunge ? 35 : 30)) }}>
+          style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
           <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
           {!ghost && !stage.morph[piece.id] && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
@@ -127,24 +129,35 @@ export default function App() {
     // Knights show off: front-flip over to the target, smack it, backflip home. The rules still strike from
     // the knight's own square; this is only how it looks. Everything else waits for the blow to land.
     const leaps = actor.kind === "knight" && !!target;
-    const impact = leaps ? DURATION.leap : 0;
+    const impact = leaps ? DURATION.leap : 0, home = impact + 380;
+    const actorDies = step.killed.includes(actor.id);
     const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms * spd));
+    const dropLunge = () => setStage(st => { const lunge = { ...st.lunge }; delete lunge[actor.id]; return { ...st, lunge }; });
     if (leaps) {
       const near = { x: actor.x + (target.x - actor.x) * .62, y: actor.y + (target.y - actor.y) * .62 };
-      setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: near } }));
+      setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: near }, holdFlash: true }));
+      later(impact + 230, () => setStage(st => ({ ...st, holdFlash: false })));
       animate(actor.id, "leap");
       animate(actor.id, "attack", impact);
-      later(impact + 380, () => { setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: "home" } })); animate(actor.id, "leap-back"); });
-      later(impact + 380 + DURATION["leap-back"], () => setStage(st => { const lunge = { ...st.lunge }; delete lunge[actor.id]; return { ...st, lunge }; }));
+      // A knight killed by a counter falls where it struck; otherwise it backflips home.
+      if (!actorDies) {
+        later(home, () => { setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: "home" } })); animate(actor.id, "leap-back"); });
+        later(home + DURATION["leap-back"], dropLunge);
+      }
     } else animate(actor.id, "attack");
     const dying = beforeUnits.filter(u => step.killed.includes(u.id));
     if (dying.length) {
-      setStage(st => ({ ...st, ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying], doomed: leaps ? [...st.doomed, ...step.killed] : st.doomed }));
-      if (leaps) later(impact + 230, () => setStage(st => ({ ...st, doomed: st.doomed.filter(id => !step.killed.includes(id)) })));
-      later(impact + 230 + DURATION.death, () => setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => !step.killed.includes(g.id)) })));
+      // Each fallen piece waits for the blow that fells it: the target at impact, a countered attacker after.
+      const fallsAt = (id: string) => (id === actor.id ? impact + 520 : impact + 230);
+      setStage(st => ({ ...st, ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying], doomed: leaps || actorDies ? [...st.doomed, ...step.killed] : st.doomed }));
+      for (const id of step.killed) {
+        if (leaps || actorDies) later(fallsAt(id), () => setStage(st => ({ ...st, doomed: st.doomed.filter(d => d !== id) })));
+        later(fallsAt(id) + DURATION.death, () => { setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => g.id !== id) })); if (id === actor.id) dropLunge(); });
+      }
     }
     if (target && !step.killed.includes(target.id)) animate(target.id, "hit", impact + 230);
-    if (step.damage.some(d => d.id === actor.id) && !step.killed.includes(actor.id)) animate(actor.id, "hit", impact + 520);
+    // A surviving knight takes its counter after landing home, so the backflip isn't cut short.
+    if (step.damage.some(d => d.id === actor.id) && !actorDies) animate(actor.id, "hit", leaps ? home + DURATION["leap-back"] : 520);
   };
   const [help, setHelp] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -186,14 +199,13 @@ export default function App() {
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
     perform(playback.steps[playback.index], prev);
   }, [playback?.steps, playback?.index]);
-  useEffect(() => { if (!flash) return; const id = setTimeout(() => setFlash(null), 700); return () => clearTimeout(id); }, [flash]);
+  useEffect(() => { if (!flash || stage.holdFlash) return; const id = setTimeout(() => setFlash(null), 700); return () => clearTimeout(id); }, [flash, stage.holdFlash]);
 
   const strikeNow = (g: Run, attacker: Unit, target: Unit) => {
     const { run: next, step } = attack(g, attacker.id, target.id);
     if (next === g) return false;
     setRun(next); setNotice("");
-    // A knight's blow lands after its flip over; show the damage then.
-    if (attacker.kind === "knight") timers.current.push(setTimeout(() => setFlash(step), DURATION.leap * spd)); else setFlash(step);
+    setFlash(step);
     if (step) perform(step, g.units);
     if (!next.units.some(v => v.id === attacker.id)) setSelectedId(null);
     return true;
