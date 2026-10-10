@@ -24,7 +24,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   home (animation only; `stage.lunge` in `App.tsx`).
 - **Hideout hub** (#12): between battles the king walks a little
   village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), road
-  out; training grounds and merchant are placeholders to build out.
+  out; training grounds, merchant and Grandmaster's Guild are placeholders
+  to build out.
 - Difficulty needs tuning from Wesley's play; encounter 2 now punishes
   letting a pawn promote.
 - Research report: `reports/Simultaneous chess tactics design.md`.

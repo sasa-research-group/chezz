@@ -68,8 +68,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
     2 (4). Buy as often as gold allows; recruits wait in the barracks
     (`run.recruits`) and are refused once the army would outnumber the next
     map's start squares.
-  - Training grounds (upgrades) and the merchant (consumables): placeholders
-    with no actions yet.
+  - Training grounds (upgrades), the merchant (consumables) and the
+    Grandmaster's Guild: placeholders with no actions yet.
   - Road out: march into the next battle.
 - HP carries over; fallen allies stay gone; king death ends the run. The order pool, combat modes, pawn ambushes and cleanup
   strikes from the simultaneous slice are gone.

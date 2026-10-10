@@ -102,7 +102,7 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   const hub = page.getByRole("dialog", { name: "Rebel hideout" });
   await expect(hub).toBeVisible();
   await page.screenshot({ path: "test-results/hub-mobile.png" });
-  for (const name of [/^Barracks/, /^Training grounds/, /^Merchant/, /^Road out/]) {
+  for (const name of [/^Barracks/, /^Training grounds/, /^Merchant/, /^Grandmaster.s Guild/, /^Road out/]) {
     const box = (await hub.getByRole("button", { name }).boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(664);
   }
@@ -113,6 +113,11 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   await expect(training.getByRole("button")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(training).toBeHidden();
+  await page.getByRole("button", { name: /^Grandmaster.s Guild/ }).click();
+  const guild = page.getByRole("dialog", { name: "Grandmaster's Guild" });
+  await expect(guild.getByRole("button")).toHaveCount(1);
+  await page.screenshot({ path: "test-results/hub-guild.png" });
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Barracks/ }).click();
   const barracks = page.getByRole("dialog", { name: "Barracks" });
   await barracks.getByRole("button", { name: /Recruit a pawn/ }).click();
