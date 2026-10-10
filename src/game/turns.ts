@@ -203,9 +203,10 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
       }
-      // Brace only when it matters: a threat it would survive thanks to the block, or one it could hit back.
-      const worthIt = whites.some(w => reaches(run, w, w, u) && (DAMAGE[w.kind] - 1 < u.hp || reaches(run, u, u, w)));
-      if (!u.acted && worthIt) choices.push({ score: 1.1, key: `d${u.id}`, apply: () => {
+      // Brace only when it matters (a threat it survives only thanks to the block, or one it
+      // could hit back), and only when no move is worth making.
+      const worthIt = whites.some(w => reaches(run, w, w, u) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
+      if (!u.acted && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
         const text = `${label(u)} braces to defend.`;
         const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);
         return { run: next, step: { text, units: next.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "defend", killed: [] }, cost: 1 };

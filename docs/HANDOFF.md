@@ -2,73 +2,35 @@
 
 ## State
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
-- **Turn-based rebuild** (`claude/turn-based`): you act, then the enemy acts,
-  with 4 energy per turn for moves (1/square), strikes (distance + 1) and
-  defend (1); fixed damage; see `docs/turn-based.md`. Replaces the
-  simultaneous engine in the app; `exile.ts` stays for the lab Duel.
-- Encounters are too easy under the new rules (bot wins with the king near
-  full HP). Next: enemy and energy tuning from Wesley's play.
-- Research report: `reports/Simultaneous chess tactics design.md`. Lab: Duel.
+- **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). You act,
+  then the enemy acts; 4 energy per turn for moves (1/square), strikes
+  (distance + 1) and defend (1); fixed damage; strikes land in place (no
+  capture-move). The simultaneous engine (`exile.ts`) stays for the lab Duel.
+- **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
+  Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`, style sheet
+  `art.html`). Wesley calls it placeholder while mechanics settle.
 - **Phone layout + busier enemy** (`claude/mobile-and-ai`): the game fits an
-  iPhone screen (compact header, height-fitted board, bottom action bar);
-  stuck enemy pawns now march or brace instead of idling.
-- **Strike in place** (PR #8, merged): strikes land from where the
-  piece stands (sliders down a clear line at distance + 1); no capture-move.
-- **Art pass** (`claude/art-pass`): a cast of misfit characters (rebels vs a
-  blue royal patrol) with Pizza Tower-style idle/move/attack/defend/hit/death
-  animations, wired into the game. Style sheet: `art.html`. Wesley calls it
-  placeholder: fine while mechanics settle, likely reworked later.
+  iPhone screen (height-fitted board, bottom action bar); the enemy closes in
+  on any of your pieces, pawns march toward targets (never onto the last
+  rank), pieces brace only when it helps; a battle ends with a celebration
+  banner before the menu.
+- **Next up:** pawn promotion (both sides; you pick, enemy becomes a queen;
+  transformation animation) and a 3-gold pawn recruit at camp.
+- Encounters are too easy (bot wins with the king near full HP). Tune enemies
+  and energy from Wesley's play.
+- Research report: `reports/Simultaneous chess tactics design.md`.
 
-## Earlier: pass-through and order pool (PR #5, simultaneous engine)
-- Sliders pass through enemies stepping into their path, striking each in
-  order, and fall where return hits kill them (replaces stop-at-the-piece).
-- Each battle has an order pool (6/10/18). Running out with enemies left
-  ends the run; unused orders become gold. Old saves get a full pool.
-
-## Threat rules (PR #4, merged)
-From Wesley's playtest:
-- A piece hits back only if it could legally attack the attacker's square.
-  So pawns hit back only diagonally, and knights and bishops can hit and run.
-- A slider is stopped by an enemy stepping onto its path, and strikes it there.
-
-## Foundation pass (PR #2, merged)
-- **Fixed dodge bug in `resolveTurn`:** if a target's own move failed, its
-  attacker used to enter the vacated square for no damage, then bounce back.
-  The log also said the target "moves away". Damage and moves now run inside
-  `settle()`. Targets whose dodge failed are marked stuck and the turn
-  re-settles. Each pass pins only the failures that don't depend on another
-  failure, so a piece that really leaves is never hit.
-- **Kingless boards:** `enemyOrders` returns `[]` instead of throwing.
-  `resolveTurn(g, black?)` computes enemy orders only after the early return.
-  `readRun` now rejects a kingless save that isn't in defeat, and any
-  non-integer unit x/y.
-- **Replaced the hard-coded king max HP of 5 with `HP.king`** in the app and
-  in the rules.
-- **Playwright:** `PLAYWRIGHT_CHROMIUM_PATH` sets the browser executable.
-- **Docs:** README, meta description, exile-run (stuck-target rule, deploy
-  note), art-direction status, plus this file and `CLAUDE.md`.
-- **Tests:** 59 vitest and 4 e2e, all green.
+## History (merged PRs)
+- #2 foundation pass; #3 research + lab Duel; #4–#5 simultaneous-engine rule
+  changes (reach-based return hits, pass-through, order pool); #6 turn-based
+  rebuild; #7 art pass; #8 strike in place.
 
 ## Open items
 - Removing the dead prototype code is waiting on Mark. Its three vitest suites
   would go with it.
-- `readRun` still accepts any `planned` orders. A save with a ghost `unitId`
-  makes Resolve throw, and an illegal order teleports a piece. Fix: drop orders
-  that `plan()` wouldn't accept.
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
 - `prototype/familiar-opening` is unmerged and still on the old engine.
-- Test gaps:
-  - Longer collision chains.
-  - `readRun` negatives (bad mode, phase, HP, out-of-bounds).
-  - Rook recruit.
-  - `campReason` branches.
-  - The full-run test bot sees enemy orders, so it's stronger than a real player.
-- App debt:
-  - `App.tsx` is dense.
-  - There's an empty header feedback export.
-  - Modals lack Escape and a focus trap.
-  - The Between Worlds dev lab was lost.
-
-## Next
-The design conversation on **Always trade vs Free hits**: which combat model to
-keep, or what hybrid. Use playtest exports from both modes.
+- Phone landscape still gets the desktop layout (scrolls).
+- The test bot's pathfinding ignores walls; it can stall where a person wouldn't.
+- Enemy intent isn't shown before it acts.
+- App debt: `App.tsx` is dense; modals lack Escape and a focus trap.

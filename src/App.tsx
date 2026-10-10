@@ -168,7 +168,7 @@ export default function App() {
     setRun(result.run);
     if (result.steps.length) setPlayback({ steps: result.steps, before: run, index: 0 });
   };
-  function start() { clearStage(); if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(newRun()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
+  function start() { clearStage(); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(newRun()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
   const step = playback ? playback.steps[playback.index] : null;
   const shown = step ? step.units : run.units;
   const caption = step ? step.text : run.phase === "player" ? (selected ? `${selected.kind}: ${selected.acted ? "done this turn" : selected.moved ? "moved; can still strike or defend" : "ready"}.` : "Select one of your pieces.") : "";
@@ -178,7 +178,8 @@ export default function App() {
     <div className="exile-layout">
       <section className="exile-arena"><div className="arena-topline"><span>{playback ? "ENEMY TURN" : `TURN ${run.turn} · YOUR MOVE`}</span><span>{shown.filter(u => u.side === "black").length} ENEMIES · DEFEAT THE PATROL</span></div>
         <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} />
-        {banner && <button className={`battle-banner ${banner}`} onClick={skipOutro} aria-live="polite">
+        <p className="sr-only" aria-live="polite">{banner === "defeat" ? "The crown falls." : banner === "victory" ? "Victory!" : banner === "cleared" ? "Road cleared!" : ""}</p>
+        {banner && <button className={`battle-banner ${banner}`} onClick={skipOutro} autoFocus>
           <span>{banner === "defeat" ? "The crown falls…" : banner === "victory" ? "Victory!" : "Road cleared!"}</span>
           <small>Tap to continue</small></button>}
         <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setPlayback(null); }}>Skip enemy turn</button>}</div>

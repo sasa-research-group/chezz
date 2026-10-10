@@ -46,3 +46,4 @@
 .battle-banner.victory{background:#7fd38c}.battle-banner.defeat{background:#4b3f3a;color:#fff3d9;box-shadow:0 6px 0 #241d1b,0 18px 40px #382f2e55}
 @keyframes banner-pop{0%{transform:translate(-50%,-50%) scale(.3) rotate(-8deg);opacity:0}70%{transform:translate(-50%,-50%) scale(1.08) rotate(2deg);opacity:1}100%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}}
 .exile-cell:disabled{opacity:1}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
