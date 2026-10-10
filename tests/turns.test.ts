@@ -60,6 +60,12 @@ describe("turn-based rules", () => {
     expect(run.phase).toBe("camp");
   });
 
+  it("labels each step with its actor, kind, target and casualties for animation", () => {
+    const g = board([king, { id: "p", side: "black", kind: "pawn", x: 2, y: 2, hp: 1 }]);
+    expect(attack(g, "king", "p").step).toMatchObject({ actor: "king", kind: "strike", target: "p", killed: ["p"] });
+    const { steps } = endTurn(board([king, { id: "p", side: "black", kind: "pawn", x: 1, y: 0, hp: 1 }]));
+    expect(steps[0]).toMatchObject({ actor: "p", kind: "move", killed: [] });
+  });
   it("refuses actions the pool can't pay for", () => {
     const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
     const g = board([rook, { id: "f", side: "black", kind: "pawn", x: 0, y: 0, hp: 1 }, { ...king, x: 3, y: 3 }], { energy: 3 });

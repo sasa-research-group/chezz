@@ -10,6 +10,7 @@ const cell = (page: Page, g: Run, p: { x: number; y: number }) => page.getByRole
 test("move, end turn, watch the enemy, and resume after reload", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Begin the rebellion" }).click();
+  await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await expect(page.getByRole("button", { name: /^b2 empty, move for 1/ })).toBeVisible();
   await page.getByRole("button", { name: /^b2 empty/ }).click();
