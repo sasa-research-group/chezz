@@ -9,7 +9,13 @@ The design is being rebuilt from basics:
 - Experiments: the lab page (`lab.html`, `src/lab/`, `docs/lab.md`).
 - Experiment 1, the Duel, is live. Next: Wesley plays it and rates the duels.
 
-## Threat rules (`claude/threat-rules`)
+## Pass-through and order pool (`claude/pass-through-and-orders`)
+- Sliders pass through enemies stepping into their path, striking each in
+  order, and fall where return hits kill them (replaces stop-at-the-piece).
+- Each battle has an order pool (6/10/18). Running out with enemies left
+  ends the run; unused orders become gold. Old saves get a full pool.
+
+## Threat rules (PR #4, merged)
 From Wesley's playtest:
 - A piece hits back only if it could legally attack the attacker's square.
   So pawns hit back only diagonally, and knights and bishops can hit and run.
