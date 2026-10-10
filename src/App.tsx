@@ -52,10 +52,10 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
           const m = picking ? undefined : moves.find(t => same(t, p)), s = picking ? undefined : strikes.find(t => same(t, p));
           const focus = flash?.focus.some(q => same(p, q));
           return <button key={i} disabled={locked || !passable(run, p)}
-            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""}`}
+            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${s ? "strikeable" : ""}`}
             aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${m ? `, move for ${m.cost}` : ""}${s ? `, strike for ${s.cost}${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${pick ? `, walk here and strike the ${picking!.target.kind} for ${pick.cost}` : ""}${aimed ? ", target" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
-            {(m || s) && <span className={`target-dot ${s ? "attack-dot" : ""}`}><b className="cost-label">{(m ?? s)!.cost}</b></span>}
+            {m && <span className="target-dot"><b className="cost-label">{m.cost}</b></span>}
             {pick && <span className="target-dot approach-dot"><b className="cost-label">⚔{pick.cost}</b></span>}</button>;
         })}
       </div>
@@ -65,9 +65,12 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
         const ghost = !units.includes(piece), doomed = ghost && stage.doomed.includes(piece.id);
         const anim = doomed ? stage.anims[piece.id] ?? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
         const lunge = stage.lunge[piece.id], spot = lunge && lunge !== "home" ? lunge : piece;
-        return <div key={piece.id} className={`exile-piece ${piece.side} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
+        // Enemies you can strike right now glow and carry a sword badge with the cost, drawn over the art.
+        const strike = !ghost && !picking ? strikes.find(t => t.id === piece.id) : undefined;
+        return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
           style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
           <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
+          {strike && <span className="strike-badge">⚔ {strike.cost}</span>}
           {!ghost && !stage.morph[piece.id] && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
 
@@ -278,7 +281,7 @@ export default function App() {
       <aside className="exile-sidebar">
         <section className="plan-panel action-bar"><p className="kicker">⚡ {playback ? 0 : run.energy} OF {ENERGY} ENERGY LEFT</p><h2>{playback ? "The patrol answers." : "Your move, Your Majesty."}</h2>
           <div className="energy-pips" aria-hidden="true">{Array.from({ length: ENERGY }, (_, i) => <i key={i} className={i < (playback ? 0 : run.energy) ? "full" : ""} />)}</div>
-          {selected && !locked ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{selected.kind} · {selected.hp} HP · hits for {DAMAGE[selected.kind]}</strong><p>{HINT[selected.kind]} Green dots: move cost. Red dots: strike cost (tap an enemy to walk up and strike).</p></div></div> : <p>Select a piece. Each piece may move once, then strike or defend.</p>}
+          {selected && !locked ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{selected.kind} · {selected.hp} HP · hits for {DAMAGE[selected.kind]}</strong><p>{HINT[selected.kind]} Green dots: move cost. Glowing enemies with a ⚔ badge can be struck: tap one (your piece walks up first if it needs to).</p></div></div> : <p>Select a piece. Each piece may move once, then strike or defend.</p>}
           {selected && !locked && <button className="secondary-button" disabled={selected.acted || run.energy < 1} onClick={() => { setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); }}>Defend · 1 energy<span>blocks 1, counters</span></button>}
           <button className="primary-button" disabled={locked} onClick={finishTurn}>{playback ? "Enemy turn…" : "End turn"}<span>→</span></button>
           <p className="small-print">Energy refills every turn. Strikes reach only the next square in a piece's shape and cost 2. Defending pieces take 1 less damage and hit back if they can reach.</p>

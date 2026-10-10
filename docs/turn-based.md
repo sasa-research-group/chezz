@@ -25,7 +25,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Tapping an enemy strikes it. If the selected piece isn't next to it yet but
   can walk up and strike this turn (`approaches`: move + strike within the
   pool), it does: automatically when only one square works, otherwise you
-  pick the square. Red dots show the cheapest total cost.
+  pick the square. Strikeable enemies glow red and carry a ⚔ badge with
+  the cheapest total cost.
 - No return hit. Strikes land from where the striker stands: it never moves
   onto the target's square, even on a kill (unlike chess).
 
