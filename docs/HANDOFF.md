@@ -4,8 +4,8 @@
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). You act,
   then the enemy acts; 4 energy per turn for moves (1/square), strikes
-  (distance + 1) and defend (1); fixed damage; strikes land in place (no
-  capture-move). The simultaneous engine (`exile.ts`) stays for the lab Duel.
+  (2, knight 3; reach only the next square in the piece's shape, so sliders
+  travel first) and defend (1); fixed damage; strikes land in place. The simultaneous engine (`exile.ts`) stays for the lab Duel.
 - **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
   Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`, style sheet
   `art.html`). Wesley calls it placeholder while mechanics settle.
@@ -31,6 +31,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
 - `prototype/familiar-opening` is unmerged and still on the old engine.
 - Phone landscape still gets the desktop layout (scrolls).
-- The test bot's pathfinding ignores walls; it can stall where a person wouldn't.
+- The test player (`tests/turns-strategy.ts`) is a two-turn lookahead search, not a person.
 - Enemy intent isn't shown before it acts.
 - App debt: `App.tsx` is dense; modals lack Escape and a focus trap.
