@@ -1,23 +1,22 @@
 # Chezz — working notes for Claude
 
 ## What's live
-Escape from Exile: `src/main.tsx` → `src/App.tsx` → `src/game/exile.ts` (rules),
-`src/components/PieceArt.tsx`, `src/exile.css`. Rules doc: `docs/exile-run.md`.
-Lab: `lab.html` → `src/lab/` (pure `duel.ts` and solver). Plan:
-`reports/Simultaneous chess tactics design.md`. Notes: `docs/lab.md`.
+Escape from Exile, turn-based: `src/main.tsx` → `src/App.tsx` → `src/game/turns.ts`
+(rules), `src/components/PieceArt.tsx`, `src/exile.css`. Rules doc:
+`docs/turn-based.md`. Lab: `lab.html` → `src/lab/` (Duel, pure solver).
+`src/game/exile.ts` is the previous simultaneous engine (`docs/exile-run.md`);
+the lab Duel and `tests/exile.test.ts` still use it. Plan:
+`reports/Simultaneous chess tactics design.md`.
 `engine.ts`, `content.ts`, `simultaneous.ts`, `src/render/`, `Art.tsx`,
 `AttackPreview.tsx`, `sound.ts`, `style.css`, `tests/browser/game.spec.ts` and
-`scripts/playtest.ts` are earlier-prototype leftovers the app doesn't import.
-`tests/engine.test.ts`, `balance.test.ts` and `simultaneous.test.ts` still test
-them under `npm test`. Don't edit them. Removing them is waiting on Mark.
+`scripts/playtest.ts` are older leftovers the app doesn't import; some old
+tests still cover them. Don't edit them. Removing them is waiting on Mark.
 
 ## Rules-code invariants
-- `exile.ts` is pure and deterministic: no DOM, no randomness, no mutating inputs.
-- Every turn resolves from one HP snapshot. All hits use starting HP.
-- Playback only presents a `Resolution`. Speed, skip and reduced motion must
-  never change the outcome.
-- Rule changes are test-first: write a failing test in `tests/exile.test.ts`,
-  fix it, then update `docs/exile-run.md` in the same change.
+- `turns.ts` is pure and deterministic: no DOM, no randomness, no mutating inputs.
+- The enemy turn is computed in full before playback; playback only shows it.
+- Rule changes are test-first: write a failing test in `tests/turns.test.ts`,
+  fix it, then update `docs/turn-based.md` in the same change.
 
 ## Checks (all must pass before a PR)
 ```sh

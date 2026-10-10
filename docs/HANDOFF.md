@@ -1,15 +1,16 @@
 # Handoff
 
 ## State
-Escape from Exile is the live game (see `CLAUDE.md`). The repo moved from
-`mracette/chezz` to `sasa-research-group/chezz`. Pushes to `main` deploy to Pages.
-It deploys to sasa-research-group.github.io/chezz (verified Oct 9).
-The design is being rebuilt from basics:
-- Research report: `reports/Simultaneous chess tactics design.md`.
-- Experiments: the lab page (`lab.html`, `src/lab/`, `docs/lab.md`).
-- Experiment 1, the Duel, is live. Next: Wesley plays it and rates the duels.
+Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
+- **Turn-based rebuild** (`claude/turn-based`): you act, then the enemy acts,
+  with 4 energy per turn for moves (1/square), strikes (distance + 1) and
+  defend (1); fixed damage; see `docs/turn-based.md`. Replaces the
+  simultaneous engine in the app; `exile.ts` stays for the lab Duel.
+- Encounters are too easy under the new rules (bot wins with the king near
+  full HP). Next: enemy and energy tuning from Wesley's play.
+- Research report: `reports/Simultaneous chess tactics design.md`. Lab: Duel.
 
-## Pass-through and order pool (`claude/pass-through-and-orders`)
+## Earlier: pass-through and order pool (PR #5, simultaneous engine)
 - Sliders pass through enemies stepping into their path, striking each in
   order, and fall where return hits kill them (replaces stop-at-the-piece).
 - Each battle has an order pool (6/10/18). Running out with enemies left

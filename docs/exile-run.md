@@ -1,5 +1,8 @@
 # Escape from Exile: first playable slice
 
+> **Superseded (Oct 10):** the live game is now turn-based; see
+> `docs/turn-based.md`. These rules remain in `src/game/exile.ts` for the lab.
+
 This slice tests the vision discussed in the September 15 Mark/Wesley meeting:
 an exiled king recruiting an army to reclaim his kingdom, with familiar chess
 movement, smaller varied boards, permanent casualties, and comic medieval art.
