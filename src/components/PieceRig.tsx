@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 /** A cast of misfits. Each chess piece is a distinct character whose costume
@@ -10,11 +11,11 @@ export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death";
 export type PatrolHue = "blue" | "red";
 
 const INK = "#382f2e", GOLD = "#e7ba58", GOLD_SH = "#c0913c", STEEL = "#cfd6d8", STEEL_SH = "#9aa6aa";
-const SKIN = "#f2c49c", SKIN_SH = "#d79c76", BLUSH = "#e6927b", WOOD = "#a77a4f", WOOD_SH = "#80583a";
+const SKIN = "#ffc9a0", SKIN_SH = "#e69c72", BLUSH = "#e6927b", WOOD = "#a77a4f", WOOD_SH = "#80583a";
 type Palette = { main: string; mainSh: string; acc: string; accSh: string; cloth: string; clothSh: string };
-const REBEL: Palette = { main: "#2f7d6d", mainSh: "#24625a", acc: "#e8c98a", accSh: "#c9a467", cloth: "#b98757", clothSh: "#8f6440" };
+const REBEL: Palette = { main: "#1f8a72", mainSh: "#166553", acc: "#f2c36b", accSh: "#d39d43", cloth: "#c98a4b", clothSh: "#9c6434" };
 const PATROL: Record<PatrolHue, Palette> = {
-  blue: { main: "#4a68b0", mainSh: "#334d8a", acc: GOLD, accSh: GOLD_SH, cloth: "#f2ede0", clothSh: "#d6cdb8" },
+  blue: { main: "#3d5fc4", mainSh: "#2a4594", acc: GOLD, accSh: GOLD_SH, cloth: "#f2ede0", clothSh: "#d6cdb8" },
   red: { main: "#c35d55", mainSh: "#9c4640", acc: GOLD, accSh: GOLD_SH, cloth: "#f2ede0", clothSh: "#d6cdb8" },
 };
 const o = { stroke: INK, strokeWidth: 3.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
@@ -23,18 +24,27 @@ const f = { stroke: INK, strokeWidth: 2.2, strokeLinejoin: "round" as const, str
 type EyeStyle = "beady" | "wide" | "lidded" | "sharp" | "small";
 /** Eyes, brows and the KO X-eyes, centred on (cx, cy). */
 function Eyes({ cx, cy, gap, style, brow }: { cx: number; cy: number; gap: number; style: EyeStyle; brow: string }) {
-  const r = style === "wide" ? [3.4, 4.6] : style === "beady" || style === "small" || style === "lidded" ? [1.9, 2.4] : [2.4, 3.4];
+  // Pizza Tower-ish toon eyes: big white eyes, tiny pupils; the style tweaks size and lids.
+  const [rx, ry] = style === "wide" ? [4.6, 5.8] : style === "small" ? [3, 3.4] : style === "beady" ? [3.2, 3.8] : [3.8, 4.6];
   return <g className="face" transform={`translate(${cx} ${cy})`}>
     <g className="eyes">
       {[-gap, gap].map((x, i) => <g key={i} transform={`translate(${x} 0)`}>
-        {style === "wide" && <ellipse rx="5" ry="6" fill="#fffaf0" {...f} strokeWidth="1.6" />}
-        <ellipse rx={r[0]} ry={r[1]} fill={INK} /><circle cx={r[0] * .35} cy={-r[1] * .4} r={Math.max(.7, r[0] * .32)} fill="#fffaf0" />
-        {style === "lidded" && <path d={`M${-r[0] - 1} -1.2 Q0 -2.6 ${r[0] + 1} -1.2`} fill={SKIN} stroke={INK} strokeWidth="1.4" strokeLinecap="round" />}
-        {style === "sharp" && <path d={i ? "M-1 -4 L4 -6" : "M1 -4 L-4 -6"} stroke={INK} strokeWidth="1.4" strokeLinecap="round" />}
+        <ellipse rx={rx} ry={ry} fill="#fffdf4" stroke={INK} strokeWidth="1.8" />
+        <g className="pupil"><ellipse cx={i ? -0.6 : 0.6} cy=".6" rx={style === "wide" ? 1.5 : 1.3} ry={style === "wide" ? 1.9 : 1.7} fill={INK} /></g>
+        {style === "lidded" && <path d={`M${-rx - .6} 0 Q0 ${-ry - 2.4} ${rx + .6} 0 Z`} fill={SKIN} stroke={INK} strokeWidth="1.6" strokeLinejoin="round" />}
+        {style === "sharp" && <path d={i ? `M${rx - 2} ${-ry + 1} L${rx + 2.5} ${-ry - 1.5}` : `M${-rx + 2} ${-ry + 1} L${-rx - 2.5} ${-ry - 1.5}`} stroke={INK} strokeWidth="1.6" strokeLinecap="round" />}
       </g>)}
     </g>
-    <g stroke={INK} strokeWidth="2.4" strokeLinecap="round" fill="none"><path d={brow} transform={`translate(${-gap} 0)`} /><path d={brow} transform={`translate(${gap} 0) scale(-1 1)`} /></g>
-    <g className="ko-eyes" stroke={INK} strokeWidth="2.2" strokeLinecap="round">{[-gap, gap].map((x, i) => <path key={i} d={`M${x - 2.6} -2.6 L${x + 2.6} 2.6 M${x + 2.6} -2.6 L${x - 2.6} 2.6`} />)}</g>
+    <g className="brows" stroke={INK} strokeWidth="3" strokeLinecap="round" fill="none"><path d={brow} transform={`translate(${-gap} ${-ry + 1})`} /><path d={brow} transform={`translate(${gap} ${-ry + 1}) scale(-1 1)`} /></g>
+    <g className="ko-eyes" stroke={INK} strokeWidth="2.4" strokeLinecap="round">{[-gap, gap].map((x, i) => <path key={i} d={`M${x - 3} -3 L${x + 3} 3 M${x + 3} -3 L${x - 3} 3`} />)}</g>
+  </g>;
+}
+/** Overlay mouths for big moments: a yell full of teeth (attack) and a wobbly grimace (hit, death). */
+function Mouths({ x, y, w }: { x: number; y: number; w: number }) {
+  return <g transform={`translate(${x} ${y})`}>
+    <g className="mouth-yell"><path d={`M${-w} -2 Q0 ${w * 1.7} ${w} -2 Z`} fill="#7a2a2a" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+      <path d={`M${-w + 1.5} -1.2 L${w - 1.5} -1.2 L${w - 2.5} 1.4 L${-w + 2.5} 1.4 Z`} fill="#fffdf4" /><ellipse cx="0" cy={w * .9} rx={w * .45} ry={w * .3} fill="#e0707a" /></g>
+    <g className="mouth-ouch"><rect x={-w} y="-2.6" width={w * 2} height="5.2" rx="2" fill="#fffdf4" stroke={INK} strokeWidth="2" /><path d={`M${-w} 0 L${w} 0 M${-w / 2} -2.6 L${-w / 2} 2.6 M0 -2.6 L0 2.6 M${w / 2} -2.6 L${w / 2} 2.6`} stroke={INK} strokeWidth="1.2" /></g>
   </g>;
 }
 const Arm = ({ d, fill, front }: { d: string; fill: string; front?: boolean }) =>
@@ -45,7 +55,7 @@ const Boots = ({ xs, y = 104, fill = WOOD_SH }: { xs: number[]; y?: number; fill
 const Patch = ({ x, y, fill }: { x: number; y: number; fill: string }) =>
   <g transform={`rotate(-8 ${x} ${y})`}><rect x={x - 4.5} y={y - 4.5} width="9" height="9" rx="1.2" fill={fill} {...f} strokeWidth="1.6" /><path d={`M${x - 3} ${y - 6} L${x - 3} ${y - 3.5} M${x + 3} ${y + 3.5} L${x + 3} ${y + 6}`} stroke={INK} strokeWidth="1.2" /></g>;
 
-type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; head: ReactNode; propOrigin: string; shield: [number, number] };
+type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; head: ReactNode; propOrigin: string; shield: [number, number]; mouth: [number, number, number] };
 
 function king(rebel: boolean, c: Palette): Figure {
   return {
@@ -78,7 +88,7 @@ function king(rebel: boolean, c: Palette): Figure {
         <path d={rebel ? "M50 18 L54 9 M50 12 L58 14" : "M50 18 L50 8 M45 12 L55 12"} stroke={INK} strokeWidth="3.2" strokeLinecap="round" />
       </g>
     </>,
-    propOrigin: "76px 90px", shield: [30, 90],
+    propOrigin: "76px 90px", shield: [30, 90], mouth: [51, 58, 6],
   };
 }
 
@@ -111,7 +121,7 @@ function queen(rebel: boolean, c: Palette): Figure {
         {[40, 45, 50, 55, 60].map((x, i) => <circle key={x} cx={x} cy={i === 2 ? 7 : i % 2 ? 9 : 11} r="2.6" fill={GOLD} {...f} strokeWidth="1.6" />)}
       </g>
     </>,
-    propOrigin: "70px 66px", shield: [36, 70],
+    propOrigin: "70px 66px", shield: [36, 70], mouth: [50, 35, 4.5],
   };
 }
 
@@ -141,7 +151,7 @@ function rook(rebel: boolean, c: Palette): Figure {
       <Eyes cx={50} cy={37} gap={5} style="small" brow="M-3 -3 L3 -2" />
       <g className="door"><rect x="36" y="22" width="28" height="20" rx="2" fill={WOOD} {...f} /><path d="M36 29 L64 29 M36 36 L64 36 M46 22 L46 29 M54 29 L54 36 M44 36 L44 42" stroke={INK} strokeWidth="1.6" /></g>
     </>,
-    propOrigin: "82px 90px", shield: [20, 86],
+    propOrigin: "82px 90px", shield: [20, 86], mouth: [50, 49, 6],
   };
 }
 
@@ -168,7 +178,7 @@ function bishop(rebel: boolean, c: Palette): Figure {
       <path d="M44 12 L54 24" stroke={INK} strokeWidth="2.6" strokeLinecap="round" />
       <path d="M40 32 L60 32" stroke={rebel ? c.main : GOLD} strokeWidth="3.4" />
     </>,
-    propOrigin: "74px 74px", shield: [34, 82],
+    propOrigin: "74px 74px", shield: [34, 82], mouth: [50, 53, 5],
   };
 }
 
@@ -200,7 +210,7 @@ function knight(rebel: boolean, c: Palette): Figure {
         ? <path d="M24 42 Q24 26 38 26 Q52 26 52 42 L48 40 L48 36 L28 36 L28 40 Z" fill="#8f969a" {...o} />
         : <><path d="M25 46 Q24 28 38 28 Q52 28 51 46 Z" fill={STEEL} {...o} /><path d="M27 44 L49 44" stroke={INK} strokeWidth="2" /><path d="M38 28 Q42 12 52 14 Q44 18 42 28" fill={c.main} {...f} /></>}
     </>,
-    propOrigin: "60px 76px", shield: [30, 76],
+    propOrigin: "60px 76px", shield: [30, 76], mouth: [38, 56, 5],
   };
 }
 
@@ -226,7 +236,7 @@ function pawn(rebel: boolean, c: Palette): Figure {
         ? <><path d="M35 56 Q36 42 50 42 Q64 42 65 56 Z" fill="#7d7a76" {...o} /><path d="M64 50 Q72 50 72 46" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" /></>
         : <><path d="M34 56 Q35 44 50 44 Q65 44 66 56 Z" fill={STEEL} {...o} /><path d="M38 44 Q50 30 62 44" fill={STEEL} {...f} /><path d="M32 56 L68 56" stroke={INK} strokeWidth="3" strokeLinecap="round" /></>}
     </>,
-    propOrigin: "66px 86px", shield: [38, 90],
+    propOrigin: "66px 86px", shield: [38, 90], mouth: [50, 69, 5],
   };
 }
 
@@ -238,27 +248,35 @@ function Shield({ rebel, c, at: [x, y] }: { rebel: boolean; c: Palette; at: [num
     : <><path d={`M${x - 10} ${y - 11} L${x + 10} ${y - 11} L${x + 9} ${y + 3} Q${x} ${y + 13} ${x - 9} ${y + 3} Z`} fill={c.main} {...o} /><path d={`M${x} ${y - 10} L${x} ${y + 9} M${x - 8} ${y - 3} L${x + 8} ${y - 3}`} stroke={GOLD} strokeWidth="2.6" /></>}</g>;
 }
 
+let rigCount = 0;
 export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false }: {
   kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number; wounded?: boolean;
 }) {
   const rebel = side === "white", c = rebel ? REBEL : PATROL[hue], fig = FIGURES[kind](rebel, c);
+  const [boil] = useState(() => `boil-${++rigCount}`);
   const style = { "--seed": `${(seed % 7) * -0.37}s`, "--face": facing, "--prop-origin": fig.propOrigin } as CSSProperties;
   return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
+    {/* Line boil: the outlines wobble a little, like hand-drawn frames. */}
+    <defs><filter id={boil} x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="1" seed={seed % 5}><animate attributeName="seed" values="1;2;3;4" dur=".48s" calcMode="discrete" repeatCount="indefinite" /></feTurbulence><feDisplacementMap in="SourceGraphic" scale="1.8" /></filter></defs>
     {rebel ? <ellipse className="rig-shadow" cx="50" cy="108" rx="28" ry="6" fill={INK} opacity=".22" />
       : <path className="rig-shadow" d="M22 108 L50 102 L78 108 L50 114 Z" fill={INK} opacity=".22" />}
     <g className="fx-dust" fill="#efe3c6" stroke={INK} strokeWidth="1.5"><circle cx="28" cy="106" r="4" /><circle cx="72" cy="107" r="3.5" /><circle cx="50" cy="111" r="3" /></g>
-    <g className="flip"><g className="hop"><g className="squash">
+    <g className="fx-lines" stroke={INK} strokeWidth="2.4" strokeLinecap="round"><path d="M4 60 L18 60 M2 74 L20 74 M6 88 L16 88" /></g>
+    <g className="flip" style={{ filter: `url(#${boil})` }}><g className="hop"><g className="squash">
       {fig.back}
       {fig.armBack}
       {fig.body}
       {fig.prop}
       {fig.armFront}
-      <g className="head-tilt"><g className="head">{fig.head}</g></g>
+      <g className="head-tilt"><g className="head">{fig.head}<Mouths x={fig.mouth[0]} y={fig.mouth[1]} w={fig.mouth[2]} /><path className="sweat" d={`M${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Q${fig.mouth[0] + 18} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 13} Q${fig.mouth[0] + 10} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Z`} fill="#8fd3e8" stroke={INK} strokeWidth="1.4" /></g></g>
       {wounded && <g className="bandage"><rect x="56" y={kind === "pawn" ? 48 : 30} width="12" height="5" rx="1" fill="#fffaf0" {...f} strokeWidth="1.6" transform={`rotate(25 62 ${kind === "pawn" ? 50 : 32})`} /><path d="M30 100 L36 96" stroke={INK} strokeWidth="1.6" /></g>}
       <Shield rebel={rebel} c={c} at={fig.shield} />
       <path className="fx-smear" d="M64 30 Q100 56 80 102" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" opacity=".55" />
     </g></g></g>
+    <g className="fx-side">
+    <path className="fx-burst" d="M88 46 L94 36 L95 48 L106 46 L97 54 L104 62 L93 60 L90 70 L85 60 L74 62 L81 54 L74 46 L85 48 Z" fill="#ffd34d" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
     <g className="fx-stars" fill={GOLD} stroke={INK} strokeWidth="1.5">{[[86, 36], [94, 56], [78, 24]].map(([x, y], i) => <path key={i} d={`M${x} ${y - 6} L${x + 2} ${y - 2} L${x + 6} ${y} L${x + 2} ${y + 2} L${x} ${y + 6} L${x - 2} ${y + 2} L${x - 6} ${y} L${x - 2} ${y - 2} Z`} />)}</g>
+    </g>
     <g className="fx-smoke" fill="#cfc6b8" stroke={INK} strokeWidth="1.5">{[[38, 84], [56, 76], [66, 92], [44, 98], [52, 88]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="9" />)}</g>
   </svg>;
 }
