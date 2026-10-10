@@ -140,10 +140,9 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   const v = g.units.find(u => u.id === t.id)!;
   const dealt = Math.max(0, DAMAGE[a.kind] - (v.defending ? 1 : 0));
   const survives = v.hp > dealt;
-  // A slider that doesn't kill stops on the square before its target.
-  const dirs = slides(a.kind);
-  const stop = !survives ? { x: v.x, y: v.y } : dirs ? { x: v.x - Math.sign(v.x - a.x), y: v.y - Math.sign(v.y - a.y) } : { x: a.x, y: a.y };
-  let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, ...stop, acted: true, moved: true }] : [u]);
+  // Strikes land from where the striker stands; it never moves onto the target's square.
+  const stop = { x: a.x, y: a.y };
+  let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true, moved: true }] : [u]);
   const damage = [{ id: v.id, amount: dealt }];
   let text = `${label(a)} strikes ${label(v)} for ${dealt}${survives ? "" : ", defeating it"}.`;
   if (survives && v.defending && reaches({ ...g, units }, v, v, stop)) {
@@ -183,9 +182,8 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const v = run.units.find(w => w.id === t.id)!;
         const dealt = Math.max(0, DAMAGE[u.kind] - (v.defending ? 1 : 0));
         if (dealt === 0) continue;
-        // A surviving defender counters if it can reach where the striker ends up.
-        const stop = slides(u.kind) ? { x: v.x - Math.sign(v.x - u.x), y: v.y - Math.sign(v.y - u.y) } : u;
-        const countered = v.defending && dealt < v.hp && reaches(run, v, v, stop) ? DAMAGE[v.kind] : 0;
+        // A surviving defender counters if it can reach the striker's square.
+        const countered = v.defending && dealt < v.hp && reaches(run, v, v, u) ? DAMAGE[v.kind] : 0;
         const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0) - t.cost;
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => ({ ...strike(run, u, t), cost: t.cost }) });
       }
