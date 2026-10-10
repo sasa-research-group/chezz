@@ -96,9 +96,9 @@ describe("turn-based rules", () => {
     expect(unit(run, "t")).toMatchObject({ x: 0, y: 1, hp: 5 - DAMAGE.rook });
   });
   it("doesn't counter an attacker the defender can't reach", () => {
-    // A black rook attacks a defending knight from afar and stops next to it; knights can't hit adjacent squares.
+    // A black rook strikes a defending knight from the next square; knights can't hit adjacent squares.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
-    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 0, y: 1, hp: 5 };
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 0, y: 2, hp: 5 };
     const g = defend(board([{ ...king, x: 3, y: 3 }, knight, rook], { encounter: 1 }), "n");
     const { run } = endTurn(g);
     expect(unit(run, "n")!.hp).toBe(3 - (DAMAGE.rook - 1));

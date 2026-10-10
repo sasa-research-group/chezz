@@ -23,7 +23,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - No return hit. Strikes land from where the striker stands: it never moves
   onto the target's square, even on a kill (unlike chess). Rooks, bishops and
   queens strike the first piece along a clear line at any distance, paying
-  for the squares between.
+  distance + 1.
 
 ## Defend
 - Costs 1. Until that side's next turn, the piece takes 1 less damage per hit

@@ -141,11 +141,10 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   const dealt = Math.max(0, DAMAGE[a.kind] - (v.defending ? 1 : 0));
   const survives = v.hp > dealt;
   // Strikes land from where the striker stands; it never moves onto the target's square.
-  const stop = { x: a.x, y: a.y };
-  let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true, moved: true }] : [u]);
+  let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true }] : [u]);
   const damage = [{ id: v.id, amount: dealt }];
   let text = `${label(a)} strikes ${label(v)} for ${dealt}${survives ? "" : ", defeating it"}.`;
-  if (survives && v.defending && reaches({ ...g, units }, v, v, stop)) {
+  if (survives && v.defending && reaches({ ...g, units }, v, v, a)) {
     const back = DAMAGE[v.kind], left = a.hp - back;
     units = left > 0 ? units.map(u => (u.id === a.id ? { ...u, hp: left } : u)) : units.filter(u => u.id !== a.id);
     damage.push({ id: a.id, amount: back });
