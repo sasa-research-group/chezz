@@ -9,6 +9,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - Encounters are too easy under the new rules (bot wins with the king near
   full HP). Next: enemy and energy tuning from Wesley's play.
 - Research report: `reports/Simultaneous chess tactics design.md`. Lab: Duel.
+- **Art pass** (`claude/art-pass`): a cast of misfit characters (rebels vs a
+  blue royal patrol) with Pizza Tower-style idle/move/attack/defend/hit/death
+  animations, wired into the game. Style sheet: `art.html`. Wesley calls it
+  placeholder: fine while mechanics settle, likely reworked later.
 
 ## Earlier: pass-through and order pool (PR #5, simultaneous engine)
 - Sliders pass through enemies stepping into their path, striking each in

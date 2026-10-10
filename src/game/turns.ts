@@ -14,7 +14,8 @@ export type Run = {
   phase: "player" | "camp" | "victory" | "defeat";
   gold: number; energy: number; units: Unit[]; log: string[]; history: string[]; nextId: number;
 };
-export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[] };
+/** One beat of play for presentation: who acted, how, on whom, and who fell. */
+export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike"; target?: string; killed: string[] };
 
 export const ENERGY = 4;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
@@ -152,7 +153,8 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
     text += ` The defender counters for ${back}${left > 0 ? "" : ", defeating it"}.`;
   }
   const run = note({ ...g, units }, text);
-  return { run, step: { text, units: run.units, focus: [{ x: v.x, y: v.y }], damage } };
+  const killed = g.units.filter(u => !run.units.some(w => w.id === u.id)).map(u => u.id);
+  return { run, step: { text, units: run.units, focus: [{ x: v.x, y: v.y }], damage, actor: a.id, kind: "strike", target: v.id, killed } };
 }
 
 export function attack(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
@@ -194,7 +196,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         choices.push({ score: gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
           const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
-          return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [] }, cost: t.cost };
+          return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
       }
     }

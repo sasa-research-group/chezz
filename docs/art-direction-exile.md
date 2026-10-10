@@ -1,6 +1,14 @@
 # Escape from Exile: art and animation direction
 
-Status: proposal, Oct 10 2026. It replaces nothing yet. `docs/art-direction.md`
+Status (Oct 10 2026): partly superseded. Wesley chose a **cast of misfit
+humans** (one character per piece and side, costumes echoing chess shapes) with
+**Pizza Tower energy** (toon eyes, big mouths, line boil, extreme squash and
+stretch) and a **blue patrol**. That's built in `src/components/PieceRig.tsx`
+and `src/rig.css`; see `art.html`. The references, principles, timings, side
+markers and accessibility rules below still apply; the "Rebel puppets" token
+designs in section 3.3 do not. Wesley expects to rework the look later.
+
+Original status: proposal, Oct 10 2026. It replaces nothing yet. `docs/art-direction.md`
 describes the retired "Between Worlds" look. This doc is for whoever rebuilds
 `src/components/PieceArt.tsx` and the playback animations in `src/exile.css`.
 
