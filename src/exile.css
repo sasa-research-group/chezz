@@ -17,4 +17,4 @@
 .energy-pips{display:flex;gap:6px;margin:12px 0 4px}.energy-pips i{width:22px;height:10px;border-radius:4px;border:2px solid #396c61}.energy-pips i.full{background:#396c61}
 .secondary-button span{font-weight:600;opacity:.7}
 
-.exile-piece .rig{overflow:visible}.exile-piece.ghost{z-index:60!important}.exile-piece.ghost .piece-health{display:none}
+.exile-piece .rig{overflow:visible}.exile-piece.ghost .piece-health{display:none}

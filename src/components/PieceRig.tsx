@@ -250,19 +250,21 @@ function Shield({ rebel, c, at: [x, y] }: { rebel: boolean; c: Palette; at: [num
 
 let rigCount = 0;
 export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false }: {
-  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number; wounded?: boolean;
+  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number | string; wounded?: boolean;
 }) {
   const rebel = side === "white", c = rebel ? REBEL : PATROL[hue], fig = FIGURES[kind](rebel, c);
   const [boil] = useState(() => `boil-${++rigCount}`);
-  const style = { "--seed": `${(seed % 7) * -0.37}s`, "--face": facing, "--prop-origin": fig.propOrigin } as CSSProperties;
+  // A stable per-piece number (ids hash), so idle loops don't jump when the cast changes.
+  const n = typeof seed === "number" ? seed : [...seed].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
+  const style = { "--seed": `${(n % 7) * -0.37}s`, "--face": facing, "--prop-origin": fig.propOrigin } as CSSProperties;
   return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
     {/* Line boil: the outlines wobble a little, like hand-drawn frames. */}
-    <defs><filter id={boil} x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="1" seed={seed % 5}><animate attributeName="seed" values="1;2;3;4" dur=".48s" calcMode="discrete" repeatCount="indefinite" /></feTurbulence><feDisplacementMap in="SourceGraphic" scale="1.8" /></filter></defs>
+    <defs><filter id={boil} x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="1" seed={n % 5}><animate attributeName="seed" values="1;2;3;4" dur=".48s" calcMode="discrete" repeatCount="indefinite" /></feTurbulence><feDisplacementMap in="SourceGraphic" scale="1.8" /></filter></defs>
     {rebel ? <ellipse className="rig-shadow" cx="50" cy="108" rx="28" ry="6" fill={INK} opacity=".22" />
       : <path className="rig-shadow" d="M22 108 L50 102 L78 108 L50 114 Z" fill={INK} opacity=".22" />}
     <g className="fx-dust" fill="#efe3c6" stroke={INK} strokeWidth="1.5"><circle cx="28" cy="106" r="4" /><circle cx="72" cy="107" r="3.5" /><circle cx="50" cy="111" r="3" /></g>
     <g className="fx-lines" stroke={INK} strokeWidth="2.4" strokeLinecap="round"><path d="M4 60 L18 60 M2 74 L20 74 M6 88 L16 88" /></g>
-    <g className="flip" style={{ filter: `url(#${boil})` }}><g className="hop"><g className="squash">
+    <g className="flip" style={action === "idle" ? undefined : { filter: `url(#${boil})` }}><g className="hop"><g className="squash">
       {fig.back}
       {fig.armBack}
       {fig.body}

@@ -9,8 +9,8 @@ markers and accessibility rules below still apply; the "Rebel puppets" token
 designs in section 3.3 do not. Wesley expects to rework the look later.
 
 Original status: proposal, Oct 10 2026. It replaces nothing yet. `docs/art-direction.md`
-describes the retired "Between Worlds" look. This doc is for whoever rebuilds
-`src/components/PieceArt.tsx` and the playback animations in `src/exile.css`.
+describes the retired "Between Worlds" look. The live cast is
+`src/components/PieceRig.tsx` with animations in `src/rig.css`.
 
 **Hard rule:** animation only presents a `Resolution`. Every duration below is
 scaled by the playback speed. Skip and reduced motion must reach the same final
