@@ -17,7 +17,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   adjacent square, rooks the four straight neighbours, bishops the four
   diagonal ones, pawns diagonally forward, knights a knight's jump away. A rook
   across the board has to travel next to its target first.
-- Cost: 2 (a knight's strike 3). A piece may move and then strike in the same
+- Cost: 2 for every piece. A piece may move and then strike in the same
   turn, paying for both.
 - Fixed damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 3, queen 3.
   HP no longer doubles as attack strength. A pawn's strike deals 0 to a

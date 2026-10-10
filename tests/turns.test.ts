@@ -71,12 +71,11 @@ describe("turn-based rules", () => {
     expect(approaches(k, "king", "f").map(t => `${t.x},${t.y}:${t.cost}`).sort()).toEqual(["0,2:3", "1,2:3", "2,2:3"]);
     // Out of energy for the walk plus the strike: no way in.
     expect(approaches({ ...g, energy: 3 }, "r", "f")).toEqual([]);
-    // A knight's way in costs its jump (2) plus its strike (3); a piece that already moved has none.
+    // A knight's way in costs its jump (2) plus its strike (2): a whole turn's energy. A piece that already moved has none.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
-    // (With the usual 4 energy a knight can't jump and strike in one turn.)
-    const kg = board([knight, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }], { energy: 5 });
-    expect(approaches(kg, "n", "f").map(t => `${t.x},${t.y}:${t.cost}`).sort()).toEqual(["1,1:5", "2,2:5"]);
-    expect(approaches({ ...kg, energy: ENERGY }, "n", "f")).toEqual([]);
+    const kg = board([knight, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }]);
+    expect(approaches(kg, "n", "f").map(t => `${t.x},${t.y}:${t.cost}`).sort()).toEqual(["1,1:4", "2,2:4"]);
+    expect(approaches({ ...kg, energy: 3 }, "n", "f")).toEqual([]);
     expect(approaches({ ...g, units: g.units.map(u => (u.id === "r" ? { ...u, moved: true } : u)) }, "r", "f")).toEqual([]);
     // Already next to it: no walk needed, so no approach squares.
     expect(approaches(board([{ ...king, x: 1, y: 3 }, { ...foe, x: 1, y: 2 }]), "king", "f")).toEqual([]);
@@ -134,11 +133,11 @@ describe("turn-based rules", () => {
     expect(hits("rook")).toEqual(["f01", "f10", "f12", "f21"]);
     expect(hits("bishop")).toEqual(["f00", "f02", "f20", "f22"]);
     expect(hits("queen")).toHaveLength(8);
-    // A knight's strike costs 3, so 2 energy isn't enough.
+    // A knight's strike costs 2 like everyone else's, so it can jump (2) and strike (2) in one turn.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
     const g = board([knight, foe(1, 1), { ...king, x: 3, y: 3 }]);
-    expect(attackTargets({ ...g, energy: 2 }, knight)).toEqual([]);
-    expect(attackTargets({ ...g, energy: 3 }, knight)).toEqual([{ x: 1, y: 1, cost: 3, id: "f11" }]);
+    expect(attackTargets({ ...g, energy: 1 }, knight)).toEqual([]);
+    expect(attackTargets({ ...g, energy: 2 }, knight)).toEqual([{ x: 1, y: 1, cost: 2, id: "f11" }]);
   });
   it("doesn't make the enemy strike for 0 into a defender", () => {
     const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 };
