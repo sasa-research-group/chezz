@@ -89,6 +89,7 @@ export default function App() {
     const actor = beforeUnits.find(u => u.id === step.actor);
     if (!actor) return;
     const target = step.target ? beforeUnits.find(u => u.id === step.target) : undefined;
+    if (step.kind === "defend") { animate(actor.id, "defend"); return; }
     if (step.kind === "move") { const to = step.units.find(u => u.id === actor.id); if (to) face(actor.id, actor, to); animate(actor.id, "move"); return; }
     if (target) face(actor.id, actor, target);
     animate(actor.id, "attack");
