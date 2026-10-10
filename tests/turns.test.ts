@@ -96,6 +96,28 @@ describe("turn-based rules", () => {
     expect(reaches(run, r, r, unit(run, "king")!)).toBe(true);
     expect(unit(run, "king")!.hp).toBe(5 - DAMAGE.rook);
   });
+  it("makes an enemy brace against a piece that can step in and strike it", () => {
+    // The rook is two squares away: it can move next to the knight and strike for a kill. Bracing saves the knight.
+    const knight: Unit = { id: "n", side: "black", kind: "knight", x: 1, y: 1, hp: 3 };
+    // It already moved this turn; it can still step in next turn.
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 1, y: 3, hp: 5, moved: true };
+    const { run } = endTurn(board([{ ...king, x: 2, y: 2 }, rook, knight]));
+    expect(unit(run, "n")).toMatchObject({ x: 1, y: 1, defending: true });
+  });
+  it("strikes only the neighbours a piece's shape allows", () => {
+    const foe = (x: number, y: number): Unit => ({ id: `f${x}${y}`, side: "black", kind: "pawn", x, y, hp: 1 });
+    const ring = [foe(0, 0), foe(1, 0), foe(2, 0), foe(0, 1), foe(2, 1), foe(0, 2), foe(1, 2), foe(2, 2)];
+    const piece = (kind: Unit["kind"]): Unit => ({ id: "w", side: "white", kind, x: 1, y: 1, hp: 3 });
+    const hits = (kind: Unit["kind"]) => attackTargets(board([piece(kind), { ...king, x: 3, y: 3 }, ...ring]), piece(kind)).map(t => t.id).sort();
+    expect(hits("rook")).toEqual(["f01", "f10", "f12", "f21"]);
+    expect(hits("bishop")).toEqual(["f00", "f02", "f20", "f22"]);
+    expect(hits("queen")).toHaveLength(8);
+    // A knight's strike costs 3, so 2 energy isn't enough.
+    const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
+    const g = board([knight, foe(1, 1), { ...king, x: 3, y: 3 }]);
+    expect(attackTargets({ ...g, energy: 2 }, knight)).toEqual([]);
+    expect(attackTargets({ ...g, energy: 3 }, knight)).toEqual([{ x: 1, y: 1, cost: 3, id: "f11" }]);
+  });
   it("doesn't make the enemy strike for 0 into a defender", () => {
     const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 };
     const { run } = endTurn(defend(board([king, pawn]), "king"));

@@ -1,8 +1,8 @@
 /** Escape from Exile, turn-based: you act, then the enemy acts. Each side
  * spends a per-turn energy pool. Each piece may move once (1 energy per
  * square in its chess shape; a knight's jump costs 2), then strike the next
- * square in its shape (2; a knight's jump 3) or defend (1). Pure and deterministic: no DOM, no randomness, inputs
- * are never mutated. */
+ * square in its shape (2; a knight's jump 3) or defend (1). Pure and
+ * deterministic: no DOM, no randomness, inputs are never mutated. */
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
@@ -209,7 +209,9 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       }
       // Brace only when it matters (a threat it survives only thanks to the block, or one it
       // could hit back), and only when no move is worth making.
-      const worthIt = whites.some(w => reaches(run, w, w, u) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
+      // A threat is one of your pieces that can strike u next turn, stepping in first if its pool allows.
+      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + (w.kind === "knight" ? 3 : 2) <= ENERGY && reaches(run, w, t, u));
+      const worthIt = whites.some(w => threat(w) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
       if (!u.acted && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
         const text = `${label(u)} braces to defend.`;
         const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);

@@ -41,14 +41,15 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 ## Enemy turn
 - Deterministic and basic: it takes the best-scoring affordable action until
   nothing is worth doing or its pool is spent. Strikes score highest (kills
-  and the king most), minus any counter it would actually take (heavily if
-  the counter would kill it); it never strikes for 0 damage. Next, a piece
-  steps onto a square it can strike from, if the pool covers the move and the
-  strike. Otherwise pieces close in on your king or your nearest piece. Pawns keep marching toward
-  pieces still ahead of them when they can't close in yet, and race for the
-  far row to promote. When no move is worth making, a piece braces (defends,
-  1 energy) if one of your pieces threatens it and only the brace would let
-  it survive the hit, or it could hit back. Otherwise it simply waits.
+  and the king most), minus any counter it would actually take (heavily if the
+  counter would kill it); it never strikes for 0 damage. Next, a piece steps
+  onto a square it can strike from, if the pool covers the move and the
+  strike. Otherwise pieces close in on your king or your nearest piece. Pawns
+  keep marching toward pieces still ahead of them when they can't close in
+  yet, and race for the far row to promote. When no move is worth making, a
+  piece braces (defends, 1 energy) if one of your pieces could strike it next
+  turn (stepping in first if its pool allows) and only the brace would let it
+  survive the hit, or it could hit back. Otherwise it simply waits.
 
 ## End of a battle
 - The final blow plays out in full, then a short celebration ("Road

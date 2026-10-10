@@ -36,8 +36,9 @@ export function turnOutcomes(start: Run): { run: Run; plan: Action[] }[] {
 /** Higher is better for the player: own health, enemy losses, and enemies kept within reach. */
 function evaluate(g: Run): number {
   if (g.phase === "defeat") return -1e6;
-  if (g.phase !== "player") return 1e6;
   const whites = g.units.filter(u => u.side === "white"), blacks = g.units.filter(u => u.side === "black");
+  // Health and pieces carry over, so a costly win scores below a clean one.
+  if (g.phase !== "player") return 1e6 + whites.reduce((s, u) => s + u.hp + 3, 0);
   const king = whites.find(u => u.id === "king")!;
   const near = (x: number, y: number) => Math.min(...whites.map(w => Math.max(Math.abs(w.x - x), Math.abs(w.y - y))));
   return king.hp * 4 + whites.reduce((s, u) => s + u.hp + 3, 0)

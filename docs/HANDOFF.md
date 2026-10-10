@@ -5,7 +5,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). You act,
   then the enemy acts; 4 energy per turn for moves (1/square), strikes
   (2, knight 3; reach only the next square in the piece's shape, so sliders
-  travel first) and defend (1); fixed damage; strikes land in place. The simultaneous engine (`exile.ts`) stays for the lab Duel.
+  travel first) and defend (1); fixed damage; strikes land in place. The
+  simultaneous engine (`exile.ts`) stays for the lab Duel.
 - **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
   Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`, style sheet
   `art.html`). Wesley calls it placeholder while mechanics settle.
