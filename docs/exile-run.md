@@ -27,10 +27,12 @@ Choose at the start of a run; the model remains fixed until starting again.
 The encounters and enemy policy are identical for both choices.
 
 - **Always trade:** every attack exchanges current HP as damage. Defend absorbs
-  1 incoming damage and still retaliates. This is a concrete first experiment
+  1 incoming damage and still retaliates (if it could reach the attacker).
+  This is a concrete first experiment
   for Mark's suggested simplification; the bonus was not specified in the meeting.
 - **Free hits:** idle targets take current-HP damage without returning a hit.
-  Defenders, reciprocal attacks, and contested destinations exchange HP.
+  Defenders, reciprocal attacks, and contested destinations exchange HP
+  (subject to the rule below).
 
 **Only a piece that could strike back does.** In both modes, a return hit
 (retaliation, a Defend counter, a held pawn's victim countering) happens only
@@ -59,7 +61,7 @@ watch whether lasting king damage makes runs feel hopeless too early.
   replaced or removed before Resolve; friendly destinations cannot repeat.
 - Pawns may hold an empty diagonal: they stay in place and strike an enemy
   that chooses that destination. With Always trade, the intercepted enemy
-  retaliates; with Free hits, it does not.
+  retaliates if it could reach the pawn; with Free hits, it does not.
 - Enemy orders are chosen from the starting board, without inspecting the
   player queue. AI is deterministic and intentionally basic.
 - Resolution damage uses one starting snapshot. The resulting state is fixed
@@ -72,7 +74,11 @@ watch whether lasting king damage makes runs feel hopeless too early.
   destinations, with one exception. If an enemy ends its move on a square a
   sliding piece passes through, the slider stops there and strikes it. If
   that enemy dies, the slider takes the square; otherwise the slider stays
-  back. Knights leap, so they are never stopped this way. No check, castling,
+  back. In Always trade, the enemy hits back if it could reach the slider's
+  starting square. Only the first such enemy along the path counts. A piece
+  in a contested square, or one that never reaches its square, stops nobody.
+  Two sliders that stop each other trade once, like a clash. Knights leap, so
+  they are never stopped this way. No check, castling,
   en passant, promotion, specials, or move-then-special chain in this slice.
 
 Original cartoon SVG characters and CSS perspective establish the art direction

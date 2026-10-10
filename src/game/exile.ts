@@ -144,6 +144,8 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
   // A target only vacates if it actually leaves. Targets whose own move fails
   // are pinned here and the turn is settled again from the same snapshot.
   const stuck = new Set<string>();
+  // Pieces that would stop a slider but never reach the square themselves.
+  const absent = new Set<string>();
   const escaping = (id: string) => !stuck.has(id) && moving(orderById.get(id));
   const settle = () => {
     const damage = new Map<string, number>(), moves = new Map<string, Pos>();
@@ -178,10 +180,21 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
       const a = byId.get(o.unitId)!;
       if (!moving(o) || paired.has(a.id) || a.kind === "knight") continue;
       for (const p of route(g, o).slice(1, -1)) {
-        const e = orders.find(x => byId.get(x.unitId)!.side !== a.side && !paired.has(x.unitId) && escaping(x.unitId) && same(x.to, p));
+        const e = orders.find(x => byId.get(x.unitId)!.side !== a.side && !paired.has(x.unitId) && !absent.has(x.unitId) && escaping(x.unitId) && same(x.to, p));
         if (e) { intercepts.set(a.id, { by: byId.get(e.unitId)!, at: p }); break; }
       }
     }
+    // Two sliders that stop each other meet once, like a reciprocal clash.
+    for (const [id, stop] of intercepts) {
+      const back = intercepts.get(stop.by.id);
+      if (back?.by.id !== id || paired.has(id)) continue;
+      const a = byId.get(id)!, e = stop.by;
+      paired.add(a.id); paired.add(e.id); hit(e, a); hit(a, e);
+      moves.set(a.id, stop.at); moves.set(e.id, back.at);
+      interactions.push({ text: `${label(a)} and ${label(e)} run into each other. Both trade HP.`, ids: [a.id, e.id], focus: [stop.at, back.at] });
+    }
+    for (const [id, stop] of intercepts) if (!paired.has(id) && paired.has(stop.by.id)) intercepts.delete(id);
+    const interceptors = new Set([...intercepts].filter(([id]) => !paired.has(id)).map(([, stop]) => stop.by.id));
     for (const o of orders) {
       const a = byId.get(o.unitId)!;
       if (o.defend || held(g, o) || paired.has(a.id)) continue;
@@ -205,7 +218,8 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
       } else {
         if (b) dodged.add(b.id);
         moves.set(a.id, o.to);
-        interactions.push({ text: b ? `${label(a)} reaches ${coord(g, o.to)} as ${label(b)} moves away.` : `${label(a)} moves to ${coord(g, o.to)}.`, ids: [], focus: [o.to] });
+        // A piece that stepped into a slider's path was already narrated there.
+        if (!interceptors.has(a.id)) interactions.push({ text: b ? `${label(a)} reaches ${coord(g, o.to)} as ${label(b)} moves away.` : `${label(a)} moves to ${coord(g, o.to)}.`, ids: [], focus: [o.to] });
       }
     }
     for (const o of orders.filter(o => held(g, o))) {
@@ -243,12 +257,20 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
         interactions.push({ text: `${label(u)} stays back: its destination is still occupied.`, ids: [], focus: [{ x: u.x, y: u.y }] });
       }
     }
-    return { damage, interactions, killers, survivors, dodged };
+    return { damage, interactions, killers, survivors, dodged, intercepts, interceptors };
   };
   let settled = settle();
   for (;;) {
     const failed = [...settled.dodged].filter(id => !stuck.has(id) && settled.survivors.some(u => u.id === id && same(u, byId.get(id)!)));
-    if (!failed.length) break;
+    // A piece that stopped a slider but didn't reach its own square (it was
+    // stopped itself, or bounced) can't have stopped anyone there.
+    const noShow = [...settled.interceptors].filter(id => !absent.has(id) && settled.survivors.some(u => u.id === id && !same(u, orderById.get(id)!.to)));
+    if (!failed.length && !noShow.length) break;
+    if (noShow.length) {
+      const free = noShow.filter(id => { const by = settled.intercepts.get(id)?.by.id; return !by || !noShow.includes(by); });
+      for (const id of free.length ? free : [noShow[0]]) absent.add(id);
+      if (!failed.length) { settled = settle(); continue; }
+    }
     // Pin only failures that do not wait on another failure; a piece blocked
     // by a pinned piece may still get through once that piece is resolved.
     const independent = failed.filter(id => { const t = at(g, orderById.get(id)!.to); return !t || !failed.includes(t.id); });

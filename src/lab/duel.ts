@@ -1,7 +1,9 @@
 /** Experiment 1, the Duel: one piece against one, one rule at a time.
  * Pure and deterministic. Single-turn damage mirrors resolveTurn in
  * src/game/exile.ts (tests/duel.test.ts checks this), abstracted to two
- * adjacent pieces that stay engaged. */
+ * adjacent pieces that stay engaged and can always strike each other. It
+ * can't model one-sided reach (a knight or bishop hitting where the target
+ * can't hit back). */
 export type Choice = "strike" | "guard" | "sidestep" | "advance";
 export type Rule = "trade" | "free";
 /** current: as exile.ts (Always trade absorbs 1, Free hits absorbs 0, both return a hit).

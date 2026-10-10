@@ -23,8 +23,9 @@ Guard strength:
 
 **Rules code.** `src/lab/duel.ts` is pure. Its single-turn damage matches the
 real resolver in `exile.ts` for every pair of choices in both modes (E0,
-`tests/duel.test.ts`). It assumes the two pieces stay engaged and ignores the
-board.
+`tests/duel.test.ts`). It assumes the two pieces stay engaged, can always
+strike each other, and ignores the board. One-sided reach (a knight or bishop
+hitting a piece that can't hit back) needs a later experiment.
 
 **Enemy.** The enemy plays the optimal mixed strategy for the current state,
 found by Shapley value iteration with an exact small matrix-game solver. Win

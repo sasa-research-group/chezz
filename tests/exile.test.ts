@@ -182,6 +182,24 @@ describe("Escape from Exile", () => {
     expect(result.units.find(u => u.id === n.id)).toMatchObject({ x: 0, y: 1, hp: 1 });
     expect(result.units.find(u => u.id === r2.id)).toMatchObject({ x: 0, y: 3, hp: 2 });
   });
+  it("treats two sliders stopping each other as one exchange", () => {
+    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 5, x: 0, y: 3 };
+    const b: Unit = { id: "b", side: "black", kind: "rook", hp: 2, x: 0, y: 0 };
+    const g = arena("retaliation", [{ ...king, x: 3, y: 3 }, w, b]);
+    const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 0, y: 1 } }), [{ unitId: b.id, to: { x: 0, y: 2 } }]).run;
+    expect(result.units.find(u => u.id === b.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === w.id)!.hp).toBe(3);
+  });
+  it("doesn't let a slider that was stopped early block another slider", () => {
+    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 5, x: 1, y: 3 };
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 1, x: 3, y: 3 };
+    const r: Unit = { id: "r", side: "black", kind: "rook", hp: 3, x: 3, y: 0 };
+    const g = arena("retaliation", [{ ...king, x: 3, y: 2 }, w, n, r]);
+    const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 1, y: 0 } }), [{ unitId: n.id, to: { x: 1, y: 2 } }, { unitId: r.id, to: { x: 0, y: 0 } }]).run;
+    expect(result.units.find(u => u.id === w.id)).toMatchObject({ x: 1, y: 2, hp: 5 });
+    expect(result.units.find(u => u.id === r.id)).toMatchObject({ x: 0, y: 0, hp: 3 });
+    expect(result.log.join(" ")).not.toContain("Enemy knight moves to");
+  });
   it("lets a held pawn strike an entrant; only Always trade hits back", () => {
     for (const mode of ["retaliation", "ambush"] as const) {
       const ally: Unit = { id: "ally", side: "white", kind: "pawn", hp: 1, x: 1, y: 2 };
