@@ -163,7 +163,7 @@ describe("Escape from Exile", () => {
       expect(result.units.find(u => u.id === rook.id)).toMatchObject({ hp: 5, x: 1, y: 2 });
     }
   });
-  it("stops a slider at an enemy that steps into its path, and hits it there", () => {
+  it("passes a slider through an enemy that steps into its path, hitting it on the way", () => {
     const rook: Unit = { id: "rook", side: "white", kind: "rook", hp: 5, x: 1, y: 3 };
     const p: Unit = { id: "p", side: "black", kind: "pawn", hp: 1, x: 1, y: 1 };
     const far = { ...king, x: 3, y: 3 };
@@ -171,34 +171,64 @@ describe("Escape from Exile", () => {
       const g = arena(mode, [far, rook, p]);
       const result = resolveTurn(plan(g, { unitId: rook.id, to: p }), [{ unitId: p.id, to: { x: 1, y: 2 } }]).run;
       expect(result.units.find(u => u.id === p.id)).toBeUndefined();
-      expect(result.units.find(u => u.id === rook.id)).toMatchObject({ x: 1, y: 2, hp: 5 });
+      expect(result.units.find(u => u.id === rook.id)).toMatchObject({ x: 1, y: 1, hp: 5 });
       expect(result.log.join(" ")).not.toContain("moves away");
     }
-    // A survivor keeps the square it stepped into; the slider stays back.
+    // A survivor keeps the square it stepped into; the slider carries on.
     const r2: Unit = { ...rook, x: 0, y: 3, hp: 2 };
     const n: Unit = { id: "n", side: "black", kind: "knight", hp: 3, x: 2, y: 2 };
     const g = arena("retaliation", [far, r2, n]);
     const result = resolveTurn(plan(g, { unitId: r2.id, to: { x: 0, y: 0 } }), [{ unitId: n.id, to: { x: 0, y: 1 } }]).run;
     expect(result.units.find(u => u.id === n.id)).toMatchObject({ x: 0, y: 1, hp: 1 });
-    expect(result.units.find(u => u.id === r2.id)).toMatchObject({ x: 0, y: 3, hp: 2 });
+    expect(result.units.find(u => u.id === r2.id)).toMatchObject({ x: 0, y: 0, hp: 2 });
   });
-  it("treats two sliders stopping each other as one exchange", () => {
+  it("drops a slider where return hits on its path kill it; later hits don't land", () => {
+    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 2, x: 0, y: 3 };
+    const r: Unit = { id: "r", side: "black", kind: "rook", hp: 5, x: 2, y: 1 };
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 1, x: 0, y: 0 };
+    const g = arena("retaliation", [{ ...king, x: 3, y: 3 }, w, r, n]);
+    const result = resolveTurn(plan(g, { unitId: w.id, to: n }), [{ unitId: r.id, to: { x: 0, y: 1 } }]).run;
+    expect(result.units.find(u => u.id === w.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === r.id)).toMatchObject({ x: 0, y: 1, hp: 3 });
+    expect(result.units.find(u => u.id === n.id)).toMatchObject({ x: 0, y: 0, hp: 1 });
+  });
+  it("treats two sliders crossing each other as one exchange", () => {
     const w: Unit = { id: "w", side: "white", kind: "rook", hp: 5, x: 0, y: 3 };
     const b: Unit = { id: "b", side: "black", kind: "rook", hp: 2, x: 0, y: 0 };
     const g = arena("retaliation", [{ ...king, x: 3, y: 3 }, w, b]);
     const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 0, y: 1 } }), [{ unitId: b.id, to: { x: 0, y: 2 } }]).run;
     expect(result.units.find(u => u.id === b.id)).toBeUndefined();
-    expect(result.units.find(u => u.id === w.id)!.hp).toBe(3);
+    expect(result.units.find(u => u.id === w.id)).toMatchObject({ x: 0, y: 1, hp: 3 });
   });
-  it("doesn't let a slider that was stopped early block another slider", () => {
-    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 5, x: 1, y: 3 };
-    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 1, x: 3, y: 3 };
+  it("skips a crossing trade with a slider that fell before reaching it", () => {
+    const a: Unit = { id: "a", side: "white", kind: "rook", hp: 3, x: 0, y: 0 };
+    const b: Unit = { id: "b", side: "black", kind: "rook", hp: 2, x: 5, y: 0 };
+    const k: Unit = { id: "k", side: "black", kind: "king", hp: 4, x: 1, y: 1 };
+    const g = { ...arena("retaliation", [{ ...king, x: 2, y: 5 }, a, b, k]), encounter: 2 };
+    const result = resolveTurn(plan(g, { unitId: a.id, to: { x: 4, y: 0 } }), [{ unitId: b.id, to: { x: 2, y: 0 } }, { unitId: k.id, to: { x: 1, y: 0 } }]).run;
+    expect(result.units.find(u => u.id === a.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === b.id)).toMatchObject({ x: 2, y: 0, hp: 2 });
+    expect(result.units.find(u => u.id === k.id)).toMatchObject({ x: 1, y: 0, hp: 1 });
+    expect(result.log.join(" ")).not.toContain("run into each other");
+  });
+  it("still narrates an enemy beyond the point where a slider fell", () => {
+    const a: Unit = { id: "a", side: "white", kind: "bishop", hp: 1, x: 0, y: 5 };
+    const p: Unit = { id: "p", side: "black", kind: "pawn", hp: 1, x: 1, y: 3 };
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 3, x: 3, y: 1 };
+    const g = { ...arena("retaliation", [{ ...king, x: 5, y: 5 }, a, p, n]), encounter: 2 };
+    const result = resolveTurn(plan(g, { unitId: a.id, to: { x: 3, y: 2 } }), [{ unitId: p.id, to: { x: 1, y: 4 } }, { unitId: n.id, to: { x: 2, y: 3 } }]).run;
+    expect(result.units.find(u => u.id === a.id)).toBeUndefined();
+    expect(result.log.join(" ")).toContain("Enemy knight moves to");
+  });
+  it("doesn't let a slider that fell on its path hit anyone at its destination", () => {
+    const w: Unit = { id: "w", side: "white", kind: "rook", hp: 2, x: 1, y: 3 };
+    const x: Unit = { id: "x", side: "black", kind: "rook", hp: 5, x: 3, y: 2 };
     const r: Unit = { id: "r", side: "black", kind: "rook", hp: 3, x: 3, y: 0 };
-    const g = arena("retaliation", [{ ...king, x: 3, y: 2 }, w, n, r]);
-    const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 1, y: 0 } }), [{ unitId: n.id, to: { x: 1, y: 2 } }, { unitId: r.id, to: { x: 0, y: 0 } }]).run;
-    expect(result.units.find(u => u.id === w.id)).toMatchObject({ x: 1, y: 2, hp: 5 });
+    const g = arena("retaliation", [{ ...king, x: 3, y: 3 }, w, x, r]);
+    const result = resolveTurn(plan(g, { unitId: w.id, to: { x: 1, y: 0 } }), [{ unitId: x.id, to: { x: 1, y: 2 } }, { unitId: r.id, to: { x: 0, y: 0 } }]).run;
+    expect(result.units.find(u => u.id === w.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === x.id)).toMatchObject({ x: 1, y: 2, hp: 3 });
     expect(result.units.find(u => u.id === r.id)).toMatchObject({ x: 0, y: 0, hp: 3 });
-    expect(result.log.join(" ")).not.toContain("Enemy knight moves to");
   });
   it("lets a held pawn strike an entrant; only Always trade hits back", () => {
     for (const mode of ["retaliation", "ambush"] as const) {
@@ -209,6 +239,33 @@ describe("Escape from Exile", () => {
       expect(result.units.find(u => u.id === bishop.id)!.hp).toBe(2);
       expect(!!result.units.find(u => u.id === ally.id)).toBe(mode === "ambush");
     }
+  });
+  it("gives each battle a pool of orders that turns are paid from", () => {
+    const g = newRun();
+    expect(g.ordersLeft).toBe(ENCOUNTERS[0].orders);
+    const after = resolveTurn(plan(g, { unitId: "king", to: king, defend: true }), []).run;
+    expect(after.ordersLeft).toBe(ENCOUNTERS[0].orders - 1);
+    const low = { ...arena("ambush", [king, pawn, { ...pawn, id: "p2", x: 0, y: 0 }]), ordersLeft: 0 };
+    expect(budget(low)).toBe(0);
+    expect(plan(low, { unitId: "king", to: king, defend: true })).toBe(low);
+  });
+  it("ends the run when the orders run out with enemies still standing", () => {
+    const g = { ...arena("ambush", [king, { ...pawn, x: 0, y: 0 }]), ordersLeft: 1 };
+    const result = resolveTurn(plan(g, { unitId: "king", to: king, defend: true }), []).run;
+    expect(result.ordersLeft).toBe(0); expect(result.phase).toBe("defeat");
+    expect(result.log[0]).toContain("orders");
+  });
+  it("turns leftover orders into gold when the board is cleared", () => {
+    const g = { ...arena("ambush", [king, pawn]), ordersLeft: 4, gold: 0 };
+    const result = resolveTurn(plan(g, { unitId: "king", to: pawn }), []).run;
+    expect(result.phase).toBe("camp");
+    expect(result.gold).toBe(ENCOUNTERS[0].reward + 3);
+    expect(leaveCamp(result, "save").ordersLeft).toBe(ENCOUNTERS[1].orders);
+  });
+  it("restores older saves without an order pool", () => {
+    const g = newRun() as Partial<Run>; delete g.ordersLeft;
+    expect(readRun(JSON.stringify(g))!.ordersLeft).toBe(ENCOUNTERS[0].orders);
+    expect(readRun(JSON.stringify({ ...newRun(), ordersLeft: -1 }))).toBeNull();
   });
   for (const mode of ["retaliation", "ambush"] as const) it(`can complete the three-encounter run in ${mode} with legal plans`, () => {
     let g = newRun(mode), turns = 0;

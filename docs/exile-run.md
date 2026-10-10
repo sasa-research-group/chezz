@@ -56,6 +56,13 @@ watch whether lasting king damage makes runs feel hopeless too early.
 
 ## Planning and presentation
 
+- **Order pool.** Each battle has a fixed pool of orders: 6, 10 and 18 for
+  the three encounters. Every queued order, Defend included, spends one;
+  cleanup strikes are free. If the pool runs out while enemies remain, the
+  run ends. Clearing a battle turns each unused order into 1 gold. The pool
+  sizes come from the test bot's needs plus generous slack (the bot sees
+  enemy orders, so people need more); tune them from playtests.
+
 - One order per piece, up to three. A lone king has one available order.
 - Order a legal chess destination or defend in place. Queued orders can be
   replaced or removed before Resolve; friendly destinations cannot repeat.
@@ -71,14 +78,17 @@ watch whether lasting king damage makes runs feel hopeless too early.
   legally attack its surviving killer, take one free strike or decline before
   planning resumes. This existing rule is retained in both combat models.
 - Walls block sliding movement; knights can leap over them. Collision uses
-  destinations, with one exception. If an enemy ends its move on a square a
-  sliding piece passes through, the slider stops there and strikes it. If
-  that enemy dies, the slider takes the square; otherwise the slider stays
-  back. In Always trade, the enemy hits back if it could reach the slider's
-  starting square. Only the first such enemy along the path counts. A piece
-  in a contested square, or one that never reaches its square, stops nobody.
-  Two sliders that stop each other trade once, like a clash. Knights leap, so
-  they are never stopped this way. No check, castling,
+  destinations, with one exception: sliders pass through enemies. If an enemy
+  ends its move on a square a rook, bishop or queen passes through, the
+  slider strikes it on the way and carries on to its chosen square. Crossings
+  happen in path order. In Always trade, each such enemy hits back if it could
+  reach the square the slider came from. If those return hits add up to the
+  slider's HP, it falls there; nothing further along, including its target,
+  is hit. A piece in a contested square, or one that never reaches its
+  square, isn't passed. Two sliders that cross each other trade once, like a
+  clash, if neither fell before reaching that point. The trade counts toward
+  each slider's fall total, so either can fall there; survivors carry on. Knights leap, so they never meet anything on the
+  way. No check, castling,
   en passant, promotion, specials, or move-then-special chain in this slice.
 
 Original cartoon SVG characters and CSS perspective establish the art direction
