@@ -86,7 +86,8 @@ watch whether lasting king damage makes runs feel hopeless too early.
   slider's HP, it falls there; nothing further along, including its target,
   is hit. A piece in a contested square, or one that never reaches its
   square, isn't passed. Two sliders that cross each other trade once, like a
-  clash, and both carry on. Knights leap, so they never meet anything on the
+  clash, if neither fell before reaching that point. The trade counts toward
+  each slider's fall total, so either can fall there; survivors carry on. Knights leap, so they never meet anything on the
   way. No check, castling,
   en passant, promotion, specials, or move-then-special chain in this slice.
 

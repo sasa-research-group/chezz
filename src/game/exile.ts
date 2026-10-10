@@ -194,24 +194,42 @@ export function resolveTurn(g: Run, black?: Order[]): Resolution {
     // Two sliders that cross each other meet once, like a reciprocal clash.
     for (const [id, list] of crossings) for (const c of list) {
       const back = crossings.get(c.by.id)?.find(x => x.by.id === id);
-      if (!back || c.mutual) continue;
-      c.mutual = back.mutual = true;
-      const a = byId.get(id)!;
-      hit(c.by, a); hit(a, c.by);
-      interactions.push({ text: `${label(a)} and ${label(c.by)} run into each other. Both trade HP.`, ids: [a.id, c.by.id], focus: [c.at, back.at] });
+      if (back) c.mutual = true;
     }
-    const interceptors = new Set([...crossings.values()].flat().filter(c => !c.mutual).map(c => c.by.id));
+    // A slider falls once the return hits it has taken reach its HP. A crossing
+    // trade only happens if neither slider fell before reaching it, so first
+    // find each slider's fall point from ordinary crossings alone.
+    const returned = (c: Crossing) => g.mode === "retaliation" && threatens(g, c.by, c.at, c.from) ? c.by.hp : 0;
+    const firstFall = new Map<string, number>();
+    for (const [id, list] of crossings) {
+      const a = byId.get(id)!;
+      let taken = 0, k = 0;
+      for (; k < list.length; k++) if (!list[k].mutual && (taken += returned(list[k])) >= a.hp) break;
+      firstFall.set(id, k);
+    }
+    const meets = (id: string, c: Crossing) => {
+      const back = crossings.get(c.by.id)!.findIndex(x => x.by.id === id);
+      return crossings.get(id)!.indexOf(c) < firstFall.get(id)! && back < firstFall.get(c.by.id)!;
+    };
+    const interceptors = new Set<string>();
     const fell = new Map<string, Unit>();
     for (const [id, list] of crossings) {
       const a = byId.get(id)!;
       let taken = 0;
       for (const c of list) {
-        if (c.mutual) taken += c.by.hp;
-        else {
+        if (c.mutual) {
+          if (!meets(id, c)) continue;
+          taken += c.by.hp;
+          if (id < c.by.id) {
+            hit(c.by, a); hit(a, c.by);
+            interactions.push({ text: `${label(a)} and ${label(c.by)} run into each other. Both trade HP.`, ids: [a.id, c.by.id], focus: [c.at] });
+          }
+        } else {
           const e = c.by, dealt = hit(e, a);
-          const counters = g.mode === "retaliation" && threatens(g, e, c.at, c.from);
+          const counters = returned(c) > 0;
           const received = counters ? hit(a, e) : 0;
           taken += received;
+          interceptors.add(e.id);
           interactions.push({ text: `${label(e)} steps into ${label(a)}'s path at ${coord(g, c.at)} and takes ${dealt}${counters ? `; it hits back for ${received}` : ""}.`, ids: [a.id, e.id], focus: [c.at] });
         }
         if (taken >= a.hp) { fell.set(a.id, c.by); interactions.push({ text: `${label(a)} falls at ${coord(g, c.at)}.`, ids: [], focus: [c.at] }); break; }

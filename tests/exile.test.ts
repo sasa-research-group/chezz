@@ -200,6 +200,26 @@ describe("Escape from Exile", () => {
     expect(result.units.find(u => u.id === b.id)).toBeUndefined();
     expect(result.units.find(u => u.id === w.id)).toMatchObject({ x: 0, y: 1, hp: 3 });
   });
+  it("skips a crossing trade with a slider that fell before reaching it", () => {
+    const a: Unit = { id: "a", side: "white", kind: "rook", hp: 3, x: 0, y: 0 };
+    const b: Unit = { id: "b", side: "black", kind: "rook", hp: 2, x: 5, y: 0 };
+    const k: Unit = { id: "k", side: "black", kind: "king", hp: 4, x: 1, y: 1 };
+    const g = { ...arena("retaliation", [{ ...king, x: 2, y: 5 }, a, b, k]), encounter: 2 };
+    const result = resolveTurn(plan(g, { unitId: a.id, to: { x: 4, y: 0 } }), [{ unitId: b.id, to: { x: 2, y: 0 } }, { unitId: k.id, to: { x: 1, y: 0 } }]).run;
+    expect(result.units.find(u => u.id === a.id)).toBeUndefined();
+    expect(result.units.find(u => u.id === b.id)).toMatchObject({ x: 2, y: 0, hp: 2 });
+    expect(result.units.find(u => u.id === k.id)).toMatchObject({ x: 1, y: 0, hp: 1 });
+    expect(result.log.join(" ")).not.toContain("run into each other");
+  });
+  it("still narrates an enemy beyond the point where a slider fell", () => {
+    const a: Unit = { id: "a", side: "white", kind: "bishop", hp: 1, x: 0, y: 5 };
+    const p: Unit = { id: "p", side: "black", kind: "pawn", hp: 1, x: 1, y: 3 };
+    const n: Unit = { id: "n", side: "black", kind: "knight", hp: 3, x: 3, y: 1 };
+    const g = { ...arena("retaliation", [{ ...king, x: 5, y: 5 }, a, p, n]), encounter: 2 };
+    const result = resolveTurn(plan(g, { unitId: a.id, to: { x: 3, y: 2 } }), [{ unitId: p.id, to: { x: 1, y: 4 } }, { unitId: n.id, to: { x: 2, y: 3 } }]).run;
+    expect(result.units.find(u => u.id === a.id)).toBeUndefined();
+    expect(result.log.join(" ")).toContain("Enemy knight moves to");
+  });
   it("doesn't let a slider that fell on its path hit anyone at its destination", () => {
     const w: Unit = { id: "w", side: "white", kind: "rook", hp: 2, x: 1, y: 3 };
     const x: Unit = { id: "x", side: "black", kind: "rook", hp: 5, x: 3, y: 2 };
