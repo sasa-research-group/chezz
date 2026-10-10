@@ -13,9 +13,12 @@ export type Run = {
   version: 2; encounter: number; turn: number;
   phase: "player" | "camp" | "victory" | "defeat";
   gold: number; energy: number; units: Unit[]; log: string[]; history: string[]; nextId: number;
+  /** Your pawn that reached the far row and is waiting for you to pick its new piece. */
+  promoting?: string;
 };
+export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend"; target?: string; killed: string[] };
+export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
 
 export const ENERGY = 4;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
@@ -25,8 +28,8 @@ export const ENCOUNTERS: Encounter[] = [
   { title: "The first follower", story: "The old toll gate is closed. Find a way around, and bring everyone home.", reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
   { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 1, y: 5 }, { x: 4, y: 5 }] },
 ];
-export type CampChoice = "bishop" | "rook" | "heal";
-export const COST: Record<CampChoice, number> = { bishop: 6, rook: 8, heal: 4 };
+export type CampChoice = "pawn" | "bishop" | "rook" | "heal";
+export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
 
 export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (ENCOUNTERS[g.encounter].height - p.y);
@@ -123,15 +126,30 @@ const note = (g: Run, text: string): Run => ({ ...g, log: [text, ...g.log].slice
 
 export function move(g: Run, id: string, to: Pos): Run {
   const u = g.units.find(u => u.id === id);
-  if (g.phase !== "player" || !u || u.side !== "white") return g;
+  if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
   if (!t) return g;
-  return note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`);
+  const next = note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`);
+  // A pawn on the far row waits for you to choose what it becomes.
+  return u.kind === "pawn" && to.y === lastRank(g, u) ? { ...next, promoting: id } : next;
+}
+const lastRank = (g: Run, u: Unit) => (u.side === "white" ? 0 : ENCOUNTERS[g.encounter].height - 1);
+function promoted(g: Run, u: Unit, kind: PromoteTo): { run: Run; step: Step } {
+  const text = `${label(u)} reaches the far row and becomes a ${kind}!`;
+  const run = note({ ...g, units: withUnit(g, u.id, { kind, hp: HP[kind] }) }, text);
+  return { run, step: { text, units: run.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "promote", killed: [], from: u.kind } };
+}
+/** Completes your pending promotion. The new piece keeps its turn: it has moved, but can still strike or defend. */
+export function promote(g: Run, id: string, kind: PromoteTo): { run: Run; step: Step | null } {
+  const u = g.units.find(u => u.id === id);
+  if (g.phase !== "player" || g.promoting !== id || !u || !["queen", "rook", "bishop", "knight"].includes(kind)) return { run: g, step: null };
+  const { run, step } = promoted({ ...g, promoting: undefined }, u, kind);
+  return { run, step };
 }
 
 export function defend(g: Run, id: string): Run {
   const u = g.units.find(u => u.id === id);
-  if (g.phase !== "player" || !u || u.side !== "white" || u.acted || g.energy < 1) return g;
+  if (g.phase !== "player" || g.promoting || !u || u.side !== "white" || u.acted || g.energy < 1) return g;
   return note({ ...g, energy: g.energy - 1, units: withUnit(g, id, { acted: true, defending: true }) }, `${label(u)} defends (1 energy).`);
 }
 
@@ -157,7 +175,7 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
 
 export function attack(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
   const u = g.units.find(u => u.id === id);
-  if (g.phase !== "player" || !u || u.side !== "white") return { run: g, step: null };
+  if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return { run: g, step: null };
   const t = attackTargets(g, u).find(t => t.id === targetId);
   if (!t) return { run: g, step: null };
   const { run, step } = strike({ ...g, energy: g.energy - t.cost }, u, t);
@@ -192,12 +210,12 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       const dist = (p: Pos) => Math.min(gap(p, king) - 0.5, ...whites.map(w => gap(p, w)));
       for (const t of moveTargets(run, u, energy)) {
         const gain = dist(u) - dist(t);
-        // Pawns keep marching toward pieces still ahead of them, but never onto the last rank, where they'd be stuck for good.
-        const lastRank = u.side === "black" ? ENCOUNTERS[run.encounter].height - 1 : 0;
+        // Pawns keep marching toward pieces still ahead of them, and race for the far row to promote.
+        const crowning = u.kind === "pawn" && t.y === lastRank(run, u);
         const ahead = whites.some(w => (w.y - u.y) * forward(u) > 0);
-        const march = u.kind === "pawn" && gain <= 0 && ahead && t.y !== lastRank ? 1 : 0;
-        if (gain <= 0 && !march) continue;
-        choices.push({ score: march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
+        const march = u.kind === "pawn" && gain <= 0 && ahead ? 1 : 0;
+        if (gain <= 0 && !march && !crowning) continue;
+        choices.push({ score: crowning ? 30 : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
           const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
@@ -217,13 +235,18 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
     if (!best || best.score <= 0) break;
     const done = best.apply();
     run = finish(done.run); energy -= done.cost; steps.push(done.step);
+    const mover = run.units.find(x => x.id === done.step.actor);
+    if (done.step.kind === "move" && mover?.kind === "pawn" && mover.y === lastRank(run, mover)) {
+      const p = promoted(run, mover, "queen");
+      run = p.run; steps.push(p.step);
+    }
   }
   return { run, steps, spent: pool - energy };
 }
 
 /** Ends the player's turn: the enemy acts, then the player's pool refills. */
 export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
-  if (g.phase !== "player") return { run: g, steps: [], spent: 0 };
+  if (g.phase !== "player" || g.promoting) return { run: g, steps: [], spent: 0 };
   const { run, steps, spent } = enemyTurn(g);
   if (run.phase !== "player") return { run, steps, spent };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : u));
@@ -241,7 +264,7 @@ export function leaveCamp(g: Run, choice: CampChoice | "save"): Run {
   const army = g.units.filter(u => u.side === "white").map(u => ({ ...u }));
   if (choice === "heal") { const king = army.find(u => u.id === "king")!; king.hp = Math.min(HP.king, king.hp + 2); }
   else if (choice !== "save") army.push({ id: `ally-${g.nextId}`, side: "white", kind: choice, hp: HP[choice], x: 0, y: 0 });
-  return spawn({ ...g, encounter: g.encounter + 1, gold: g.gold - (choice === "save" ? 0 : COST[choice]), nextId: g.nextId + (choice === "heal" ? 0 : 1), history: [...g.history, `Camp: ${choice}`] }, army);
+  return spawn({ ...g, encounter: g.encounter + 1, gold: g.gold - (choice === "save" ? 0 : COST[choice]), nextId: g.nextId + (choice === "heal" || choice === "save" ? 0 : 1), history: [...g.history, `Camp: ${choice}`] }, army);
 }
 
 export function readRun(raw: string | null): Run | null {
@@ -251,6 +274,7 @@ export function readRun(raw: string | null): Run | null {
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;
+    if (g.promoting !== undefined && !g.units.some(u => u.id === g.promoting && u.side === "white" && u.kind === "pawn" && u.y === 0)) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;

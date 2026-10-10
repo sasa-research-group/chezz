@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { PieceRig } from "./components/PieceRig";
 import type { RigAction } from "./components/PieceRig";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, campReason, coord, defend, endTurn, leaveCamp, move, moveTargets, newRun, passable, readRun, same } from "./game/turns";
-import type { Pos, Run, Step, Unit } from "./game/turns";
+import { COST, DAMAGE, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, campReason, coord, defend, endTurn, leaveCamp, move, moveTargets, newRun, passable, readRun, same } from "./game/turns";
+import type { CampChoice, Kind, Pos, PromoteTo, Run, Step, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
 function saved() { try { return readRun(localStorage.getItem(SAVE)); } catch { return null; } }
@@ -22,8 +22,8 @@ const HINT: Record<Unit["kind"], string> = {
 type Playback = { steps: Step[]; before: Run; index: number };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
-type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[] };
-const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400 };
+type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind> };
+const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750 };
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
@@ -51,7 +51,7 @@ function Board({ run, units, selected, flash, onSquare, locked, stage, spd }: { 
         const ghost = !units.includes(piece), anim = ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
         return <div key={piece.id} className={`exile-piece ${piece.side} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""}`}
           style={{ left: `${(piece.x + .5) / e.width * 100}%`, top: `${(piece.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(piece.y * 10 + (ghost ? 29 : 30)) }}>
-          <PieceRig key={`${piece.id}-${anim.key}`} kind={piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
+          <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
           {!ghost && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
 
@@ -71,12 +71,12 @@ export default function App() {
   const [playback, setPlayback] = useState<Playback | null>(null);
   const [flash, setFlash] = useState<Step | null>(null);
   const [fast, setFast] = useState(false);
-  const [stage, setStage] = useState<Stage>({ anims: {}, facing: {}, ghosts: [] });
+  const [stage, setStage] = useState<Stage>({ anims: {}, facing: {}, ghosts: [], morph: {} });
   const animKey = useRef(1);
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Animation time scale, matched to the enemy-turn step interval (800ms, 250ms fast, 90ms reduced).
   const spd = reducedMotion ? .1 : fast ? .3 : 1;
-  const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage({ anims: {}, facing: {}, ghosts: [] }); };
+  const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage({ anims: {}, facing: {}, ghosts: [], morph: {} }); };
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   /** Plays one piece animation (optionally after a delay), then returns it to idle. */
@@ -95,6 +95,16 @@ export default function App() {
     if (!actor) return;
     const target = step.target ? beforeUnits.find(u => u.id === step.target) : undefined;
     if (step.kind === "defend") { animate(actor.id, "defend"); return; }
+    if (step.kind === "promote") {
+      // Show the old piece transforming, then swap in the new one.
+      setStage(st => ({ ...st, morph: { ...st.morph, [actor.id]: step.from ?? actor.kind } }));
+      animate(actor.id, "morph-out");
+      timers.current.push(setTimeout(() => {
+        setStage(st => { const morph = { ...st.morph }; delete morph[actor.id]; return { ...st, morph }; });
+        animate(actor.id, "morph-in");
+      }, DURATION["morph-out"] * spd));
+      return;
+    }
     if (step.kind === "move") { const to = step.units.find(u => u.id === actor.id); if (to) face(actor.id, actor, to); animate(actor.id, "move"); return; }
     if (target) face(actor.id, actor, target);
     animate(actor.id, "attack");
@@ -113,7 +123,13 @@ export default function App() {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const e = ENCOUNTERS[run.encounter], king = run.units.find(u => u.id === "king");
   const selected = run.units.find(u => u.id === selectedId && u.side === "white");
-  const locked = !!playback || intro || run.phase !== "player";
+  const locked = !!playback || intro || run.phase !== "player" || !!run.promoting;
+  const choosePromotion = (kind: PromoteTo) => {
+    if (!run.promoting) return;
+    const { run: next, step } = promote(run, run.promoting, kind);
+    if (next === run || !step) return;
+    setRun(next); perform(step, run.units);
+  };
   const key = outroKey(run), outro = key !== "" && key !== outroDone;
   useEffect(() => {
     if (!outro || playback || intro) return;
@@ -198,8 +214,9 @@ export default function App() {
     </div>
     <footer className="exile-footer">Three battles. A little army. One crown to get back.<span>Prototype · turn-based</span></footer>
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="Start exile run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><p className="kicker">BANISHED. BROKE. STILL WEARING THE CROWN.</p><h1>A king without a kingdom.</h1><p>Clear the road, recruit your first followers, and cross the bridge. You get {ENERGY} energy a turn to move and strike. Fallen allies stay gone. If your king falls, the run is over.</p><button className="primary-button" onClick={start}>Begin the rebellion<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Keep playing current run</button>}</section></div>}
-    {!intro && !playback && !outro && run.phase === "camp" && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Roadside camp"><p className="kicker">PATROL DEFEATED · +{e.reward} GOLD</p><h1>A fire. A choice.</h1><p>Your king has {king?.hp ?? 0} / {HP.king} HP. Your surviving army keeps its health. Choose one offer, then move on.</p><div className="camp-gold">✦ {run.gold} gold</div><div className="camp-offers">{(["bishop", "rook", "heal"] as const).map(choice => <button key={choice} disabled={!!campReason(run, choice)} onClick={() => { clearStage(); setRun(leaveCamp(run, choice)); setSelectedId(null); }}><div className="offer-art">{choice === "heal" ? <span>♥</span> : <PieceRig kind={choice} side="white" />}</div><h2>{choice === "heal" ? "Mend the king" : `Recruit a ${choice}`}</h2><p>{choice === "bishop" ? `${HP.bishop} HP, hits for ${DAMAGE.bishop}. Diagonal reach.` : choice === "rook" ? `${HP.rook} HP, hits for ${DAMAGE.rook}. Straight lines.` : `Restore 2 king HP, up to ${HP.king}.`}</p><strong>{campReason(run, choice) || `${COST[choice]} gold →`}</strong></button>)}</div><button className="text-button" onClick={() => { clearStage(); setRun(leaveCamp(run, "save")); setSelectedId(null); }}>Save the gold and continue →</button></section></div>}
+    {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><p className="kicker">YOUR PAWN MADE IT</p><h1>Promotion!</h1><p>It reached the far row. Pick what it becomes, at full health. It can still strike or defend this turn.</p><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kind[0].toUpperCase() + kind.slice(1)}</h2><p>{HP[kind]} HP, hits for {DAMAGE[kind]}.</p></button>)}</div></section></div>}
+    {!intro && !playback && !outro && run.phase === "camp" && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Roadside camp"><p className="kicker">PATROL DEFEATED · +{e.reward} GOLD</p><h1>A fire. A choice.</h1><p>Your king has {king?.hp ?? 0} / {HP.king} HP. Your surviving army keeps its health. Choose one offer, then move on.</p><div className="camp-gold">✦ {run.gold} gold</div><div className="camp-offers">{(["pawn", "bishop", "rook", "heal"] as CampChoice[]).map(choice => <button key={choice} disabled={!!campReason(run, choice)} onClick={() => { clearStage(); setRun(leaveCamp(run, choice)); setSelectedId(null); }}><div className="offer-art">{choice === "heal" ? <span>♥</span> : <PieceRig kind={choice} side="white" />}</div><h2>{choice === "heal" ? "Mend the king" : `Recruit a ${choice}`}</h2><p>{choice === "pawn" ? `${HP.pawn} HP, hits for ${DAMAGE.pawn}. Reach the far row to promote it.` : choice === "bishop" ? `${HP.bishop} HP, hits for ${DAMAGE.bishop}. Diagonal reach.` : choice === "rook" ? `${HP.rook} HP, hits for ${DAMAGE.rook}. Straight lines.` : `Restore 2 king HP, up to ${HP.king}.`}</p><strong>{campReason(run, choice) || `${COST[choice]} gold →`}</strong></button>)}</div><button className="text-button" onClick={() => { clearStage(); setRun(leaveCamp(run, "save")); setSelectedId(null); }}>Save the gold and continue →</button></section></div>}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Exile run complete" : "Rebellion ended"}><p className="kicker">{run.phase === "victory" ? "THREE PATROLS DOWN" : "THE CROWN HAS FALLEN"}</p><h1>{run.phase === "victory" ? "A very small rebellion." : "Long live… somebody else."}</h1><p>{run.phase === "victory" ? `You crossed the bridge with ${run.units.filter(u => u.side === "white").length} surviving pieces and ${king?.hp ?? 0} king HP. This is the end of the prototype.` : "Your king fell. Your next attempt starts with a fresh crown and questionable confidence."}</p><label className="feedback-label">What felt clever? What was confusing?<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} placeholder="Leave a note for the next design pass…" /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export feedback and action history</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
-    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="How to play"><p className="kicker">A FEW ROYAL DECREES</p><h1>Move. Strike. Survive.</h1><ol><li>You act, then the enemy acts. You get {ENERGY} energy each turn; the enemy has its own pool.</li><li>Select a piece. It may move once in its chess shape: 1 energy per square, or 2 for a knight's jump. Pieces and walls block slides.</li><li>Then it may strike or defend. A strike costs the squares to the target + 1 and deals fixed damage: pawn 1, knight and bishop 2, king 2, rook and queen 3. The striker stays where it is, even on a kill; rooks, bishops and queens can strike down a clear line from afar.</li><li>Defend costs 1. Until your next turn, that piece takes 1 less damage per hit and hits back any attacker it can reach.</li><li>Defeat all enemies to reach camp. Recruit or heal. Surviving HP carries over, fallen allies stay gone, and king death ends the run.</li></ol><button className="primary-button" onClick={() => setHelp(false)}>Back to the road<span>→</span></button></section></div>}
+    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="How to play"><p className="kicker">A FEW ROYAL DECREES</p><h1>Move. Strike. Survive.</h1><ol><li>You act, then the enemy acts. You get {ENERGY} energy each turn; the enemy has its own pool.</li><li>Select a piece. It may move once in its chess shape: 1 energy per square, or 2 for a knight's jump. Pieces and walls block slides.</li><li>Then it may strike or defend. A strike costs the squares to the target + 1 and deals fixed damage: pawn 1, knight and bishop 2, king 2, rook and queen 3. The striker stays where it is, even on a kill; rooks, bishops and queens can strike down a clear line from afar.</li><li>Defend costs 1. Until your next turn, that piece takes 1 less damage per hit and hits back any attacker it can reach.</li><li>A pawn that reaches the far row promotes: yours becomes the piece you pick, an enemy pawn becomes a queen. Both arrive at full health.</li><li>Defeat all enemies to reach camp. Recruit or heal. Surviving HP carries over, fallen allies stay gone, and king death ends the run.</li></ol><button className="primary-button" onClick={() => setHelp(false)}>Back to the road<span>→</span></button></section></div>}
   </main>;
 }

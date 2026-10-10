@@ -14,8 +14,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   on any of your pieces, pawns march toward targets (never onto the last
   rank), pieces brace only when it helps; a battle ends with a celebration
   banner before the menu.
-- **Next up:** pawn promotion (both sides; you pick, enemy becomes a queen;
-  transformation animation) and a 3-gold pawn recruit at camp.
+- **Promotion** (`claude/promotion`, on top of #9): pawns on the far row
+  promote (you pick; enemy becomes a queen) with a morph animation; camp
+  sells a 3-gold pawn.
 - Encounters are too easy (bot wins with the king near full HP). Tune enemies
   and energy from Wesley's play.
 - Research report: `reports/Simultaneous chess tactics design.md`.

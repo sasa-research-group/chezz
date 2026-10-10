@@ -113,6 +113,18 @@
 .rig.act-cheer .fx-stars{animation:rig-stars calc(1.4s * var(--spd,1)) ease-out both}
 @keyframes rig-cheer-hop{0%,20%{transform:translateY(0)}55%{transform:translateY(-20px)}85%,100%{transform:translateY(0)}}
 @keyframes rig-arms-up{0%{transform:none}20%,85%{transform:rotate(-35deg)}100%{transform:none}}
+/* Promotion: the pawn trembles, swells and spins into a flash; the new piece bursts out of smoke. */
+.rig.act-morph-out .squash{animation:rig-morph-out calc(.65s * var(--spd,1)) var(--ease-in) both}
+.rig.act-morph-out .hop{animation:rig-flash-hold calc(.65s * var(--spd,1)) linear both}
+.rig.act-morph-out .mouth-yell,.rig.act-morph-in .mouth-yell{opacity:1}
+.rig.act-morph-out .sweat{animation:rig-drip calc(.65s * var(--spd,1)) ease-in both}
+.rig.act-morph-in .squash{animation:rig-morph-in calc(.75s * var(--spd,1)) var(--ease-back) both}
+.rig.act-morph-in .fx-smoke{animation:rig-smoke-out calc(.75s * var(--spd,1)) ease-out both}
+.rig.act-morph-in .fx-stars{animation:rig-stars calc(.75s * var(--spd,1)) ease-out both}
+@keyframes rig-morph-out{0%{transform:none}25%{transform:translateX(-2px) rotate(-6deg) scale(1.05,.95)}35%{transform:translateX(2px) rotate(6deg)}50%{transform:scale(1.25,.8)}100%{transform:scale(.2,1.6) rotate(540deg)}}
+@keyframes rig-flash-hold{0%,40%{filter:none}70%,100%{filter:brightness(3) saturate(0)}}
+@keyframes rig-morph-in{0%{transform:scale(0) rotate(-200deg)}55%{transform:scale(1.3,.8) rotate(10deg)}75%{transform:scale(.9,1.12)}100%{transform:none}}
+@keyframes rig-smoke-out{0%{opacity:1;transform:scale(1.3)}100%{opacity:0;transform:scale(1.8)}}
 @media(prefers-reduced-motion:reduce){
   .rig .flip{filter:none!important}
   .rig .pupil,.rig .sweat,.rig .fx-lines,.rig .fx-burst{animation:none!important}

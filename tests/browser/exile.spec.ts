@@ -40,6 +40,22 @@ test("the winning blow plays out and celebrates before the camp menu", async ({ 
   await expect(page.getByRole("dialog", { name: "Roadside camp" })).toBeVisible();
 });
 
+test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a3 white pawn/ }).click();
+  await page.getByRole("button", { name: /^a4 empty/ }).click();
+  const picker = page.getByRole("dialog", { name: "Promote your pawn" });
+  await expect(picker).toBeVisible();
+  await expect(page.getByRole("button", { name: "End turn" })).toBeDisabled();
+  await picker.getByRole("button", { name: /Knight/ }).click();
+  await expect(picker).toBeHidden();
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")?.kind).toBe("knight");
+  await page.screenshot({ path: "test-results/exile-promotion.png" });
+});
+
 test("compact layout fits an iPhone screen without scrolling", async ({ page }) => {
   // iPhone 13 Pro with Safari's bars showing: about 390 × 664.
   await page.setViewportSize({ width: 390, height: 664 });
