@@ -9,7 +9,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - Encounters are too easy under the new rules (bot wins with the king near
   full HP). Next: enemy and energy tuning from Wesley's play.
 - Research report: `reports/Simultaneous chess tactics design.md`. Lab: Duel.
-- **Strike in place** (`claude/strike-in-place`): strikes land from where the
+- **Phone layout + busier enemy** (`claude/mobile-and-ai`): the game fits an
+  iPhone screen (compact header, height-fitted board, bottom action bar);
+  stuck enemy pawns now march or brace instead of idling.
+- **Strike in place** (PR #8, merged): strikes land from where the
   piece stands (sliders down a clear line at distance + 1); no capture-move.
 - **Art pass** (`claude/art-pass`): a cast of misfit characters (rebels vs a
   blue royal patrol) with Pizza Tower-style idle/move/attack/defend/hit/death

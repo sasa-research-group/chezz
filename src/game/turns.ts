@@ -15,7 +15,7 @@ export type Run = {
   gold: number; energy: number; units: Unit[]; log: string[]; history: string[]; nextId: number;
 };
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike"; target?: string; killed: string[] };
+export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend"; target?: string; killed: string[] };
 
 export const ENERGY = 4;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
@@ -186,16 +186,28 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0) - t.cost;
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => ({ ...strike(run, u, t), cost: t.cost }) });
       }
-      const dist = (p: Pos) => Math.max(Math.abs(p.x - king.x), Math.abs(p.y - king.y));
+      // Close in on the king, or on whichever of your pieces is nearest.
+      const whites = run.units.filter(w => w.side === "white");
+      const gap = (p: Pos, w: Pos) => Math.max(Math.abs(p.x - w.x), Math.abs(p.y - w.y));
+      const dist = (p: Pos) => Math.min(gap(p, king) - 0.5, ...whites.map(w => gap(p, w)));
       for (const t of moveTargets(run, u, energy)) {
         const gain = dist(u) - dist(t);
-        if (gain <= 0) continue;
-        choices.push({ score: gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
+        // Pawns keep marching even when that doesn't close the gap yet.
+        const march = u.kind === "pawn" && gain <= 0 ? 1 : 0;
+        if (gain <= 0 && !march) continue;
+        choices.push({ score: march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
           const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
       }
+      // A piece with nothing better to do braces if one of your pieces could strike it next turn.
+      const threatened = whites.some(w => reaches(run, w, w, u));
+      if (!u.acted && threatened) choices.push({ score: 3, key: `d${u.id}`, apply: () => {
+        const text = `${label(u)} braces to defend.`;
+        const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);
+        return { run: next, step: { text, units: next.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "defend", killed: [] }, cost: 1 };
+      } });
     }
     choices.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
     const best = choices[0];

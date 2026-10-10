@@ -18,3 +18,24 @@
 .secondary-button span{font-weight:600;opacity:.7}
 
 .exile-piece .rig{overflow:visible}.exile-piece.ghost .piece-health{display:none}
+/* Phone layout: everything needed to play fits one screen. The board sizes to
+   the screen height; actions sit in a bar fixed to the bottom. */
+@media(max-width:700px){
+  .exile-app{padding:10px 12px calc(150px + env(safe-area-inset-bottom,0px));min-height:100dvh}
+  .exile-header{padding-bottom:8px;gap:10px}.exile-brand{font-size:22px;letter-spacing:-1px}.exile-brand span{display:none}.header-controls button{font-size:11px}
+  .run-heading{display:flex!important;align-items:center;justify-content:space-between;padding:8px 0 6px;gap:10px}.run-heading .kicker,.run-heading>div>p:last-child{display:none}.run-heading h1{font-size:19px!important;margin:0;letter-spacing:-.5px}
+  .run-stats{margin:0!important;gap:12px!important}.run-stats>span{font-size:13px!important}.run-stats small{display:none}
+  .exile-arena{padding:6px 6px 4px!important;border-radius:12px}.arena-topline{display:none}
+  .board-camera{padding:14px 6px 10px!important;margin:0 auto;max-width:min(100%,calc((100dvh - 290px - env(safe-area-inset-bottom,0px)) * var(--aspect,1) + 12px))!important}
+  .playback-caption{min-height:0;padding:6px 4px 2px;font-size:12px}.playback-controls{padding:2px 4px}
+  .exile-sidebar{display:block}
+  .action-bar{position:fixed;left:0;right:0;bottom:0;z-index:50;border-radius:14px 14px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))!important;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-items:center;box-shadow:0 -4px 18px #382f2e33}
+  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
+  .action-bar>.kicker{margin:0;grid-column:1}.action-bar .energy-pips{margin:0;grid-column:2;justify-self:end}
+  .action-bar .selected-card{grid-column:1/-1;margin:0;padding:6px 10px}
+  .action-bar .secondary-button,.action-bar .primary-button{margin:0;padding:12px 10px}
+  .action-bar .secondary-button{grid-column:1}.action-bar .secondary-button span{display:none}
+  .action-bar .primary-button{grid-column:2}.action-bar .primary-button:only-of-type{grid-column:1/-1}
+  .action-bar .notice{grid-column:1/-1;margin:0!important;font-size:11px}
+  .resolution-panel{margin-top:10px}.exile-footer{display:none}
+}

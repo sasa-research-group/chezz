@@ -114,6 +114,13 @@ describe("turn-based rules", () => {
     expect(a.run.units.filter(u => u.side === "white").every(u => !u.moved && !u.acted && !u.defending)).toBe(true);
   });
 
+  it("keeps stuck enemy pawns busy: they advance when they can and defend when threatened", () => {
+    // King steps to a2: the pawn on a3 is blocked and threatened, the pawn on c3 can still march.
+    const { run, steps } = endTurn(move(newRun(), "king", { x: 0, y: 2 }));
+    expect(unit(run, "enemy-0-0")).toMatchObject({ x: 0, y: 1, defending: true });
+    expect(unit(run, "enemy-0-1")).toMatchObject({ x: 2, y: 2 });
+    expect(steps.map(s => s.kind)).toEqual(expect.arrayContaining(["defend", "move"]));
+  });
   it("ends the run when the king falls", () => {
     const g = board([{ ...king, hp: 1 }, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }]);
     expect(endTurn(g).run.phase).toBe("defeat");

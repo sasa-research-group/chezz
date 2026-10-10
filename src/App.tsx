@@ -29,7 +29,7 @@ function Board({ run, units, selected, flash, onSquare, locked, stage, spd }: { 
   const e = ENCOUNTERS[run.encounter];
   const moves = selected && !locked ? moveTargets(run, selected) : [];
   const strikes = selected && !locked ? attackTargets(run, selected) : [];
-  return <div className="board-camera">
+  return <div className="board-camera" style={{ "--aspect": e.width / e.height } as CSSProperties}>
     <div className="board-plane" style={{ aspectRatio: `${e.width}/${e.height}` }}>
       <div className="exile-grid" style={{ gridTemplateColumns: `repeat(${e.width}, 1fr)` }}>
         {Array.from({ length: e.width * e.height }, (_, i) => {
@@ -163,7 +163,7 @@ export default function App() {
         <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setPlayback(null); }}>Skip enemy turn</button>}</div>
       </section>
       <aside className="exile-sidebar">
-        <section className="plan-panel"><p className="kicker">⚡ {playback ? 0 : run.energy} OF {ENERGY} ENERGY LEFT</p><h2>{playback ? "The patrol answers." : "Your move, Your Majesty."}</h2>
+        <section className="plan-panel action-bar"><p className="kicker">⚡ {playback ? 0 : run.energy} OF {ENERGY} ENERGY LEFT</p><h2>{playback ? "The patrol answers." : "Your move, Your Majesty."}</h2>
           <div className="energy-pips" aria-hidden="true">{Array.from({ length: ENERGY }, (_, i) => <i key={i} className={i < (playback ? 0 : run.energy) ? "full" : ""} />)}</div>
           {selected && !locked ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{selected.kind} · {selected.hp} HP · hits for {DAMAGE[selected.kind]}</strong><p>{HINT[selected.kind]} Green dots: move cost. Red dots: strike cost.</p></div></div> : <p>Select a piece. Each piece may move once, then strike or defend.</p>}
           {selected && !locked && <button className="secondary-button" disabled={selected.acted || run.energy < 1} onClick={() => { setRun(defend(run, selected.id)); animate(selected.id, "defend"); }}>Defend · 1 energy<span>blocks 1, counters</span></button>}

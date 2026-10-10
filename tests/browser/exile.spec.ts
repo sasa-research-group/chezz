@@ -25,11 +25,16 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeEnabled();
 });
 
-test("compact layout remains usable on a phone", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("compact layout fits an iPhone screen without scrolling", async ({ page }) => {
+  // iPhone 13 Pro with Safari's bars showing: about 390 × 664.
+  await page.setViewportSize({ width: 390, height: 664 });
   await page.goto("/");
   await page.getByRole("button", { name: "Begin the rebellion" }).click();
   await page.getByRole("button", { name: /^b1 white king/ }).click();
+  for (const control of [page.getByRole("button", { name: "End turn" }), page.getByRole("button", { name: /^Defend · 1 energy/ }), page.getByRole("button", { name: /^a4 / }), page.getByRole("button", { name: /^d1 / })]) {
+    const box = (await control.boundingBox())!;
+    expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(664);
+  }
   await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
   await expect.poll(async () => (await saved(page)).energy).toBe(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

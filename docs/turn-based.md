@@ -35,7 +35,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   nothing is worth doing or its pool is spent. Strikes score highest (kills
   and the king most), minus any counter it would actually take (heavily if
   the counter would kill it); it never strikes for 0 damage. Otherwise pieces
-  step toward your king.
+  close in on your king or your nearest piece. Pawns keep marching forward
+  when they can't close in yet, and a piece with nothing better to do braces
+  (defends, 1 energy) if one of your pieces could strike it next turn.
 
 ## Run
 - Three encounters, camp between them: recruit a bishop (6 gold) or rook (8),
