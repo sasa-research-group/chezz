@@ -46,10 +46,10 @@ function evaluate(g: Run): number {
 }
 const settle = (g: Run) => (g.phase === "player" ? endTurn(g).run : g);
 
-/** The rest of this turn, chosen by looking past the enemy's reply to our best next turn. */
-/** Turn endings the rules allow: out of check, unless no ending is. */
-const legalEnds = (g: Run) => { const all = turnOutcomes(g), safe = all.filter(o => !inCheck(o.run)); return safe.length ? safe : all; };
+/** Turn endings the rules allow: out of check (a battle won counts), unless no ending is. */
+const legalEnds = (g: Run) => { const all = turnOutcomes(g), safe = all.filter(o => o.run.phase !== "defeat" && !inCheck(o.run)); return safe.length ? safe : all; };
 
+/** The rest of this turn, chosen by looking past the enemy's reply to our best next turn. */
 export function planTurn(g: Run, width = 12): Action[] {
   const shortlist = legalEnds(g).map(o => ({ ...o, after: settle(o.run) })).map(o => ({ ...o, score: evaluate(o.after) }))
     .sort((a, b) => b.score - a.score).slice(0, width);

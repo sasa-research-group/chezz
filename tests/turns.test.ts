@@ -176,12 +176,28 @@ describe("turn-based rules", () => {
     // Too far to walk up and strike this turn: no threat at all.
     expect(kingThreat(board([{ ...king, hp: 1 }, { ...rook, x: 5, y: 0 }], { encounter: 1 })).damage).toBe(0);
   });
-  it("lets defending, moving away or blocking get the king out of check", () => {
+  it("counts an enemy pawn that promotes and then strikes as a threat", () => {
+    // Battle 3's patrol has 3 energy: the pawn steps onto your back row (1), becomes a queen, and strikes for 3 (2).
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 4, hp: 1 };
+    const g = board([{ ...king, x: 2, y: 4, hp: 3 }, pawn], { encounter: 2 });
+    expect(kingThreat(g)).toMatchObject({ damage: 3, attackers: ["p"] });
+    expect(inCheck(g)).toBe(true);
+  });
+  it("marks every piece that could finish the king on its own", () => {
+    const pawn = (id: string, x: number): Unit => ({ id, side: "black", kind: "pawn", x, y: 2, hp: 1 });
+    const g = board([{ ...king, hp: 1 }, pawn("a", 0), pawn("b", 2)]);
+    expect(kingThreat(g).attackers.sort()).toEqual(["a", "b"]);
+  });
+  it("lets defending or blocking get the king out of check", () => {
     const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
     const g = board([{ ...king, hp: 3 }, rook], { encounter: 1 });
     expect(inCheck(g)).toBe(true);
     // Defending takes 1 off the hit: 2 damage no longer kills a 3-HP king.
     expect(inCheck(defend(g, "king"))).toBe(false);
+    // Blocking works too: with a piece in the way, the rook two squares off can't get next to him this turn.
+    const far = board([{ ...king, hp: 3 }, { ...rook, y: 1 }], { encounter: 1 });
+    expect(inCheck(far)).toBe(true);
+    expect(inCheck({ ...far, units: [...far.units, { id: "w", side: "white", kind: "pawn", x: 1, y: 2, hp: 1 }] })).toBe(false);
     expect(canEscape(g)).toBe(true);
   });
   it("won't end your turn in check while there's still a way out", () => {

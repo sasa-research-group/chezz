@@ -247,25 +247,31 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   return { run, steps, spent: pool - energy };
 }
 
-/** Ends the player's turn: the enemy acts, then the player's pool refills. */
 /** The most damage the enemy's next turn could deal your king, within its pool: each enemy piece may
- * step in (if it can afford to) and strike him once. Pieces that could deal it are the attackers. */
+ * step in (if it can afford to; a pawn reaching your back row becomes a queen first) and strike him once.
+ * Attackers are every piece in a combination that would kill him (or, if none would, deal the most). */
 export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const king = g.units.find(u => u.id === "king");
   if (!king) return { damage: 0, attackers: [] };
   const hit = (u: Unit) => Math.max(0, DAMAGE[u.kind] - (king.defending ? 1 : 0));
-  let best = { damage: 0, attackers: [] as string[] };
-  const search = (run: Run, pool: number, left: Unit[], damage: number, attackers: string[]) => {
-    if (damage > best.damage) best = { damage, attackers };
+  const combos: { damage: number; ids: string[] }[] = [];
+  const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
+    if (damage > 0) combos.push({ damage, ids });
     left.forEach((u, i) => {
       const rest = left.filter((_, j) => j !== i);
-      if (pool >= STRIKE_COST && reaches(run, u, u, king)) search(run, pool - STRIKE_COST, rest, damage + hit(u), [...attackers, u.id]);
-      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - STRIKE_COST))
-        if (reaches(run, u, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y }) }, pool - t.cost - STRIKE_COST, rest, damage + hit(u), [...attackers, u.id]);
+      if (pool >= STRIKE_COST && reaches(run, u, u, king)) search(run, pool - STRIKE_COST, rest, damage + hit(u), [...ids, u.id]);
+      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - STRIKE_COST)) {
+        const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
+        const moved = { ...u, x: t.x, y: t.y, kind: crowned ? "queen" as const : u.kind };
+        if (reaches(run, moved, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, kind: moved.kind }) }, pool - t.cost - STRIKE_COST, rest, damage + hit(moved), [...ids, u.id]);
+      }
     });
   };
   search(g, ENCOUNTERS[g.encounter].enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
-  return best;
+  const damage = Math.max(0, ...combos.map(c => c.damage));
+  const bar = Math.min(damage, king.hp);
+  const attackers = [...new Set(combos.filter(c => damage > 0 && c.damage >= bar).flatMap(c => c.ids))];
+  return { damage, attackers };
 }
 /** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */
 export function inCheck(g: Run): boolean {
@@ -277,7 +283,8 @@ export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
   const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + g.energy;
   const visit = (g: Run): boolean => {
-    if (g.promoting) g = promote(g, g.promoting, "queen").run;
+    // Try every promotion: a knight's reach might be the only way out.
+    if (g.promoting) return (["queen", "rook", "bishop", "knight"] as const).some(kind => visit(promote(g, g.promoting!, kind).run));
     if (g.phase !== "player") return g.phase !== "defeat";
     const k = key(g);
     if (seen.has(k)) return false;
@@ -292,6 +299,7 @@ export function canEscape(start: Run): boolean {
   };
   return visit(start);
 }
+/** Ends the player's turn: the enemy acts, then the player's pool refills. */
 export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   if (g.phase !== "player" || g.promoting) return { run: g, steps: [], spent: 0 };
   // In check you must get the king safe first, unless nothing this turn can.
