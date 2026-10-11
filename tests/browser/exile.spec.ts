@@ -173,6 +173,19 @@ test("a walk-up strike may step into danger when the blow removes it", async ({ 
   expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: 1, y: 1 });
 });
 
+test("in check, an offered walk-up strike lands in full", async ({ page }) => {
+  const start = newRun();
+  // The king is in check from the rook on c4. Our rook walks to b4 (blocking) and strikes it; the counter is fine.
+  const g = { ...start, encounter: 1, units: [{ ...start.units[0], x: 0, y: 0, hp: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 1, y: 2, hp: 1 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 2, y: 0, hp: 5, defending: true }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText("Check!");
+  await page.getByRole("button", { name: /^b2 white rook/ }).click();
+  await page.getByRole("button", { name: /^c4 black rook.*strike for/ }).click();
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "enemy-1-0")?.hp ?? 0).toBeLessThan(5);
+  await expect(page.getByRole("status")).toHaveCount(0);
+});
+
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
