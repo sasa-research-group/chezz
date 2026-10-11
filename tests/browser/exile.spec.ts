@@ -133,7 +133,10 @@ test("a king felled by a counter on your own turn still gets the finale", async 
   const g = { ...start, units: [{ ...start.units[0], hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 1, y: 2, hp: 5, defending: true }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
+  // The braced enemy is marked as defending, and its tile still shows the red strike ring.
+  await expect(page.getByRole("button", { name: /^b2 black rook, 5 HP, defending/ })).toBeVisible();
   await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await expect(page.locator(".exile-cell.guarded-tile.strikeable")).toHaveCount(1);
   await page.getByRole("button", { name: /^b2 black rook/ }).click();
   await expect(page.getByRole("button", { name: /Checkmate!/ })).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: "test-results/exile-checkmate-counter.png" });
@@ -157,6 +160,33 @@ test("moves that would put your own king in check are blocked", async ({ page })
   // A safe square still works.
   await page.getByRole("button", { name: /^a1 empty, move for 1/ }).click();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "king")?.x).toBe(0);
+});
+
+test("a walk-up strike may step into danger when the blow removes it", async ({ page }) => {
+  const start = newRun();
+  // b3 sits next to the rook: on its own that's check for a 1-HP king, but striking from there kills the rook.
+  const g = { ...start, units: [{ ...start.units[0], x: 0, y: 0, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 2, y: 1, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 3, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a4 white king/ }).click();
+  await expect(page.getByRole("button", { name: /^b3 empty, blocked/ })).toBeVisible();
+  await page.getByRole("button", { name: /^c3 black rook/ }).click();
+  await page.getByRole("button", { name: /^b3 .*walk here and strike the rook/ }).click();
+  await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
+  expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: 1, y: 1 });
+});
+
+test("in check, an offered walk-up strike lands in full", async ({ page }) => {
+  const start = newRun();
+  // The king is in check from the rook on c4. Our rook walks to b4 (blocking) and strikes it; the counter is fine.
+  const g = { ...start, encounter: 1, units: [{ ...start.units[0], x: 0, y: 0, hp: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 1, y: 2, hp: 1 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 2, y: 0, hp: 5, defending: true }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText("Check!");
+  await page.getByRole("button", { name: /^b2 white rook/ }).click();
+  await page.getByRole("button", { name: /^c4 black rook.*strike for/ }).click();
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "enemy-1-0")?.hp ?? 0).toBeLessThan(5);
+  await expect(page.getByRole("status")).toHaveCount(0);
 });
 
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
@@ -230,6 +260,9 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
   }
   await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
   await expect.poll(async () => (await saved(page)).energy).toBe(3);
+  // A defending piece is marked: a shield chip and "defending" in its label.
+  await expect(page.locator(".guard-badge")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^b1 white king, 5 HP, defending/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/exile-mobile.png", fullPage: true });
 });
