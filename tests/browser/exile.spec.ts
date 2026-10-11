@@ -133,7 +133,10 @@ test("a king felled by a counter on your own turn still gets the finale", async 
   const g = { ...start, units: [{ ...start.units[0], hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 1, y: 2, hp: 5, defending: true }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
+  // The braced enemy is marked as defending, and its tile still shows the red strike ring.
+  await expect(page.getByRole("button", { name: /^b2 black rook, 5 HP, defending/ })).toBeVisible();
   await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await expect(page.locator(".exile-cell.guarded-tile.strikeable")).toHaveCount(1);
   await page.getByRole("button", { name: /^b2 black rook/ }).click();
   await expect(page.getByRole("button", { name: /Checkmate!/ })).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: "test-results/exile-checkmate-counter.png" });
