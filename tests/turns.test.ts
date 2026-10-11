@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, walkAndStrike } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -225,6 +225,23 @@ describe("turn-based rules", () => {
     const g = board([{ ...king, hp: 4 }, rook]);
     expect(inCheck(g)).toBe(false);
     expect(approaches(g, "king", "r").map(t => `${t.x},${t.y}`).sort()).toEqual(["0,2", "2,2"]);
+  });
+  it("judges a walk-up strike as one move: it may step into danger if the strike removes it", () => {
+    // Stepping to b3 next to the rook alone would put the 1-HP king in check, but the strike kills the rook.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 2, y: 1, hp: 1 };
+    const g = board([{ ...king, x: 0, y: 0, hp: 1 }, rook]);
+    expect(inCheck(g)).toBe(false);
+    expect(exposesKing(g, "king", { x: 1, y: 1 })).toBe(true);
+    expect(approaches(g, "king", "r")).toContainEqual({ x: 1, y: 1, cost: 3 });
+    const done = walkAndStrike(g, "king", { x: 1, y: 1 }, "r")!;
+    expect(unit(done.walked, "king")).toMatchObject({ x: 1, y: 1 });
+    expect(unit(done.run, "r")).toBeUndefined();
+    expect(done.run.energy).toBe(ENERGY - 3);
+    // A plain move there is still refused: on its own it puts the king in check.
+    expect(move(g, "king", { x: 1, y: 1 })).toBe(g);
+    // But never a walk-up whose counter kills the king outright.
+    const tough: Unit = { ...rook, hp: 5, defending: true };
+    expect(walkAndStrike(board([{ ...king, x: 0, y: 0, hp: 2 }, tough]), "king", { x: 1, y: 1 }, "r")).toBeNull();
   });
   it("still lets you act while already in check, so an escape can take several steps", () => {
     const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };

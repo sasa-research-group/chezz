@@ -81,14 +81,14 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
 }
 
 /** Squares u could step to and then strike the target from this turn, priced move + strike. For your
- * pieces, neither the walk nor the strike (with its counter) may put your king in check. Empty when
+ * pieces, the walk and strike count as one move: it's allowed if the king is safe once the strike lands. Empty when
  * u can already strike it where it stands (no walk needed) or the pool can't cover both. */
 export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
   const strikeCost = STRIKE_COST;
   const energy = energyOf(g, u.side);
-  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || (!exposesKing(g, id, t) && !strikeExposesKing(move(g, id, t), id, targetId)))).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
+  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || walkAndStrike(g, id, t, targetId) !== null)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
 
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
@@ -124,8 +124,9 @@ function finish(g: Run): Run {
 const note = (g: Run, text: string): Run => ({ ...g, log: [text, ...g.log].slice(0, 30), history: [...g.history, text] });
 
 /** True when an action would take your king from safe to in check, which the rules forbid. Once
- * he's already in check you may act freely; he just has to be safe before the turn ends. */
-const intoCheck = (before: Run, after: Run) => after !== before && !inCheck(before) && inCheck(after);
+ * he's already in check you may act freely; he just has to be safe before the turn ends. Getting him
+ * killed outright (a counter) counts too. */
+const intoCheck = (before: Run, after: Run) => after !== before && !inCheck(before) && (inCheck(after) || (after.phase === "defeat" && before.phase !== "defeat"));
 export function move(g: Run, id: string, to: Pos): Run {
   const next = moveUnchecked(g, id, to);
   return intoCheck(g, next) ? g : next;
@@ -184,6 +185,16 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
 export function attack(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
   const result = attackUnchecked(g, id, targetId);
   return intoCheck(g, result.run) ? { run: g, step: null } : result;
+}
+/** A tap-to-strike: walk to `to`, then strike. Judged as one move, so the walk may step into danger
+ * as long as the king is safe once the strike lands (say, because it kills the attacker). Returns both
+ * stages so the walk can play before the blow, or null if the rules refuse it. */
+export function walkAndStrike(g: Run, id: string, to: Pos, targetId: string): { walked: Run; run: Run; step: Step } | null {
+  const walked = moveUnchecked(g, id, to);
+  if (walked === g || walked.promoting) return null;
+  const { run, step } = attackUnchecked(walked, id, targetId);
+  if (run === walked || !step || intoCheck(g, run)) return null;
+  return { walked, run, step };
 }
 /** Would this strike (through the counter it draws) put your own king in check? */
 export function strikeExposesKing(g: Run, id: string, targetId: string): boolean { return intoCheck(g, attackUnchecked(g, id, targetId).run); }

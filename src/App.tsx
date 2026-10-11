@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { PieceRig } from "./components/PieceRig";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { DAMAGE, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, readRun, same, strikeExposesKing } from "./game/turns";
+import { DAMAGE, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, readRun, same, strikeExposesKing, walkAndStrike } from "./game/turns";
 import type { Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
@@ -188,9 +188,9 @@ export default function App() {
   const locked = !!playback || intro || run.phase !== "player" || !!run.promoting || striding;
   // Check: the enemy's next turn could kill the king. You can't end the turn until he's safe, unless nothing can make him safe.
   const check = useMemo(() => {
-    if (run.phase !== "player" || run.promoting || !inCheck(run)) return null;
+    if (run.phase !== "player" || run.promoting || striding || !inCheck(run)) return null;
     return { attackers: kingThreat(run).attackers, escape: canEscape(run) };
-  }, [run]);
+  }, [run, striding]);
   const checkLocked = !!check?.escape;
   const unsafeShown = !!selected && !locked && moveTargets(run, selected).some(t => exposesKing(run, selected.id, t));
   const choosePromotion = (kind: PromoteTo) => {
@@ -252,8 +252,10 @@ export default function App() {
   /** Walk to `from`, then strike `target` once the walk has played. */
   const strikeFrom = (from: Pos, attacker: Unit, target: Unit) => {
     setPicking(null);
-    const walked = move(run, attacker.id, from);
-    if (walked === run) { setNotice("That piece can't get there this turn."); return; }
+    // Judged as one move: the walk may pass through danger if the strike leaves the king safe.
+    const plan = walkAndStrike(run, attacker.id, from, target.id);
+    if (!plan) { setNotice("That piece can't get there this turn."); return; }
+    const walked = plan.walked;
     face(attacker.id, attacker, from); animate(attacker.id, "move");
     setRun(walked); setNotice(""); setStriding(true);
     timers.current.push(setTimeout(() => {
