@@ -244,6 +244,9 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
   }
   await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
   await expect.poll(async () => (await saved(page)).energy).toBe(3);
+  // A defending piece is marked: a shield chip and "defending" in its label.
+  await expect(page.locator(".guard-badge")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^b1 white king, 5 HP, defending/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/exile-mobile.png", fullPage: true });
 });

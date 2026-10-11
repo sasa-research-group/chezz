@@ -68,6 +68,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Costs 1. Until that side's next turn, the piece takes 1 less damage per hit
   and, if it survives, hits each attacker back with its own damage when it
   could reach the attacker's square.
+- On the board a defending piece (either side) wears a blue "🛡 −1" chip,
+  stands on a blue-ringed tile and glows; its label says "defending".
 
 ## Enemy turn
 - Deterministic and basic: it takes the best-scoring affordable action until
