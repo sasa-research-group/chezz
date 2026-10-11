@@ -59,7 +59,7 @@ function PlaceArt({ id }: { id: PlaceId }) {
     <path d="M4 100h112" stroke={ink} strokeWidth="5" strokeLinecap="round" /></svg>;
   if (id === "armory") return <svg viewBox="0 0 60 110" aria-hidden="true">
     <path d="M10 98V30h40v68z" fill="#b9b2a4" stroke={ink} strokeWidth="5" strokeLinejoin="round" />
-    <path d="M6 30V18h8v6h8v-6h8v6h8v-6h8v6h8v-6h0v12z" fill="#cfc8b8" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M6 30V18h8v6h8v-6h8v6h8v-6h8v6h8V30z" fill="#cfc8b8" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
     <path d="M10 52h40M10 74h40M30 30v22M20 52v22M40 52v22M30 74v24" stroke="#8f887a" strokeWidth="2" />
     <path d="M22 98V82a8 8 0 0116 0v16z" fill="#5b4033" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
     <path d="M30 36c8 0 12 3 12 3v9c0 7-6 11-12 13-6-2-12-6-12-13v-9s4-3 12-3z" fill="#c4553f" stroke={ink} strokeWidth="3.5" strokeLinejoin="round" />

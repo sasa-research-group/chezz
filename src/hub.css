@@ -20,7 +20,7 @@
 .hub-king{position:absolute;width:calc(100% / 7 * .72);transform:translate(-50%,-62%);transition-property:left,top;transition-timing-function:linear;z-index:3;pointer-events:none}
 .hub-king svg{width:100%;height:auto;display:block}
 .hub-panel .primary-button{max-width:280px;margin:6px auto 0}
-.hub-panel.training,.hub-panel.merchant,.hub-panel.road{max-width:520px}
+.hub-panel.training,.hub-panel.armory,.hub-panel.merchant,.hub-panel.guild,.hub-panel.road{max-width:520px}
 @media(max-width:700px){
   .hub-screen{padding:16px 12px 24px;gap:12px}
   .hub-header{flex-direction:column;align-items:start;gap:10px}.hub-header h1{font-size:26px}.hub-header p:not(.kicker){font-size:12px}
