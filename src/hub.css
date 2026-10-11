@@ -20,7 +20,7 @@
 .hub-king{position:absolute;width:calc(100% / 7 * .72);transform:translate(-50%,-62%);transition-property:left,top;transition-timing-function:linear;z-index:3;pointer-events:none}
 .hub-king svg{width:100%;height:auto;display:block}
 .hub-panel .primary-button{max-width:280px;margin:6px auto 0}
-.hub-panel.training,.hub-panel.merchant,.hub-panel.road{max-width:520px}
+.hub-panel.training,.hub-panel.armory,.hub-panel.merchant,.hub-panel.guild,.hub-panel.road{max-width:520px}
 @media(max-width:700px){
   .hub-screen{padding:16px 12px 24px;gap:12px}
   .hub-header{flex-direction:column;align-items:start;gap:10px}.hub-header h1{font-size:26px}.hub-header p:not(.kicker){font-size:12px}
@@ -35,3 +35,5 @@
   .hub-header{flex-direction:row;align-items:center}.hub-header h1{font-size:22px;margin:0}.hub-header p:not(.kicker){display:none}.hub-header .kicker{margin-bottom:2px}
   .hub-map{max-width:min(900px,calc((100dvh - 110px) * 7 / 5));border-width:6px}
 }
+/* The armory's lot is one square wide, like the road: a narrower sign. */
+.hub-place.armory{padding:4px 0 0}.hub-place.armory .hub-sign{padding:.35cqw .4cqw}.hub-place.armory .hub-sign b{font-size:max(5.5px,1.2cqw)}.hub-place.armory .hub-sign small{font-size:max(4px,.75cqw);letter-spacing:0}

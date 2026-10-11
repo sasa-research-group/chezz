@@ -6,14 +6,15 @@ import { PieceRig } from "./PieceRig";
 import "../hub.css";
 
 /** The hub between battles: a small village the king walks around. Presentation only; the rules
- * live in turns.ts (buy, leaveCamp). Training grounds, the merchant and the Grandmaster's Guild are placeholders for now. */
-type PlaceId = "barracks" | "training" | "merchant" | "guild" | "road";
+ * live in turns.ts (buy, leaveCamp). Training grounds, the armory, the merchant and the Grandmaster's Guild are placeholders for now. */
+type PlaceId = "barracks" | "training" | "armory" | "merchant" | "guild" | "road";
 type Place = { id: PlaceId; name: string; tagline: string; at: Pos; size: Pos; door: Pos; soon?: boolean };
 const W = 7, H = 5;
 const PLACES: Place[] = [
   { id: "barracks", name: "Barracks", tagline: "Recruit and rest", at: { x: 0, y: 0 }, size: { x: 2, y: 2 }, door: { x: 2, y: 1 } },
   { id: "training", name: "Training grounds", tagline: "Coming soon", at: { x: 5, y: 0 }, size: { x: 2, y: 2 }, door: { x: 4, y: 1 }, soon: true },
-  { id: "guild", name: "Grandmaster's Guild", tagline: "Coming soon", at: { x: 3, y: 3 }, size: { x: 2, y: 2 }, door: { x: 3, y: 2 }, soon: true },
+  { id: "armory", name: "Armory", tagline: "Coming soon", at: { x: 3, y: 0 }, size: { x: 1, y: 2 }, door: { x: 3, y: 2 }, soon: true },
+  { id: "guild", name: "Grandmaster's Guild", tagline: "Coming soon", at: { x: 3, y: 3 }, size: { x: 2, y: 2 }, door: { x: 4, y: 2 }, soon: true },
   { id: "merchant", name: "Merchant", tagline: "Coming soon", at: { x: 0, y: 3 }, size: { x: 2, y: 2 }, door: { x: 2, y: 3 }, soon: true },
   { id: "road", name: "Road out", tagline: "Next battle", at: { x: 6, y: 3 }, size: { x: 1, y: 2 }, door: { x: 5, y: 4 } },
 ];
@@ -56,6 +57,14 @@ function PlaceArt({ id }: { id: PlaceId }) {
     <circle cx="60" cy="38" r="12" fill="#e8c784" stroke={ink} strokeWidth="4" /><path d="M60 50v40M46 62h28" stroke="#c99f55" strokeWidth="9" strokeLinecap="round" /><path d="M60 50v40M46 62h28" stroke={ink} strokeWidth="3" strokeLinecap="round" opacity=".6" />
     <circle cx="60" cy="70" r="8" fill="none" stroke="#c4553f" strokeWidth="4" />
     <path d="M4 100h112" stroke={ink} strokeWidth="5" strokeLinecap="round" /></svg>;
+  if (id === "armory") return <svg viewBox="0 0 60 110" aria-hidden="true">
+    <path d="M10 98V30h40v68z" fill="#b9b2a4" stroke={ink} strokeWidth="5" strokeLinejoin="round" />
+    <path d="M6 30V18h8v6h8v-6h8v6h8v-6h8v6h8V30z" fill="#cfc8b8" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M10 52h40M10 74h40M30 30v22M20 52v22M40 52v22M30 74v24" stroke="#8f887a" strokeWidth="2" />
+    <path d="M22 98V82a8 8 0 0116 0v16z" fill="#5b4033" stroke={ink} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M30 36c8 0 12 3 12 3v9c0 7-6 11-12 13-6-2-12-6-12-13v-9s4-3 12-3z" fill="#c4553f" stroke={ink} strokeWidth="3.5" strokeLinejoin="round" />
+    <path d="M24 42l12 12M36 42L24 54" stroke="#e8c784" strokeWidth="3" strokeLinecap="round" />
+    <path d="M2 100h56" stroke={ink} strokeWidth="5" strokeLinecap="round" /></svg>;
   if (id === "guild") return <svg viewBox="0 0 120 110" aria-hidden="true">
     <path d="M14 46L60 14l46 32z" fill="#5b4a72" stroke={ink} strokeWidth="5" strokeLinejoin="round" />
     <path d="M20 46h80v52H20z" fill="#efe3c4" stroke={ink} strokeWidth="5" strokeLinejoin="round" />
@@ -163,8 +172,8 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
           <button className="primary-button" onClick={onLeave}>March out<span>→</span></button>
         </> : <>
           <p className="kicker">{place.name.toUpperCase()} · COMING SOON</p>
-          <h1>{place.id === "training" ? "Nobody's training yet." : place.id === "guild" ? "The grandmasters are thinking." : "The merchant is still unpacking."}</h1>
-          <p>{place.id === "training" ? "Upgrades for your pieces will live here. For now the dummy just stands there, judging you." : place.id === "guild" ? "The guild opens its doors soon. For now every grandmaster is mid-game, and none of them will look up." : "Consumables will be sold here. For now the cart is empty and the merchant is \"between suppliers\"."}</p>
+          <h1>{place.id === "training" ? "Nobody's training yet." : place.id === "guild" ? "The grandmasters are thinking." : place.id === "armory" ? "The armory is locked." : "The merchant is still unpacking."}</h1>
+          <p>{place.id === "training" ? "Upgrades for your pieces will live here. For now the dummy just stands there, judging you." : place.id === "armory" ? "Gear for your pieces will be forged and fitted here. For now the smith is out, and the only thing on the rack is a very confused spoon." : place.id === "guild" ? "The guild opens its doors soon. For now every grandmaster is mid-game, and none of them will look up." : "Consumables will be sold here. For now the cart is empty and the merchant is \"between suppliers\"."}</p>
         </>}
         <button className="text-button" onClick={() => setOpen(null)}>Back to the hideout</button>
       </section>
