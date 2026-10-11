@@ -248,8 +248,54 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
 }
 
 /** Ends the player's turn: the enemy acts, then the player's pool refills. */
+/** The most damage the enemy's next turn could deal your king, within its pool: each enemy piece may
+ * step in (if it can afford to) and strike him once. Pieces that could deal it are the attackers. */
+export function kingThreat(g: Run): { damage: number; attackers: string[] } {
+  const king = g.units.find(u => u.id === "king");
+  if (!king) return { damage: 0, attackers: [] };
+  const hit = (u: Unit) => Math.max(0, DAMAGE[u.kind] - (king.defending ? 1 : 0));
+  let best = { damage: 0, attackers: [] as string[] };
+  const search = (run: Run, pool: number, left: Unit[], damage: number, attackers: string[]) => {
+    if (damage > best.damage) best = { damage, attackers };
+    left.forEach((u, i) => {
+      const rest = left.filter((_, j) => j !== i);
+      if (pool >= STRIKE_COST && reaches(run, u, u, king)) search(run, pool - STRIKE_COST, rest, damage + hit(u), [...attackers, u.id]);
+      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - STRIKE_COST))
+        if (reaches(run, u, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y }) }, pool - t.cost - STRIKE_COST, rest, damage + hit(u), [...attackers, u.id]);
+    });
+  };
+  search(g, ENCOUNTERS[g.encounter].enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
+  return best;
+}
+/** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */
+export function inCheck(g: Run): boolean {
+  const king = g.units.find(u => u.id === "king");
+  return g.phase === "player" && !!king && kingThreat(g).damage >= king.hp;
+}
+/** Could anything you still do this turn (moves, strikes, defending) get the king out of check? */
+export function canEscape(start: Run): boolean {
+  const seen = new Set<string>();
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + g.energy;
+  const visit = (g: Run): boolean => {
+    if (g.promoting) g = promote(g, g.promoting, "queen").run;
+    if (g.phase !== "player") return g.phase !== "defeat";
+    const k = key(g);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    if (!inCheck(g)) return true;
+    for (const u of g.units.filter(u => u.side === "white")) {
+      for (const t of moveTargets(g, u)) if (visit(move(g, u.id, t))) return true;
+      for (const t of attackTargets(g, u)) if (visit(attack(g, u.id, t.id!).run)) return true;
+      if (!u.acted && g.energy >= 1 && visit(defend(g, u.id))) return true;
+    }
+    return false;
+  };
+  return visit(start);
+}
 export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   if (g.phase !== "player" || g.promoting) return { run: g, steps: [], spent: 0 };
+  // In check you must get the king safe first, unless nothing this turn can.
+  if (inCheck(g) && canEscape(g)) return { run: g, steps: [], spent: 0 };
   const { run, steps, spent } = enemyTurn(g);
   if (run.phase !== "player") return { run, steps, spent };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : u));

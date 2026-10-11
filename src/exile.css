@@ -30,7 +30,7 @@
   .playback-caption{min-height:0;padding:6px 4px 2px;font-size:12px}.playback-controls{padding:2px 4px}
   .exile-sidebar{display:block}
   .action-bar{position:fixed;left:0;right:0;bottom:0;z-index:50;border-radius:14px 14px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))!important;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-items:center;box-shadow:0 -4px 18px #382f2e33}
-  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
+  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice):not(.check-alert),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
   .action-bar>.kicker{margin:0;grid-column:1}.action-bar .energy-pips{margin:0;grid-column:2;justify-self:end}
   .action-bar .selected-card{grid-column:1/-1;margin:0;padding:6px 10px}
   .action-bar .secondary-button,.action-bar .primary-button{margin:0;padding:12px 10px}
@@ -67,3 +67,11 @@
 @keyframes strike-bob{0%,100%{translate:0 0}50%{translate:0 -4px}}
 @media(max-width:700px){.strike-badge{font-size:11px;padding:1px 5px}}
 @media(prefers-reduced-motion:reduce){.exile-cell.strikeable,.strike-badge,.approach-dot{animation:none}}
+/* Check: the king's tag, the attackers' marks and the alert in the action panel. */
+.check-tag{position:absolute;left:50%;top:-4%;transform:translateX(-50%) rotate(-4deg);background:#a3271c;color:#fff7dc;border:2px solid #382f2e;border-radius:7px;box-shadow:0 2px 0 #382f2e;padding:1px 6px;font-size:11px;font-weight:900;letter-spacing:1px;z-index:3;pointer-events:none;animation:check-throb .9s ease-in-out infinite}
+.check-mark{position:absolute;left:20%;top:6%;width:22px;height:22px;display:grid;place-items:center;background:#a3271c;color:#fff7dc;border:2px solid #382f2e;border-radius:50%;font-size:14px;font-weight:900;z-index:2;pointer-events:none;animation:check-throb .9s ease-in-out infinite}
+@keyframes check-throb{0%,100%{scale:1}50%{scale:1.15}}
+.check-alert{margin:0 0 10px!important;padding:9px 11px;border-radius:8px;background:#f6d6cf;border:2px solid #a3271c;color:#5e1d16!important;font-size:12px!important;line-height:1.4!important}.check-alert strong{letter-spacing:.5px}
+.check-alert.no-way-out{background:#efe2d2;border-color:#7a6b5a;color:#4d4035!important}
+@media(max-width:700px){.check-alert{grid-column:1/-1;font-size:11px!important;padding:6px 8px}.check-tag{font-size:9px}.check-mark{width:18px;height:18px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.check-tag,.check-mark{animation:none}}

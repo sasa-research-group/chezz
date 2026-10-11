@@ -94,6 +94,22 @@ test("with several squares to strike from, you pick one", async ({ page }) => {
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-1")).toBe(false);
 });
 
+test("check locks End turn until the king is safe", async ({ page }) => {
+  const start = newRun();
+  // Battle 2's patrol has 3 energy: its rook can step next to the 3-HP king and strike for 3.
+  const g = { ...start, encounter: 1, units: [{ ...start.units[0], hp: 3 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText("Check!");
+  await expect(page.locator(".check-mark")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "King in check" })).toBeDisabled();
+  // Defending takes the hit down to 2, so the king would survive: no longer check.
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
+});
+
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
