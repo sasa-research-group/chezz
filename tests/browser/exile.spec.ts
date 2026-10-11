@@ -127,6 +127,22 @@ test("checkmate plays a finale before the defeat screen", async ({ page }) => {
   await expect(page.getByRole("dialog", { name: "Rebellion ended" })).toBeVisible();
 });
 
+test("a king felled by a counter on your own turn still gets the finale", async ({ page }) => {
+  const start = newRun();
+  // Striking a defending rook: it survives and counters for 3, which kills a 2-HP king.
+  const g = { ...start, units: [{ ...start.units[0], hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 1, y: 2, hp: 5, defending: true }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await page.getByRole("button", { name: /^b2 black rook/ }).click();
+  await expect(page.getByRole("button", { name: /Checkmate!/ })).toBeVisible({ timeout: 10000 });
+  await page.screenshot({ path: "test-results/exile-checkmate-counter.png" });
+  await page.getByRole("button", { name: /Checkmate!/ }).click();
+  await expect(page.getByRole("dialog", { name: "Rebellion ended" })).toBeVisible();
+  // He stays flattened on his square, not standing idle.
+  await expect(page.locator(".exile-piece.white .rig.act-mate")).toHaveCount(1);
+});
+
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };

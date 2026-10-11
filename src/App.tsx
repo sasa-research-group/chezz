@@ -240,6 +240,9 @@ export default function App() {
     setRun(next); setNotice("");
     setFlash(step);
     if (step) perform(step, g.units);
+    // A king felled by a defender's counter on your own turn still gets his finale.
+    const king = g.units.find(u => u.id === "king");
+    if (next.phase === "defeat" && king) setFall({ king, by: [target.id] });
     if (!next.units.some(v => v.id === attacker.id)) setSelectedId(null);
     return true;
   };
