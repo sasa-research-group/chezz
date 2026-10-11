@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, defend, endTurn, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -165,6 +165,84 @@ describe("turn-based rules", () => {
     expect(unit(run, "r")!.hp).toBe(5);
   });
 
+  it("puts the king in check only when the enemy's next turn could kill him", () => {
+    // Encounter 2's patrol has 3 energy: the rook can step next to the king (1) and strike for 3 (2).
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5 };
+    const weak = board([{ ...king, hp: 3 }, rook], { encounter: 1 });
+    expect(kingThreat(weak)).toMatchObject({ damage: 3, attackers: ["r"] });
+    expect(inCheck(weak)).toBe(true);
+    // At full health the same hit only hurts, so it isn't check.
+    expect(inCheck(board([king, rook], { encounter: 1 }))).toBe(false);
+    // Too far to walk up and strike this turn: no threat at all.
+    expect(kingThreat(board([{ ...king, hp: 1 }, { ...rook, x: 5, y: 0 }], { encounter: 1 })).damage).toBe(0);
+  });
+  it("counts an enemy pawn that promotes and then strikes as a threat", () => {
+    // Battle 3's patrol has 3 energy: the pawn steps onto your back row (1), becomes a queen, and strikes for 3 (2).
+    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 4, hp: 1 };
+    const g = board([{ ...king, x: 2, y: 4, hp: 3 }, pawn], { encounter: 2 });
+    expect(kingThreat(g)).toMatchObject({ damage: 3, attackers: ["p"] });
+    expect(inCheck(g)).toBe(true);
+  });
+  it("marks every piece that could finish the king on its own", () => {
+    const pawn = (id: string, x: number): Unit => ({ id, side: "black", kind: "pawn", x, y: 2, hp: 1 });
+    const g = board([{ ...king, hp: 1 }, pawn("a", 0), pawn("b", 2)]);
+    expect(kingThreat(g).attackers.sort()).toEqual(["a", "b"]);
+  });
+  it("lets defending or blocking get the king out of check", () => {
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
+    const g = board([{ ...king, hp: 3 }, rook], { encounter: 1 });
+    expect(inCheck(g)).toBe(true);
+    // Defending takes 1 off the hit: 2 damage no longer kills a 3-HP king.
+    expect(inCheck(defend(g, "king"))).toBe(false);
+    // Blocking works too: with a piece in the way, the rook two squares off can't get next to him this turn.
+    const far = board([{ ...king, hp: 3 }, { ...rook, y: 1 }], { encounter: 1 });
+    expect(inCheck(far)).toBe(true);
+    expect(inCheck({ ...far, units: [...far.units, { id: "w", side: "white", kind: "pawn", x: 1, y: 2, hp: 1 }] })).toBe(false);
+    expect(canEscape(g)).toBe(true);
+  });
+  it("won't let a move put your own king in check", () => {
+    // The rook can't reach the king on b1 this turn, but on b2 it could step to b3 and strike for 3.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 0, hp: 5 };
+    const g = board([{ ...king, hp: 3 }, rook], { encounter: 1 });
+    expect(inCheck(g)).toBe(false);
+    expect(exposesKing(g, "king", { x: 1, y: 2 })).toBe(true);
+    expect(move(g, "king", { x: 1, y: 2 })).toBe(g);
+    expect(exposesKing(g, "king", { x: 0, y: 3 })).toBe(false);
+    expect(move(g, "king", { x: 0, y: 3 })).not.toBe(g);
+  });
+  it("won't let a strike whose counter would leave the king in check", () => {
+    // Striking the defending rook: it survives and counters for 3, leaving a 1-HP king it could finish next turn.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5, defending: true };
+    const g = board([{ ...king, hp: 4 }, rook]);
+    expect(inCheck(g)).toBe(false);
+    expect(strikeExposesKing(g, "king", "r")).toBe(true);
+    expect(attack(g, "king", "r").run).toBe(g);
+  });
+  it("doesn't offer a walk-up strike whose counter would leave the king in check", () => {
+    // From b2 the defending rook on b3 would counter for 3, leaving the king at 1 HP and in check. From a2 or c2
+    // the king strikes diagonally, where a rook can't hit back, so those stay on offer.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5, defending: true };
+    const g = board([{ ...king, hp: 4 }, rook]);
+    expect(inCheck(g)).toBe(false);
+    expect(approaches(g, "king", "r").map(t => `${t.x},${t.y}`).sort()).toEqual(["0,2", "2,2"]);
+  });
+  it("still lets you act while already in check, so an escape can take several steps", () => {
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
+    const ally: Unit = { id: "w", side: "white", kind: "pawn", x: 4, y: 3, hp: 1 };
+    const g = board([{ ...king, hp: 3 }, rook, ally], { encounter: 1 });
+    expect(inCheck(g)).toBe(true);
+    expect(move(g, "w", { x: 4, y: 2 })).not.toBe(g);
+  });
+  it("won't end your turn in check while there's still a way out", () => {
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
+    const g = board([{ ...king, hp: 3 }, rook], { encounter: 1 });
+    expect(endTurn(g).run).toBe(g);
+    // Out of energy and still in check: no way out, so the turn can end and the enemy may land the blow.
+    const stuck = { ...g, energy: 0 };
+    expect(canEscape(stuck)).toBe(false);
+    expect(endTurn(stuck).run).not.toBe(stuck);
+  });
+
   it("runs a deterministic enemy turn within its pool, then refills the player's", () => {
     const g = move(newRun(), "king", { x: 1, y: 2 });
     const a = endTurn(g), b = endTurn(g);
@@ -197,7 +275,8 @@ describe("turn-based rules", () => {
     expect(unit(run, "p")).toMatchObject({ x: 2, y: 1 });
   });
   it("ends the run when the king falls", () => {
-    const g = board([{ ...king, hp: 1 }, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }]);
+    // Out of energy with no way out of check, so the turn ends and the pawn lands the blow.
+    const g = board([{ ...king, hp: 1 }, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }], { energy: 0 });
     expect(endTurn(g).run.phase).toBe("defeat");
   });
 

@@ -1,4 +1,4 @@
-import { attack, attackTargets, defend, endTurn, move, moveTargets, promote } from "../src/game/turns";
+import { attack, attackTargets, defend, endTurn, inCheck, move, moveTargets, promote } from "../src/game/turns";
 import type { Pos, Run } from "../src/game/turns";
 
 export type Action = { type: "move"; id: string; to: Pos } | { type: "attack"; id: string; targetId: string; to: Pos } | { type: "defend"; id: string } | { type: "promote"; id: string };
@@ -46,13 +46,16 @@ function evaluate(g: Run): number {
 }
 const settle = (g: Run) => (g.phase === "player" ? endTurn(g).run : g);
 
+/** Turn endings the rules allow: out of check (a battle won counts), unless no ending is. */
+const legalEnds = (g: Run) => { const all = turnOutcomes(g), safe = all.filter(o => o.run.phase !== "defeat" && !inCheck(o.run)); return safe.length ? safe : all; };
+
 /** The rest of this turn, chosen by looking past the enemy's reply to our best next turn. */
 export function planTurn(g: Run, width = 12): Action[] {
-  const shortlist = turnOutcomes(g).map(o => ({ ...o, after: settle(o.run) })).map(o => ({ ...o, score: evaluate(o.after) }))
+  const shortlist = legalEnds(g).map(o => ({ ...o, after: settle(o.run) })).map(o => ({ ...o, score: evaluate(o.after) }))
     .sort((a, b) => b.score - a.score).slice(0, width);
   let best = shortlist[0], bestScore = -Infinity;
   for (const c of shortlist) {
-    const follow = c.after.phase === "player" ? Math.max(...turnOutcomes(c.after).map(o => evaluate(settle(o.run)))) : c.score;
+    const follow = c.after.phase === "player" ? Math.max(...legalEnds(c.after).map(o => evaluate(settle(o.run)))) : c.score;
     if (follow > bestScore) { bestScore = follow; best = c; }
   }
   return best?.plan ?? [];

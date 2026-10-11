@@ -147,3 +147,36 @@
 @keyframes rig-flip-hop{0%,18%{transform:translateY(0) rotate(0)}50%{transform:translateY(-36px) rotate(180deg)}84%,100%{transform:translateY(0) rotate(360deg)}}
 @keyframes rig-front-flip{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-30px) rotate(200deg)}100%{transform:translateY(0) rotate(360deg)}}
 @keyframes rig-back-flip{0%{transform:translateY(0) rotate(0)}45%{transform:translateY(-34px) rotate(-200deg)}85%,100%{transform:translateY(0) rotate(-360deg)}}
+
+/* Checkmate: the king staggers, his crown launches off, he spins and keels over flat. */
+.rig .crown{transform-box:fill-box;transform-origin:center}
+.rig.act-mate .squash{animation:rig-mate calc(2.6s * var(--spd,1)) linear both}
+.rig.act-mate .crown{animation:rig-crown-off calc(2.6s * var(--spd,1)) cubic-bezier(.3,.1,.5,1) both}
+.rig.act-mate .ko-eyes{animation:rig-show-late calc(2.6s * var(--spd,1)) steps(1) both}
+.rig.act-mate .eyes{animation:rig-hide-late calc(2.6s * var(--spd,1)) steps(1) both}
+.rig.act-mate .mouth-ouch{opacity:1}
+.rig.act-mate .fx-stars{animation:rig-stars calc(.7s * var(--spd,1)) ease-out calc(1.5s * var(--spd,1)) 3 both}
+.rig.act-mate .fx-smoke{animation:rig-smoke calc(.9s * var(--spd,1)) ease-out calc(1.7s * var(--spd,1)) both}
+@keyframes rig-mate{
+  0%{transform:none}
+  8%{transform:translateX(-5px) rotate(-12deg) scale(1.05,.95)}
+  16%{transform:translateX(6px) rotate(10deg) scale(.95,1.05)}
+  24%{transform:translateX(-4px) rotate(-14deg)}
+  32%{transform:translateY(-6px) rotate(8deg) scale(.9,1.12)}
+  50%{transform:translateY(-22px) rotate(380deg) scale(.85,1.15)}
+  62%{transform:translateY(-4px) rotate(720deg) scale(1.1,.9)}
+  70%{transform:translateY(0) rotate(700deg) scale(1.2,.8)}
+  80%{transform:translateY(6px) rotate(726deg) scale(1.45,.4)}
+  88%{transform:translateY(8px) rotate(716deg) scale(1.3,.48)}
+  100%{transform:translateY(8px) rotate(720deg) scale(1.4,.38)}}
+@keyframes rig-crown-off{
+  0%,22%{transform:none}
+  30%{transform:translate(4px,-26px) rotate(-25deg)}
+  48%{transform:translate(30px,-46px) rotate(160deg)}
+  66%{transform:translate(52px,6px) rotate(330deg)}
+  74%{transform:translate(58px,-8px) rotate(360deg)}
+  84%{transform:translate(64px,8px) rotate(380deg)}
+  90%{transform:translate(67px,3px) rotate(372deg)}
+  100%{transform:translate(70px,8px) rotate(380deg)}}
+@keyframes rig-show-late{0%,30%{opacity:0}31%,100%{opacity:1}}
+@keyframes rig-hide-late{0%,30%{opacity:1}31%,100%{opacity:0}}

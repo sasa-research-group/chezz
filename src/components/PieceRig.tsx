@@ -7,7 +7,7 @@ import type { CSSProperties, ReactNode } from "react";
  * body/arms/prop/head) are animated by CSS in src/rig.css. */
 export type RigKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type RigSide = "white" | "black";
-export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "morph-out" | "morph-in" | "leap" | "leap-back";
+export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "morph-out" | "morph-in" | "leap" | "leap-back" | "mate";
 export type PatrolHue = "blue" | "red";
 
 const INK = "#382f2e", GOLD = "#e7ba58", GOLD_SH = "#c0913c", STEEL = "#cfd6d8", STEEL_SH = "#9aa6aa";
@@ -82,11 +82,11 @@ function king(rebel: boolean, c: Palette): Figure {
         : <path d="M40 57 Q44 52 50 55 Q56 52 60 57 Q65 54 68 50 M40 57 Q35 54 32 50" fill="none" stroke={INK} strokeWidth="3" strokeLinecap="round" />}
       <ellipse cx="51" cy="51" rx="4.6" ry="3.8" fill={rebel ? "#df8a72" : SKIN_SH} {...f} />
       <Eyes cx={50} cy={44} gap={6} style="beady" brow={rebel ? "M-4 -6 L3 -4" : "M-4 -4 L3 -6"} />
-      <g transform={rebel ? "rotate(-16 50 34)" : ""}>
+      <g className="crown"><g transform={rebel ? "rotate(-16 50 34)" : ""}>
         <path d="M36 37 L33 22 L42 29 L50 18 L58 29 L67 22 L64 37 Z" fill={GOLD} {...o} />
         <path d="M36 37 L64 37" stroke={GOLD_SH} strokeWidth="3" /><circle cx="50" cy="31" r="2.4" fill="#c8504a" stroke={INK} strokeWidth="1.2" />
         <path d={rebel ? "M50 18 L54 9 M50 12 L58 14" : "M50 18 L50 8 M45 12 L55 12"} stroke={INK} strokeWidth="3.2" strokeLinecap="round" />
-      </g>
+      </g></g>
     </>,
     propOrigin: "76px 90px", shield: [30, 90], mouth: [51, 58, 6],
   };

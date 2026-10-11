@@ -30,7 +30,7 @@
   .playback-caption{min-height:0;padding:6px 4px 2px;font-size:12px}.playback-controls{padding:2px 4px}
   .exile-sidebar{display:block}
   .action-bar{position:fixed;left:0;right:0;bottom:0;z-index:50;border-radius:14px 14px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))!important;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-items:center;box-shadow:0 -4px 18px #382f2e33}
-  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
+  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice):not(.check-alert),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
   .action-bar>.kicker{margin:0;grid-column:1}.action-bar .energy-pips{margin:0;grid-column:2;justify-self:end}
   .action-bar .selected-card{grid-column:1/-1;margin:0;padding:6px 10px}
   .action-bar .secondary-button,.action-bar .primary-button{margin:0;padding:12px 10px}
@@ -67,3 +67,24 @@
 @keyframes strike-bob{0%,100%{translate:0 0}50%{translate:0 -4px}}
 @media(max-width:700px){.strike-badge{font-size:11px;padding:1px 5px}}
 @media(prefers-reduced-motion:reduce){.exile-cell.strikeable,.strike-badge,.approach-dot{animation:none}}
+/* Check: the king's tag, the attackers' marks and the alert in the action panel. */
+.check-tag{position:absolute;left:50%;top:-4%;transform:translateX(-50%) rotate(-4deg);background:#a3271c;color:#fff7dc;border:2px solid #382f2e;border-radius:7px;box-shadow:0 2px 0 #382f2e;padding:1px 6px;font-size:11px;font-weight:900;letter-spacing:1px;z-index:3;pointer-events:none;animation:check-throb .9s ease-in-out infinite}
+.check-mark{position:absolute;left:20%;top:6%;width:22px;height:22px;display:grid;place-items:center;background:#a3271c;color:#fff7dc;border:2px solid #382f2e;border-radius:50%;font-size:14px;font-weight:900;z-index:2;pointer-events:none;animation:check-throb .9s ease-in-out infinite}
+@keyframes check-throb{0%,100%{scale:1}50%{scale:1.15}}
+.check-alert{margin:0 0 10px!important;padding:9px 11px;border-radius:8px;background:#f6d6cf;border:2px solid #a3271c;color:#5e1d16!important;font-size:12px!important;line-height:1.4!important}.check-alert strong{letter-spacing:.5px}
+.check-alert.no-way-out{background:#efe2d2;border-color:#7a6b5a;color:#4d4035!important}
+@media(max-width:700px){.check-alert{grid-column:1/-1;font-size:11px!important;padding:6px 8px}.check-tag{font-size:9px}.check-mark{width:18px;height:18px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.check-tag,.check-mark{animation:none}}
+/* Checkmate finale: the camera pushes in on the fallen king and the rest of the board goes dark. */
+.board-camera{transition:transform .9s cubic-bezier(.3,.1,.3,1);transform-origin:var(--zx,50%) var(--zy,50%);position:relative}
+.board-camera.mate-zoom{transform:scale(1.55)}
+/* The dim spills well past the camera box (inset -60%), so its centre is mapped into that bigger box. */
+.board-camera.mate-zoom::after{content:"";position:absolute;inset:-60%;z-index:20;pointer-events:none;background:radial-gradient(circle at calc((60% + var(--zx)) / 2.2) calc((60% + var(--zy)) / 2.2),transparent 0 6%,#1a121088 12%,#1a1210dd 28%);animation:mate-dim .9s ease-out both}
+@keyframes mate-dim{from{opacity:0}to{opacity:1}}
+.battle-banner.checkmate{background:#a3271c;color:#fff3d9;box-shadow:0 6px 0 #4b120c,0 18px 40px #1a121088;animation:banner-slam .45s cubic-bezier(.2,1.6,.4,1) both}
+.battle-banner.checkmate span{font-size:clamp(34px,7vw,56px);text-transform:uppercase;letter-spacing:1px}
+.battle-banner em{font-style:italic;font-size:13px;font-weight:600;opacity:.9;margin:2px 0 4px}
+@keyframes banner-slam{0%{transform:translate(-50%,-50%) scale(3) rotate(-8deg);opacity:0}60%{transform:translate(-50%,-50%) scale(.92) rotate(2deg);opacity:1}100%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}}
+@media(prefers-reduced-motion:reduce){.board-camera.mate-zoom{transform:none}}
+/* A move that would put your own king in check: shown, but blocked. */
+.exile-cell .unsafe-dot{background:#f3d5cf;border-color:#a3271c;border-style:dashed;box-shadow:none}.unsafe-dot .cost-label{color:#a3271c;font-size:12px}

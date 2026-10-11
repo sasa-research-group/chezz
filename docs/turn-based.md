@@ -30,6 +30,30 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - No return hit. Strikes land from where the striker stands: it never moves
   onto the target's square, even on a kill (unlike chess).
 
+## Check
+- Your king is in check when the enemy's next turn could kill him: within its
+  pool, each enemy piece may step in (if it can afford to; a pawn reaching your
+  back row becomes a queen first) and strike him once,
+  and the hits add up to at least his HP (`kingThreat`, `inCheck`). Threats that
+  would only hurt him are not check.
+- You can't put your own king in check: a move or strike (through the counter
+  it draws) that would take him from safe to in check is refused
+  (`exposesKing`, `strikeExposesKing`). Walk-up strikes skip any square where
+  the walk or the strike would do it, so one tap never stops halfway. Such
+  moves show a red ✕; such strikes lose their ⚔ badge. Once he's already in check you
+  may act freely; he just has to be safe by the end of the turn.
+- In check you can't end your turn until he's safe: move him, block, defend
+  (1 less damage per hit), or take out an attacker. If nothing you can still do
+  this turn makes him safe (`canEscape`), you may end the turn anyway; the king
+  only falls if the blow actually lands.
+- The board tags the king CHECK and marks with "!" every piece that could take
+  part in a killing blow. Check is the worst case the enemy could manage, not a
+  prediction of what its AI will pick.
+- When the king falls, it's checkmate: the camera pushes in on him, his
+  attackers gloat, he staggers, his crown flies off, he spins and keels over
+  flat, and a CHECKMATE! banner (with a joke) slams in before the defeat screen.
+  Presentation only (`stage.mating`, the `mate` rig action).
+
 ## Promotion
 - A pawn that moves onto the far row promotes at full health of its new
   piece. Yours pauses play for a picker (queen, rook, bishop or knight) and

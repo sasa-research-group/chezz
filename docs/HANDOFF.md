@@ -22,6 +22,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Knight leap** (`claude/knight-leap`): knight strikes cost 2 like the rest
   (jump + strike = a whole turn); knights flip over to strike and backflip
   home (animation only; `stage.lunge` in `App.tsx`).
+- **Check** (`claude/check`): if the enemy's next turn could kill the king,
+  End turn locks until he's safe (unless no escape exists); moves that would
+  put him in check are blocked (red ✕). A fallen king
+  gets a checkmate finale (zoom, crown flies off, CHECKMATE! banner).
 - **Hideout hub** (#12): between battles the king walks a little
   village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), road
   out; training grounds, armory, merchant and Grandmaster's Guild are

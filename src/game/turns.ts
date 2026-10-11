@@ -80,14 +80,15 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
   return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
-/** Squares u could step to and then strike the target from this turn, priced move + strike. Empty when
+/** Squares u could step to and then strike the target from this turn, priced move + strike. For your
+ * pieces, neither the walk nor the strike (with its counter) may put your king in check. Empty when
  * u can already strike it where it stands (no walk needed) or the pool can't cover both. */
 export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
   const strikeCost = STRIKE_COST;
   const energy = energyOf(g, u.side);
-  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
+  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || (!exposesKing(g, id, t) && !strikeExposesKing(move(g, id, t), id, targetId)))).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
 
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
@@ -122,7 +123,16 @@ function finish(g: Run): Run {
 }
 const note = (g: Run, text: string): Run => ({ ...g, log: [text, ...g.log].slice(0, 30), history: [...g.history, text] });
 
+/** True when an action would take your king from safe to in check, which the rules forbid. Once
+ * he's already in check you may act freely; he just has to be safe before the turn ends. */
+const intoCheck = (before: Run, after: Run) => after !== before && !inCheck(before) && inCheck(after);
 export function move(g: Run, id: string, to: Pos): Run {
+  const next = moveUnchecked(g, id, to);
+  return intoCheck(g, next) ? g : next;
+}
+/** Would this move put your own king in check? */
+export function exposesKing(g: Run, id: string, to: Pos): boolean { return intoCheck(g, moveUnchecked(g, id, to)); }
+function moveUnchecked(g: Run, id: string, to: Pos): Run {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
@@ -172,6 +182,12 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
 }
 
 export function attack(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
+  const result = attackUnchecked(g, id, targetId);
+  return intoCheck(g, result.run) ? { run: g, step: null } : result;
+}
+/** Would this strike (through the counter it draws) put your own king in check? */
+export function strikeExposesKing(g: Run, id: string, targetId: string): boolean { return intoCheck(g, attackUnchecked(g, id, targetId).run); }
+function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return { run: g, step: null };
   const t = attackTargets(g, u).find(t => t.id === targetId);
@@ -247,9 +263,63 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   return { run, steps, spent: pool - energy };
 }
 
+/** The most damage the enemy's next turn could deal your king, within its pool: each enemy piece may
+ * step in (if it can afford to; a pawn reaching your back row becomes a queen first) and strike him once.
+ * Attackers are every piece in a combination that would kill him (or, if none would, deal the most). */
+export function kingThreat(g: Run): { damage: number; attackers: string[] } {
+  const king = g.units.find(u => u.id === "king");
+  if (!king) return { damage: 0, attackers: [] };
+  const hit = (u: Unit) => Math.max(0, DAMAGE[u.kind] - (king.defending ? 1 : 0));
+  const combos: { damage: number; ids: string[] }[] = [];
+  const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
+    if (damage > 0) combos.push({ damage, ids });
+    left.forEach((u, i) => {
+      const rest = left.filter((_, j) => j !== i);
+      if (pool >= STRIKE_COST && reaches(run, u, u, king)) search(run, pool - STRIKE_COST, rest, damage + hit(u), [...ids, u.id]);
+      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - STRIKE_COST)) {
+        const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
+        const moved = { ...u, x: t.x, y: t.y, kind: crowned ? "queen" as const : u.kind };
+        if (reaches(run, moved, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, kind: moved.kind }) }, pool - t.cost - STRIKE_COST, rest, damage + hit(moved), [...ids, u.id]);
+      }
+    });
+  };
+  search(g, ENCOUNTERS[g.encounter].enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
+  const damage = Math.max(0, ...combos.map(c => c.damage));
+  const bar = Math.min(damage, king.hp);
+  const attackers = [...new Set(combos.filter(c => damage > 0 && c.damage >= bar).flatMap(c => c.ids))];
+  return { damage, attackers };
+}
+/** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */
+export function inCheck(g: Run): boolean {
+  const king = g.units.find(u => u.id === "king");
+  return g.phase === "player" && !!king && kingThreat(g).damage >= king.hp;
+}
+/** Could anything you still do this turn (moves, strikes, defending) get the king out of check? */
+export function canEscape(start: Run): boolean {
+  const seen = new Set<string>();
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + g.energy;
+  const visit = (g: Run): boolean => {
+    // Try every promotion: a knight's reach might be the only way out.
+    if (g.promoting) return (["queen", "rook", "bishop", "knight"] as const).some(kind => visit(promote(g, g.promoting!, kind).run));
+    if (g.phase !== "player") return g.phase !== "defeat";
+    const k = key(g);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    if (!inCheck(g)) return true;
+    for (const u of g.units.filter(u => u.side === "white")) {
+      for (const t of moveTargets(g, u)) if (visit(move(g, u.id, t))) return true;
+      for (const t of attackTargets(g, u)) if (visit(attack(g, u.id, t.id!).run)) return true;
+      if (!u.acted && g.energy >= 1 && visit(defend(g, u.id))) return true;
+    }
+    return false;
+  };
+  return visit(start);
+}
 /** Ends the player's turn: the enemy acts, then the player's pool refills. */
 export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   if (g.phase !== "player" || g.promoting) return { run: g, steps: [], spent: 0 };
+  // In check you must get the king safe first, unless nothing this turn can.
+  if (inCheck(g) && canEscape(g)) return { run: g, steps: [], spent: 0 };
   const { run, steps, spent } = enemyTurn(g);
   if (run.phase !== "player") return { run, steps, spent };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : u));
