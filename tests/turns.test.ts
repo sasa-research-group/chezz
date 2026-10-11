@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -199,6 +199,33 @@ describe("turn-based rules", () => {
     expect(inCheck(far)).toBe(true);
     expect(inCheck({ ...far, units: [...far.units, { id: "w", side: "white", kind: "pawn", x: 1, y: 2, hp: 1 }] })).toBe(false);
     expect(canEscape(g)).toBe(true);
+  });
+  it("won't let a move put your own king in check", () => {
+    // The rook can't reach the king on b1 this turn, but on b2 it could step to b3 and strike for 3.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 0, hp: 5 };
+    const g = board([{ ...king, hp: 3 }, rook], { encounter: 1 });
+    expect(inCheck(g)).toBe(false);
+    expect(exposesKing(g, "king", { x: 1, y: 2 })).toBe(true);
+    expect(move(g, "king", { x: 1, y: 2 })).toBe(g);
+    expect(exposesKing(g, "king", { x: 0, y: 3 })).toBe(false);
+    expect(move(g, "king", { x: 0, y: 3 })).not.toBe(g);
+    // Walking up to strike can't go through such a square either.
+    expect(approaches(g, "king", "r")).toEqual([]);
+  });
+  it("won't let a strike whose counter would leave the king in check", () => {
+    // Striking the defending rook: it survives and counters for 3, leaving a 1-HP king it could finish next turn.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5, defending: true };
+    const g = board([{ ...king, hp: 4 }, rook]);
+    expect(inCheck(g)).toBe(false);
+    expect(strikeExposesKing(g, "king", "r")).toBe(true);
+    expect(attack(g, "king", "r").run).toBe(g);
+  });
+  it("still lets you act while already in check, so an escape can take several steps", () => {
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
+    const ally: Unit = { id: "w", side: "white", kind: "pawn", x: 4, y: 3, hp: 1 };
+    const g = board([{ ...king, hp: 3 }, rook, ally], { encounter: 1 });
+    expect(inCheck(g)).toBe(true);
+    expect(move(g, "w", { x: 4, y: 2 })).not.toBe(g);
   });
   it("won't end your turn in check while there's still a way out", () => {
     const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };

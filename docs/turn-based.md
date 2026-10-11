@@ -36,6 +36,11 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   back row becomes a queen first) and strike him once,
   and the hits add up to at least his HP (`kingThreat`, `inCheck`). Threats that
   would only hurt him are not check.
+- You can't put your own king in check: a move or strike (through the counter
+  it draws) that would take him from safe to in check is refused
+  (`exposesKing`, `strikeExposesKing`), and walk-up strikes skip such squares.
+  The board marks those squares with a red ✕. Once he's already in check you
+  may act freely; he just has to be safe by the end of the turn.
 - In check you can't end your turn until he's safe: move him, block, defend
   (1 less damage per hit), or take out an attacker. If nothing you can still do
   this turn makes him safe (`canEscape`), you may end the turn anyway; the king

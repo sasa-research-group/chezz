@@ -86,3 +86,5 @@
 .battle-banner em{font-style:italic;font-size:13px;font-weight:600;opacity:.9;margin:2px 0 4px}
 @keyframes banner-slam{0%{transform:translate(-50%,-50%) scale(3) rotate(-8deg);opacity:0}60%{transform:translate(-50%,-50%) scale(.92) rotate(2deg);opacity:1}100%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}}
 @media(prefers-reduced-motion:reduce){.board-camera.mate-zoom{transform:none}}
+/* A move that would put your own king in check: shown, but blocked. */
+.exile-cell .unsafe-dot{background:#f3d5cf;border-color:#a3271c;border-style:dashed;box-shadow:none}.unsafe-dot .cost-label{color:#a3271c;font-size:12px}

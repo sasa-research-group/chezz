@@ -87,7 +87,7 @@ export function approaches(g: Run, id: string, targetId: string): Target[] {
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
   const strikeCost = STRIKE_COST;
   const energy = energyOf(g, u.side);
-  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
+  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || !exposesKing(g, id, t))).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
 
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
@@ -122,7 +122,16 @@ function finish(g: Run): Run {
 }
 const note = (g: Run, text: string): Run => ({ ...g, log: [text, ...g.log].slice(0, 30), history: [...g.history, text] });
 
+/** True when an action would take your king from safe to in check, which the rules forbid. Once
+ * he's already in check you may act freely; he just has to be safe before the turn ends. */
+const intoCheck = (before: Run, after: Run) => after !== before && !inCheck(before) && inCheck(after);
 export function move(g: Run, id: string, to: Pos): Run {
+  const next = moveUnchecked(g, id, to);
+  return intoCheck(g, next) ? g : next;
+}
+/** Would this move put your own king in check? */
+export function exposesKing(g: Run, id: string, to: Pos): boolean { return intoCheck(g, moveUnchecked(g, id, to)); }
+function moveUnchecked(g: Run, id: string, to: Pos): Run {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
@@ -172,6 +181,12 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
 }
 
 export function attack(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
+  const result = attackUnchecked(g, id, targetId);
+  return intoCheck(g, result.run) ? { run: g, step: null } : result;
+}
+/** Would this strike (through the counter it draws) put your own king in check? */
+export function strikeExposesKing(g: Run, id: string, targetId: string): boolean { return intoCheck(g, attackUnchecked(g, id, targetId).run); }
+function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return { run: g, step: null };
   const t = attackTargets(g, u).find(t => t.id === targetId);

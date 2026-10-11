@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { PieceRig } from "./components/PieceRig";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { DAMAGE, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, readRun, same } from "./game/turns";
+import { DAMAGE, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, readRun, same, strikeExposesKing } from "./game/turns";
 import type { Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
@@ -38,9 +38,10 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
   const e = ENCOUNTERS[run.encounter];
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
-  const moves = selected && !locked ? moveTargets(run, selected) : [];
+  // Moves that would put your own king in check are shown, but blocked with a red ✕.
+  const moves = selected && !locked ? moveTargets(run, selected).map(t => ({ ...t, unsafe: exposesKing(run, selected.id, t) })) : [];
   // Strikes in place, plus enemies the piece can walk up to and strike this turn (cheapest way in).
-  const strikes = selected && !locked ? [...attackTargets(run, selected), ...run.units.filter(v => v.side === "black").flatMap(v => {
+  const strikes = selected && !locked ? [...attackTargets(run, selected).filter(t => !strikeExposesKing(run, selected.id, t.id!)), ...run.units.filter(v => v.side === "black").flatMap(v => {
     const ways = approaches(run, selected.id, v.id);
     return ways.length ? [{ x: v.x, y: v.y, cost: Math.min(...ways.map(t => t.cost)), id: v.id }] : [];
   })] : [];
@@ -58,9 +59,10 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
           const focus = flash?.focus.some(q => same(p, q));
           return <button key={i} disabled={locked || !passable(run, p)}
             className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${s ? "strikeable" : ""}`}
-            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${m ? `, move for ${m.cost}` : ""}${s ? `, strike for ${s.cost}${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${pick ? `, walk here and strike the ${picking!.target.kind} for ${pick.cost}` : ""}${aimed ? ", target" : ""}`}
+            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${m ? m.unsafe ? ", blocked: would put your king in check" : `, move for ${m.cost}` : ""}${s ? `, strike for ${s.cost}${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${pick ? `, walk here and strike the ${picking!.target.kind} for ${pick.cost}` : ""}${aimed ? ", target" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
-            {m && <span className="target-dot"><b className="cost-label">{m.cost}</b></span>}
+            {m && !m.unsafe && <span className="target-dot"><b className="cost-label">{m.cost}</b></span>}
+            {m?.unsafe && <span className="target-dot unsafe-dot" title="Would put your king in check"><b className="cost-label">✕</b></span>}
             {pick && <span className="target-dot approach-dot"><b className="cost-label">⚔{pick.cost}</b></span>}</button>;
         })}
       </div>
@@ -275,6 +277,7 @@ export default function App() {
     if (u) {
       // Tap an enemy to strike it: in place if it's next to you, otherwise walk up first.
       if (strikeNow(run, selected, u)) return;
+      if (attackTargets(run, selected).some(t => t.id === u.id) && strikeExposesKing(run, selected.id, u.id)) { setNotice("Not that one: the counter would leave your king in check."); return; }
       const ways = approaches(run, selected.id, u.id);
       if (!ways.length) { setNotice("That piece can't reach it this turn, or you don't have the energy."); return; }
       if (ways.length === 1) { strikeFrom(ways[0], selected, u); return; }
@@ -283,7 +286,7 @@ export default function App() {
       return;
     }
     const next = move(run, selected.id, p);
-    if (next === run) { setNotice("Choose a highlighted square you can pay for."); return; }
+    if (next === run) { setNotice(exposesKing(run, selected.id, p) ? "You can't move there: it would put your king in check." : "Choose a highlighted square you can pay for."); return; }
     face(selected.id, selected, p); animate(selected.id, "move");
     setRun(next); setNotice("");
   };
@@ -318,7 +321,7 @@ export default function App() {
       <aside className="exile-sidebar">
         <section className="plan-panel action-bar"><p className="kicker">⚡ {playback ? 0 : run.energy} OF {ENERGY} ENERGY LEFT</p><h2>{playback ? "The patrol answers." : "Your move, Your Majesty."}</h2>
           <div className="energy-pips" aria-hidden="true">{Array.from({ length: ENERGY }, (_, i) => <i key={i} className={i < (playback ? 0 : run.energy) ? "full" : ""} />)}</div>
-          {selected && !locked ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{selected.kind} · {selected.hp} HP · hits for {DAMAGE[selected.kind]}</strong><p>{HINT[selected.kind]} Green dots: move cost. Glowing enemies with a ⚔ badge can be struck: tap one (your piece walks up first if it needs to).</p></div></div> : <p>Select a piece. Each piece may move once, then strike or defend.</p>}
+          {selected && !locked ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{selected.kind} · {selected.hp} HP · hits for {DAMAGE[selected.kind]}</strong><p>{HINT[selected.kind]} Green dots: move cost. Red ✕: off limits, it would put your king in check. Glowing enemies with a ⚔ badge can be struck: tap one (your piece walks up first if it needs to).</p></div></div> : <p>Select a piece. Each piece may move once, then strike or defend.</p>}
           {selected && !locked && <button className="secondary-button" disabled={selected.acted || run.energy < 1} onClick={() => { setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); }}>Defend · 1 energy<span>blocks 1, counters</span></button>}
           {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check!" : "Check. No way out."}</strong> {check.escape ? "The enemy could kill your king next turn. Move him, block, defend, or take out the piece marked !" : "Nothing this turn makes him safe. End the turn and hope he holds."}</p>}
           <button className="primary-button" disabled={locked || (checkLocked && !playback)} onClick={finishTurn}>{playback ? "Enemy turn…" : checkLocked ? "King in check" : "End turn"}<span>→</span></button>
@@ -333,6 +336,6 @@ export default function App() {
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><p className="kicker">YOUR PAWN MADE IT</p><h1>Promotion!</h1><p>It reached the far row. Pick what it becomes, at full health. It can still strike or defend this turn.</p><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kind[0].toUpperCase() + kind.slice(1)}</h2><p>{HP[kind]} HP, hits for {DAMAGE[kind]}.</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Exile run complete" : "Rebellion ended"}><p className="kicker">{run.phase === "victory" ? "THREE PATROLS DOWN" : "THE CROWN HAS FALLEN"}</p><h1>{run.phase === "victory" ? "A very small rebellion." : "Long live… somebody else."}</h1><p>{run.phase === "victory" ? `You crossed the bridge with ${run.units.filter(u => u.side === "white").length} surviving pieces and ${king?.hp ?? 0} king HP. This is the end of the prototype.` : "Your king fell. Your next attempt starts with a fresh crown and questionable confidence."}</p><label className="feedback-label">What felt clever? What was confusing?<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} placeholder="Leave a note for the next design pass…" /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export feedback and action history</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
-    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="How to play"><p className="kicker">A FEW ROYAL DECREES</p><h1>Move. Strike. Survive.</h1><ol><li>You act, then the enemy acts. You get {ENERGY} energy each turn; the enemy has its own pool.</li><li>Select a piece. It may move once in its chess shape: 1 energy per square, or 2 for a knight's jump. Pieces and walls block slides.</li><li>Then it may strike or defend. Tap an enemy to strike it: if your piece isn't next to it yet, it walks up first (paying for both), and if there's more than one square to strike from, you pick one. A strike reaches only the next square in the piece's shape (a knight's jump for knights), so a rook across the board must travel first. It costs 2 and deals fixed damage: pawn 1, knight and bishop 2, king 2, rook and queen 3. The striker stays where it is, even on a kill.</li><li>Check: if the enemy's next turn could kill your king, he's in check (the attackers are marked !). You can't end your turn until he's safe: move him, block, defend or take out the attacker. If nothing works, you may end the turn, and the king only falls if the blow lands.</li><li>Defend costs 1. Until your next turn, that piece takes 1 less damage per hit and hits back any attacker it can reach.</li><li>A pawn that reaches the far row promotes: yours becomes the piece you pick, an enemy pawn becomes a queen. Both arrive at full health.</li><li>Defeat all enemies to reach the rebel hideout. Walk the king to the barracks to recruit or heal, then take the road out. Surviving HP carries over, fallen allies stay gone, and king death ends the run.</li></ol><button className="primary-button" onClick={() => setHelp(false)}>Back to the road<span>→</span></button></section></div>}
+    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="How to play"><p className="kicker">A FEW ROYAL DECREES</p><h1>Move. Strike. Survive.</h1><ol><li>You act, then the enemy acts. You get {ENERGY} energy each turn; the enemy has its own pool.</li><li>Select a piece. It may move once in its chess shape: 1 energy per square, or 2 for a knight's jump. Pieces and walls block slides.</li><li>Then it may strike or defend. Tap an enemy to strike it: if your piece isn't next to it yet, it walks up first (paying for both), and if there's more than one square to strike from, you pick one. A strike reaches only the next square in the piece's shape (a knight's jump for knights), so a rook across the board must travel first. It costs 2 and deals fixed damage: pawn 1, knight and bishop 2, king 2, rook and queen 3. The striker stays where it is, even on a kill.</li><li>You can't put your own king in check: squares that would are marked with a red ✕.</li><li>Check: if the enemy's next turn could kill your king, he's in check (the attackers are marked !). You can't end your turn until he's safe: move him, block, defend or take out the attacker. If nothing works, you may end the turn, and the king only falls if the blow lands.</li><li>Defend costs 1. Until your next turn, that piece takes 1 less damage per hit and hits back any attacker it can reach.</li><li>A pawn that reaches the far row promotes: yours becomes the piece you pick, an enemy pawn becomes a queen. Both arrive at full health.</li><li>Defeat all enemies to reach the rebel hideout. Walk the king to the barracks to recruit or heal, then take the road out. Surviving HP carries over, fallen allies stay gone, and king death ends the run.</li></ol><button className="primary-button" onClick={() => setHelp(false)}>Back to the road<span>→</span></button></section></div>}
   </main>;
 }
