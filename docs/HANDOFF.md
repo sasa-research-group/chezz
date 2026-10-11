@@ -37,8 +37,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   #10 promotion; #11 next-square strikes; #12 hideout hub; #13 tap to strike.
 
 ## Open items
-- Removing the dead prototype code is waiting on Mark. Its three vitest suites
-  would go with it.
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
 - `prototype/familiar-opening` is unmerged and still on the old engine.
 - Phone landscape still gets the desktop layout (scrolls).
