@@ -110,6 +110,23 @@ test("check locks End turn until the king is safe", async ({ page }) => {
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
 });
 
+test("checkmate plays a finale before the defeat screen", async ({ page }) => {
+  const start = newRun();
+  // Out of energy, still in check: the turn may end, and the rook lands the killing blow.
+  const g = { ...start, encounter: 1, energy: 0, units: [{ ...start.units[0], hp: 3 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await expect(page.getByRole("alert")).toContainText("No way out");
+  await page.getByRole("button", { name: "End turn" }).click();
+  await expect(page.locator(".board-camera.mate-zoom")).toHaveCount(1, { timeout: 10000 });
+  await expect(page.locator(".rig.act-mate")).toHaveCount(1);
+  const banner = page.getByRole("button", { name: /Checkmate!/ });
+  await expect(banner).toBeVisible({ timeout: 10000 });
+  await page.screenshot({ path: "test-results/exile-checkmate.png" });
+  await banner.click();
+  await expect(page.getByRole("dialog", { name: "Rebellion ended" })).toBeVisible();
+});
+
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };

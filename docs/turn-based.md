@@ -40,6 +40,10 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   this turn makes him safe (`canEscape`), you may end the turn anyway; the king
   only falls if the blow actually lands.
 - The board tags the king CHECK and marks each attacker with "!".
+- When the king falls, it's checkmate: the camera pushes in on him, his
+  attackers gloat, he staggers, his crown flies off, he spins and keels over
+  flat, and a CHECKMATE! banner (with a joke) slams in before the defeat screen.
+  Presentation only (`stage.mating`, the `mate` rig action).
 
 ## Promotion
 - A pawn that moves onto the far row promotes at full health of its new

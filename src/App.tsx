@@ -26,9 +26,11 @@ type Playback = { steps: Step[]; before: Run; index: number };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
 /** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land. */
-type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind>; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean };
-const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge: {}, doomed: [], holdFlash: false };
-const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420 };
+type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind>; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean };
+const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge: {}, doomed: [], holdFlash: false, mating: false };
+/** Jokes for the checkmate banner, picked by turn so a replay shows the same one. */
+const MATE_LINES = ["Long live the… oh.", "The crown has left the building.", "He'll walk it off. He won't.", "Somewhere, a pawn is laughing.", "Exile was nicer, honestly."];
+const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420, mate: 2600 };
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
@@ -42,7 +44,10 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
     const ways = approaches(run, selected.id, v.id);
     return ways.length ? [{ x: v.x, y: v.y, cost: Math.min(...ways.map(t => t.cost)), id: v.id }] : [];
   })] : [];
-  return <div className="board-camera" style={{ "--aspect": e.width / e.height } as CSSProperties}>
+  // Checkmate: zoom in on the fallen king and dim everything else.
+  const fallen = stage.mating ? stage.ghosts.find(g => g.id === "king") : undefined;
+  const focus: Record<string, string> = fallen ? { "--zx": `${(fallen.x + .5) / e.width * 100}%`, "--zy": `${(fallen.y + .5) / e.height * 100}%` } : {};
+  return <div className={`board-camera ${fallen ? "mate-zoom" : ""}`} style={{ "--aspect": e.width / e.height, ...focus } as CSSProperties}>
     <div className="board-plane" style={{ aspectRatio: `${e.width}/${e.height}` }}>
       <div className="exile-grid" style={{ gridTemplateColumns: `repeat(${e.width}, 1fr)` }}>
         {Array.from({ length: e.width * e.height }, (_, i) => {
@@ -63,7 +68,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
         const damage = flash?.damage.find(d => d.id === piece.id);
         const spent = piece.side === "white" && piece.acted;
         const ghost = !units.includes(piece), doomed = ghost && stage.doomed.includes(piece.id);
-        const anim = doomed ? stage.anims[piece.id] ?? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
+        const anim = ghost && piece.id === "king" && stage.mating ? { action: "mate" as const, key: -3 } : doomed ? stage.anims[piece.id] ?? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
         const lunge = stage.lunge[piece.id], spot = lunge && lunge !== "home" ? lunge : piece;
         // Enemies you can strike right now glow and carry a sword badge with the cost, drawn over the art.
         const strike = !ghost && !picking ? strikes.find(t => t.id === piece.id) : undefined;
@@ -87,7 +92,7 @@ export default function App() {
   const [intro, setIntro] = useState(() => !saved());
   // End-of-battle sequence: let the last blow land, celebrate (or mourn), then show the menu.
   const [outroDone, setOutroDone] = useState(() => outroKey(saved() ?? newRun()));
-  const [banner, setBanner] = useState<"" | "cleared" | "victory" | "defeat">("");
+  const [banner, setBanner] = useState<"" | "cleared" | "victory" | "defeat" | "checkmate">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [playback, setPlayback] = useState<Playback | null>(null);
   const [flash, setFlash] = useState<Step | null>(null);
@@ -99,6 +104,8 @@ export default function App() {
   const spd = reducedMotion ? .1 : fast ? .3 : 1;
   const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage(EMPTY_STAGE); setStriding(false); setPicking(null); };
   const [picking, setPicking] = useState<Picking | null>(null);
+  // The king's last stand: where he fell and who mated him, for the finale.
+  const [fall, setFall] = useState<{ king: Unit; by: string[] } | null>(null);
   // True while a piece walks up to strike: the strike lands when the walk ends.
   const [striding, setStriding] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -155,7 +162,12 @@ export default function App() {
       // Each fallen piece waits for the blow that fells it: the target at impact, a countered attacker after.
       const fallsAt = (id: string) => (id === actor.id ? impact + 520 : impact + 230);
       setStage(st => ({ ...st, ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying], doomed: leaps || actorDies ? [...st.doomed, ...step.killed] : st.doomed }));
-      for (const id of step.killed) {
+      // A fallen king stays on his square, reeling, until the checkmate finale.
+      if (step.killed.includes("king")) {
+        setStage(st => ({ ...st, doomed: st.doomed.includes("king") ? st.doomed : [...st.doomed, "king"] }));
+        animate("king", "hit", fallsAt("king"));
+      }
+      for (const id of step.killed.filter(k => k !== "king")) {
         if (leaps || actorDies) later(fallsAt(id), () => setStage(st => ({ ...st, doomed: st.doomed.filter(d => d !== id) })));
         later(fallsAt(id) + DURATION.death, () => { setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => g.id !== id) })); if (id === actor.id) dropLunge(); });
       }
@@ -188,6 +200,16 @@ export default function App() {
   useEffect(() => {
     if (!outro || playback || intro) return;
     const scale = Math.max(spd, .5);
+    if (run.phase === "defeat" && fall) {
+      // Checkmate: spotlight the king, let the attackers gloat, then the big fall and the banner.
+      const begin = setTimeout(() => {
+        setStage(st => ({ ...st, mating: true, ghosts: st.ghosts.some(g => g.id === "king") ? st.ghosts : [...st.ghosts, fall.king], doomed: st.doomed.includes("king") ? st.doomed : [...st.doomed, "king"] }));
+        fall.by.forEach((id, i) => { animate(id, "cheer", 300 + i * 150); animate(id, "cheer", 1900 + i * 150); });
+      }, 250 * spd);
+      const slam = setTimeout(() => setBanner("checkmate"), (250 + 1500) * spd);
+      const done = setTimeout(() => { setBanner(""); setOutroDone(key); }, (250 + DURATION.mate) * spd + 1900 * scale);
+      return () => { clearTimeout(begin); clearTimeout(slam); clearTimeout(done); };
+    }
     const celebrate = setTimeout(() => {
       setBanner(run.phase === "defeat" ? "defeat" : run.phase === "victory" ? "victory" : "cleared");
       if (run.phase !== "defeat") run.units.filter(u => u.side === "white").forEach((u, i) => animate(u.id, "cheer", i * 120));
@@ -269,9 +291,11 @@ export default function App() {
     setSelectedId(null); setNotice(""); setPicking(null);
     // Commit the enemy's result at once (autosave included); playback only shows it.
     setRun(result.run);
+    const fallen = run.units.find(u => u.id === "king");
+    if (result.run.phase === "defeat" && fallen) setFall({ king: fallen, by: [...new Set(result.steps.filter(st => st.target === "king").map(st => st.actor))] });
     if (result.steps.length) setPlayback({ steps: result.steps, before: run, index: 0 });
   };
-  function start() { clearStage(); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(newRun()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
+  function start() { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(newRun()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
   const step = playback ? playback.steps[playback.index] : null;
   const shown = step ? step.units : run.units;
   const caption = step ? step.text : picking ? `Pick a square to strike the ${picking.target.kind} from, or tap elsewhere to cancel.` : run.phase === "player" ? (selected ? `${selected.kind}: ${selected.acted ? "done this turn" : selected.moved ? "moved; can still strike or defend" : "ready"}.` : "Select one of your pieces.") : "";
@@ -281,9 +305,10 @@ export default function App() {
     <div className="exile-layout">
       <section className="exile-arena"><div className="arena-topline"><span>{playback ? "ENEMY TURN" : `TURN ${run.turn} · YOUR MOVE`}</span><span>{shown.filter(u => u.side === "black").length} ENEMIES · DEFEAT THE PATROL</span></div>
         <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} />
-        <p className="sr-only" aria-live="polite">{banner === "defeat" ? "The crown falls." : banner === "victory" ? "Victory!" : banner === "cleared" ? "Road cleared!" : ""}</p>
+        <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate. The crown falls." : banner === "defeat" ? "The crown falls." : banner === "victory" ? "Victory!" : banner === "cleared" ? "Road cleared!" : ""}</p>
         {banner && <button className={`battle-banner ${banner}`} onClick={skipOutro} autoFocus>
-          <span>{banner === "defeat" ? "The crown falls…" : banner === "victory" ? "Victory!" : "Road cleared!"}</span>
+          <span>{banner === "checkmate" ? "Checkmate!" : banner === "defeat" ? "The crown falls…" : banner === "victory" ? "Victory!" : "Road cleared!"}</span>
+          {banner === "checkmate" && <em>{MATE_LINES[run.turn % MATE_LINES.length]}</em>}
           <small>Tap to continue</small></button>}
         <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setPlayback(null); }}>Skip enemy turn</button>}</div>
       </section>
