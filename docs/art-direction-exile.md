@@ -8,8 +8,8 @@ and `src/rig.css`; see `art.html`. The references, principles, timings, side
 markers and accessibility rules below still apply; the "Rebel puppets" token
 designs in section 3.3 do not. Wesley expects to rework the look later.
 
-Original status: proposal, Oct 10 2026. It replaces nothing yet. `docs/art-direction.md`
-describes the retired "Between Worlds" look. The live cast is
+Original status: proposal, Oct 10 2026. The retired "Between Worlds" look and its
+doc were removed with the old prototype (see git history). The live cast is
 `src/components/PieceRig.tsx` with animations in `src/rig.css`.
 
 **Hard rule:** animation only presents a `Resolution`. Every duration below is

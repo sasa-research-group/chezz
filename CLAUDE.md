@@ -8,11 +8,9 @@ used by the lab. Rules doc:
 `docs/turn-based.md`. Lab: `lab.html` → `src/lab/` (Duel, pure solver).
 `src/game/exile.ts` is the previous simultaneous engine (`docs/exile-run.md`);
 the lab Duel and `tests/exile.test.ts` still use it. Plan:
-`reports/Simultaneous chess tactics design.md`.
-`engine.ts`, `content.ts`, `simultaneous.ts`, `src/render/`, `Art.tsx`,
-`AttackPreview.tsx`, `sound.ts`, `style.css`, `tests/browser/game.spec.ts` and
-`scripts/playtest.ts` are older leftovers the app doesn't import; some old
-tests still cover them. Don't edit them. Removing them is waiting on Mark.
+`reports/Simultaneous chess tactics design.md`. The older Between Worlds
+prototype (Three.js board, shops, gambits) was removed in Oct 2026; it is in
+git history before that commit.
 
 ## Rules-code invariants
 - `turns.ts` is pure and deterministic: no DOM, no randomness, no mutating inputs.
