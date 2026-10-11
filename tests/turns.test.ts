@@ -209,8 +209,6 @@ describe("turn-based rules", () => {
     expect(move(g, "king", { x: 1, y: 2 })).toBe(g);
     expect(exposesKing(g, "king", { x: 0, y: 3 })).toBe(false);
     expect(move(g, "king", { x: 0, y: 3 })).not.toBe(g);
-    // Walking up to strike can't go through such a square either.
-    expect(approaches(g, "king", "r")).toEqual([]);
   });
   it("won't let a strike whose counter would leave the king in check", () => {
     // Striking the defending rook: it survives and counters for 3, leaving a 1-HP king it could finish next turn.
@@ -219,6 +217,14 @@ describe("turn-based rules", () => {
     expect(inCheck(g)).toBe(false);
     expect(strikeExposesKing(g, "king", "r")).toBe(true);
     expect(attack(g, "king", "r").run).toBe(g);
+  });
+  it("doesn't offer a walk-up strike whose counter would leave the king in check", () => {
+    // From b2 the defending rook on b3 would counter for 3, leaving the king at 1 HP and in check. From a2 or c2
+    // the king strikes diagonally, where a rook can't hit back, so those stay on offer.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5, defending: true };
+    const g = board([{ ...king, hp: 4 }, rook]);
+    expect(inCheck(g)).toBe(false);
+    expect(approaches(g, "king", "r").map(t => `${t.x},${t.y}`).sort()).toEqual(["0,2", "2,2"]);
   });
   it("still lets you act while already in check, so an escape can take several steps", () => {
     const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };

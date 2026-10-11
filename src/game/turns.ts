@@ -80,14 +80,15 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
   return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
-/** Squares u could step to and then strike the target from this turn, priced move + strike. Empty when
+/** Squares u could step to and then strike the target from this turn, priced move + strike. For your
+ * pieces, neither the walk nor the strike (with its counter) may put your king in check. Empty when
  * u can already strike it where it stands (no walk needed) or the pool can't cover both. */
 export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
   const strikeCost = STRIKE_COST;
   const energy = energyOf(g, u.side);
-  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || !exposesKing(g, id, t))).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
+  return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || (!exposesKing(g, id, t) && !strikeExposesKing(move(g, id, t), id, targetId)))).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
 
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */

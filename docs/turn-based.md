@@ -38,8 +38,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   would only hurt him are not check.
 - You can't put your own king in check: a move or strike (through the counter
   it draws) that would take him from safe to in check is refused
-  (`exposesKing`, `strikeExposesKing`), and walk-up strikes skip such squares.
-  The board marks those squares with a red ✕. Once he's already in check you
+  (`exposesKing`, `strikeExposesKing`). Walk-up strikes skip any square where
+  the walk or the strike would do it, so one tap never stops halfway. Such
+  moves show a red ✕; such strikes lose their ⚔ badge. Once he's already in check you
   may act freely; he just has to be safe by the end of the turn.
 - In check you can't end your turn until he's safe: move him, block, defend
   (1 less damage per hit), or take out an attacker. If nothing you can still do
