@@ -35,3 +35,5 @@
   .hub-header{flex-direction:row;align-items:center}.hub-header h1{font-size:22px;margin:0}.hub-header p:not(.kicker){display:none}.hub-header .kicker{margin-bottom:2px}
   .hub-map{max-width:min(900px,calc((100dvh - 110px) * 7 / 5));border-width:6px}
 }
+/* The armory's lot is one square wide, like the road: a narrower sign. */
+.hub-place.armory{padding:4px 0 0}.hub-place.armory .hub-sign{padding:.35cqw .4cqw}.hub-place.armory .hub-sign b{font-size:max(5.5px,1.2cqw)}.hub-place.armory .hub-sign small{font-size:max(4px,.75cqw);letter-spacing:0}
