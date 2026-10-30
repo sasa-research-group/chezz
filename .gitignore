@@ -6,3 +6,6 @@ test-results/
 .DS_Store
 artifacts/
 *.tsbuildinfo
+
+# workboard data
+.workboard/

@@ -1,0 +1,11 @@
+# The project board (workboard). Static facts only; runtime settings are in the data folder's config.json.
+name = "chezz"
+port = 8701
+data = ".workboard/data"
+
+[agents]
+# The lead's sessions are found from this repo's path (launch the lead here) and registered by the hook.
+# claude_projects = ["<folder under ~/.claude/projects>"] names them instead.
+
+[files]
+docs = ["*.md", "docs/*.md"]

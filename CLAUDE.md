@@ -37,3 +37,6 @@ In cloud containers, use the preinstalled Chromium (check the build number under
   the reviewer at high effort.
 - Keep `docs/HANDOFF.md` current and under 4k chars.
 - Ask Wesley one question at a time, with a recommended option. Keep replies short.
+
+# The project board: item model, CLI and lead rules
+@~/.local/share/workboard/BOARD.md
