@@ -7,10 +7,10 @@ import "../hub.css";
 
 /** The hub between battles: a small village the king walks around. Presentation only; the rules
  * live in turns.ts (buy, leaveCamp). Training grounds, the armory, the merchant and the Grandmaster's Guild are placeholders for now. */
-type PlaceId = "barracks" | "training" | "armory" | "merchant" | "guild" | "road";
+export type PlaceId = "barracks" | "training" | "armory" | "merchant" | "guild" | "road";
 type Place = { id: PlaceId; name: string; tagline: string; at: Pos; size: Pos; door: Pos; soon?: boolean };
-const W = 7, H = 5;
-const PLACES: Place[] = [
+export const W = 7, H = 5;
+export const PLACES: Place[] = [
   { id: "barracks", name: "Barracks", tagline: "Recruit and rest", at: { x: 0, y: 0 }, size: { x: 2, y: 2 }, door: { x: 2, y: 1 } },
   { id: "training", name: "Training grounds", tagline: "Coming soon", at: { x: 5, y: 0 }, size: { x: 2, y: 2 }, door: { x: 4, y: 1 }, soon: true },
   { id: "armory", name: "Armory", tagline: "Coming soon", at: { x: 3, y: 0 }, size: { x: 1, y: 2 }, door: { x: 3, y: 2 }, soon: true },
@@ -18,10 +18,10 @@ const PLACES: Place[] = [
   { id: "merchant", name: "Merchant", tagline: "Coming soon", at: { x: 0, y: 3 }, size: { x: 2, y: 2 }, door: { x: 2, y: 3 }, soon: true },
   { id: "road", name: "Road out", tagline: "Next battle", at: { x: 6, y: 3 }, size: { x: 1, y: 2 }, door: { x: 5, y: 4 } },
 ];
-const START: Pos = { x: 3, y: 2 };
-const blocked = (p: Pos) => PLACES.some(b => p.x >= b.at.x && p.x < b.at.x + b.size.x && p.y >= b.at.y && p.y < b.at.y + b.size.y);
+export const START: Pos = { x: 3, y: 2 };
+export const blocked = (p: Pos) => PLACES.some(b => p.x >= b.at.x && p.x < b.at.x + b.size.x && p.y >= b.at.y && p.y < b.at.y + b.size.y);
 // A dirt road from the square out front to every door.
-const onPath = (p: Pos) => p.y === 2 || PLACES.some(b => b.door.x === p.x && b.door.y === p.y) || (p.x === 5 && p.y > 2);
+export const onPath = (p: Pos) => p.y === 2 || PLACES.some(b => b.door.x === p.x && b.door.y === p.y) || (p.x === 5 && p.y > 2);
 const OFFERS: CampChoice[] = ["pawn", "bishop", "rook", "heal"];
 
 /** Shortest walk between two village squares, around the buildings. */
@@ -44,7 +44,7 @@ export function walkPath(from: Pos, to: Pos): Pos[] {
   return path;
 }
 
-function PlaceArt({ id }: { id: PlaceId }) {
+export function PlaceArt({ id }: { id: PlaceId }) {
   const ink = "#382f2e";
   if (id === "barracks") return <svg viewBox="0 0 120 110" aria-hidden="true">
     <path d="M60 8v18" stroke={ink} strokeWidth="4" /><path d="M60 8l22 7-22 7z" fill="#c4553f" stroke={ink} strokeWidth="3" strokeLinejoin="round" />

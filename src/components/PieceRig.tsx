@@ -10,14 +10,16 @@ export type RigSide = "white" | "black";
 export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "morph-out" | "morph-in" | "leap" | "leap-back" | "mate";
 export type PatrolHue = "blue" | "red";
 
-const INK = "#382f2e", GOLD = "#e7ba58", GOLD_SH = "#c0913c", STEEL = "#cfd6d8", STEEL_SH = "#9aa6aa";
-const SKIN = "#ffc9a0", SKIN_SH = "#e69c72", BLUSH = "#e6927b", WOOD = "#a77a4f", WOOD_SH = "#80583a";
-type Palette = { main: string; mainSh: string; acc: string; accSh: string; cloth: string; clothSh: string };
-const REBEL: Palette = { main: "#1f8a72", mainSh: "#166553", acc: "#f2c36b", accSh: "#d39d43", cloth: "#c98a4b", clothSh: "#9c6434" };
-const PATROL: Record<PatrolHue, Palette> = {
+export const INK = "#382f2e", GOLD = "#e7ba58", GOLD_SH = "#c0913c", STEEL = "#cfd6d8", STEEL_SH = "#9aa6aa";
+export const SKIN = "#ffc9a0", SKIN_SH = "#e69c72", BLUSH = "#e6927b", WOOD = "#a77a4f", WOOD_SH = "#80583a";
+export type Palette = { main: string; mainSh: string; acc: string; accSh: string; cloth: string; clothSh: string };
+export const REBEL: Palette = { main: "#1f8a72", mainSh: "#166553", acc: "#f2c36b", accSh: "#d39d43", cloth: "#c98a4b", clothSh: "#9c6434" };
+export const PATROL: Record<PatrolHue, Palette> = {
   blue: { main: "#3d5fc4", mainSh: "#2a4594", acc: GOLD, accSh: GOLD_SH, cloth: "#f2ede0", clothSh: "#d6cdb8" },
   red: { main: "#c35d55", mainSh: "#9c4640", acc: GOLD, accSh: GOLD_SH, cloth: "#f2ede0", clothSh: "#d6cdb8" },
 };
+/** How long each one-shot action plays at 1x (ms); the keyframes in rig.css use the same values. */
+export const RIG_MS: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420, mate: 2600 };
 const o = { stroke: INK, strokeWidth: 3.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 const f = { stroke: INK, strokeWidth: 2.2, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 

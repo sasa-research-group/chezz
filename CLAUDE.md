@@ -3,7 +3,8 @@
 ## What's live
 Escape from Exile, turn-based: `src/main.tsx` → `src/App.tsx` → `src/game/turns.ts`
 (rules), `src/components/PieceRig.tsx` + `src/rig.css` (cast and animations;
-style sheet at `art.html`), `src/exile.css`. `PieceArt.tsx` is the old art, still
+studio at `art.html` → `src/art/`: art catalog, mechanics, style guide, tooling;
+add new art there too), `src/exile.css`. `PieceArt.tsx` is the old art, still
 used by the lab. Rules doc:
 `docs/turn-based.md`. Lab: `lab.html` → `src/lab/` (Duel, pure solver).
 `src/game/exile.ts` is the previous simultaneous engine (`docs/exile-run.md`);
