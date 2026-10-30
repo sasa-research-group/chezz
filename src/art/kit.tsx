@@ -29,11 +29,14 @@ export function usePhase(marks: number[], period: number) {
   return { ref, ...state };
 }
 
+/** Actions whose last frame is empty or squashed flat: the loop freezes on a readable pose this far in instead. */
+const HOLD: Partial<Record<RigAction, number>> = { death: .5, mate: .3, "morph-out": .35 };
 /** One rig replaying an action on a loop. */
 export function LoopRig({ kind, side, action, wounded, defending, pause = 700, facing }: { kind: RigKind; side: RigSide; action: RigAction; wounded?: boolean; defending?: boolean; pause?: number; facing?: 1 | -1 }) {
   const { hue } = useStudio();
-  const { ref, cycle } = usePhase([0], action === "idle" ? Infinity : RIG_MS[action] + pause);
-  return <div ref={ref} className="loop-rig"><PieceRig key={cycle} kind={kind} side={side} hue={hue} action={action} wounded={wounded} defending={defending ?? action === "defend"} facing={facing ?? (side === "white" ? 1 : -1)} seed={`${kind}${side}${action}`} /></div>;
+  const hold = HOLD[action] && RIG_MS[action] * HOLD[action]!;
+  const { ref, cycle, phase } = usePhase(hold ? [0, hold] : [0], action === "idle" ? Infinity : hold ? hold + 1200 : RIG_MS[action] + pause);
+  return <div ref={ref} className={`loop-rig ${hold && phase ? "held" : ""}`}><PieceRig key={cycle} kind={kind} side={side} hue={hue} action={action} wounded={wounded} defending={defending ?? action === "defend"} facing={facing ?? (side === "white" ? 1 : -1)} seed={`${kind}${side}${action}`} /></div>;
 }
 
 /** A labelled specimen: what it is, where it lives, and the art itself. */

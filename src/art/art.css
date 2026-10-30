@@ -67,3 +67,4 @@
   .construct{width:150px}
 }
 .studio-fill{width:100%}.studio-modal{max-width:none;padding:18px}.studio-modal h1{font-family:Georgia,serif;font-size:26px;margin:0 0 12px}
+.loop-rig.held .rig,.loop-rig.held .rig *{animation-play-state:paused!important}.matrix td{overflow:hidden}
