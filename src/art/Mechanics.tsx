@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { PieceRig } from "../components/PieceRig";
+import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST, approaches, canEscape, exposesKing, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, PromoteTo, Run, Side, Unit } from "../game/turns";
@@ -10,7 +12,7 @@ import type { Cell, Piece } from "./kit";
 const board = (units: Unit[]): Run => ({ ...newRun(), units });
 const unit = (id: string, kind: Kind, side: Side, x: number, y: number, hp = HP[kind]): Unit => ({ id, kind, side, x, y, hp });
 const pc = (u: Unit): Piece => ({ kind: u.kind, side: u.side, x: u.x, y: u.y, hp: u.hp, max: HP[u.kind] });
-const dot = (label: string | number, cls = "") => <span className={`target-dot ${cls}`}><b className="cost-label">{label}</b></span>;
+const dot = (label: ReactNode, cls = "") => <span className={`target-dot ${cls}`}><b className="cost-label">{label}</b></span>;
 const key = (p: { x: number; y: number }) => `${p.x},${p.y}`;
 const REACH: Record<Kind, string> = { king: "8 neighbours", queen: "8 neighbours", rook: "4 straight neighbours", bishop: "4 diagonal neighbours", knight: "L-jump", pawn: "2 diagonals forward" };
 
@@ -39,7 +41,7 @@ function NoMoveIntoCheck() {
 function TapToStrike() {
   const king = unit("king", "king", "white", 3, 3), q = unit("q", "queen", "white", 0, 2), e = unit("e", "rook", "black", 2, 1), run = board([king, q, e]);
   const ways = approaches(run, "q", "e");
-  const cells: Record<string, Cell> = { [key(e)]: { cls: "aimed" }, ...Object.fromEntries(ways.map(t => [key(t), { dot: dot(`⚔${t.cost}`, "approach-dot") }])) };
+  const cells: Record<string, Cell> = { [key(e)]: { cls: "aimed" }, ...Object.fromEntries(ways.map(t => [key(t), { dot: dot(<><StrikeIcon />{t.cost}</>, "approach-dot") }])) };
   return <><MiniBoard cols={4} rows={4} cells={cells} pieces={[pc(king), { ...pc(q), cls: "selected" }, { ...pc(e), cls: "targetable", extra: ways.length ? <span className="strike-badge">⚔ {Math.min(...ways.map(t => t.cost))}</span> : undefined }]} />
     <p className="fine">approaches(): {ways.length} square{ways.length === 1 ? "" : "s"} · cost = move + {STRIKE_COST}</p></>;
 }
@@ -99,7 +101,7 @@ export function Mechanics() {
       <Entry name="Can't move into check" src="exposesKing()" wide><NoMoveIntoCheck /></Entry>
       <table className="spec"><tbody>
         <tr><th>In check</th><td>End turn locked until safe, unless canEscape() finds nothing</td></tr>
-        <tr><th>Moves / strikes into check</th><td>Refused (✕, no ⚔ badge)</td></tr>
+        <tr><th>Moves / strikes into check</th><td>Refused (✕, no sword badge)</td></tr>
         <tr><th>Already in check</th><td>Any action allowed; safe by end of turn</td></tr>
         <tr><th>King dies</th><td>Checkmate finale, run over</td></tr>
       </tbody></table>
@@ -110,7 +112,7 @@ export function Mechanics() {
       <table className="spec"><tbody>
         <tr><th>In reach</th><td>Strike in place, {STRIKE_COST}</td></tr>
         <tr><th>One way in</th><td>Walks and strikes automatically</td></tr>
-        <tr><th>Several ways</th><td>Pick the square (⚔ dots)</td></tr>
+        <tr><th>Several ways</th><td>Pick the square (sword dots)</td></tr>
         <tr><th>Judged as</th><td>One action: walk may pass danger if the king is safe after the blow</td></tr>
       </tbody></table>
     </Group>

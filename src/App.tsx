@@ -5,6 +5,8 @@ import { BattleBanner, GuardBadge } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
 import { DAMAGE, STRIKE_COST, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kindName, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, same, strikeExposesKing, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { Legend, RulesCard } from "./components/Panels";
+import { StrikeIcon } from "./components/StrikeIcon";
 import type { Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
@@ -13,7 +15,6 @@ function exportRun(run: Run, feedback: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify({ prototype: "Escape from Exile (turn-based)", run, feedback }, null, 2)], { type: "application/json" }));
   const a = document.createElement("a"); a.href = url; a.download = "chezz-exile-turns.json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-const GLYPH: Record<Kind, string> = { pawn: "♙", knight: "♘", bishop: "♗", king: "♔", rook: "♖", queen: "♕" };
 /** Choosing which square to walk to before striking a target (when there's more than one). */
 type Picking = { target: Unit; options: Target[] };
 type Playback = { steps: Step[]; before: Run; index: number };
@@ -36,7 +37,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
     const ways = approaches(run, selected.id, v.id);
     return ways.length ? [{ x: v.x, y: v.y, cost: Math.min(...ways.map(t => t.cost)), id: v.id }] : [];
   })] : [];
-  // Enemies it could hit only by leaving the king in check get a ✕ chip instead of a ⚔ badge.
+  // Enemies it could hit only by leaving the king in check get a ✕ chip instead of a sword badge.
   const unsafe = selected && !locked ? unsafeStrikes(run, selected.id) : [];
   const reach = (p: Pos) => !!selected && !locked && !picking && !selected.acted && run.energy >= STRIKE_COST && passable(run, p) && reaches(run, selected, selected, p);
   // Checkmate: zoom in on the fallen king and dim everything else.
@@ -57,7 +58,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
             {m && !m.unsafe && <span className="target-dot"><b className="cost-label">{m.cost}</b></span>}
             {m?.unsafe && <span className="target-dot unsafe-dot" title="Exposes king"><b className="cost-label">✕</b></span>}
-            {pick && <span className="target-dot approach-dot"><b className="cost-label">⚔{pick.cost}</b></span>}</button>;
+            {pick && <span className="target-dot approach-dot"><b className="cost-label"><StrikeIcon />{pick.cost}</b></span>}</button>;
         })}
       </div>
       <div className="piece-layer" aria-hidden="true" style={{ "--spd": spd } as CSSProperties}>{[...units, ...stage.ghosts.filter(gh => !units.some(u => u.id === gh.id))].map(piece => {
@@ -71,7 +72,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
         return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
           style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
           <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
-          {strike && <span className="strike-badge">⚔ {strike.cost}</span>}
+          {strike && <span className="strike-badge"><StrikeIcon />{strike.cost}</span>}
           {!ghost && !picking && unsafe.includes(piece.id) && <span className="strike-badge unsafe" title="Exposes king">✕</span>}
           {!ghost && checkers.includes(piece.id) && <span className="check-mark" title="Threatens king">!</span>}
           {!ghost && checkers.length > 0 && piece.id === "king" && <span className="check-tag">CHECK</span>}
@@ -320,8 +321,8 @@ export default function App() {
       <aside className="exile-sidebar">
         <section className="plan-panel action-bar">
           <div className="energy-pips" aria-hidden="true">{Array.from({ length: ENERGY }, (_, i) => <i key={i} className={i < (playback ? 0 : run.energy) ? "full" : ""} />)}</div>
-          {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} ⚔{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>}
-          {!playback && run.phase === "player" && <div className="board-legend" aria-hidden="true"><span><i className="lg-move">1</i>move</span><span><i className="lg-strike">⚔{STRIKE_COST}</i>strike</span><span><i className="lg-unsafe">✕</i>exposes king</span><span><i className="lg-check">!</i>threatens king</span></div>}
+          {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>}
+          {!playback && run.phase === "player" && <Legend />}
           {selected && !locked && <button className="secondary-button" disabled={selected.acted || run.energy < 1} onClick={() => { setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); }}>Defend · 1⚡<span>−1 · counter</span></button>}
           {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
           <button className="primary-button" disabled={locked || (checkLocked && !playback)} onClick={finishTurn}>{playback ? "Enemy turn…" : checkLocked ? "King in check" : "End turn"}<span>→</span></button>
@@ -335,15 +336,6 @@ export default function App() {
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><h1>Promote</h1><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kindName(kind)}</h2><p>♥{HP[kind]} ⚔{DAMAGE[kind]}</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${ENCOUNTERS.length} · turn ${run.turn}`}</p><label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
-    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="Rules"><h1>Rules</h1><dl className="rules-card">
-      <dt>⚡</dt><dd>{ENERGY} per turn</dd>
-      <dt>Move</dt><dd>1⚡ / square · knight 2⚡ · once</dd>
-      <dt>Strike</dt><dd>{STRIKE_COST}⚡ · next square in its shape</dd>
-      <dt>Damage</dt><dd>{(["pawn", "knight", "bishop", "king", "rook", "queen"] as const).map(k => <span key={k}>{GLYPH[k]}{DAMAGE[k]}</span>)}</dd>
-      <dt>Defend</dt><dd>1⚡ · −1 damage · counters</dd>
-      <dt><i className="lg-unsafe">✕</i></dt><dd>exposes king</dd>
-      <dt><i className="lg-check">!</i></dt><dd>threatens king</dd>
-      <dt>Far row</dt><dd>pawn promotes</dd>
-    </dl><button className="primary-button" onClick={() => setHelp(false)}>Close<span>→</span></button></section></div>}
+    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="Rules"><h1>Rules</h1><RulesCard /><button className="primary-button" onClick={() => setHelp(false)}>Close<span>→</span></button></section></div>}
   </main>;
 }

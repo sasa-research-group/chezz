@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import { COST, DAMAGE, ENCOUNTERS, HP, campReason, kindName } from "../game/turns";
 import type { CampChoice, Pos, Recruit, Run } from "../game/turns";
 import { PieceRig } from "./PieceRig";
+import { StrikeIcon } from "./StrikeIcon";
+import { ArmySlots, ReachGlyph } from "./Panels";
 import "../hub.css";
 
 /** The hub between battles: a small village the king walks around. Presentation only; the rules
@@ -24,7 +26,6 @@ export const blocked = (p: Pos) => PLACES.some(b => p.x >= b.at.x && p.x < b.at.
 export const onPath = (p: Pos) => p.y === 2 || PLACES.some(b => b.door.x === p.x && b.door.y === p.y) || (p.x === 5 && p.y > 2);
 const OFFERS: CampChoice[] = ["pawn", "bishop", "rook", "heal"];
 /** Strike reach on a 3×3 grid, row by row; 4 is the piece. */
-const REACH: Record<Recruit, number[]> = { pawn: [0, 2], bishop: [0, 2, 6, 8], rook: [1, 3, 5, 7] };
 
 /** Shortest walk between two village squares, around the buildings. */
 export function walkPath(from: Pos, to: Pos): Pos[] {
@@ -162,11 +163,11 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
       <section className={`exile-modal camp-modal hub-panel ${place.id}`} role="dialog" aria-modal="true" aria-label={place.name} ref={panel} tabIndex={-1}>
         {place.id === "barracks" ? <>
           <h1>Barracks</h1>
-          <div className="camp-gold">✦ {run.gold}<span className="army-slots" role="img" aria-label={`Army ${army.length + recruits.length} / ${next?.starts.length ?? 0}`}>Army {Array.from({ length: next?.starts.length ?? 0 }, (_, i) => <i key={i} className={i < army.length + recruits.length ? "full" : ""} />)} {army.length + recruits.length} / {next?.starts.length ?? 0}</span></div>
+          <div className="camp-gold">✦ {run.gold}<ArmySlots filled={army.length + recruits.length} total={next?.starts.length ?? 0} /></div>
           <div className="camp-offers">{OFFERS.map(choice => <button key={choice} data-testid={`buy-${choice}`} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
             <div className="offer-art">{choice === "heal" ? <span>♥</span> : <PieceRig kind={choice} side="white" />}</div>
             <h2>{choice === "heal" ? "Heal king" : kindName(choice)}</h2>
-            <p>{choice === "heal" ? `+2♥ · max ${HP.king}` : <>♥{HP[choice]} ⚔{DAMAGE[choice]}<span className="reach-glyph" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} className={i === 4 ? "self" : REACH[choice].includes(i) ? "hit" : ""} />)}</span></>}</p>
+            <p>{choice === "heal" ? `+2♥ · max ${HP.king}` : <>♥{HP[choice]} <StrikeIcon />{DAMAGE[choice]}<ReachGlyph kind={choice} /></>}</p>
             <strong>{campReason(run, choice) || `✦ ${COST[choice]}`}</strong></button>)}</div>
         </> : place.id === "road" ? <>
           <h1>Battle {run.encounter + 2} / {ENCOUNTERS.length}</h1>

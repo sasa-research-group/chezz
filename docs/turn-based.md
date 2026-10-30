@@ -27,7 +27,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - Tapping an enemy strikes it. If the selected piece isn't next to it yet but
   can walk up and strike this turn (`approaches`: move + strike within the
   pool), it does: automatically when only one square works, otherwise you
-  pick the square. Strikeable enemies glow red and carry a ⚔ badge with
+  pick the square. Strikeable enemies glow red and carry a crossed-swords badge with
   the cheapest total cost.
 - With a piece selected (and energy for a strike), faint red corner ticks
   mark the squares in its strike reach.
@@ -46,7 +46,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   outright. A tap-to-strike (walk up, then strike) is judged as one move
   (`walkAndStrike`): the walk may step into danger if the king is safe once the
   strike lands, say because it kills the attacker. Unsafe moves show a red ✕;
-  an enemy you could only strike unsafely shows a ✕ chip instead of its ⚔
+  an enemy you could only strike unsafely shows a ✕ chip instead of its crossed-swords
   badge. Once he's already in check you
   may act freely; he just has to be safe by the end of the turn.
 - In check you can't end your turn until he's safe: move him, block, defend

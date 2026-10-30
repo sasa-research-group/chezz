@@ -68,3 +68,4 @@
 }
 .studio-fill{width:100%}.studio-modal{max-width:none;padding:18px}.studio-modal h1{font-family:Georgia,serif;font-size:26px;margin:0 0 12px}
 .loop-rig.held .rig,.loop-rig.held .rig *{animation-play-state:paused!important}.matrix td{overflow:hidden}
+.pip-states{display:flex;gap:18px}.studio-legend{width:100%}.studio-stats p{margin:4px 0;font-size:13px;font-weight:800}.locked-row{display:flex;flex-wrap:wrap;gap:10px}.studio-lock{position:relative;height:44px;width:120px;background:#efe6d0;border-radius:6px}.studio-lock .hub-sign{top:8px}

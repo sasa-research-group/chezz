@@ -49,7 +49,7 @@ test("tap an enemy to walk up and strike it when there's one way in", async ({ p
   await page.goto("/");
   await page.getByRole("button", { name: /^a1 white rook/ }).click();
   // Enemies you can strike are marked on the board: a sword badge with the cost on each.
-  await expect(page.locator(".strike-badge")).toHaveText(["⚔ 4"]);
+  await expect(page.locator(".strike-badge")).toHaveText(["4"]);
   await page.getByRole("button", { name: /^a4 black pawn, 1 HP, strike for 4/ }).click();
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
   const now = await saved(page);

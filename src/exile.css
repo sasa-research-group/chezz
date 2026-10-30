@@ -30,7 +30,7 @@
   .playback-caption{min-height:0;padding:6px 4px 2px;font-size:12px}.playback-controls{padding:2px 4px}
   .exile-sidebar{display:block}
   .action-bar{position:fixed;left:0;right:0;bottom:0;z-index:50;border-radius:14px 14px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))!important;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-items:center;box-shadow:0 -4px 18px #382f2e33}
-  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice):not(.check-alert),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
+  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice):not(.check-alert),.action-bar .selected-card p,.action-bar .selected-card svg:not(.strike-icon){display:none}
   .action-bar>.kicker{margin:0;grid-column:1}.action-bar .energy-pips{margin:0;grid-column:2;justify-self:end}
   .action-bar .selected-card{grid-column:1/-1;margin:0;padding:6px 10px}
   .action-bar .secondary-button,.action-bar .primary-button{margin:0;padding:12px 10px}
@@ -116,3 +116,4 @@
   .action-bar .board-legend{grid-column:1/-1;margin:0!important;gap:3px 9px}
   .exile-piece>.action-pips{bottom:-8px}.action-pips i{width:5px;height:5px;border-width:1px}
 }
+.strike-icon{width:1.3em;height:1.3em;vertical-align:-.3em;margin-right:1px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;overflow:visible}

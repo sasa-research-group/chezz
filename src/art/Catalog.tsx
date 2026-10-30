@@ -4,6 +4,8 @@ import type { RigAction, RigKind, RigSide } from "../components/PieceRig";
 import { PieceArt } from "../components/PieceArt";
 import { BattleBanner, GuardBadge } from "../components/BoardArt";
 import type { BannerKind } from "../components/BoardArt";
+import { ArmySlots, Legend, ReachGlyph, RulesCard } from "../components/Panels";
+import { StrikeIcon } from "../components/StrikeIcon";
 import { H, PLACES, PlaceArt, START, W, blocked, onPath } from "../components/Hub";
 import { COST, DAMAGE, ENCOUNTERS, HP, STRIKE_COST } from "../game/turns";
 import { Entry, Group, LoopRig, MiniBoard, usePhase, useStudio } from "./kit";
@@ -146,7 +148,7 @@ export function Catalog() {
         }} pieces={[
           { kind: "king", side: "white", x: 1, y: 3, cls: "selected", hp: 4, max: HP.king, extra: <span className="check-tag">CHECK</span> },
           { kind: "rook", side: "white", x: 0, y: 2, cls: "spent", hp: 5, max: HP.rook },
-          { kind: "pawn", side: "black", x: 3, y: 1, cls: "targetable", hp: 1, max: HP.pawn, extra: <span className="strike-badge">⚔ {STRIKE_COST}</span> },
+          { kind: "pawn", side: "black", x: 3, y: 1, cls: "targetable", hp: 1, max: HP.pawn, extra: <span className="strike-badge"><StrikeIcon />{STRIKE_COST}</span> },
           { kind: "knight", side: "black", x: 0, y: 0, cls: "guarded", defending: true, hp: 3, max: HP.knight, extra: <><GuardBadge /><span className="check-mark">!</span></> },
         ]} />
       </Entry>
@@ -156,7 +158,7 @@ export function Catalog() {
       <Entry name="Coordinate" src="exile.css .tile-coord">{tile("sand", undefined, "b2")}</Entry>
       <Entry name="Move dot + cost" src="exile.css .target-dot">{tile("grass", <span className="target-dot"><b className="cost-label">2</b></span>)}</Entry>
       <Entry name="Blocked move ✕" src="exile.css .unsafe-dot">{tile("sand", <span className="target-dot unsafe-dot"><b className="cost-label">✕</b></span>)}</Entry>
-      <Entry name="Strike-from dot" src="exile.css .approach-dot">{tile("grass", <span className="target-dot approach-dot"><b className="cost-label">⚔3</b></span>)}</Entry>
+      <Entry name="Strike-from dot" src="exile.css .approach-dot">{tile("grass", <span className="target-dot approach-dot"><b className="cost-label"><StrikeIcon />3</b></span>)}</Entry>
       <Entry name="Strikeable" src="exile.css .strikeable">{tile("sand strikeable")}</Entry>
       <Entry name="Aimed" src="exile.css .aimed">{tile("grass aimed")}</Entry>
       <Entry name="Guarded tile" src="exile.css .guarded-tile">{tile("sand guarded-tile")}</Entry>
@@ -167,7 +169,10 @@ export function Catalog() {
       <Entry name="Selected" src="exile.css .exile-piece.selected">{one([{ kind: "bishop", side: "white", x: 0, y: 0, cls: "selected" }])}</Entry>
       <Entry name="Spent" src="exile.css .exile-piece.spent">{one([{ kind: "bishop", side: "white", x: 0, y: 0, cls: "spent" }])}</Entry>
       <Entry name="Guarded + chip" src="BoardArt.tsx GuardBadge · exile.css .guarded">{one([{ kind: "pawn", side: "black", x: 0, y: 0, cls: "guarded", defending: true, extra: <GuardBadge /> }], { "0,0": { cls: "guarded-tile" } })}</Entry>
-      <Entry name="Targetable + ⚔ badge" src="exile.css .targetable .strike-badge">{one([{ kind: "pawn", side: "black", x: 0, y: 0, cls: "targetable", extra: <span className="strike-badge">⚔ {STRIKE_COST}</span> }], { "0,0": { cls: "strikeable" } })}</Entry>
+      <Entry name="Targetable + strike badge" src="exile.css .targetable .strike-badge">{one([{ kind: "pawn", side: "black", x: 0, y: 0, cls: "targetable", extra: <span className="strike-badge"><StrikeIcon />{STRIKE_COST}</span> }], { "0,0": { cls: "strikeable" } })}</Entry>
+      <Entry name="Unsafe-strike chip ✕" src="exile.css .strike-badge.unsafe">{one([{ kind: "pawn", side: "black", x: 0, y: 0, extra: <span className="strike-badge unsafe">✕</span> }])}</Entry>
+      <Entry name="Strike reach ticks" src="exile.css .exile-cell.in-reach">{one([{ kind: "pawn", side: "black", x: 0, y: 0 }], { "0,0": { cls: "in-reach" } })}</Entry>
+      <Entry name="Action pips: ready / moved / done" src="exile.css .action-pips"><div className="pip-states">{[[1, 1], [0, 1], [0, 0]].map(([a, b], i) => <span key={i} className="action-pips"><i className={a ? "full" : ""} /><i className={b ? "full" : ""} /></span>)}</div></Entry>
       <Entry name="CHECK tag" src="exile.css .check-tag">{one([{ kind: "king", side: "white", x: 0, y: 0, extra: <span className="check-tag">CHECK</span> }])}</Entry>
       <Entry name="Attacker !" src="exile.css .check-mark">{one([{ kind: "queen", side: "black", x: 0, y: 0, extra: <span className="check-mark">!</span> }])}</Entry>
       <Entry name="HP · rebel / patrol" src="exile.css .piece-health"><MiniBoard cols={2} rows={1} pieces={[{ kind: "rook", side: "white", x: 0, y: 0, hp: 3, max: HP.rook }, { kind: "rook", side: "black", x: 1, y: 0, hp: 5, max: HP.rook }]} /></Entry>
@@ -181,7 +186,7 @@ export function Catalog() {
     </Group>
 
     <Group id="banners" title="Banners">
-      {(["cleared", "victory", "defeat", "checkmate"] as const).map(k => <Entry key={k} name={k} src="BoardArt.tsx BattleBanner · exile.css" note={k === "checkmate" ? "+ joke line in game" : undefined} wide><Banner kind={k} /></Entry>)}
+      {(["cleared", "victory", "defeat", "checkmate"] as const).map(k => <Entry key={k} name={k} src="BoardArt.tsx BattleBanner · exile.css" wide><Banner kind={k} /></Entry>)}
     </Group>
 
     <Group id="hub" title="Hideout">
@@ -194,16 +199,21 @@ export function Catalog() {
         </div></div>
       </Entry>
       {PLACES.map(b => <Entry key={b.id} name={b.name} src="Hub.tsx PlaceArt" note={b.soon ? "placeholder" : undefined}><div className={`building ${b.soon ? "soon" : ""}`}><PlaceArt id={b.id} /></div></Entry>)}
+      <Entry name="Locked buildings 🔒" src="Hub.tsx PLACES soon" wide><div className="locked-row">{PLACES.filter(b => b.soon).map(b => <div key={b.id} className="studio-lock"><span className="hub-sign"><b>{b.name}</b><small>{b.tagline}</small></span></div>)}</div></Entry>
       <Entry name="Walking king" src="Hub.tsx .hub-king" note="plays once per walk"><LoopRig kind="king" side="white" action="move" pause={0} /></Entry>
       <Entry name="Tiles: grass / alt / path / lot" src="hub.css .hub-tile"><div className="hub-tiles">{["grass", "grass alt", "path", "lot"].map(c => <span key={c} className={`hub-tile ${c}`} />)}</div></Entry>
       <Entry name="Army chips (recruit glow)" src="hub.css .hub-army"><span className="hub-army">{(["king", "rook", "pawn"] as const).map((k, i) => <i key={k} className={i === 2 ? "new" : ""}><PieceRig kind={k} side="white" /></i>)}</span></Entry>
     </Group>
 
     <Group id="ui" title="UI">
-      <Entry name="Wordmark" src="exile.css .exile-brand"><div className="exile-brand">CHEZZ<span>A SMALL REBELLION</span></div></Entry>
+      <Entry name="Wordmark" src="exile.css .exile-brand"><div className="exile-brand">CHEZZ</div></Entry>
       <Entry name="Primary button" src="exile.css .primary-button"><button className="primary-button" tabIndex={-1}>End turn<span>→</span></button></Entry>
       <Entry name="Secondary button" src="exile.css .secondary-button"><button className="secondary-button" tabIndex={-1}>Defend · 1 energy<span>blocks 1, counters</span></button></Entry>
       <Entry name="Text button" src="exile.css .text-button"><button className="text-button" tabIndex={-1}>New run</button></Entry>
+      <Entry name="Legend row" src="components/Panels.tsx Legend" wide><div className="studio-legend"><Legend /></div></Entry>
+      <Entry name="Rules card" src="components/Panels.tsx RulesCard" wide><section className="exile-modal studio-modal help-exile"><h1>Rules</h1><RulesCard /></section></Entry>
+      <Entry name="Barracks army slots" src="components/Panels.tsx ArmySlots"><div className="camp-gold"><ArmySlots filled={2} total={4} /></div></Entry>
+      <Entry name="Barracks stats + reach grid" src="components/Panels.tsx ReachGlyph" wide><div className="studio-stats">{(["pawn", "bishop", "rook"] as const).map(k => <p key={k}>{k} ♥{HP[k]} <StrikeIcon />{DAMAGE[k]}<ReachGlyph kind={k} /></p>)}</div></Entry>
       <Entry name="Energy pips" src="exile.css .energy-pips"><div className="energy-pips">{[1, 1, 0, 0].map((f, i) => <i key={i} className={f ? "full" : ""} />)}</div></Entry>
       <Entry name="Check alert" src="exile.css .check-alert"><p className="check-alert"><strong>Check!</strong></p><p className="check-alert no-way-out"><strong>Check. No way out.</strong></p></Entry>
       <Entry name="Selected card" src="exile.css .selected-card" wide><div className="selected-card"><PieceRig kind="rook" side="white" /><div><strong>rook · {HP.rook} HP · hits for {DAMAGE.rook}</strong></div></div></Entry>
@@ -212,7 +222,7 @@ export function Catalog() {
       <Entry name="Arena topline" src="exile.css .arena-topline" wide><div className="arena-topline studio-fill"><span>TURN 3 · YOUR MOVE</span><span>2 ENEMIES</span></div></Entry>
       <Entry name="Caption · enemy turn" src="exile.css .playback-caption" wide><div className="playback-caption playing studio-fill">Enemy pawn moves to b3.</div></Entry>
       <Entry name="Playback controls" src="exile.css .playback-controls" wide><div className="playback-controls studio-fill"><label><input type="checkbox" readOnly tabIndex={-1} /> Fast enemy turns</label><button tabIndex={-1}>Skip enemy turn</button></div></Entry>
-      <Entry name="Notice" src="exile.css .notice"><p className="notice">Not enough energy.</p></Entry>
+      <Entry name="Notice" src="exile.css .notice"><p className="notice">Autosave off</p></Entry>
       <Entry name="Modal card" src="exile.css .exile-modal" wide><section className="exile-modal studio-modal"><p className="kicker">KICKER</p><h1>Title</h1><button className="primary-button" tabIndex={-1}>Continue<span>→</span></button><button className="text-button" tabIndex={-1}>Back</button></section></Entry>
       <Entry name="Battle log" src="exile.css .resolution-panel"><section className="resolution-panel"><details open><summary>Battle log</summary><p>Your rook strikes Enemy pawn for 3.</p></details></section></Entry>
       <Entry name="Hub sign" src="hub.css .hub-sign"><div className="sign-spec"><span className="hub-sign"><b>Barracks</b><small>Recruit and rest</small></span></div></Entry>
@@ -220,7 +230,8 @@ export function Catalog() {
 
     <Group id="icons" title="Icons and glyphs">
       <Entry name="favicon.svg" src="public/favicon.svg"><img src={fav} width={64} height={64} alt="Chezz favicon" /></Entry>
-      {[["♛", "King health"], ["⚡", "Energy"], ["✦", "Gold"], ["⚔", "Strike"], ["✕", "Blocked"], ["♥", "Heal"], ["!", "Attacker"], ["→", "Go"]].map(([g, n]) => <Entry key={n} name={n} src="Unicode glyph"><span className="glyph">{g}</span></Entry>)}
+      {[["♛", "King health"], ["⚡", "Energy"], ["✦", "Gold"], ["✕", "Blocked"], ["♥", "Heal"], ["!", "Attacker"], ["→", "Go"]].map(([g, n]) => <Entry key={n} name={n} src="Unicode glyph"><span className="glyph">{g}</span></Entry>)}
+      <Entry name="Strike (crossed swords)" src="components/StrikeIcon.tsx"><span className="glyph"><StrikeIcon /></span></Entry>
       <Entry name="Guard shield" src="BoardArt.tsx GuardBadge"><span className="glyph"><GuardBadge /></span></Entry>
     </Group>
 
