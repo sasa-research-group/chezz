@@ -8,8 +8,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   travel first) and defend (1); fixed damage; strikes land in place. The
   simultaneous engine (`exile.ts`) stays for the lab Duel.
 - **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
-  Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`, style sheet
-  `art.html`). Wesley calls it placeholder while mechanics settle.
+  Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`). Wesley calls it
+  placeholder while mechanics settle.
+- **Studio** (`art.html` → `src/art/`, `claude/art-studio`): every piece of
+  art rendered live, the implemented mechanics computed from `turns.ts`, a
+  style guide (swatches checked against the source) and tooling notes. Seed
+  of the art pipeline: add new art to `Catalog.tsx`.
 - **Phone layout + busier enemy** (#9): the game fits an
   iPhone screen (height-fitted board, bottom action bar); the enemy closes in
   on any of your pieces, pawns march toward targets and race to promote, pieces brace only when it helps; a battle ends with a celebration

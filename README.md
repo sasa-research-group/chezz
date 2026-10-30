@@ -37,7 +37,10 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
   by the lab Duel.
 - **src/components/PieceRig.tsx** and **src/rig.css**: the cast (one character
   per piece and side) with idle, move, attack, defend, hit and death
-  animations. Style sheet: `art.html`.
+  animations.
+- **art.html → src/art/**: the studio. Every piece of game art rendered live,
+  the implemented mechanics (computed from `turns.ts`), the style guide and
+  the art tooling. Linked from the game footer.
 - **src/exile.css**: the CSS-tilted parchment board and screens.
 - **tests/turns.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
 

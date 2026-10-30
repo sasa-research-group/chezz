@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { PieceRig } from "./components/PieceRig";
+import { PieceRig, RIG_MS as DURATION } from "./components/PieceRig";
+import { BattleBanner, GuardBadge, MATE_LINES } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
 import { DAMAGE, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, readRun, same, strikeExposesKing, walkAndStrike } from "./game/turns";
@@ -28,9 +29,6 @@ type Anim = { action: RigAction; key: number };
 /** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land. */
 type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; morph: Record<string, Kind>; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean };
 const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge: {}, doomed: [], holdFlash: false, mating: false };
-/** Jokes for the checkmate banner, picked by turn so a replay shows the same one. */
-const MATE_LINES = ["Long live the… oh.", "The crown has left the building.", "He'll walk it off. He won't.", "Somewhere, a pawn is laughing.", "Exile was nicer, honestly."];
-const DURATION: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420, mate: 2600 };
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
@@ -80,7 +78,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
           {strike && <span className="strike-badge">⚔ {strike.cost}</span>}
           {!ghost && checkers.includes(piece.id) && <span className="check-mark" title="Could kill your king next turn">!</span>}
           {!ghost && checkers.length > 0 && piece.id === "king" && <span className="check-tag">CHECK</span>}
-          {!ghost && piece.defending && <span className="guard-badge" title="Defending: takes 1 less damage per hit and hits back if it can reach"><svg viewBox="0 0 20 22" aria-hidden="true"><path d="M10 1 L18 4 V10 C18 15 14.5 19 10 21 C5.5 19 2 15 2 10 V4 Z" /></svg>−1</span>}
+          {!ghost && piece.defending && <GuardBadge />}
           {!ghost && !stage.morph[piece.id] && <span className="piece-health">{piece.hp}<small> / {HP[piece.kind]}</small></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
 
@@ -321,10 +319,7 @@ export default function App() {
       <section className="exile-arena"><div className="arena-topline"><span>{playback ? "ENEMY TURN" : `TURN ${run.turn} · YOUR MOVE`}</span><span>{shown.filter(u => u.side === "black").length} ENEMIES · DEFEAT THE PATROL</span></div>
         <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} />
         <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate. The crown falls." : banner === "defeat" ? "The crown falls." : banner === "victory" ? "Victory!" : banner === "cleared" ? "Road cleared!" : ""}</p>
-        {banner && <button className={`battle-banner ${banner}`} onClick={skipOutro} autoFocus>
-          <span>{banner === "checkmate" ? "Checkmate!" : banner === "defeat" ? "The crown falls…" : banner === "victory" ? "Victory!" : "Road cleared!"}</span>
-          {banner === "checkmate" && <em>{MATE_LINES[run.turn % MATE_LINES.length]}</em>}
-          <small>Tap to continue</small></button>}
+        {banner && <BattleBanner kind={banner} line={banner === "checkmate" ? MATE_LINES[run.turn % MATE_LINES.length] : undefined} onClick={skipOutro} />}
         <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setPlayback(null); }}>Skip enemy turn</button>}</div>
       </section>
       <aside className="exile-sidebar">
@@ -340,7 +335,7 @@ export default function App() {
         <section className="resolution-panel"><details><summary>Battle log</summary>{run.log.map((text, i) => <p key={i}>{text}</p>)}</details><button className="text-button" onClick={() => exportRun(run, feedback)}>Export playtest ↗</button></section>
       </aside>
     </div>
-    <footer className="exile-footer">Three battles. A little army. One crown to get back.<span>Prototype · turn-based</span></footer>
+    <footer className="exile-footer">Three battles. A little army. One crown to get back.<span>Prototype · turn-based · <a href="./art.html">Art studio</a></span></footer>
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="Start exile run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><p className="kicker">BANISHED. BROKE. STILL WEARING THE CROWN.</p><h1>A king without a kingdom.</h1><p>Clear the road, recruit your first followers, and cross the bridge. You get {ENERGY} energy a turn to move and strike. Fallen allies stay gone. If your king falls, the run is over.</p><button className="primary-button" onClick={start}>Begin the rebellion<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Keep playing current run</button>}</section></div>}
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><p className="kicker">YOUR PAWN MADE IT</p><h1>Promotion!</h1><p>It reached the far row. Pick what it becomes, at full health. It can still strike or defend this turn.</p><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kind[0].toUpperCase() + kind.slice(1)}</h2><p>{HP[kind]} HP, hits for {DAMAGE[kind]}.</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}

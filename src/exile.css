@@ -99,3 +99,4 @@
 .guard-badge svg{width:13px;height:14px;fill:#dbe9f6;stroke:#382f2e;stroke-width:2}
 @keyframes guard-in{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 @media(max-width:700px){.guard-badge{top:30%;font-size:9px;padding:0 3px 0 1px}.guard-badge svg{width:10px;height:11px}}
+.exile-footer a{color:inherit}
