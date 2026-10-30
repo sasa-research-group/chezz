@@ -39,7 +39,8 @@ export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, h
 export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (ENCOUNTERS[g.encounter].height - p.y);
 export const at = (g: Run, p: Pos) => g.units.find(u => same(u, p));
-export const label = (u: Unit) => u.side === "white" ? u.kind[0].toUpperCase() + u.kind.slice(1) : `Enemy ${u.kind}`;
+export const kindName = (k: string) => k[0].toUpperCase() + k.slice(1);
+export const label = (u: Unit) => u.side === "white" ? kindName(u.kind) : `Enemy ${u.kind}`;
 export function passable(g: Run, p: Pos) {
   const e = ENCOUNTERS[g.encounter];
   return p.x >= 0 && p.y >= 0 && p.x < e.width && p.y < e.height && !e.walls.some(w => same(w, p));
@@ -195,6 +196,13 @@ export function walkAndStrike(g: Run, id: string, to: Pos, targetId: string): { 
   const { run, step } = attackUnchecked(walked, id, targetId);
   if (run === walked || !step || intoCheck(g, run)) return null;
   return { walked, run, step };
+}
+/** Enemies the piece could strike this turn (in place or after a walk-up), but only by leaving its king in check. */
+export function unsafeStrikes(g: Run, id: string): string[] {
+  const u = g.units.find(v => v.id === id);
+  if (!u || u.acted) return [];
+  const walks = moveTargets(g, u).filter(t => t.cost + STRIKE_COST <= g.energy);
+  return g.units.filter(v => v.side !== u.side && (attackTargets(g, u).some(t => t.id === v.id) ? strikeExposesKing(g, id, v.id) : walks.some(t => reaches(g, u, t, v)) && !approaches(g, id, v.id).length)).map(v => v.id);
 }
 /** Would this strike (through the counter it draws) put your own king in check? */
 export function strikeExposesKing(g: Run, id: string, targetId: string): boolean { return intoCheck(g, attackUnchecked(g, id, targetId).run); }

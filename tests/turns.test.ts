@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, walkAndStrike } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -217,6 +217,16 @@ describe("turn-based rules", () => {
     expect(inCheck(g)).toBe(false);
     expect(strikeExposesKing(g, "king", "r")).toBe(true);
     expect(attack(g, "king", "r").run).toBe(g);
+    expect(unsafeStrikes(g, "king")).toEqual(["r"]);
+    expect(unsafeStrikes(board([{ ...king, hp: 4 }, { ...rook, defending: false }]), "king")).toEqual([]);
+  });
+  it("flags an enemy whose only walk-up strikes would leave the king in check", () => {
+    // A defending queen counters any next square for 3, which kills the 3-HP king from every square he could strike from.
+    const queen: Unit = { id: "q", side: "black", kind: "queen", x: 1, y: 1, hp: 9, defending: true };
+    const g = board([{ ...king, hp: 3 }, queen]);
+    expect(inCheck(g)).toBe(false);
+    expect(approaches(g, "king", "q")).toEqual([]);
+    expect(unsafeStrikes(g, "king")).toEqual(["q"]);
   });
   it("doesn't offer a walk-up strike whose counter would leave the king in check", () => {
     // From b2 the defending rook on b3 would counter for 3, leaving the king at 1 HP and in check. From a2 or c2

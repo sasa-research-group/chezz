@@ -31,8 +31,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   put him in check are blocked (red ✕). A fallen king
   gets a checkmate finale (zoom, crown flies off, CHECKMATE! banner).
 - **Hideout hub** (#12): between battles the king walks a little
-  village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), road
-  out; training grounds, armory, merchant and Grandmaster's Guild are
+  village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), next
+  battle; training grounds, armory, merchant and Grandmaster's Guild are
   locked (🔒) placeholders.
 - **No narrator text** (`claude/cut-llm-text`): on screen only numbers,
   nouns and icons; battles are numbered; Rules is a card. Board cues teach

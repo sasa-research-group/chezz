@@ -29,8 +29,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   pool), it does: automatically when only one square works, otherwise you
   pick the square. Strikeable enemies glow red and carry a ⚔ badge with
   the cheapest total cost.
-- With a piece selected, faint red corner ticks mark the squares it could
-  strike from where it stands.
+- With a piece selected (and energy for a strike), faint red corner ticks
+  mark the squares in its strike reach.
 - No return hit. Strikes land from where the striker stands: it never moves
   onto the target's square, even on a kill (unlike chess).
 
@@ -91,7 +91,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 
 ## End of a battle
 - The final blow plays out in full, then a short celebration ("Battle won"
-  or "Victory!" while your pieces cheer, or "Defeat")
+  with the gold earned, or "Victory!" while your pieces cheer, or "Defeat")
   before the hideout or end menu. Tapping the banner skips ahead. Presentation
   only.
 
