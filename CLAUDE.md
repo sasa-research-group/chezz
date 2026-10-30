@@ -19,7 +19,7 @@ git history before that commit.
 - Rule changes are test-first: write a failing test in `tests/turns.test.ts`,
   fix it, then update `docs/turn-based.md` in the same change.
 
-## Checks (all must pass before a PR)
+## Checks (all must pass before merging into local main)
 ```sh
 npm test            # vitest
 npx tsc -b          # types (npm run build also runs it)
@@ -30,10 +30,11 @@ In cloud containers, use the preinstalled Chromium (check the build number under
 `/opt/pw-browsers`). Never run `playwright install`.
 
 ## Workflow
-- Work on a `claude/*` branch and open a PR to `main`. CI runs on the PR. Merging
-  to `main` deploys to GitHub Pages.
+- Local development only: no PRs and no pushes unless the owner asks. Agents
+  commit on a local `claude/*` branch; the lead merges it into local `main`.
+  Pushing `main` deploys to GitHub Pages, so it waits for the owner.
 - Split work into small tasks, each with a command that proves it's done.
-- Before opening a PR, have a fresh-context reviewer subagent read the diff.
+- Before merging into local `main`, have a fresh-context reviewer subagent read the diff.
 - Models: lead on Opus at medium effort; cheap read-only explorers for searches;
   the reviewer at high effort.
 - Keep `docs/HANDOFF.md` current and under 4k chars.
