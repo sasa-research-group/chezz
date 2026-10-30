@@ -251,10 +251,15 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
   await page.screenshot({ path: "test-results/exile-mobile.png", fullPage: true });
 });
 
-const SIZES = [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }];
+const SIZES = [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }, { width: 360, height: 640 }, { width: 320, height: 568 }, { width: 768, height: 1024 }];
+/** The page doesn't scroll, and since the shell clips rather than scrolls, nothing in the bar, the strip or the board spills out of view either. */
 const noScroll = (page: Page) => page.evaluate(() => {
   const el = document.documentElement;
-  return { tall: el.scrollHeight - innerHeight, wide: el.scrollWidth - innerWidth };
+  const out = [...document.querySelectorAll(".top-bar > *, .table-hud > *, .table-hud button, .board-plane, .hub-map")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5;
+  }).map(e => e.className);
+  return { tall: el.scrollHeight - innerHeight, wide: el.scrollWidth - innerWidth, out };
 });
 const inView = async (page: Page, name: string) => {
   const box = (await page.getByRole("button", { name, exact: true }).boundingBox())!;
@@ -273,13 +278,13 @@ for (const size of SIZES) {
     await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(battle3));
     await page.goto("/");
     await page.getByRole("button", { name: /^c1 white king/ }).click();
-    expect(await noScroll(page)).toEqual({ tall: 0, wide: 0 });
+    expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
     for (const name of ["Menu", "End turn", "Defend, 1 energy"]) await inView(page, name);
     await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
     await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
     await page.reload();
     await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
-    expect(await noScroll(page)).toEqual({ tall: 0, wide: 0 });
+    expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
     for (const id of ["barracks", "road"]) {
       const box = (await page.getByTestId(`place-${id}`).boundingBox())!;
       expect(box.y + box.height).toBeLessThanOrEqual(size.height);
@@ -309,20 +314,57 @@ test("the ☰ menu opens and closes with Escape and keeps focus inside", async (
   await button.click();
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("button", { name: "Resume" })).toBeFocused();
-  for (let i = 0; i < 12; i++) {
-    await page.keyboard.press("Tab");
-    expect(await menu.evaluate(el => el.contains(document.activeElement))).toBe(true);
-  }
+  // Tab wraps from the last item to the first, and Shift+Tab back.
+  await page.keyboard.press("Shift+Tab");
+  await expect(menu.getByRole("link", { name: "Art studio" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(menu.getByRole("button", { name: "Resume" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
   await expect(button).toBeFocused();
-  // Escape on the table opens it again.
+  // On the table, Escape first drops the selection, then opens the menu.
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await expect(page.locator(".exile-piece.selected")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".exile-piece.selected")).toHaveCount(0);
+  await expect(menu).toBeHidden();
   await page.keyboard.press("Escape");
   await expect(menu).toBeVisible();
   await menu.getByRole("button", { name: "Rules" }).click();
   await expect(menu.locator(".rules-card")).toBeVisible();
   await menu.getByRole("button", { name: "Resume" }).click();
   await expect(menu).toBeHidden();
+});
+
+test("the menu pauses the enemy's turn", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
+  await page.getByRole("button", { name: "End turn" }).click();
+  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
+  const caption = page.locator(".playback-caption");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible();
+  const paused = await caption.textContent();
+  // Many 800ms steps' worth of clock: the step shown must not change while paused.
+  await page.clock.runFor(10000);
+  expect(await caption.textContent()).toBe(paused);
+  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.clock.runFor(10000);
+  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeHidden();
+});
+
+test("the menu stays shut over the hideout, and light dialogs keep dark text", async ({ page }) => {
+  const start = newRun();
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
+  await page.goto("/");
+  await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
+  await page.getByTestId("place-barracks").click();
+  const title = page.getByRole("dialog", { name: "Barracks" }).getByRole("heading", { name: "Barracks" });
+  expect(await title.evaluate(el => getComputedStyle(el).color)).toBe("rgb(56, 47, 46)");
 });
 
 test("complete the exile run through browser controls", async ({ page }) => {

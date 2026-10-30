@@ -1,7 +1,7 @@
 import { PieceRig } from "./PieceRig";
 
 /** The slim bar along the table's far edge: king's hearts, battle n / N, gold and the menu. */
-export function TopBar({ kingHp, kingMax, battle, battles, gold, menuOpen, onMenu }: { kingHp: number; kingMax: number; battle: number; battles: number; gold: number; menuOpen?: boolean; onMenu?: () => void }) {
+export function TopBar({ kingHp, kingMax, battle, battles, gold, menuOpen, menuDisabled, onMenu }: { kingHp: number; kingMax: number; battle: number; battles: number; gold: number; menuOpen?: boolean; menuDisabled?: boolean; onMenu?: () => void }) {
   return <header className="top-bar">
     <span className="plaque king-plaque" role="img" aria-label={`King HP ${kingHp} / ${kingMax}`}>
       <span className="plaque-face"><PieceRig kind="king" side="white" /></span>
@@ -12,7 +12,7 @@ export function TopBar({ kingHp, kingMax, battle, battles, gold, menuOpen, onMen
       <b>{battle}<small>/{battles}</small></b>
     </span>
     <span className="coins" role="img" aria-label={`Gold ${gold}`}><i>✦</i>{gold}</span>
-    <button className="menu-button" aria-label="Menu" aria-haspopup="dialog" aria-expanded={!!menuOpen} onClick={onMenu}>
+    <button className="menu-button" aria-label="Menu" aria-haspopup="dialog" aria-expanded={!!menuOpen} disabled={menuDisabled} onClick={onMenu}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
     </button>
   </header>;

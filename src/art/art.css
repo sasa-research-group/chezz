@@ -35,7 +35,7 @@
 .building{width:110px;height:100px;display:grid;place-items:end center}.building svg{height:100%;width:auto;filter:drop-shadow(0 4px 0 #382f2e33)}.building.soon svg{filter:grayscale(.35) drop-shadow(0 4px 0 #382f2e33)}
 .hub-tiles{display:grid;grid-template-columns:repeat(4,32px);gap:4px}.hub-tiles span{height:32px;border-radius:3px}
 .sign-spec{position:relative;width:150px;height:46px;container-type:inline-size}.sign-spec .hub-sign{top:4px;padding:3px 8px}.sign-spec .hub-sign b{font-size:15px}.sign-spec .hub-sign small{font-size:9px}
-.entry .exile-brand{font-size:30px}.entry .primary-button,.entry .secondary-button{width:auto}
+.entry .primary-button,.entry .secondary-button{width:auto}
 .camp-offers.one{grid-template-columns:1fr 1fr;gap:8px}.camp-offers.one button{min-height:0;padding:8px}
 .entry .selected-card{margin:0}.entry .check-alert{margin:2px 0!important}
 .glyph{font-size:36px;line-height:1;position:relative}.glyph .guard-badge{position:static;font-size:16px}.glyph .guard-badge svg{width:20px;height:22px}
@@ -66,10 +66,11 @@
   .spec{font-size:11px}.spec th,.spec td{padding:5px 6px}.spec tbody th{white-space:normal}
   .construct{width:150px}
 }
-.studio-fill{width:100%}.studio-modal{max-width:none;padding:18px}.studio-modal h1{font-family:Georgia,serif;font-size:26px;margin:0 0 12px}
+.studio-modal{max-width:none;padding:18px}.studio-modal h1{font-family:Georgia,serif;font-size:26px;margin:0 0 12px}
 .loop-rig.held .rig,.loop-rig.held .rig *{animation-play-state:paused!important}.matrix td{overflow:hidden}
 .pip-states{display:flex;gap:18px}.studio-legend{width:100%}.studio-stats p{margin:4px 0;font-size:13px;font-weight:800}.locked-row{display:flex;flex-wrap:wrap;gap:10px}.studio-lock{position:relative;height:44px;width:120px;background:#efe6d0;border-radius:6px}.studio-lock .hub-sign{top:8px}
 /* Table HUD specimens sit on a patch of the game's wooden table. */
 .table-spec{width:100%;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;padding:12px;border-radius:10px;background:radial-gradient(ellipse at 50% 45%,#8a6a50,#5a4434 70%,#3a2b22);color:#f6e3b4;overflow:hidden}
 .table-spec .top-bar{width:100%;padding:0}.table-spec .table-hud{width:100%;background:none;padding:0}.table-spec .pause-menu{max-height:none}
+.table-spec .top-bar{flex-wrap:wrap}.table-spec .table-hud{grid-template-columns:auto auto;grid-template-areas:"info info" "lan lan" "shield bell";justify-items:center}.table-spec .hud-info{flex-wrap:wrap;justify-content:center}
 .ribbon-spec{position:relative;min-height:56px}.ribbon-spec .turn-ribbon,.ribbon-spec .playback-caption{top:50%;bottom:auto;transform:translate(-50%,-50%)}

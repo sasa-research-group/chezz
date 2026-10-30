@@ -10,21 +10,23 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
   Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`). Wesley calls it
   placeholder while mechanics settle.
-- **Studio** (`art.html` → `src/art/`, `claude/art-studio`): every piece of
-  art rendered live, the implemented mechanics computed from `turns.ts`, a
-  style guide (swatches checked against the source) and tooling notes. Seed
-  of the art pipeline: add new art to `Catalog.tsx`.
-- **Phone layout + busier enemy** (#9): the game fits an
-  iPhone screen (height-fitted board, bottom action bar); the enemy closes in
-  on any of your pieces, pawns march toward targets and race to promote, pieces brace only when it helps; a battle ends with a celebration
-  banner before the menu.
+- **Studio** (`art.html` → `src/art/`): all art live, mechanics from
+  `turns.ts`, style guide (swatches checked against source). Add new art
+  to `Catalog.tsx`.
+- **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
+  wooden table, no page scroll. Top bar (`TopBar.tsx`), board sized to the
+  field on both axes at 8° tilt, HUD strip (rails in landscape) with
+  swappable `table/Lantern`, `Bell`, `ShieldToken` (`table.css`). Rules,
+  New run, fast turns, log, export, studio live in the ☰ `PauseMenu`
+  (Escape, focus trap; pauses playback). Next: drag-to-defend, art.
+- **Busier enemy** (#9): closes in, pawns race to promote; battles end
+  with a celebration banner.
 - **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
   a queen) with a morph animation; the barracks sells a 3-gold pawn.
 - **Next-square strikes** (#11): sliders must travel next to a target to hit it.
 - **Tap to strike** (#13): tap an enemy to walk up and strike it; pick the
   square when there's more than one.
-- **Knight leap** (`claude/knight-leap`): knight strikes cost 2 like the rest
-  (jump + strike = a whole turn); knights flip over to strike and backflip
+- **Knight leap**: knight strikes cost 2; knights flip over and backflip
   home (animation only; `stage.lunge` in `App.tsx`).
 - **Check** (`claude/check`): if the enemy's next turn could kill the king,
   End turn locks until he's safe (unless no escape exists); moves that would
@@ -51,10 +53,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 ## Open items
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
 - `prototype/familiar-opening` is unmerged and still on the old engine.
-- Phone landscape still gets the desktop layout (scrolls).
 - The test player (`tests/turns-strategy.ts`) is a two-turn lookahead search, not a person.
 - Enemy intent isn't shown before it acts.
-- App debt: `App.tsx` is dense; modals lack Escape and a focus trap.
+- App debt: `App.tsx` is dense; intro/promotion/end modals lack Escape and
+  a focus trap (`useDialogKeys` in `PauseMenu.tsx` is ready to reuse).
 - Dead-end/loop audit (Oct 11), waiting on Wesley's play to pick fixes:
   0-damage strikes (pawn vs defender) only get your piece countered; the
   battle-3 knight parks beside its target and never strikes; no turn limit,

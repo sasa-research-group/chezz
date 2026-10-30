@@ -11,6 +11,7 @@ import { PauseMenu } from "./components/PauseMenu";
 import { Lanterns } from "./components/table/Lantern";
 import { Bell } from "./components/table/Bell";
 import { ShieldToken } from "./components/table/ShieldToken";
+import { SkipToken } from "./components/table/SkipToken";
 import { StrikeIcon } from "./components/StrikeIcon";
 import type { Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
 
@@ -233,13 +234,22 @@ export default function App() {
     }, reduced ? 90 : fast ? 250 : 800);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [playback, fast, reduced, menu]);
-  // Escape opens the pause menu whenever nothing else is up; the menu closes itself on Escape.
+  // The menu belongs to the table: not over the intro, a promotion pick, the hub or the end screens.
+  const canMenu = !intro && run.phase === "player" && !run.promoting;
+  useEffect(() => { if (!canMenu) setMenu(false); }, [canMenu]);
+  // Escape backs out one step: the strike-from pick, then the selection, then opens the pause menu.
+  // The menu closes itself on Escape and marks the event handled.
   useEffect(() => {
-    if (menu || intro || run.phase !== "player" || run.promoting) return;
-    const open = (ev: KeyboardEvent) => { if (ev.key === "Escape" && !ev.defaultPrevented) setMenu(true); };
-    window.addEventListener("keydown", open);
-    return () => window.removeEventListener("keydown", open);
-  }, [menu, intro, run.phase, run.promoting]);
+    if (menu || !canMenu) return;
+    const back = (ev: KeyboardEvent) => {
+      if (ev.key !== "Escape" || ev.defaultPrevented) return;
+      if (picking) setPicking(null);
+      else if (selectedId) setSelectedId(null);
+      else setMenu(true);
+    };
+    window.addEventListener("keydown", back);
+    return () => window.removeEventListener("keydown", back);
+  }, [menu, canMenu, picking, selectedId]);
   useEffect(() => {
     if (!playback) return;
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
@@ -324,7 +334,7 @@ export default function App() {
   const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); };
   const skip = () => { if (timer.current) clearTimeout(timer.current); setPlayback(null); };
   return <main className="exile-app">
-    <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={HP.king} battle={run.encounter + 1} battles={ENCOUNTERS.length} gold={run.gold} menuOpen={menu} onMenu={() => setMenu(true)} />
+    <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={HP.king} battle={run.encounter + 1} battles={ENCOUNTERS.length} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
       <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} />
       {playback && <span className="turn-ribbon">ENEMY TURN</span>}
@@ -337,17 +347,15 @@ export default function App() {
     <section className="table-hud" aria-label="Actions">
       <Lanterns lit={playback ? 0 : run.energy} total={ENERGY} />
       <div className="hud-info">
-        {selected && !locked
-          ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>
-          : <div className="selected-card empty" aria-hidden="true" />}
+        {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>}
         {!playback && run.phase === "player" && <Legend />}
       </div>
       {playback
-        ? <button className="skip-token" aria-label="Skip" onClick={skip}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l9 7-9 7zM12 5l9 7-9 7z" /></svg></button>
+        ? <SkipToken onClick={skip} />
         : <ShieldToken cost={1} disabled={!selected || locked || selected.acted || run.energy < 1} onClick={defendNow} />}
       <Bell state={playback ? "waiting" : checkLocked ? "locked" : "ready"} label={playback ? "Enemy turn" : checkLocked ? "King in check" : "End turn"} disabled={locked || checkLocked} onClick={finishTurn} />
     </section>
-    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" onClick={start}>Start<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
+    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={start}>Start<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><h1>Promote</h1><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kindName(kind)}</h2><p>♥{HP[kind]} ⚔{DAMAGE[kind]}</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${ENCOUNTERS.length} · turn ${run.turn}`}</p><label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}

@@ -10,6 +10,7 @@ import { H, PLACES, PlaceArt, START, W, blocked, onPath } from "../components/Hu
 import { Lantern, Lanterns } from "../components/table/Lantern";
 import { Bell } from "../components/table/Bell";
 import { ShieldToken } from "../components/table/ShieldToken";
+import { SkipToken } from "../components/table/SkipToken";
 import { TopBar } from "../components/TopBar";
 import { MenuCard } from "../components/PauseMenu";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST } from "../game/turns";
@@ -214,7 +215,7 @@ export function Catalog() {
       <Entry name="Lantern · lit / out" src="components/table/Lantern.tsx · table.css"><div className="table-spec"><Lantern lit /><Lantern lit={false} /></div></Entry>
       <Entry name="Energy lanterns" src="table/Lantern.tsx Lanterns"><div className="table-spec"><Lanterns lit={3} total={ENERGY} /></div></Entry>
       <Entry name="Shield token · ready / spent" src="components/table/ShieldToken.tsx"><div className="table-spec"><ShieldToken cost={1} /><ShieldToken cost={1} disabled /></div></Entry>
-      <Entry name="Skip token" src="App.tsx .skip-token"><div className="table-spec"><button className="skip-token" tabIndex={-1} aria-label="Skip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l9 7-9 7zM12 5l9 7-9 7z" /></svg></button></div></Entry>
+      <Entry name="Skip token" src="components/table/SkipToken.tsx"><div className="table-spec"><SkipToken /></div></Entry>
       <Entry name="Bell · ready / check / enemy turn" src="components/table/Bell.tsx" wide><div className="table-spec">{(["ready", "locked", "waiting"] as const).map(s => <Bell key={s} state={s} label={s} disabled={s !== "ready"} />)}</div></Entry>
       <Entry name="Top bar" src="components/TopBar.tsx · table.css" wide><div className="table-spec"><TopBar kingHp={4} kingMax={HP.king} battle={2} battles={ENCOUNTERS.length} gold={12} /></div></Entry>
       <Entry name="HUD strip" src="App.tsx .table-hud" wide><div className="table-spec"><section className="table-hud"><Lanterns lit={2} total={ENERGY} /><div className="hud-info"><div className="selected-card"><PieceRig kind="rook" side="white" /><div><strong>Rook</strong><span className="unit-stats">♥{HP.rook} <StrikeIcon />{DAMAGE.rook}</span><span className="action-pips"><i /><i className="full" /></span></div></div><Legend /></div><ShieldToken cost={1} /><Bell state="ready" label="End turn" /></section></div></Entry>
@@ -225,7 +226,7 @@ export function Catalog() {
 
     <Group id="ui" title="UI">
       <Entry name="Primary button" src="exile.css .primary-button"><button className="primary-button" tabIndex={-1}>Start<span>→</span></button></Entry>
-      <Entry name="Secondary button" src="exile.css .secondary-button"><button className="secondary-button" tabIndex={-1}>Defend · 1⚡<span>−1 · counter</span></button></Entry>
+      <Entry name="Secondary button" src="exile.css .secondary-button"><button className="secondary-button" tabIndex={-1}>Export notes ↗</button></Entry>
       <Entry name="Text button" src="exile.css .text-button"><button className="text-button" tabIndex={-1}>New run</button></Entry>
       <Entry name="Legend row" src="components/Panels.tsx Legend" wide><div className="studio-legend"><Legend /></div></Entry>
       <Entry name="Rules card" src="components/Panels.tsx RulesCard" wide><section className="exile-modal studio-modal help-exile"><h1>Rules</h1><RulesCard /></section></Entry>

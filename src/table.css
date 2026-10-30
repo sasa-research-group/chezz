@@ -1,6 +1,6 @@
 /* The game shell: the board sits on a wooden table that fills the screen, and the HUD is objects on it.
    Portrait: top bar, field, HUD strip. Landscape: the top bar and HUD become rails either side. */
-body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
+:root:has(.exile-app),body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
 .exile-app{height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "field" "hud";background:radial-gradient(ellipse at 50% 45%,#8a6a50,#5a4434 60%,#3a2b22);color:#f6e3b4;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 
 /* Top bar: brass-rimmed plaques along the far edge of the table. */
@@ -16,13 +16,14 @@ body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
 .menu-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 
 /* Field: the board sized to fit on both axes (a size container), with chips floating over it. */
-.exile-field{grid-area:field;position:relative;min-height:0;min-width:0;container-type:size;display:grid;place-items:center}
-.exile-field .board-camera{--pt:26px;--pb:18px;--px:6px;--frame:12px;margin:0;max-width:none;padding:var(--pt) var(--px) var(--pb);width:min(100cqw,(100cqh - var(--pt) - var(--pb) - 2 * var(--frame)) * var(--aspect) + 2 * var(--frame) + 2 * var(--px))}
+.exile-field{grid-area:field;position:relative;min-height:0;min-width:0;container-type:size;display:grid;place-items:center;overflow:clip}
+/* --px grows with the field so the tilt's wider near edge stays inside it. */
+.exile-field .board-camera{--pt:26px;--pb:18px;--px:max(6px,3cqw - 6px);--frame:12px;margin:0;max-width:none;padding:var(--pt) var(--px) var(--pb);width:min(100cqw,(100cqh - var(--pt) - var(--pb) - 2 * var(--frame)) * var(--aspect) + 2 * var(--frame) + 2 * var(--px))}
 .exile-field .board-plane{border-width:var(--frame);border-color:#7a5c44;background:#7a5c44;box-shadow:0 8px 0 #3a2b22,0 26px 36px #000a}
 .turn-ribbon,.exile-field .check-alert,.exile-field .notice{position:absolute;top:2px;left:50%;transform:translateX(-50%) rotate(-2deg);z-index:60;pointer-events:none;white-space:nowrap;margin:0!important}
 .turn-ribbon{background:#2b201b;color:#f6e3b4;border:3px solid #a8865f;border-radius:8px;padding:3px 14px;font-weight:900;letter-spacing:1.5px;font-size:13px}
 .exile-field .check-alert{padding:3px 14px}
-.exile-field .notice{top:auto;bottom:2px;background:#2b201b;border-radius:8px;padding:3px 10px;font-size:12px}
+.exile-field .notice{top:auto;bottom:30px;background:#2b201b;border-radius:8px;padding:3px 10px;font-size:12px}
 .playback-caption{position:absolute;bottom:0;left:50%;transform:translateX(-50%);max-width:94%;z-index:60;pointer-events:none;font-size:12px;font-weight:700;color:#f6e3b4;background:#2b201bd9;border-radius:8px;padding:3px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .playback-caption:empty{display:none}
 
@@ -39,7 +40,6 @@ body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
 .table-hud .selected-card>div{gap:2px 8px}
 .table-hud .unit-stats{color:#f6e3b4}
 .table-hud .action-pips i{background:#2b201b;border-color:#9fd1bf}.table-hud .action-pips i.full{background:#9fd1bf}
-.selected-card.empty{display:none}
 .table-hud .board-legend{margin:0!important;color:#f6e3b4cc!important;gap:4px 10px}
 .shield-token{grid-area:shield;position:relative;width:64px;height:64px;border-radius:50%;padding:0;background:#cfe2f3;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b,inset 0 -5px 0 #9bbfe0;display:grid;place-items:center}
 .shield-token svg{width:28px;height:30px;fill:#2f5a82;stroke:#2b201b;stroke-width:1.5}
@@ -53,7 +53,7 @@ body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
 .bell:disabled{opacity:1;filter:saturate(.25) brightness(.75)}
 .bell.locked{background:radial-gradient(circle at 40% 35%,#f3a094,#a3271c 70%);filter:none}
 .bell-lock{position:absolute;top:-4px;right:-4px;width:26px;height:26px;border-radius:50%;background:#a3271c;color:#fff7dc;border:2px solid #2b201b;font-style:normal;font-weight:900;display:grid;place-items:center}
-.table-hud button:focus-visible,.top-bar button:focus-visible{outline-color:#ffe08a}
+.table-hud button:focus-visible,.top-bar button:focus-visible,.pause-menu :focus-visible{outline-color:#ffe08a}
 
 /* Pause menu: a brass-rimmed card over the dimmed table. */
 .menu-shade{background:#1c151299}
@@ -68,6 +68,13 @@ body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
 .menu-log p{font-size:12px;line-height:1.5;color:#f6e3b4bb;margin:6px 14px 0}
 .menu-log[open]{padding-bottom:6px}
 
+/* Small phones (under 375px): shrink the table objects so the strip and the bar still fit. */
+@media(orientation:portrait) and (max-width:374px){
+  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:12px}.road-dots{display:none}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
+  .table-hud{gap:6px;padding:4px 8px 8px}.lanterns{gap:3px}.lantern{width:26px;height:40px}
+  .shield-token,.skip-token{width:52px;height:52px}.bell{width:68px;height:68px}.bell svg{width:34px;height:34px}
+  .table-hud .board-legend{font-size:9px!important;gap:3px 8px}
+}
 @media(orientation:landscape){
   .exile-app{grid-template-rows:minmax(0,1fr);grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"top field hud"}
   .top-bar{flex-direction:column;justify-content:center;padding:8px 6px;gap:8px}

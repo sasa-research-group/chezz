@@ -24,7 +24,8 @@ export function useDialogKeys(ref: RefObject<HTMLElement | null>, onClose: () =>
       else if (!ev.shiftKey && (at === last || !box.contains(at))) { ev.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("keydown", onKey); back?.focus(); };
+    // Hand focus back only if nothing else (say, a dialog that opened next) has taken it.
+    return () => { document.removeEventListener("keydown", onKey); if (!document.activeElement || document.activeElement === document.body || box.contains(document.activeElement)) back?.focus(); };
   }, [ref]);
 }
 
