@@ -1,0 +1,98 @@
+/* The game shell: the board sits on a wooden table that fills the screen, and the HUD is objects on it.
+   Portrait: top bar, field, HUD strip. Landscape: the top bar and HUD become rails either side. */
+body:has(.exile-app){background:#3a2b22;overscroll-behavior:none}
+.exile-app{height:100dvh;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "field" "hud";background:radial-gradient(ellipse at 50% 45%,#8a6a50,#5a4434 60%,#3a2b22);color:#f6e3b4;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+
+/* Top bar: brass-rimmed plaques along the far edge of the table. */
+.top-bar{grid-area:top;display:flex;align-items:center;gap:8px;padding:8px 10px 4px}
+.plaque{display:flex;align-items:center;gap:6px;background:#2b201b;border:3px solid #a8865f;border-radius:10px;padding:2px 8px;min-height:44px;color:#f6e3b4;font-weight:900}
+.plaque-face{width:26px;height:32px;display:block}.plaque-face svg{width:100%;height:100%;display:block}
+.hearts{display:flex;gap:1px}.hearts i{font-style:normal;font-size:15px;line-height:1;color:#f6e3b433}.hearts i.full{color:#ef5a4c}
+.road-dots{display:flex;gap:3px}.road-dots i{width:9px;height:9px;border-radius:50%;border:2px solid #a8865f}.road-dots i.done{background:#a8865f}.road-dots i.here{background:#ffd34d;border-color:#ffd34d}
+.battle-plaque b{font-size:17px}.battle-plaque small{font-size:11px;opacity:.7}
+.coins{margin-left:auto;display:flex;align-items:center;gap:6px;color:#ffe08a;font-weight:900;font-size:20px}
+.coins i{font-style:normal;width:26px;height:26px;border-radius:50%;background:#e2a92a;color:#5a3d10;border:2px solid #2b201b;display:grid;place-items:center;font-size:13px}
+.menu-button{width:44px;height:44px;flex-shrink:0;border-radius:12px;background:#2b201b;border:3px solid #a8865f;display:grid;place-items:center;padding:0;color:#f6e3b4}
+.menu-button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+
+/* Field: the board sized to fit on both axes (a size container), with chips floating over it. */
+.exile-field{grid-area:field;position:relative;min-height:0;min-width:0;container-type:size;display:grid;place-items:center}
+.exile-field .board-camera{--pt:26px;--pb:18px;--px:6px;--frame:12px;margin:0;max-width:none;padding:var(--pt) var(--px) var(--pb);width:min(100cqw,(100cqh - var(--pt) - var(--pb) - 2 * var(--frame)) * var(--aspect) + 2 * var(--frame) + 2 * var(--px))}
+.exile-field .board-plane{border-width:var(--frame);border-color:#7a5c44;background:#7a5c44;box-shadow:0 8px 0 #3a2b22,0 26px 36px #000a}
+.turn-ribbon,.exile-field .check-alert,.exile-field .notice{position:absolute;top:2px;left:50%;transform:translateX(-50%) rotate(-2deg);z-index:60;pointer-events:none;white-space:nowrap;margin:0!important}
+.turn-ribbon{background:#2b201b;color:#f6e3b4;border:3px solid #a8865f;border-radius:8px;padding:3px 14px;font-weight:900;letter-spacing:1.5px;font-size:13px}
+.exile-field .check-alert{padding:3px 14px}
+.exile-field .notice{top:auto;bottom:2px;background:#2b201b;border-radius:8px;padding:3px 10px;font-size:12px}
+.playback-caption{position:absolute;bottom:0;left:50%;transform:translateX(-50%);max-width:94%;z-index:60;pointer-events:none;font-size:12px;font-weight:700;color:#f6e3b4;background:#2b201bd9;border-radius:8px;padding:3px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.playback-caption:empty{display:none}
+
+/* HUD strip: lanterns for energy, the selected piece's card and the legend, the shield token and the bell. */
+.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" "lan . shield bell";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
+.lanterns{grid-area:lan;display:flex;gap:6px}
+.lantern{width:34px;height:52px;display:block;overflow:visible}
+.lantern-glass{fill:#ffffff14}.lantern.lit .lantern-glass{fill:#ffd77a66}
+.lantern-flame{fill:#ffb21f;stroke:#c45a10;stroke-width:2}.lantern.out .lantern-flame{display:none}
+.lantern.lit{filter:drop-shadow(0 0 6px #ffb21f88)}
+.hud-info{grid-area:info;display:flex;align-items:center;gap:10px;min-height:48px;min-width:0}
+.table-hud .selected-card{margin:0;padding:3px 10px 3px 4px;gap:6px;background:#2b201b;border:2px solid #a8865f;border-radius:10px;min-height:46px;flex-shrink:0;color:#f6e3b4}
+.table-hud .selected-card svg:not(.strike-icon){width:30px}
+.table-hud .selected-card>div{gap:2px 8px}
+.table-hud .unit-stats{color:#f6e3b4}
+.table-hud .action-pips i{background:#2b201b;border-color:#9fd1bf}.table-hud .action-pips i.full{background:#9fd1bf}
+.selected-card.empty{display:none}
+.table-hud .board-legend{margin:0!important;color:#f6e3b4cc!important;gap:4px 10px}
+.shield-token{grid-area:shield;position:relative;width:64px;height:64px;border-radius:50%;padding:0;background:#cfe2f3;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b,inset 0 -5px 0 #9bbfe0;display:grid;place-items:center}
+.shield-token svg{width:28px;height:30px;fill:#2f5a82;stroke:#2b201b;stroke-width:1.5}
+.shield-token small{position:absolute;bottom:-5px;right:-5px;width:24px;height:24px;border-radius:50%;background:#ffd34d;border:2px solid #2b201b;color:#2b201b;font-weight:900;font-size:13px;display:grid;place-items:center}
+.shield-token:disabled{opacity:.4;box-shadow:0 2px 0 #2b201b}
+.skip-token{grid-area:shield;width:64px;height:64px;border-radius:50%;padding:0;background:#e8d9b4;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b;display:grid;place-items:center}
+.skip-token svg{width:28px;height:28px;fill:#2b201b}
+.bell{grid-area:bell;position:relative;width:84px;height:84px;border-radius:50%;padding:0;background:radial-gradient(circle at 40% 35%,#ffe58a,#e2a92a 70%);border:4px solid #2b201b;box-shadow:0 6px 0 #2b201b;display:grid;place-items:center}
+.bell svg{width:42px;height:42px;fill:#2b201b}
+.bell:active:enabled{transform:translateY(3px);box-shadow:0 3px 0 #2b201b}
+.bell:disabled{opacity:1;filter:saturate(.25) brightness(.75)}
+.bell.locked{background:radial-gradient(circle at 40% 35%,#f3a094,#a3271c 70%);filter:none}
+.bell-lock{position:absolute;top:-4px;right:-4px;width:26px;height:26px;border-radius:50%;background:#a3271c;color:#fff7dc;border:2px solid #2b201b;font-style:normal;font-weight:900;display:grid;place-items:center}
+.table-hud button:focus-visible,.top-bar button:focus-visible{outline-color:#ffe08a}
+
+/* Pause menu: a brass-rimmed card over the dimmed table. */
+.menu-shade{background:#1c151299}
+.pause-menu{width:min(360px,100%);max-height:calc(100dvh - 44px);overflow:auto;background:#2b201b;border:3px solid #a8865f;border-radius:16px;box-shadow:0 8px 0 #1c1512,0 24px 60px #000a;padding:10px;color:#f6e3b4}
+.menu-card{display:grid;gap:6px}
+.menu-row{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:0 14px;border-radius:10px;border:2px solid #5a4434;background:#3a2b22;color:#f6e3b4;font-weight:800;font-size:15px;text-decoration:none;text-align:left;cursor:pointer;list-style:none}
+.menu-row::-webkit-details-marker{display:none}
+.menu-row>span{width:20px;text-align:center;color:#ffe08a}
+.menu-row.resume{background:#396c61;border-color:#2a524a}
+.menu-row.toggle input{margin-left:auto;width:22px;height:22px;accent-color:#e2a92a}
+.menu-card .rules-card{margin:4px 6px 8px;color:#f6e3b4}.menu-card .rules-card dt{color:#ffe08a}.menu-card .rules-card dd{color:#f6e3b4cc}
+.menu-log p{font-size:12px;line-height:1.5;color:#f6e3b4bb;margin:6px 14px 0}
+.menu-log[open]{padding-bottom:6px}
+
+@media(orientation:landscape){
+  .exile-app{grid-template-rows:minmax(0,1fr);grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"top field hud"}
+  .top-bar{flex-direction:column;justify-content:center;padding:8px 6px;gap:8px}
+  .menu-button{order:-1}
+  .king-plaque,.battle-plaque{flex-direction:column;padding:6px 4px;gap:4px}
+  .hearts{flex-direction:column}
+  .road-dots{flex-direction:column}
+  .coins{margin:0;flex-direction:column;gap:2px;font-size:18px}
+  .table-hud{width:196px;grid-template-columns:1fr 1fr;grid-template-areas:"lan lan" "info info" "shield bell";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
+  .hud-info{flex-direction:column;align-items:stretch;min-height:0}
+  .table-hud .selected-card{align-self:center}
+  .lanterns{gap:4px}
+  .exile-field .board-camera{--pt:24px;--pb:14px}
+}
+@media(orientation:landscape) and (max-height:500px){
+  .lantern{width:28px;height:44px}
+  .shield-token{width:56px;height:56px}
+  .bell{width:72px;height:72px}.bell svg{width:36px;height:36px}
+  .table-hud .board-legend{font-size:9px!important}
+}
+@media(orientation:landscape) and (min-width:1100px) and (min-height:600px){
+  .top-bar{padding:16px 14px}
+  .table-hud{width:270px;padding:16px 20px 16px 10px}
+  .lantern{width:44px;height:66px}.lanterns{gap:8px}
+  .shield-token{width:76px;height:76px}.shield-token svg{width:34px;height:36px}
+  .bell{width:116px;height:116px}.bell svg{width:56px;height:56px}
+  .exile-field .board-camera{--pt:36px;--pb:44px;--px:16px}
+}

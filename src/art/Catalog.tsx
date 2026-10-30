@@ -7,7 +7,12 @@ import type { BannerKind } from "../components/BoardArt";
 import { ArmySlots, Legend, ReachGlyph, RulesCard } from "../components/Panels";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { H, PLACES, PlaceArt, START, W, blocked, onPath } from "../components/Hub";
-import { COST, DAMAGE, ENCOUNTERS, HP, STRIKE_COST } from "../game/turns";
+import { Lantern, Lanterns } from "../components/table/Lantern";
+import { Bell } from "../components/table/Bell";
+import { ShieldToken } from "../components/table/ShieldToken";
+import { TopBar } from "../components/TopBar";
+import { MenuCard } from "../components/PauseMenu";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST } from "../game/turns";
 import { Entry, Group, LoopRig, MiniBoard, usePhase, useStudio } from "./kit";
 
 export const KINDS: RigKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
@@ -205,26 +210,32 @@ export function Catalog() {
       <Entry name="Army chips (recruit glow)" src="hub.css .hub-army"><span className="hub-army">{(["king", "rook", "pawn"] as const).map((k, i) => <i key={k} className={i === 2 ? "new" : ""}><PieceRig kind={k} side="white" /></i>)}</span></Entry>
     </Group>
 
+    <Group id="table" title="Table HUD">
+      <Entry name="Lantern · lit / out" src="components/table/Lantern.tsx · table.css"><div className="table-spec"><Lantern lit /><Lantern lit={false} /></div></Entry>
+      <Entry name="Energy lanterns" src="table/Lantern.tsx Lanterns"><div className="table-spec"><Lanterns lit={3} total={ENERGY} /></div></Entry>
+      <Entry name="Shield token · ready / spent" src="components/table/ShieldToken.tsx"><div className="table-spec"><ShieldToken cost={1} /><ShieldToken cost={1} disabled /></div></Entry>
+      <Entry name="Skip token" src="App.tsx .skip-token"><div className="table-spec"><button className="skip-token" tabIndex={-1} aria-label="Skip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l9 7-9 7zM12 5l9 7-9 7z" /></svg></button></div></Entry>
+      <Entry name="Bell · ready / check / enemy turn" src="components/table/Bell.tsx" wide><div className="table-spec">{(["ready", "locked", "waiting"] as const).map(s => <Bell key={s} state={s} label={s} disabled={s !== "ready"} />)}</div></Entry>
+      <Entry name="Top bar" src="components/TopBar.tsx · table.css" wide><div className="table-spec"><TopBar kingHp={4} kingMax={HP.king} battle={2} battles={ENCOUNTERS.length} gold={12} /></div></Entry>
+      <Entry name="HUD strip" src="App.tsx .table-hud" wide><div className="table-spec"><section className="table-hud"><Lanterns lit={2} total={ENERGY} /><div className="hud-info"><div className="selected-card"><PieceRig kind="rook" side="white" /><div><strong>Rook</strong><span className="unit-stats">♥{HP.rook} <StrikeIcon />{DAMAGE.rook}</span><span className="action-pips"><i /><i className="full" /></span></div></div><Legend /></div><ShieldToken cost={1} /><Bell state="ready" label="End turn" /></section></div></Entry>
+      <Entry name="Enemy turn ribbon" src="table.css .turn-ribbon"><div className="table-spec ribbon-spec"><span className="turn-ribbon">ENEMY TURN</span></div></Entry>
+      <Entry name="Caption" src="table.css .playback-caption" wide><div className="table-spec ribbon-spec"><div className="playback-caption playing">Enemy pawn → b3</div></div></Entry>
+      <Entry name="Pause menu" src="components/PauseMenu.tsx" wide><div className="table-spec"><div className="pause-menu"><MenuCard log={["King → b2 · 1⚡"]} fast={false} onFast={() => {}} onNewRun={() => {}} onExport={() => {}} onClose={() => {}} /></div></div></Entry>
+    </Group>
+
     <Group id="ui" title="UI">
-      <Entry name="Wordmark" src="exile.css .exile-brand"><div className="exile-brand">CHEZZ</div></Entry>
-      <Entry name="Primary button" src="exile.css .primary-button"><button className="primary-button" tabIndex={-1}>End turn<span>→</span></button></Entry>
+      <Entry name="Primary button" src="exile.css .primary-button"><button className="primary-button" tabIndex={-1}>Start<span>→</span></button></Entry>
       <Entry name="Secondary button" src="exile.css .secondary-button"><button className="secondary-button" tabIndex={-1}>Defend · 1⚡<span>−1 · counter</span></button></Entry>
       <Entry name="Text button" src="exile.css .text-button"><button className="text-button" tabIndex={-1}>New run</button></Entry>
       <Entry name="Legend row" src="components/Panels.tsx Legend" wide><div className="studio-legend"><Legend /></div></Entry>
       <Entry name="Rules card" src="components/Panels.tsx RulesCard" wide><section className="exile-modal studio-modal help-exile"><h1>Rules</h1><RulesCard /></section></Entry>
       <Entry name="Barracks army slots" src="components/Panels.tsx ArmySlots"><div className="camp-gold"><ArmySlots filled={2} total={4} /></div></Entry>
       <Entry name="Barracks stats + reach grid" src="components/Panels.tsx ReachGlyph" wide><div className="studio-stats">{(["pawn", "bishop", "rook"] as const).map(k => <p key={k}>{k} ♥{HP[k]} <StrikeIcon />{DAMAGE[k]}<ReachGlyph kind={k} /></p>)}</div></Entry>
-      <Entry name="Energy pips" src="exile.css .energy-pips"><div className="energy-pips">{[1, 1, 0, 0].map((f, i) => <i key={i} className={f ? "full" : ""} />)}</div></Entry>
       <Entry name="Check alert" src="exile.css .check-alert"><p className="check-alert"><strong>Check!</strong></p><p className="check-alert no-way-out"><strong>Check. No way out.</strong></p></Entry>
       <Entry name="Selected card" src="exile.css .selected-card" wide><div className="selected-card"><PieceRig kind="rook" side="white" /><div><strong>rook · {HP.rook} HP · hits for {DAMAGE.rook}</strong></div></div></Entry>
       <Entry name="Offer card" src="exile.css .camp-offers" wide><div className="camp-offers one"><button tabIndex={-1}><div className="offer-art"><PieceRig kind="bishop" side="white" /></div><h2>Recruit a bishop</h2><strong>{COST.bishop} gold →</strong></button><button tabIndex={-1}><div className="offer-art"><span>♥</span></div><h2>Mend the king</h2><strong>{COST.heal} gold →</strong></button></div></Entry>
-      <Entry name="Run stats" src="exile.css .run-stats" wide><div className="run-stats"><span>♛ <b>4 / {HP.king}</b><small>KING HEALTH</small></span><span>⚡ <b>2 / 4</b><small>ENERGY</small></span><span>✦ <b>10</b><small>GOLD</small></span></div></Entry>
-      <Entry name="Arena topline" src="exile.css .arena-topline" wide><div className="arena-topline studio-fill"><span>TURN 3 · YOUR MOVE</span><span>2 ENEMIES</span></div></Entry>
-      <Entry name="Caption · enemy turn" src="exile.css .playback-caption" wide><div className="playback-caption playing studio-fill">Enemy pawn moves to b3.</div></Entry>
-      <Entry name="Playback controls" src="exile.css .playback-controls" wide><div className="playback-controls studio-fill"><label><input type="checkbox" readOnly tabIndex={-1} /> Fast enemy turns</label><button tabIndex={-1}>Skip enemy turn</button></div></Entry>
       <Entry name="Notice" src="exile.css .notice"><p className="notice">Autosave off</p></Entry>
       <Entry name="Modal card" src="exile.css .exile-modal" wide><section className="exile-modal studio-modal"><p className="kicker">KICKER</p><h1>Title</h1><button className="primary-button" tabIndex={-1}>Continue<span>→</span></button><button className="text-button" tabIndex={-1}>Back</button></section></Entry>
-      <Entry name="Battle log" src="exile.css .resolution-panel"><section className="resolution-panel"><details open><summary>Battle log</summary><p>Your rook strikes Enemy pawn for 3.</p></details></section></Entry>
       <Entry name="Hub sign" src="hub.css .hub-sign"><div className="sign-spec"><span className="hub-sign"><b>Barracks</b><small>Recruit and rest</small></span></div></Entry>
     </Group>
 

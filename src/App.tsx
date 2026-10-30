@@ -5,7 +5,12 @@ import { BattleBanner, GuardBadge } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
 import { DAMAGE, STRIKE_COST, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kindName, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, same, strikeExposesKing, unsafeStrikes, walkAndStrike } from "./game/turns";
-import { Legend, RulesCard } from "./components/Panels";
+import { Legend } from "./components/Panels";
+import { TopBar } from "./components/TopBar";
+import { PauseMenu } from "./components/PauseMenu";
+import { Lanterns } from "./components/table/Lantern";
+import { Bell } from "./components/table/Bell";
+import { ShieldToken } from "./components/table/ShieldToken";
 import { StrikeIcon } from "./components/StrikeIcon";
 import type { Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
 
@@ -176,7 +181,7 @@ export default function App() {
     // A surviving knight takes its counter after landing home, so the backflip isn't cut short.
     if (step.damage.some(d => d.id === actor.id) && !actorDies) animate(actor.id, "hit", leaps ? home + DURATION["leap-back"] : 520);
   };
-  const [help, setHelp] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [notice, setNotice] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -220,13 +225,21 @@ export default function App() {
   const skipOutro = () => { setBanner(""); setOutroDone(key); };
   useEffect(() => { if (!intro) try { localStorage.setItem(SAVE, JSON.stringify(run)); } catch { setNotice("Autosave off"); } }, [run, intro]);
   useEffect(() => {
-    if (!playback) return;
+    // The pause menu pauses the enemy's playback.
+    if (!playback || menu) return;
     timer.current = setTimeout(() => {
       if (playback.index + 1 < playback.steps.length) setPlayback({ ...playback, index: playback.index + 1 });
       else setPlayback(null);
     }, reduced ? 90 : fast ? 250 : 800);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [playback, fast, reduced]);
+  }, [playback, fast, reduced, menu]);
+  // Escape opens the pause menu whenever nothing else is up; the menu closes itself on Escape.
+  useEffect(() => {
+    if (menu || intro || run.phase !== "player" || run.promoting) return;
+    const open = (ev: KeyboardEvent) => { if (ev.key === "Escape" && !ev.defaultPrevented) setMenu(true); };
+    window.addEventListener("keydown", open);
+    return () => window.removeEventListener("keydown", open);
+  }, [menu, intro, run.phase, run.promoting]);
   useEffect(() => {
     if (!playback) return;
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
@@ -308,34 +321,36 @@ export default function App() {
   const step = playback ? playback.steps[playback.index] : null;
   const shown = step ? step.units : run.units;
   const caption = step ? step.text : picking ? "Strike from?" : "";
+  const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); };
+  const skip = () => { if (timer.current) clearTimeout(timer.current); setPlayback(null); };
   return <main className="exile-app">
-    <header className="exile-header"><div className="exile-brand">CHEZZ</div><div className="header-controls"><button onClick={() => setHelp(true)}>Rules</button><button disabled={!!playback} onClick={() => setIntro(true)}>New run</button></div></header>
-    <section className="run-heading"><div><p className="kicker">ESCAPE FROM EXILE</p><h1>Battle {run.encounter + 1} / {ENCOUNTERS.length}</h1></div><div className="run-stats"><span>♛ <b>{shown.find(u => u.id === "king")?.hp ?? 0} / {HP.king}</b><small>KING HP</small></span><span>⚡ <b>{playback ? 0 : run.energy} / {ENERGY}</b><small>ENERGY</small></span><span>✦ <b>{run.gold}</b><small>GOLD</small></span></div></section>
-    <div className="exile-layout">
-      <section className="exile-arena"><div className="arena-topline"><span>{playback ? "ENEMY TURN" : `TURN ${run.turn}`}</span><span>{shown.filter(u => u.side === "black").length} ENEMIES</span></div>
-        <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} />
-        <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate" : banner === "defeat" ? "Defeat" : banner === "victory" ? "Victory" : banner === "cleared" ? "Battle won" : ""}</p>
-        {banner && <BattleBanner kind={banner} line={banner === "cleared" ? `+${e.reward} ✦` : undefined} onClick={skipOutro} />}
-        <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div><div className="playback-controls"><label><input type="checkbox" checked={fast} onChange={ev => setFast(ev.target.checked)} /> Fast enemy turns</label>{playback && <button onClick={() => { if (timer.current) clearTimeout(timer.current); setPlayback(null); }}>Skip</button>}</div>
-      </section>
-      <aside className="exile-sidebar">
-        <section className="plan-panel action-bar">
-          <div className="energy-pips" aria-hidden="true">{Array.from({ length: ENERGY }, (_, i) => <i key={i} className={i < (playback ? 0 : run.energy) ? "full" : ""} />)}</div>
-          {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>}
-          {!playback && run.phase === "player" && <Legend />}
-          {selected && !locked && <button className="secondary-button" disabled={selected.acted || run.energy < 1} onClick={() => { setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); }}>Defend · 1⚡<span>−1 · counter</span></button>}
-          {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
-          <button className="primary-button" disabled={locked || (checkLocked && !playback)} onClick={finishTurn}>{playback ? "Enemy turn…" : checkLocked ? "King in check" : "End turn"}<span>→</span></button>
-          {notice && <p role="status" className="notice">{notice}</p>}
-        </section>
-        <section className="resolution-panel"><details><summary>Log</summary>{run.log.map((text, i) => <p key={i}>{text}</p>)}</details><button className="text-button" onClick={() => exportRun(run, feedback)}>Export ↗</button></section>
-      </aside>
-    </div>
-    <footer className="exile-footer"><span><a href="./art.html">Art studio</a></span></footer>
+    <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={HP.king} battle={run.encounter + 1} battles={ENCOUNTERS.length} gold={run.gold} menuOpen={menu} onMenu={() => setMenu(true)} />
+    <section className="exile-field">
+      <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} />
+      {playback && <span className="turn-ribbon">ENEMY TURN</span>}
+      {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
+      <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div>
+      {notice && <p role="status" className="notice">{notice}</p>}
+      <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate" : banner === "defeat" ? "Defeat" : banner === "victory" ? "Victory" : banner === "cleared" ? "Battle won" : ""}</p>
+      {banner && <BattleBanner kind={banner} line={banner === "cleared" ? `+${e.reward} ✦` : undefined} onClick={skipOutro} />}
+    </section>
+    <section className="table-hud" aria-label="Actions">
+      <Lanterns lit={playback ? 0 : run.energy} total={ENERGY} />
+      <div className="hud-info">
+        {selected && !locked
+          ? <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>
+          : <div className="selected-card empty" aria-hidden="true" />}
+        {!playback && run.phase === "player" && <Legend />}
+      </div>
+      {playback
+        ? <button className="skip-token" aria-label="Skip" onClick={skip}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5l9 7-9 7zM12 5l9 7-9 7z" /></svg></button>
+        : <ShieldToken cost={1} disabled={!selected || locked || selected.acted || run.energy < 1} onClick={defendNow} />}
+      <Bell state={playback ? "waiting" : checkLocked ? "locked" : "ready"} label={playback ? "Enemy turn" : checkLocked ? "King in check" : "End turn"} disabled={locked || checkLocked} onClick={finishTurn} />
+    </section>
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" onClick={start}>Start<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><h1>Promote</h1><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kindName(kind)}</h2><p>♥{HP[kind]} ⚔{DAMAGE[kind]}</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${ENCOUNTERS.length} · turn ${run.turn}`}</p><label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
-    {help && <div className="exile-modal-shade"><section className="exile-modal help-exile" role="dialog" aria-modal="true" aria-label="Rules"><h1>Rules</h1><RulesCard /><button className="primary-button" onClick={() => setHelp(false)}>Close<span>→</span></button></section></div>}
+    {menu && <PauseMenu log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onExport={() => exportRun(run, feedback)} onClose={() => setMenu(false)} />}
   </main>;
 }

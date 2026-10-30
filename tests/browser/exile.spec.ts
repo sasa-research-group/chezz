@@ -251,11 +251,87 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
   await page.screenshot({ path: "test-results/exile-mobile.png", fullPage: true });
 });
 
+const SIZES = [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1440, height: 900 }];
+const noScroll = (page: Page) => page.evaluate(() => {
+  const el = document.documentElement;
+  return { tall: el.scrollHeight - innerHeight, wide: el.scrollWidth - innerWidth };
+});
+const inView = async (page: Page, name: string) => {
+  const box = (await page.getByRole("button", { name, exact: true }).boundingBox())!;
+  const view = page.viewportSize()!;
+  expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(view.width); expect(box.y + box.height).toBeLessThanOrEqual(view.height);
+  // Tap targets stay at least 44px.
+  expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+};
+
+for (const size of SIZES) {
+  test(`the battle and the hideout fit ${size.width}x${size.height} without scrolling`, async ({ page }) => {
+    const start = newRun();
+    const battle3 = { ...start, encounter: 2, units: [{ ...start.units[0], x: 2, y: 5 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 3, y: 5, hp: 5 }, { id: "enemy-2-0", side: "black" as const, kind: "knight" as const, x: 3, y: 0, hp: 3 }] };
+    await page.setViewportSize(size);
+    await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(battle3));
+    await page.goto("/");
+    await page.getByRole("button", { name: /^c1 white king/ }).click();
+    expect(await noScroll(page)).toEqual({ tall: 0, wide: 0 });
+    for (const name of ["Menu", "End turn", "Defend, 1 energy"]) await inView(page, name);
+    await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
+    await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
+    await page.reload();
+    await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
+    expect(await noScroll(page)).toEqual({ tall: 0, wide: 0 });
+    for (const id of ["barracks", "road"]) {
+      const box = (await page.getByTestId(`place-${id}`).boundingBox())!;
+      expect(box.y + box.height).toBeLessThanOrEqual(size.height);
+      expect(box.x + box.width).toBeLessThanOrEqual(size.width);
+    }
+    await page.screenshot({ path: `test-results/shell-hub-${size.width}x${size.height}.png` });
+  });
+}
+
+test("on battle 3's 6x6 board every square is at least 56px on a phone", async ({ page }) => {
+  const start = newRun();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, encounter: 2, units: [{ ...start.units[0], x: 2, y: 5 }, { id: "enemy-2-0", side: "black" as const, kind: "knight" as const, x: 3, y: 0, hp: 3 }] }));
+  await page.goto("/");
+  const cells = page.locator(".exile-cell");
+  await expect(cells).toHaveCount(36);
+  for (const box of await cells.evaluateAll(els => els.map(el => el.getBoundingClientRect()).map(r => ({ w: r.width, h: r.height })))) {
+    expect(box.w).toBeGreaterThanOrEqual(56);
+    expect(box.h).toBeGreaterThanOrEqual(56);
+  }
+});
+
+test("the ☰ menu opens and closes with Escape and keeps focus inside", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
+  const button = page.getByRole("button", { name: "Menu" }), menu = page.getByRole("dialog", { name: "Menu" });
+  await button.click();
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Resume" })).toBeFocused();
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press("Tab");
+    expect(await menu.evaluate(el => el.contains(document.activeElement))).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(button).toBeFocused();
+  // Escape on the table opens it again.
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeVisible();
+  await menu.getByRole("button", { name: "Rules" }).click();
+  await expect(menu.locator(".rules-card")).toBeVisible();
+  await menu.getByRole("button", { name: "Resume" }).click();
+  await expect(menu).toBeHidden();
+});
+
 test("complete the exile run through browser controls", async ({ page }) => {
   test.setTimeout(150000);
   await page.goto("/");
   await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
+  await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("checkbox", { name: "Fast enemy turns" }).check();
+  await page.keyboard.press("Escape");
   for (let i = 0; i < 120; i++) {
     const g = await saved(page);
     if (g.phase === "victory" || g.phase === "defeat") break;

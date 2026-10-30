@@ -3,12 +3,14 @@ import type { Palette, RigAction } from "../components/PieceRig";
 import exileCss from "../exile.css?raw";
 import rigCss from "../rig.css?raw";
 import hubCss from "../hub.css?raw";
+import tableCss from "../table.css?raw";
 import rigTsx from "../components/PieceRig.tsx?raw";
 import hubTsx from "../components/Hub.tsx?raw";
+import lanternTsx from "../components/table/Lantern.tsx?raw";
 import { KINDS } from "./Catalog";
 import { useStudio } from "./kit";
 
-const SOURCES: [string, string][] = [["exile.css", exileCss], ["rig.css", rigCss], ["hub.css", hubCss], ["PieceRig.tsx", rigTsx], ["Hub.tsx", hubTsx]];
+const SOURCES: [string, string][] = [["exile.css", exileCss], ["rig.css", rigCss], ["hub.css", hubCss], ["table.css", tableCss], ["PieceRig.tsx", rigTsx], ["Hub.tsx", hubTsx], ["Lantern.tsx", lanternTsx]];
 const HEX = /#[0-9a-f]{3,8}\b/gi;
 const where = (hex: string) => SOURCES.map(([f, src]) => [f, src.toLowerCase().split(hex.toLowerCase()).length - 1] as const).filter(([, n]) => n > 0);
 
@@ -19,7 +21,8 @@ function Swatch({ hex, name }: { hex: string; name: string }) {
 }
 const pal = (p: Palette, label: string): [string, string][] => [[p.main, `${label} main`], [p.mainSh, `${label} main shade`], [p.acc, `${label} accent`], [p.accSh, `${label} accent shade`], [p.cloth, `${label} cloth`], [p.clothSh, `${label} cloth shade`]];
 const PALETTES: { title: string; colors: [string, string][] }[] = [
-  { title: "Ink and paper", colors: [[INK, "Ink (all outlines, text)"], ["#f3ead7", "Parchment page"], ["#fbf6e8", "Panel"], ["#e6ddc2", "Arena"], ["#cabc9e", "Rule / border"], ["#766a58", "Muted text"]] },
+  { title: "Ink and paper", colors: [[INK, "Ink (all outlines, text)"], ["#f3ead7", "Parchment page"], ["#fbf6e8", "Panel"],["#cabc9e", "Rule / border"], ["#766a58", "Muted text"]] },
+  { title: "Table", colors: [["#8a6a50", "Table light"], ["#5a4434", "Table mid"], ["#3a2b22", "Table edge"], ["#2b201b", "Plaque"], ["#a8865f", "Brass rim"], ["#f6e3b4", "Plaque text"], ["#7a5c44", "Board frame (game)"], ["#e2a92a", "Bell brass"], ["#cfe2f3", "Shield token"], ["#ffb21f", "Lantern flame"]] },
   { title: "Board", colors: [["#e9d6ae", "Sand square"], ["#9aaf87", "Grass square"], ["#695c51", "Wall"], ["#675448", "Frame"], ["#483b34", "Frame shadow"], ["#e7b66d", "Impact"]] },
   { title: "Rebels", colors: pal(REBEL, "Rebel") },
   { title: "Patrol (blue, in game)", colors: pal(PATROL.blue, "Patrol") },
@@ -42,7 +45,6 @@ function AllColours() {
 
 const TYPE: [string, string, string, string][] = [
   ["Display", "Georgia, serif", "clamp(29px,3vw,43px) · -1.5px", "Screen titles, banners, card titles"],
-  ["Wordmark", "Georgia 900 · system-ui 700", "35px -2px · 9px +2px", "CHEZZ header"],
   ["Body", "DM Sans 400", "12–13px · 1.5", "Panels, captions"],
   ["Kicker", "DM Sans 800 · caps", "10px · +1.6px", "Section labels"],
   ["Numbers", "DM Sans 900", "13–22px", "HP badges, damage, strike costs"],

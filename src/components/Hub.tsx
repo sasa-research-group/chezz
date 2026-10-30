@@ -141,6 +141,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
           <small>ARMY</small></span>
       </div>
     </header>
+    <div className="hub-field">
     <div className="hub-map" style={{ aspectRatio: `${W}/${H}`, "--spd": spd } as CSSProperties}>
       <div className="hub-ground" aria-hidden="true">
         {Array.from({ length: W * H }, (_, i) => {
@@ -157,6 +158,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
       <div className={`hub-king ${walking ? "walking" : ""}`} aria-hidden="true" style={{ left: left(king.x + .5), top: top(king.y + .5), transitionDuration: `${stepMs}ms` }}>
         <PieceRig kind="king" side="white" action={walking ? "move" : "idle"} seed="king" />
       </div>
+    </div>
     </div>
     </div>
     {place && <div className="exile-modal-shade" onClick={ev => { if (ev.target === ev.currentTarget) setOpen(null); }}>
