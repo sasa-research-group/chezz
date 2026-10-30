@@ -355,7 +355,7 @@ describe("turn-based rules", () => {
     // The next battle has three start squares: king + two recruits fill them.
     const g = { ...newRun(), phase: "camp" as const, gold: 99, units: [king] };
     const full = buy(buy(g, "pawn"), "pawn");
-    expect(campReason(full, "rook")).toBe("No room on the next road");
+    expect(campReason(full, "rook")).toBe("Army full");
     expect(buy(full, "rook")).toBe(full);
     expect(buy({ ...g, gold: 1 }, "pawn").gold).toBe(1);
   });

@@ -8,7 +8,7 @@ export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
 export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean; defending?: boolean };
 export type Target = Pos & { cost: number; id?: string };
-export type Encounter = { title: string; story: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: [Kind, number, number, number][]; starts: Pos[] };
+export type Encounter = { story?: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: [Kind, number, number, number][]; starts: Pos[] };
 export type Run = {
   version: 2; encounter: number; turn: number;
   phase: "player" | "camp" | "victory" | "defeat";
@@ -29,9 +29,9 @@ export const STRIKE_COST = 2;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
 export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop: 2, knight: 2, pawn: 1 };
 export const ENCOUNTERS: Encounter[] = [
-  { title: "The roadside patrol", story: "Two royal lackeys. One very annoyed former king. Clear the road.", reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
-  { title: "The first follower", story: "The old toll gate is closed. Find a way around, and bring everyone home.", reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
-  { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
+  { reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
+  { reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
+  { reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
 ];
 export type CampChoice = Recruit | "heal";
 export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
@@ -39,7 +39,7 @@ export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, h
 export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (ENCOUNTERS[g.encounter].height - p.y);
 export const at = (g: Run, p: Pos) => g.units.find(u => same(u, p));
-export const label = (u: Unit) => `${u.side === "white" ? "Your" : "Enemy"} ${u.kind}`;
+export const label = (u: Unit) => u.side === "white" ? u.kind[0].toUpperCase() + u.kind.slice(1) : `Enemy ${u.kind}`;
 export function passable(g: Run, p: Pos) {
   const e = ENCOUNTERS[g.encounter];
   return p.x >= 0 && p.y >= 0 && p.x < e.width && p.y < e.height && !e.walls.some(w => same(w, p));
@@ -105,7 +105,7 @@ function spawn(g: Run, army: Unit[]): Run {
   const e = ENCOUNTERS[g.encounter];
   const whites = army.map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map(([kind, x, y, hp], i) => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black" as const, x, y, hp }));
-  return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
+  return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [] };
 }
 export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
@@ -114,10 +114,10 @@ export function newRun(): Run {
 
 const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => (u.id === id ? { ...u, ...patch } : u));
 function finish(g: Run): Run {
-  if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["The crown fell. Your rebellion ends here.", ...g.log] };
+  if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["King captured", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
     const last = g.encounter === ENCOUNTERS.length - 1, reward = ENCOUNTERS[g.encounter].reward;
-    return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Across the bridge. Your rebellion has begun." : `Road cleared. +${reward} gold.`, ...g.log] };
+    return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : `+${reward} ✦`, ...g.log] };
   }
   return g;
 }
@@ -138,13 +138,13 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
   if (!t) return g;
-  const next = note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`);
+  const next = note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} → ${coord(g, to)} · ${t.cost}⚡`);
   // A pawn on the far row waits for you to choose what it becomes.
   return u.kind === "pawn" && to.y === lastRank(g, u) ? { ...next, promoting: id } : next;
 }
 const lastRank = (g: Run, u: Unit) => (u.side === "white" ? 0 : ENCOUNTERS[g.encounter].height - 1);
 function promoted(g: Run, u: Unit, kind: PromoteTo): { run: Run; step: Step } {
-  const text = `${label(u)} reaches the far row and becomes a ${kind}!`;
+  const text = `${label(u)} → ${kind}`;
   const run = note({ ...g, units: withUnit(g, u.id, { kind, hp: HP[kind] }) }, text);
   return { run, step: { text, units: run.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "promote", killed: [], from: u.kind } };
 }
@@ -159,7 +159,7 @@ export function promote(g: Run, id: string, kind: PromoteTo): { run: Run; step: 
 export function defend(g: Run, id: string): Run {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white" || u.acted || g.energy < 1) return g;
-  return note({ ...g, energy: g.energy - 1, units: withUnit(g, id, { acted: true, defending: true }) }, `${label(u)} defends (1 energy).`);
+  return note({ ...g, energy: g.energy - 1, units: withUnit(g, id, { acted: true, defending: true }) }, `${label(u)} defends · 1⚡`);
 }
 
 /** Resolves one strike for either side; `energy` is what the striker's side has. */
@@ -170,12 +170,12 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   // Strikes land from where the striker stands; it never moves onto the target's square.
   let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true }] : [u]);
   const damage = [{ id: v.id, amount: dealt }];
-  let text = `${label(a)} strikes ${label(v)} for ${dealt}${survives ? "" : ", defeating it"}.`;
+  let text = `${label(a)} ⚔ ${label(v).toLowerCase()} −${dealt}${survives ? "" : " · killed"}`;
   if (survives && v.defending && reaches({ ...g, units }, v, v, a)) {
     const back = DAMAGE[v.kind], left = a.hp - back;
     units = left > 0 ? units.map(u => (u.id === a.id ? { ...u, hp: left } : u)) : units.filter(u => u.id !== a.id);
     damage.push({ id: a.id, amount: back });
-    text += ` The defender counters for ${back}${left > 0 ? "" : ", defeating it"}.`;
+    text += ` · counter −${back}${left > 0 ? "" : " · killed"}`;
   }
   const run = note({ ...g, units }, text);
   const killed = g.units.filter(u => !run.units.some(w => w.id === u.id)).map(u => u.id);
@@ -244,7 +244,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const lineUp = !u.acted && energy - t.cost >= strikeCost && whites.some(w => reaches(run, u, t, w));
         if (gain <= 0 && !march && !crowning && !lineUp) continue;
         choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
-          const text = `${label(u)} moves to ${coord(run, t)}.`;
+          const text = `${label(u)} → ${coord(run, t)}`;
           const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
@@ -255,7 +255,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + STRIKE_COST <= ENERGY && reaches(run, w, t, u));
       const worthIt = whites.some(w => threat(w) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
       if (!u.acted && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
-        const text = `${label(u)} braces to defend.`;
+        const text = `${label(u)} defends`;
         const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);
         return { run: next, step: { text, units: next.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "defend", killed: [] }, cost: 1 };
       } });
@@ -340,9 +340,9 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
 export function campReason(g: Run, choice: CampChoice): string {
   if (g.phase !== "camp") return "Camp is closed";
   if (g.gold < COST[choice]) return "Not enough gold";
-  if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= HP.king) return "King at full health";
+  if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= HP.king) return "Full HP";
   const army = g.units.filter(u => u.side === "white").length + (g.recruits?.length ?? 0);
-  if (choice !== "heal" && army >= (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0)) return "No room on the next road";
+  if (choice !== "heal" && army >= (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0)) return "Army full";
   return "";
 }
 /** Spend gold at the hub: mend the king now, or add a recruit to the barracks. You can buy as often as gold and room allow. */

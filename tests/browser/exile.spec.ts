@@ -9,7 +9,7 @@ const cell = (page: Page, g: Run, p: { x: number; y: number }) => page.getByRole
 
 test("move, end turn, watch the enemy, and resume after reload", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Begin the rebellion" }).click();
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
   await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await expect(page.getByRole("button", { name: /^b2 empty, move for 1/ })).toBeVisible();
@@ -19,7 +19,7 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeDisabled();
-  await page.getByRole("button", { name: "Skip enemy turn" }).click();
+  await page.getByRole("button", { name: "Skip" }).click();
   await expect.poll(async () => (await saved(page)).turn).toBe(2);
   await page.reload();
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeEnabled();
@@ -33,7 +33,7 @@ test("the winning blow plays out and celebrates before the hideout", async ({ pa
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await page.getByRole("button", { name: /^c2 black pawn/ }).click();
   await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeHidden();
-  const banner = page.getByRole("button", { name: /Road cleared!/ });
+  const banner = page.getByRole("button", { name: /^Battle won/ });
   await expect(banner).toBeVisible();
   await page.screenshot({ path: "test-results/exile-victory-banner.png" });
   await banner.click();
@@ -81,7 +81,7 @@ test("with several squares to strike from, you pick one", async ({ page }) => {
   const king = now.units[0], target = now.units[1];
   await cell(page, now, king).click();
   await cell(page, now, target).click();
-  await expect(page.getByRole("status")).toHaveText(/Pick a square to strike the pawn from/);
+  await expect(page.locator(".playback-caption")).toHaveText("Strike from?");
   const picks = page.getByRole("button", { name: /walk here and strike the pawn/ });
   expect(await picks.count()).toBeGreaterThan(1);
   await page.screenshot({ path: "test-results/exile-pick-square.png" });
@@ -100,12 +100,12 @@ test("check locks End turn until the king is safe", async ({ page }) => {
   const g = { ...start, encounter: 1, units: [{ ...start.units[0], hp: 3 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
-  await expect(page.getByRole("alert")).toContainText("Check!");
+  await expect(page.getByRole("alert")).toHaveText("Check");
   await expect(page.locator(".check-mark")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "King in check" })).toBeDisabled();
   // Defending takes the hit down to 2, so the king would survive: no longer check.
   await page.getByRole("button", { name: /^b1 white king/ }).click();
-  await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
+  await page.getByRole("button", { name: /^Defend/ }).click();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
 });
@@ -124,7 +124,7 @@ test("checkmate plays a finale before the defeat screen", async ({ page }) => {
   await expect(banner).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: "test-results/exile-checkmate.png" });
   await banner.click();
-  await expect(page.getByRole("dialog", { name: "Rebellion ended" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Defeat" })).toBeVisible();
 });
 
 test("a king felled by a counter on your own turn still gets the finale", async ({ page }) => {
@@ -141,7 +141,7 @@ test("a king felled by a counter on your own turn still gets the finale", async 
   await expect(page.getByRole("button", { name: /Checkmate!/ })).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: "test-results/exile-checkmate-counter.png" });
   await page.getByRole("button", { name: /Checkmate!/ }).click();
-  await expect(page.getByRole("dialog", { name: "Rebellion ended" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Defeat" })).toBeVisible();
   // He stays flattened on his square, not standing idle.
   await expect(page.locator(".exile-piece.white .rig.act-mate")).toHaveCount(1);
 });
@@ -155,7 +155,6 @@ test("moves that would put your own king in check are blocked", async ({ page })
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await expect(page.locator(".unsafe-dot")).toHaveCount(1);
   await page.getByRole("button", { name: /^b2 empty, blocked: would put your king in check/ }).click();
-  await expect(page.getByRole("status")).toHaveText(/would put your king in check/);
   expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: 1, y: 3 });
   // A safe square still works.
   await page.getByRole("button", { name: /^a1 empty, move for 1/ }).click();
@@ -182,7 +181,7 @@ test("in check, an offered walk-up strike lands in full", async ({ page }) => {
   const g = { ...start, encounter: 1, units: [{ ...start.units[0], x: 0, y: 0, hp: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 1, y: 2, hp: 1 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 2, y: 0, hp: 5, defending: true }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
-  await expect(page.getByRole("alert")).toContainText("Check!");
+  await expect(page.getByRole("alert")).toHaveText("Check");
   await page.getByRole("button", { name: /^b2 white rook/ }).click();
   await page.getByRole("button", { name: /^c4 black rook.*strike for/ }).click();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "enemy-1-0")?.hp ?? 0).toBeLessThan(5);
@@ -205,7 +204,7 @@ test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
   await page.screenshot({ path: "test-results/exile-promotion.png" });
 });
 
-test("the hideout: walk to the barracks, recruit, peek at placeholders, take the road", async ({ page }) => {
+test("the hideout: walk to the barracks, recruit, take the road; placeholders stay locked", async ({ page }) => {
   const start = newRun();
   const g = { ...start, phase: "camp" as const, gold: 20, units: [{ ...start.units[0], hp: 3 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
@@ -214,36 +213,21 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   const hub = page.getByRole("dialog", { name: "Rebel hideout" });
   await expect(hub).toBeVisible();
   await page.screenshot({ path: "test-results/hub-mobile.png" });
-  for (const name of [/^Barracks/, /^Training grounds/, /^Armory/, /^Merchant/, /^Grandmaster.s Guild/, /^Road out/]) {
-    const box = (await hub.getByRole("button", { name }).boundingBox())!;
+  for (const id of ["barracks", "training", "armory", "merchant", "guild", "road"]) {
+    const box = (await hub.getByTestId(`place-${id}`).boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(664);
   }
-  await page.getByRole("button", { name: /^Training grounds/ }).click();
-  const training = page.getByRole("dialog", { name: "Training grounds" });
-  await expect(training).toBeVisible();
-  // A placeholder: nothing to do there yet but leave.
-  await expect(training.getByRole("button")).toHaveCount(1);
-  await page.keyboard.press("Escape");
-  await expect(training).toBeHidden();
-  await page.getByRole("button", { name: /^Armory/ }).click();
-  const armory = page.getByRole("dialog", { name: "Armory" });
-  await expect(armory.getByRole("button")).toHaveCount(1);
-  await page.keyboard.press("Escape");
-  await expect(armory).toBeHidden();
-  await page.getByRole("button", { name: /^Grandmaster.s Guild/ }).click();
-  const guild = page.getByRole("dialog", { name: "Grandmaster's Guild" });
-  await expect(guild.getByRole("button")).toHaveCount(1);
-  await page.screenshot({ path: "test-results/hub-guild.png" });
-  await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: /^Barracks/ }).click();
+  for (const id of ["training", "armory", "merchant", "guild"]) await expect(hub.getByTestId(`place-${id}`)).toBeDisabled();
+  await hub.getByTestId("place-barracks").click();
   const barracks = page.getByRole("dialog", { name: "Barracks" });
-  await barracks.getByRole("button", { name: /Recruit a pawn/ }).click();
-  await barracks.getByRole("button", { name: /Recruit a bishop/ }).click();
-  await expect(barracks.getByRole("button", { name: /Recruit a pawn/ })).toBeDisabled();
+  await barracks.getByTestId("buy-pawn").click();
+  await barracks.getByTestId("buy-bishop").click();
+  await expect(barracks.getByTestId("buy-pawn")).toBeDisabled();
+  await expect(barracks.getByTestId("buy-pawn")).toContainText("Army full");
   await page.screenshot({ path: "test-results/hub-barracks.png" });
-  await barracks.getByRole("button", { name: "Back to the hideout" }).click();
-  await page.getByRole("button", { name: /^Road out/ }).click();
-  await page.getByRole("button", { name: "March out" }).click();
+  await barracks.getByRole("button", { name: "Close" }).click();
+  await hub.getByTestId("place-road").click();
+  await page.getByRole("button", { name: "Start battle" }).click();
   await expect.poll(async () => (await saved(page)).units.filter(u => u.side === "white").map(u => u.kind)).toEqual(["king", "pawn", "bishop"]);
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
 });
@@ -252,13 +236,13 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
   // iPhone 13 Pro with Safari's bars showing: about 390 × 664.
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto("/");
-  await page.getByRole("button", { name: "Begin the rebellion" }).click();
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
   await page.getByRole("button", { name: /^b1 white king/ }).click();
-  for (const control of [page.getByRole("button", { name: "End turn" }), page.getByRole("button", { name: /^Defend · 1 energy/ }), page.getByRole("button", { name: /^a4 / }), page.getByRole("button", { name: /^d1 / })]) {
+  for (const control of [page.getByRole("button", { name: "End turn" }), page.getByRole("button", { name: /^Defend/ }), page.getByRole("button", { name: /^a4 / }), page.getByRole("button", { name: /^d1 / })]) {
     const box = (await control.boundingBox())!;
     expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(664);
   }
-  await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
+  await page.getByRole("button", { name: /^Defend/ }).click();
   await expect.poll(async () => (await saved(page)).energy).toBe(3);
   // A defending piece is marked: a shield chip and "defending" in its label.
   await expect(page.locator(".guard-badge")).toHaveCount(1);
@@ -270,7 +254,7 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
 test("complete the exile run through browser controls", async ({ page }) => {
   test.setTimeout(150000);
   await page.goto("/");
-  await page.getByRole("button", { name: "Begin the rebellion" }).click();
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
   await page.getByRole("checkbox", { name: "Fast enemy turns" }).check();
   for (let i = 0; i < 120; i++) {
     const g = await saved(page);
@@ -278,12 +262,12 @@ test("complete the exile run through browser controls", async ({ page }) => {
     if (g.phase === "camp") {
       await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
       const king = g.units.find(u => u.id === "king")!;
-      await page.getByRole("button", { name: /^Barracks/ }).click();
+      await page.getByTestId("place-barracks").click();
       const barracks = page.getByRole("dialog", { name: "Barracks" });
-      await barracks.getByRole("button", { name: king.hp < 3 ? /Mend the king/ : g.gold >= 8 ? /Recruit a rook/ : /Recruit a bishop/ }).click();
-      await barracks.getByRole("button", { name: "Back to the hideout" }).click();
-      await page.getByRole("button", { name: /^Road out/ }).click();
-      await page.getByRole("button", { name: "March out" }).click();
+      await barracks.getByTestId(king.hp < 3 ? "buy-heal" : g.gold >= 8 ? "buy-rook" : "buy-bishop").click();
+      await barracks.getByRole("button", { name: "Close" }).click();
+      await page.getByTestId("place-road").click();
+      await page.getByRole("button", { name: "Start battle" }).click();
       await expect.poll(async () => (await saved(page)).encounter).toBe(g.encounter + 1);
       continue;
     }
@@ -295,12 +279,12 @@ test("complete the exile run through browser controls", async ({ page }) => {
     }
     const u = g.units.find(v => v.id === a.id)!;
     await cell(page, g, u).click();
-    if (a.type === "defend") await page.getByRole("button", { name: /^Defend · 1 energy/ }).click();
+    if (a.type === "defend") await page.getByRole("button", { name: /^Defend/ }).click();
     else await cell(page, g, a.to).click();
     await expect.poll(async () => JSON.stringify(await saved(page)) !== JSON.stringify(g)).toBe(true);
   }
   expect((await saved(page)).phase).toBe("victory");
-  await expect(page.getByRole("dialog", { name: "Exile run complete" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Victory" })).toBeVisible();
   await page.getByRole("button", { name: /Play again/ }).click();
   expect((await saved(page)).encounter).toBe(0);
 });

@@ -11,6 +11,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   for king, pawn, rook, bishop and queen, or 2 for a knight's jump. Slides stop
   at pieces and walls; knights leap. Pawns step forward only.
 - Then it may **strike** or **defend**, not both. It can't move after either.
+- Two pips under each of your pieces track this: both full is ready, one is
+  moved, none is done.
 
 ## Strikes
 - Reach: one square in the piece's capture shape. Kings and queens strike any
@@ -27,6 +29,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   pool), it does: automatically when only one square works, otherwise you
   pick the square. Strikeable enemies glow red and carry a ⚔ badge with
   the cheapest total cost.
+- With a piece selected, faint red corner ticks mark the squares it could
+  strike from where it stands.
 - No return hit. Strikes land from where the striker stands: it never moves
   onto the target's square, even on a kill (unlike chess).
 
@@ -42,7 +46,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   outright. A tap-to-strike (walk up, then strike) is judged as one move
   (`walkAndStrike`): the walk may step into danger if the king is safe once the
   strike lands, say because it kills the attacker. Unsafe moves show a red ✕;
-  unsafe strikes lose their ⚔ badge. Once he's already in check you
+  an enemy you could only strike unsafely shows a ✕ chip instead of its ⚔
+  badge. Once he's already in check you
   may act freely; he just has to be safe by the end of the turn.
 - In check you can't end your turn until he's safe: move him, block, defend
   (1 less damage per hit), or take out an attacker. If nothing you can still do
@@ -53,7 +58,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   prediction of what its AI will pick.
 - When the king falls, it's checkmate: the camera pushes in on him, his
   attackers gloat, he staggers, his crown flies off, he spins and keels over
-  flat, and a CHECKMATE! banner (with a joke) slams in before the defeat screen.
+  flat, and a CHECKMATE! banner slams in before the defeat screen.
   Presentation only (`stage.mating`, the `mate` rig action).
 
 ## Promotion
@@ -85,8 +90,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   survive the hit, or it could hit back. Otherwise it simply waits.
 
 ## End of a battle
-- The final blow plays out in full, then a short celebration ("Road
-  cleared!" or "Victory!" while your pieces cheer, or "The crown falls…")
+- The final blow plays out in full, then a short celebration ("Battle won"
+  or "Victory!" while your pieces cheer, or "Defeat")
   before the hideout or end menu. Tapping the banner skips ahead. Presentation
   only.
 
@@ -98,9 +103,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
     (`run.recruits`) and are refused once the army would outnumber the next
     map's start squares.
   - Training grounds (upgrades), the armory (gear), the merchant
-    (consumables) and the Grandmaster's Guild: placeholders with no actions
-    yet.
-  - Road out: march into the next battle.
+    (consumables) and the Grandmaster's Guild: locked (🔒) placeholders.
+  - Next battle: march into it.
 - HP carries over; fallen allies stay gone; king death ends the run. The order pool, combat modes, pawn ambushes and cleanup
   strikes from the simultaneous slice are gone.
 

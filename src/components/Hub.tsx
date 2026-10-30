@@ -1,28 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { COST, DAMAGE, ENCOUNTERS, HP, campReason } from "../game/turns";
-import type { CampChoice, Pos, Run } from "../game/turns";
+import type { CampChoice, Pos, Recruit, Run } from "../game/turns";
 import { PieceRig } from "./PieceRig";
 import "../hub.css";
 
 /** The hub between battles: a small village the king walks around. Presentation only; the rules
- * live in turns.ts (buy, leaveCamp). Training grounds, the armory, the merchant and the Grandmaster's Guild are placeholders for now. */
+ * live in turns.ts (buy, leaveCamp). Training grounds, the armory, the merchant and the Grandmaster's Guild are locked placeholders. */
 export type PlaceId = "barracks" | "training" | "armory" | "merchant" | "guild" | "road";
 type Place = { id: PlaceId; name: string; tagline: string; at: Pos; size: Pos; door: Pos; soon?: boolean };
 export const W = 7, H = 5;
 export const PLACES: Place[] = [
-  { id: "barracks", name: "Barracks", tagline: "Recruit and rest", at: { x: 0, y: 0 }, size: { x: 2, y: 2 }, door: { x: 2, y: 1 } },
-  { id: "training", name: "Training grounds", tagline: "Coming soon", at: { x: 5, y: 0 }, size: { x: 2, y: 2 }, door: { x: 4, y: 1 }, soon: true },
-  { id: "armory", name: "Armory", tagline: "Coming soon", at: { x: 3, y: 0 }, size: { x: 1, y: 2 }, door: { x: 3, y: 2 }, soon: true },
-  { id: "guild", name: "Grandmaster's Guild", tagline: "Coming soon", at: { x: 3, y: 3 }, size: { x: 2, y: 2 }, door: { x: 4, y: 2 }, soon: true },
-  { id: "merchant", name: "Merchant", tagline: "Coming soon", at: { x: 0, y: 3 }, size: { x: 2, y: 2 }, door: { x: 2, y: 3 }, soon: true },
-  { id: "road", name: "Road out", tagline: "Next battle", at: { x: 6, y: 3 }, size: { x: 1, y: 2 }, door: { x: 5, y: 4 } },
+  { id: "barracks", name: "Barracks", tagline: "Recruit · heal", at: { x: 0, y: 0 }, size: { x: 2, y: 2 }, door: { x: 2, y: 1 } },
+  { id: "training", name: "Training grounds", tagline: "🔒", at: { x: 5, y: 0 }, size: { x: 2, y: 2 }, door: { x: 4, y: 1 }, soon: true },
+  { id: "armory", name: "Armory", tagline: "🔒", at: { x: 3, y: 0 }, size: { x: 1, y: 2 }, door: { x: 3, y: 2 }, soon: true },
+  { id: "guild", name: "Grandmaster's Guild", tagline: "🔒", at: { x: 3, y: 3 }, size: { x: 2, y: 2 }, door: { x: 4, y: 2 }, soon: true },
+  { id: "merchant", name: "Merchant", tagline: "🔒", at: { x: 0, y: 3 }, size: { x: 2, y: 2 }, door: { x: 2, y: 3 }, soon: true },
+  { id: "road", name: "Next battle", tagline: "", at: { x: 6, y: 3 }, size: { x: 1, y: 2 }, door: { x: 5, y: 4 } },
 ];
 export const START: Pos = { x: 3, y: 2 };
 export const blocked = (p: Pos) => PLACES.some(b => p.x >= b.at.x && p.x < b.at.x + b.size.x && p.y >= b.at.y && p.y < b.at.y + b.size.y);
 // A dirt road from the square out front to every door.
 export const onPath = (p: Pos) => p.y === 2 || PLACES.some(b => b.door.x === p.x && b.door.y === p.y) || (p.x === 5 && p.y > 2);
 const OFFERS: CampChoice[] = ["pawn", "bishop", "rook", "heal"];
+/** Squares around the piece (row by row, centre skipped) that each recruit strikes. */
+const REACH: Record<Recruit, number[]> = { pawn: [0, 2], bishop: [0, 2, 6, 8], rook: [1, 3, 5, 7] };
+const title = (k: string) => k[0].toUpperCase() + k.slice(1);
 
 /** Shortest walk between two village squares, around the buildings. */
 export function walkPath(from: Pos, to: Pos): Pos[] {
@@ -128,10 +131,10 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
   return <section className="hub-screen" role="dialog" aria-modal="true" aria-label="Rebel hideout">
     <div className="hub-body" inert={!!place}>
     <header className="hub-header">
-      <div><p className="kicker">PATROL DEFEATED · +{reward} GOLD</p><h1>The rebel hideout</h1><p>Tap a building and the king will walk over. Take the road when you're ready.</p></div>
+      <div><p className="kicker">+{reward} ✦</p><h1>Rebel hideout</h1></div>
       <div className="hub-stats">
         <span>✦ <b>{run.gold}</b><small>GOLD</small></span>
-        <span>♛ <b>{kingUnit?.hp ?? 0} / {HP.king}</b><small>KING HEALTH</small></span>
+        <span>♛ <b>{kingUnit?.hp ?? 0} / {HP.king}</b><small>KING HP</small></span>
         <span className="hub-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(k => `${k} (recruit)`)].join(", ")}`}>
           {army.map(u => <i key={u.id}><PieceRig kind={u.kind} side="white" /></i>)}
           {recruits.map((k, i) => <i key={`r${i}`} className="new"><PieceRig kind={k} side="white" /></i>)}
@@ -146,10 +149,11 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
             onClick={() => { if (!blocked(p)) walkTo(p); }} />;
         })}
       </div>
-      {PLACES.map(b => <button key={b.id} ref={el => { doors.current[b.id] = el; }} className={`hub-place ${b.id} ${b.soon ? "soon" : ""}`} style={{ left: left(b.at.x), top: top(b.at.y), width: left(b.size.x), height: top(b.size.y) }}
-        aria-label={`${b.name}: ${b.tagline}`} onClick={() => walkTo(b.door, b.id)}>
-        <PlaceArt id={b.id} /><span className="hub-sign"><b>{b.name}</b><small>{b.tagline}</small></span>
-      </button>)}
+      {PLACES.map(b => { const tagline = b.id === "road" ? `Battle ${run.encounter + 2} / ${ENCOUNTERS.length}` : b.tagline;
+        return <button key={b.id} ref={el => { doors.current[b.id] = el; }} className={`hub-place ${b.id} ${b.soon ? "soon" : ""}`} style={{ left: left(b.at.x), top: top(b.at.y), width: left(b.size.x), height: top(b.size.y) }}
+          disabled={b.soon} data-testid={`place-${b.id}`} aria-label={`${b.name}: ${b.soon ? "locked" : tagline}`} onClick={() => walkTo(b.door, b.id)}>
+          <PlaceArt id={b.id} /><span className="hub-sign"><b>{b.name}</b><small>{tagline}</small></span>
+        </button>; })}
       <div className={`hub-king ${walking ? "walking" : ""}`} aria-hidden="true" style={{ left: left(king.x + .5), top: top(king.y + .5), transitionDuration: `${stepMs}ms` }}>
         <PieceRig kind="king" side="white" action={walking ? "move" : "idle"} seed="king" />
       </div>
@@ -158,24 +162,21 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
     {place && <div className="exile-modal-shade" onClick={ev => { if (ev.target === ev.currentTarget) setOpen(null); }}>
       <section className={`exile-modal camp-modal hub-panel ${place.id}`} role="dialog" aria-modal="true" aria-label={place.name} ref={panel} tabIndex={-1}>
         {place.id === "barracks" ? <>
-          <p className="kicker">THE BARRACKS</p><h1>New blood, warm soup.</h1>
-          <p>Recruits join in the next battle. Buy as many as your gold and the next road allow ({next?.starts.length ?? 0} squares).</p>
-          <div className="camp-gold">✦ {run.gold} gold</div>
-          <div className="camp-offers">{OFFERS.map(choice => <button key={choice} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
+          <h1>Barracks</h1>
+          <div className="camp-gold">✦ {run.gold}<span className="army-slots" aria-label={`Army ${army.length + recruits.length} / ${next?.starts.length ?? 0}`}>Army {Array.from({ length: next?.starts.length ?? 0 }, (_, i) => <i key={i} className={i < army.length + recruits.length ? "full" : ""} />)} {army.length + recruits.length} / {next?.starts.length ?? 0}</span></div>
+          <div className="camp-offers">{OFFERS.map(choice => <button key={choice} data-testid={`buy-${choice}`} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
             <div className="offer-art">{choice === "heal" ? <span>♥</span> : <PieceRig kind={choice} side="white" />}</div>
-            <h2>{choice === "heal" ? "Mend the king" : `Recruit a ${choice}`}</h2>
-            <p>{choice === "pawn" ? `${HP.pawn} HP, hits for ${DAMAGE.pawn}. Reach the far row to promote it.` : choice === "bishop" ? `${HP.bishop} HP, hits for ${DAMAGE.bishop}. Strikes diagonal neighbours.` : choice === "rook" ? `${HP.rook} HP, hits for ${DAMAGE.rook}. Strikes straight neighbours.` : `Restore 2 king HP, up to ${HP.king}.`}</p>
-            <strong>{campReason(run, choice) || `${COST[choice]} gold →`}</strong></button>)}</div>
+            <h2>{choice === "heal" ? "Heal king" : title(choice)}</h2>
+            <p>{choice === "heal" ? `+2♥ · max ${HP.king}` : <>♥{HP[choice]} ⚔{DAMAGE[choice]}<span className="reach-glyph" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} className={i === 4 ? "self" : REACH[choice].includes(i) ? "hit" : ""} />)}</span></>}</p>
+            <strong>{campReason(run, choice) || `✦ ${COST[choice]}`}</strong></button>)}</div>
         </> : place.id === "road" ? <>
-          <p className="kicker">THE ROAD OUT · BATTLE {run.encounter + 2} / {ENCOUNTERS.length}</p><h1>{next?.title ?? "Onward"}</h1>
-          <p>{next?.story} Your army marches as it is{recruits.length ? `, with ${recruits.length} new recruit${recruits.length > 1 ? "s" : ""}` : ""}.</p>
-          <button className="primary-button" onClick={onLeave}>March out<span>→</span></button>
-        </> : <>
-          <p className="kicker">{place.name.toUpperCase()} · COMING SOON</p>
-          <h1>{place.id === "training" ? "Nobody's training yet." : place.id === "guild" ? "The grandmasters are thinking." : place.id === "armory" ? "The armory is locked." : "The merchant is still unpacking."}</h1>
-          <p>{place.id === "training" ? "Upgrades for your pieces will live here. For now the dummy just stands there, judging you." : place.id === "armory" ? "Gear for your pieces will be forged and fitted here. For now the smith is out, and the only thing on the rack is a very confused spoon." : place.id === "guild" ? "The guild opens its doors soon. For now every grandmaster is mid-game, and none of them will look up." : "Consumables will be sold here. For now the cart is empty and the merchant is \"between suppliers\"."}</p>
-        </>}
-        <button className="text-button" onClick={() => setOpen(null)}>Back to the hideout</button>
+          <h1>Battle {run.encounter + 2} / {ENCOUNTERS.length}</h1>
+          <div className="hub-army road-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(k => `${k} (recruit)`)].join(", ")}`}>
+            {army.map(u => <i key={u.id}><PieceRig kind={u.kind} side="white" /></i>)}
+            {recruits.map((k, i) => <i key={`r${i}`} className="new"><PieceRig kind={k} side="white" /></i>)}</div>
+          <button className="primary-button" onClick={onLeave}>Start battle<span>→</span></button>
+        </> : null}
+        <button className="text-button" onClick={() => setOpen(null)}>Close</button>
       </section>
     </div>}
   </section>;

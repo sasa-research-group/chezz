@@ -100,3 +100,21 @@
 @keyframes guard-in{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 @media(max-width:700px){.guard-badge{top:30%;font-size:9px;padding:0 3px 0 1px}.guard-badge svg{width:10px;height:11px}}
 .exile-footer a{color:inherit}
+/* Strike reach: faint red corner ticks on the squares the selected piece could strike from where it stands. */
+.exile-cell.in-reach::after{content:"";position:absolute;inset:9%;pointer-events:none;--t:#c2493cb0;background:linear-gradient(var(--t) 0 0) 0 0/24% 3px,linear-gradient(var(--t) 0 0) 0 0/3px 24%,linear-gradient(var(--t) 0 0) 100% 0/24% 3px,linear-gradient(var(--t) 0 0) 100% 0/3px 24%,linear-gradient(var(--t) 0 0) 0 100%/24% 3px,linear-gradient(var(--t) 0 0) 0 100%/3px 24%,linear-gradient(var(--t) 0 0) 100% 100%/24% 3px,linear-gradient(var(--t) 0 0) 100% 100%/3px 24%;background-repeat:no-repeat}
+.strike-badge.unsafe{background:#f3d5cf;color:#a3271c;border-style:dashed;animation:none}
+/* Action pips: the first is the move, the second the strike or defend. */
+.action-pips{display:inline-flex;gap:3px}.action-pips i{width:7px;height:7px;border-radius:50%;border:1.5px solid #396c61;background:#fcf5de}.action-pips i.full{background:#396c61}
+.exile-piece>.action-pips{position:absolute;left:50%;bottom:-11px;transform:translateX(-50%);pointer-events:none}
+.selected-card>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.unit-stats{font-size:12px;font-weight:800;color:#4f5d4b}
+/* Legend for the board marks, drawn like the marks themselves. */
+.board-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10px!important;color:#766a58!important;margin:0 0 12px!important}.board-legend span{display:flex;align-items:center;gap:4px}
+.board-legend i,.rules-card i{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 3px;border-radius:9px;font-style:normal;font-size:10px;font-weight:900;border:2px solid}
+.lg-move{border-color:#2d6755;background:#b9d3a1;color:#2d6755}.lg-strike{background:#c2493c;color:#fff7dc;border-color:#382f2e}.lg-unsafe{background:#f3d5cf;color:#a3271c;border-color:#a3271c;border-style:dashed!important}.lg-check{background:#a3271c;color:#fff7dc;border-color:#382f2e}
+/* Rules: a reference card of numbers and marks. */
+.rules-card{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:18px 0 24px;font-size:13px;align-items:center}.rules-card dt{font-weight:800;color:#382f2e}.rules-card dd{margin:0;color:#766a58;display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:700px){
+  .action-bar .energy-pips{display:none}
+  .action-bar .board-legend{grid-column:1/-1;margin:0!important;gap:3px 9px}
+  .exile-piece>.action-pips{bottom:-8px}.action-pips i{width:5px;height:5px;border-width:1px}
+}
