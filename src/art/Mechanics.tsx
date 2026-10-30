@@ -3,7 +3,7 @@ import { PLACES } from "../components/Hub";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST, approaches, canEscape, exposesKing, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, PromoteTo, Run, Side, Unit } from "../game/turns";
 import { KINDS, KnightStrike } from "./Catalog";
-import { Entry, Group, MiniBoard } from "./kit";
+import { Entry, Group, MiniBoard, useStudio } from "./kit";
 import type { Cell, Piece } from "./kit";
 
 /** Every diagram here is computed by turns.ts on battle 1's open 4×4 board, so it follows the rules when they change. */
@@ -50,12 +50,12 @@ function Encounter({ i }: { i: number }) {
 }
 
 const ENEMY: [string, string][] = [
-  ["1 · Strike", `100 + 10×damage + 50 if it kills + 30 if the king − 8×counter − 60 if the counter kills it − cost. Never for 0 damage.`],
-  ["2 · Pawn to far row", "30 (then promotes to queen)"],
-  ["3 · Step into strike range", `20 − move cost, only if ${STRIKE_COST} energy is left to strike`],
-  ["4 · Close in", "5 × squares gained − cost, toward the king (weighted) or the nearest piece; pawns with targets ahead march (1)"],
-  ["5 · Brace (defend)", "0.4, only if threatened and the −1 saves it, or it can counter"],
-  ["6 · Wait", "Nothing scores above 0"],
+  ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king − 8×counter − 60 if the counter kills it − cost. Never for 0 damage.`],
+  ["Pawn to far row", "30 (then promotes to queen)"],
+  ["Step into strike range", `20 − move cost, only if ${STRIKE_COST} energy is left to strike`],
+  ["Close in", "5 × squares gained − cost, toward the king (weighted) or the nearest piece; pawns with targets ahead march (1)"],
+  ["Brace (defend)", "0.4, only if threatened and the −1 saves it, or it can counter"],
+  ["Wait", "Nothing scores above 0"],
 ];
 const RUN: [string, string][] = [
   ["Battles", `${ENCOUNTERS.length}, hideout between each`],
@@ -70,6 +70,7 @@ const PROMOTE: PromoteTo[] = ["queen", "rook", "bishop", "knight"];
 const RECRUITS = (["pawn", "bishop", "rook"] as const);
 
 export function Mechanics() {
+  const { hue } = useStudio();
   const start = newRun();
   const knightJump = Math.min(...moveTargets(board([unit("k", "knight", "white", 1, 2)]), unit("k", "knight", "white", 1, 2)).map(t => t.cost));
   let gold = start.gold;
@@ -107,7 +108,7 @@ export function Mechanics() {
     <Group id="strike" title="Tap to strike">
       <Entry name="Walk up, then strike" src="approaches() · walkAndStrike()" wide><TapToStrike /></Entry>
       <table className="spec"><tbody>
-        <tr><th>Adjacent</th><td>Strike in place, {STRIKE_COST}</td></tr>
+        <tr><th>In reach</th><td>Strike in place, {STRIKE_COST}</td></tr>
         <tr><th>One way in</th><td>Walks and strikes automatically</td></tr>
         <tr><th>Several ways</th><td>Pick the square (⚔ dots)</td></tr>
         <tr><th>Judged as</th><td>One action: walk may pass danger if the king is safe after the blow</td></tr>
@@ -126,7 +127,7 @@ export function Mechanics() {
       <Entry name="Rebel pawn → your pick" src="promote()" wide>
         <div className="promo-row">{PROMOTE.map(k => <div key={k}><PieceRig kind={k} side="white" /><small>{k} · {HP[k]} HP · {DAMAGE[k]} dmg</small></div>)}</div>
       </Entry>
-      <Entry name="Patrol pawn → queen" src="enemyTurn()" wide><div className="promo-row"><div><PieceRig kind="queen" side="black" facing={-1} /><small>queen · {HP.queen} HP</small></div></div></Entry>
+      <Entry name="Patrol pawn → queen" src="enemyTurn()" wide><div className="promo-row"><div><PieceRig kind="queen" side="black" hue={hue} facing={-1} /><small>queen · {HP.queen} HP</small></div></div></Entry>
       <table className="spec"><tbody>
         <tr><th>Trigger</th><td>Pawn moves onto the far row</td></tr><tr><th>HP</th><td>Full HP of the new piece</td></tr>
         <tr><th>Your pawn</th><td>Play pauses for the picker; can still strike or defend</td></tr>
@@ -134,7 +135,7 @@ export function Mechanics() {
     </Group>
 
     <Group id="enemy" title="Enemy turn">
-      <table className="spec"><thead><tr><th>Priority</th><th>Score</th></tr></thead><tbody>{ENEMY.map(([a, b]) => <tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>
+      <table className="spec"><thead><tr><th>Action</th><th>Score</th></tr></thead><tbody>{ENEMY.map(([a, b]) => <tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>
       <p className="fine">enemyTurn(): best score first, repeat until the pool is spent. Deterministic; computed in full before playback.</p>
     </Group>
 

@@ -26,7 +26,7 @@ const PALETTES: { title: string; colors: [string, string][] }[] = [
   { title: "Patrol (red, unused alt)", colors: pal(PATROL.red, "Red patrol").slice(0, 2) },
   { title: "Shared rig", colors: [[GOLD, "Gold"], [GOLD_SH, "Gold shade"], [STEEL, "Steel"], [STEEL_SH, "Steel shade"], [SKIN, "Skin"], [SKIN_SH, "Skin shade"], [BLUSH, "Blush"], [WOOD, "Wood"], [WOOD_SH, "Wood shade"]] },
   { title: "Signals", colors: [["#396c61", "Action teal"], ["#2d6755", "Move dot"], ["#c2493c", "Strike"], ["#a3271c", "Check"], ["#355f88", "Guard ring"], ["#2f5a82", "Guard chip"], ["#8d2c27", "Damage"], ["#fcf5de", "HP badge rebel"], ["#764950", "HP badge patrol"], ["#437d72", "Focus ring"]] },
-  { title: "Banners", colors: [["#ffd34d", "Road cleared"], ["#7fd38c", "Victory"], ["#4b3f3a", "Defeat"]] },
+  { title: "Banners", colors: [["#ffd34d", "Road cleared"], ["#7fd38c", "Victory"], ["#4b3f3a", "Defeat"], ["#a3271c", "Checkmate"]] },
   { title: "Hideout", colors: [["#a3b78f", "Grass alt"], ["#e3cfa3", "Path"], ["#b9a77f", "Lot"], ["#c4553f", "Flag / roof red"], ["#e8c784", "Straw"], ["#5b4a72", "Guild roof"]] },
 ];
 
@@ -56,7 +56,7 @@ const MOTION: [string, string][] = [
 ];
 const EASE = rigCss.match(/--ease-[a-z]+:cubic-bezier\([^)]*\)/g) ?? [];
 const SIDE_MARKERS: [string, string, string][] = [
-  ["Body colour", "Teal / gold / brown", "Royal blue + white + gold"],
+  ["Body colour", "Teal / gold / brown (king: maroon robe)", "Royal blue + white + gold"],
   ["Badge", "Stitched patch, tilted −8°", "Gold stripe or tabard"],
   ["Ground shadow", "Ellipse", "Diamond"],
   ["Shield", "Round wooden buckler", "Blue kite shield, gold cross"],
@@ -67,9 +67,9 @@ const SIDE_MARKERS: [string, string, string][] = [
   ["Idle", "Bouncy breathe", "Stiff tick"],
 ];
 const A11Y: [string, string][] = [
-  ["prefers-reduced-motion", "Idle, hops, squash, line boil, dust, smear, smoke, pulses and mate zoom off. Hit flash kept (.3s). Death = .2s fade. Game speed ×0.1."],
+  ["prefers-reduced-motion", "All CSS animations and transitions cut to .01ms (exile.css), except hit flash .3s and death fade .2s. Line boil off. Enemy step 90ms; JS timings ×0.1."],
   ["Side not by colour alone", "Shadow shape, shield shape, badge, boots, crown tilt, facing"],
-  ["Flashing", "Hit flash one pulse; fastest loop .9s (< 3 Hz)"],
+  ["Flashing", "Hit flash: one brightness pulse per hit. Pulsing highlights (strike, CHECK, ⚔ dots): .9–1.2s"],
   ["Screen readers", "All art aria-hidden; squares carry aria-labels; banner text in a live region"],
   ["Focus", "3px #437d72 outline, 4px offset"],
 ];

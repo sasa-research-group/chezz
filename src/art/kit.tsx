@@ -12,14 +12,15 @@ export function usePhase(marks: number[], period: number) {
   const { spd } = useStudio();
   const ref = useRef<HTMLDivElement>(null);
   const [state, setState] = useState({ phase: 0, cycle: 0 });
+  const cycles = useRef(0);
   const key = marks.join() + period;
   useEffect(() => {
-    let timers: ReturnType<typeof setTimeout>[] = [], cycle = 0;
+    let timers: ReturnType<typeof setTimeout>[] = [];
     const stop = () => { timers.forEach(clearTimeout); timers = []; };
     const run = () => {
-      stop(); cycle++;
+      stop(); const cycle = ++cycles.current;
       marks.forEach((at, phase) => timers.push(setTimeout(() => setState({ phase, cycle }), at * spd)));
-      timers.push(setTimeout(run, period * spd));
+      if (Number.isFinite(period)) timers.push(setTimeout(run, period * spd));
     };
     const io = new IntersectionObserver(([en]) => { if (en.isIntersecting) run(); else stop(); });
     if (ref.current) io.observe(ref.current);
@@ -31,7 +32,7 @@ export function usePhase(marks: number[], period: number) {
 /** One rig replaying an action on a loop. */
 export function LoopRig({ kind, side, action, wounded, defending, pause = 700, facing }: { kind: RigKind; side: RigSide; action: RigAction; wounded?: boolean; defending?: boolean; pause?: number; facing?: 1 | -1 }) {
   const { hue } = useStudio();
-  const { ref, cycle } = usePhase([0], action === "idle" ? 1e9 : RIG_MS[action] + pause);
+  const { ref, cycle } = usePhase([0], action === "idle" ? Infinity : RIG_MS[action] + pause);
   return <div ref={ref} className="loop-rig"><PieceRig key={cycle} kind={kind} side={side} hue={hue} action={action} wounded={wounded} defending={defending ?? action === "defend"} facing={facing ?? (side === "white" ? 1 : -1)} seed={`${kind}${side}${action}`} /></div>;
 }
 

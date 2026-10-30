@@ -5,16 +5,18 @@ import { PieceArt } from "../components/PieceArt";
 import { BattleBanner, GuardBadge } from "../components/BoardArt";
 import type { BannerKind } from "../components/BoardArt";
 import { H, PLACES, PlaceArt, START, W, blocked, onPath } from "../components/Hub";
-import { HP } from "../game/turns";
+import { COST, DAMAGE, ENCOUNTERS, HP, STRIKE_COST } from "../game/turns";
 import { Entry, Group, LoopRig, MiniBoard, usePhase, useStudio } from "./kit";
 
 export const KINDS: RigKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
 const SIDES: { side: RigSide; name: string }[] = [{ side: "white", name: "Rebel" }, { side: "black", name: "Patrol" }];
 type State = { label: string; action: RigAction; wounded?: boolean; defending?: boolean; used: (k: RigKind, s: RigSide) => boolean };
 const all = () => true;
+/** Patrol pieces some battle spawns, plus the queen enemy pawns promote into. */
+const PATROL_IN_GAME = new Set<RigKind>([...ENCOUNTERS.flatMap(e => e.spawns.map(([k]) => k)), "queen"]);
 const STATES: State[] = [
   { label: "Idle", action: "idle", used: all },
-  { label: "Wounded", action: "idle", wounded: true, used: all },
+  { label: "Wounded", action: "idle", wounded: true, used: k => HP[k] > 1 },
   { label: "Guarding", action: "idle", defending: true, used: all },
   { label: "Move", action: "move", used: all },
   { label: "Attack", action: "attack", used: all },
@@ -34,7 +36,7 @@ function CastMatrix() {
     <table className="matrix">
       <thead><tr><th scope="col">Piece</th>{STATES.map(s => <th key={s.label} scope="col">{s.label}<small>{s.action === "idle" ? "loop" : `${RIG_MS[s.action]}ms`}</small></th>)}</tr></thead>
       <tbody>{KINDS.flatMap(kind => SIDES.map(({ side, name }) => <tr key={kind + side}>
-        <th scope="row">{kind}<small>{name}{kind === "king" && side === "black" ? " · not in a battle yet" : ""}</small></th>
+        <th scope="row">{kind}<small>{name}{side === "black" && !PATROL_IN_GAME.has(kind) ? " · not in a battle yet" : side === "black" && kind === "queen" ? " · via promotion" : ""}</small></th>
         {STATES.map(s => <td key={s.label}>{s.used(kind, side)
           ? <LoopRig kind={kind} side={side} action={s.action} wounded={s.wounded} defending={s.defending} />
           : <span className="na" title="Not used in the game">—</span>}</td>)}
@@ -60,26 +62,28 @@ export function KnightStrike() {
   const knight = ["leap", "attack", "attack", "leap-back", "idle"][phase] as RigAction;
   return <div ref={ref} className="scene"><MiniBoard cols={2} rows={3} cells={phase === 2 ? { "1,0": { cls: "impact-square" } } : {}} pieces={[
     { kind: "knight", side: "white", ...at, cls: phase < 4 ? "lunging" : "", action: knight, actionKey: cycle * 10 + [0, 1, 1, 3, 4][phase] },
-    { kind: "pawn", side: "black", ...target, action: phase === 2 || phase === 3 ? "hit" : "idle", actionKey: cycle * 10 + (phase === 2 || phase === 3 ? 2 : 0), extra: phase === 2 || phase === 3 ? <span className="damage-pop">−2</span> : undefined },
+    { kind: "pawn", side: "black", ...target, action: phase === 2 || phase === 3 ? "hit" : "idle", actionKey: cycle * 10 + (phase === 2 || phase === 3 ? 2 : 0), extra: phase === 2 || phase === 3 ? <span className="damage-pop">−{DAMAGE.knight}</span> : undefined },
   ]} /></div>;
 }
 function StrikeScene({ kill }: { kill?: boolean }) {
-  const { ref, phase, cycle } = usePhase([0, 230], kill ? 2200 : 1700);
-  return <div ref={ref} className="scene"><MiniBoard cols={2} rows={1} cells={phase ? { "1,0": { cls: "impact-square" } } : {}} pieces={[
+  // A plain kill drops the target straight into its death; a survivor is hit as the blow lands.
+  const { ref, phase, cycle } = usePhase(kill ? [0] : [0, 230], kill ? 2200 : 1700), hit = kill || phase > 0;
+  return <div ref={ref} className="scene"><MiniBoard cols={2} rows={1} cells={hit ? { "1,0": { cls: "impact-square" } } : {}} pieces={[
     { kind: "rook", side: "white", x: 0, y: 0, action: "attack", actionKey: cycle },
-    { kind: kill ? "pawn" : "queen", side: "black", x: 1, y: 0, action: phase ? kill ? "death" : "hit" : "idle", actionKey: cycle * 2 + phase, cls: phase && kill ? "ghost" : "", hp: kill ? undefined : phase ? 6 : 9, max: HP.queen, extra: phase ? <span className="damage-pop" key={cycle}>−3</span> : undefined },
+    { kind: kill ? "pawn" : "queen", side: "black", x: 1, y: 0, action: hit ? kill ? "death" : "hit" : "idle", actionKey: cycle * 2 + phase, cls: kill ? "ghost" : "", hp: kill ? undefined : HP.queen - (hit ? DAMAGE.rook : 0), max: HP.queen, extra: hit ? <span className="damage-pop" key={cycle}>−{DAMAGE.rook}</span> : undefined },
   ]} /></div>;
 }
 function MateScene() {
-  const { ref, phase, cycle } = usePhase([0, 250, 1750], 5400);
-  const zoom = phase >= 1;
+  // App.tsx outro: spotlight at 250ms, attackers cheer at +300 and +1900, banner at 1750.
+  const { ref, phase, cycle } = usePhase([0, 250, 550, 1750, 2150], 5400);
+  const zoom = phase >= 1, cheer = phase >= 2 ? cycle * 3 + (phase >= 4 ? 2 : 1) : cycle * 3;
   return <div ref={ref} className="stage mate-stage">
     <MiniBoard cols={3} rows={3} camera={zoom ? "mate-zoom" : ""} style={zoom ? { "--zx": "50%", "--zy": "83%" } as CSSProperties : undefined} pieces={[
-      { kind: "king", side: "white", x: 1, y: 2, action: zoom ? "mate" : "hit", actionKey: cycle * 3 + phase, cls: zoom ? "ghost" : "" },
-      { kind: "queen", side: "black", x: 1, y: 1, action: zoom ? "cheer" : "attack", actionKey: cycle * 3 + phase },
-      { kind: "pawn", side: "black", x: 2, y: 1, action: zoom ? "cheer" : "idle", actionKey: cycle * 3 + phase },
+      { kind: "king", side: "white", x: 1, y: 2, action: zoom ? "mate" : "hit", actionKey: cycle * 2 + (zoom ? 1 : 0), cls: zoom ? "ghost" : "" },
+      { kind: "queen", side: "black", x: 1, y: 1, action: phase >= 2 ? "cheer" : phase ? "idle" : "attack", actionKey: cheer },
+      { kind: "pawn", side: "black", x: 2, y: 1, action: phase >= 2 ? "cheer" : "idle", actionKey: cheer },
     ]} />
-    {phase === 2 && <BattleBanner key={cycle} kind="checkmate" focus={false} />}
+    {phase >= 3 && <BattleBanner key={cycle} kind="checkmate" focus={false} />}
   </div>;
 }
 function Banner({ kind }: { kind: BannerKind }) {
@@ -142,7 +146,7 @@ export function Catalog() {
         }} pieces={[
           { kind: "king", side: "white", x: 1, y: 3, cls: "selected", hp: 4, max: HP.king, extra: <span className="check-tag">CHECK</span> },
           { kind: "rook", side: "white", x: 0, y: 2, cls: "spent", hp: 5, max: HP.rook },
-          { kind: "pawn", side: "black", x: 3, y: 1, cls: "targetable", hp: 1, max: HP.pawn, extra: <span className="strike-badge">⚔ 2</span> },
+          { kind: "pawn", side: "black", x: 3, y: 1, cls: "targetable", hp: 1, max: HP.pawn, extra: <span className="strike-badge">⚔ {STRIKE_COST}</span> },
           { kind: "knight", side: "black", x: 0, y: 0, cls: "guarded", defending: true, hp: 3, max: HP.knight, extra: <><GuardBadge /><span className="check-mark">!</span></> },
         ]} />
       </Entry>
@@ -163,7 +167,7 @@ export function Catalog() {
       <Entry name="Selected" src="exile.css .exile-piece.selected">{one([{ kind: "bishop", side: "white", x: 0, y: 0, cls: "selected" }])}</Entry>
       <Entry name="Spent" src="exile.css .exile-piece.spent">{one([{ kind: "bishop", side: "white", x: 0, y: 0, cls: "spent" }])}</Entry>
       <Entry name="Guarded + chip" src="BoardArt.tsx GuardBadge · exile.css .guarded">{one([{ kind: "pawn", side: "black", x: 0, y: 0, cls: "guarded", defending: true, extra: <GuardBadge /> }], { "0,0": { cls: "guarded-tile" } })}</Entry>
-      <Entry name="Targetable + ⚔ badge" src="exile.css .targetable .strike-badge">{one([{ kind: "pawn", side: "black", x: 0, y: 0, cls: "targetable", extra: <span className="strike-badge">⚔ 2</span> }], { "0,0": { cls: "strikeable" } })}</Entry>
+      <Entry name="Targetable + ⚔ badge" src="exile.css .targetable .strike-badge">{one([{ kind: "pawn", side: "black", x: 0, y: 0, cls: "targetable", extra: <span className="strike-badge">⚔ {STRIKE_COST}</span> }], { "0,0": { cls: "strikeable" } })}</Entry>
       <Entry name="CHECK tag" src="exile.css .check-tag">{one([{ kind: "king", side: "white", x: 0, y: 0, extra: <span className="check-tag">CHECK</span> }])}</Entry>
       <Entry name="Attacker !" src="exile.css .check-mark">{one([{ kind: "queen", side: "black", x: 0, y: 0, extra: <span className="check-mark">!</span> }])}</Entry>
       <Entry name="HP · rebel / patrol" src="exile.css .piece-health"><MiniBoard cols={2} rows={1} pieces={[{ kind: "rook", side: "white", x: 0, y: 0, hp: 3, max: HP.rook }, { kind: "rook", side: "black", x: 1, y: 0, hp: 5, max: HP.rook }]} /></Entry>
@@ -190,7 +194,7 @@ export function Catalog() {
         </div></div>
       </Entry>
       {PLACES.map(b => <Entry key={b.id} name={b.name} src="Hub.tsx PlaceArt" note={b.soon ? "placeholder" : undefined}><div className={`building ${b.soon ? "soon" : ""}`}><PlaceArt id={b.id} /></div></Entry>)}
-      <Entry name="Walking king" src="Hub.tsx .hub-king"><LoopRig kind="king" side="white" action="move" pause={0} /></Entry>
+      <Entry name="Walking king" src="Hub.tsx .hub-king" note="plays once per walk"><LoopRig kind="king" side="white" action="move" pause={0} /></Entry>
       <Entry name="Tiles: grass / alt / path / lot" src="hub.css .hub-tile"><div className="hub-tiles">{["grass", "grass alt", "path", "lot"].map(c => <span key={c} className={`hub-tile ${c}`} />)}</div></Entry>
       <Entry name="Army chips (recruit glow)" src="hub.css .hub-army"><span className="hub-army">{(["king", "rook", "pawn"] as const).map((k, i) => <i key={k} className={i === 2 ? "new" : ""}><PieceRig kind={k} side="white" /></i>)}</span></Entry>
     </Group>
@@ -202,8 +206,15 @@ export function Catalog() {
       <Entry name="Text button" src="exile.css .text-button"><button className="text-button" tabIndex={-1}>New run</button></Entry>
       <Entry name="Energy pips" src="exile.css .energy-pips"><div className="energy-pips">{[1, 1, 0, 0].map((f, i) => <i key={i} className={f ? "full" : ""} />)}</div></Entry>
       <Entry name="Check alert" src="exile.css .check-alert"><p className="check-alert"><strong>Check!</strong></p><p className="check-alert no-way-out"><strong>Check. No way out.</strong></p></Entry>
-      <Entry name="Selected card" src="exile.css .selected-card" wide><div className="selected-card"><PieceRig kind="rook" side="white" /><div><strong>rook · 5 HP · hits for 3</strong></div></div></Entry>
-      <Entry name="Offer card" src="exile.css .camp-offers" wide><div className="camp-offers one"><button tabIndex={-1}><div className="offer-art"><PieceRig kind="bishop" side="white" /></div><h2>Bishop</h2><strong>6 gold →</strong></button><button tabIndex={-1}><div className="offer-art"><span>♥</span></div><h2>Heal</h2><strong>4 gold →</strong></button></div></Entry>
+      <Entry name="Selected card" src="exile.css .selected-card" wide><div className="selected-card"><PieceRig kind="rook" side="white" /><div><strong>rook · {HP.rook} HP · hits for {DAMAGE.rook}</strong></div></div></Entry>
+      <Entry name="Offer card" src="exile.css .camp-offers" wide><div className="camp-offers one"><button tabIndex={-1}><div className="offer-art"><PieceRig kind="bishop" side="white" /></div><h2>Recruit a bishop</h2><strong>{COST.bishop} gold →</strong></button><button tabIndex={-1}><div className="offer-art"><span>♥</span></div><h2>Mend the king</h2><strong>{COST.heal} gold →</strong></button></div></Entry>
+      <Entry name="Run stats" src="exile.css .run-stats" wide><div className="run-stats"><span>♛ <b>4 / {HP.king}</b><small>KING HEALTH</small></span><span>⚡ <b>2 / 4</b><small>ENERGY</small></span><span>✦ <b>10</b><small>GOLD</small></span></div></Entry>
+      <Entry name="Arena topline" src="exile.css .arena-topline" wide><div className="arena-topline studio-fill"><span>TURN 3 · YOUR MOVE</span><span>2 ENEMIES</span></div></Entry>
+      <Entry name="Caption · enemy turn" src="exile.css .playback-caption" wide><div className="playback-caption playing studio-fill">Enemy pawn moves to b3.</div></Entry>
+      <Entry name="Playback controls" src="exile.css .playback-controls" wide><div className="playback-controls studio-fill"><label><input type="checkbox" readOnly tabIndex={-1} /> Fast enemy turns</label><button tabIndex={-1}>Skip enemy turn</button></div></Entry>
+      <Entry name="Notice" src="exile.css .notice"><p className="notice">Not enough energy.</p></Entry>
+      <Entry name="Modal card" src="exile.css .exile-modal" wide><section className="exile-modal studio-modal"><p className="kicker">KICKER</p><h1>Title</h1><button className="primary-button" tabIndex={-1}>Continue<span>→</span></button><button className="text-button" tabIndex={-1}>Back</button></section></Entry>
+      <Entry name="Battle log" src="exile.css .resolution-panel"><section className="resolution-panel"><details open><summary>Battle log</summary><p>Your rook strikes Enemy pawn for 3.</p></details></section></Entry>
       <Entry name="Hub sign" src="hub.css .hub-sign"><div className="sign-spec"><span className="hub-sign"><b>Barracks</b><small>Recruit and rest</small></span></div></Entry>
     </Group>
 
