@@ -208,7 +208,7 @@ export function Catalog() {
     <Group id="ui" title="UI">
       <Entry name="Wordmark" src="exile.css .exile-brand"><div className="exile-brand">CHEZZ</div></Entry>
       <Entry name="Primary button" src="exile.css .primary-button"><button className="primary-button" tabIndex={-1}>End turn<span>→</span></button></Entry>
-      <Entry name="Secondary button" src="exile.css .secondary-button"><button className="secondary-button" tabIndex={-1}>Defend · 1 energy<span>blocks 1, counters</span></button></Entry>
+      <Entry name="Secondary button" src="exile.css .secondary-button"><button className="secondary-button" tabIndex={-1}>Defend · 1⚡<span>−1 · counter</span></button></Entry>
       <Entry name="Text button" src="exile.css .text-button"><button className="text-button" tabIndex={-1}>New run</button></Entry>
       <Entry name="Legend row" src="components/Panels.tsx Legend" wide><div className="studio-legend"><Legend /></div></Entry>
       <Entry name="Rules card" src="components/Panels.tsx RulesCard" wide><section className="exile-modal studio-modal help-exile"><h1>Rules</h1><RulesCard /></section></Entry>
