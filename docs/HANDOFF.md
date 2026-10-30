@@ -33,7 +33,11 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Hideout hub** (#12): between battles the king walks a little
   village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), road
   out; training grounds, armory, merchant and Grandmaster's Guild are
-  placeholders to build out.
+  locked (🔒) placeholders.
+- **No narrator text** (`claude/cut-llm-text`): on screen only numbers,
+  nouns and icons; battles are numbered; Rules is a card. Board cues teach
+  instead: strike-reach ticks, ✕ chip on unsafe strikes, move/act pips.
+  Story unwritten (`Encounter.story` hook). Ask before adding prose.
 - Difficulty needs tuning from Wesley's play; encounter 2 now punishes
   letting a pawn promote.
 - Research report: `reports/Simultaneous chess tactics design.md`.
