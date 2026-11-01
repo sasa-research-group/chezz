@@ -28,6 +28,7 @@ proposing a new look. Generation details for kept art are in `recipe.md`.
   duck-like because the top-row limit leaves little height for the neck; the peck is
   buried under the shared squash stretch and hit burst; the wing's cel shadow reads as
   a jagged band.
+
 ## 2026-11-01: a deep far rim, so tall crests can't leave the board
 - Problem: on the top row the patrol bishop's mitre, the patrol rook's halberd and the
   patrol pawn's pike rose past the board's 12px frame onto the table (up to 11 CSS px on a
@@ -47,7 +48,7 @@ proposing a new look. Generation details for kept art are in `recipe.md`.
   drawing past its viewBox. Together, a figure that passes the test can't cross the frame.
 - Changed: the patrol pawn's pike tip came down 2 units (it reached y −1.3). Every other
   redrawn piece and every skin were already inside. The old art also pokes less; only the
-  old patrol queen's crown (y −6) still grazes the rim on a desktop 6×6 board.
+  old patrol queen's crown (y −6) still pokes about 3px past the rim on a desktop 6×6 board.
 - Cost: the far rim is about 29px on a phone 4×4 board instead of 12px, so the board is a
   little shorter when the height limits it (landscape phones).
 
