@@ -40,13 +40,14 @@ export const TONES = {
   mail: tone("#4b5263", "#363b48"),
   stone: tone("#a2a4a4", "#76787a"), // shade picked
   darkStone: tone("#6b7077", "#4c5056"), // the rebel rook's mallet head, darker than his helm so the two never merge; picked
-  helmSteel: tone("#9aa7b8", "#6c788a"), // the patrol rook's great-helm: blue-grey, so it reads as steel, not cloth; picked
+  helmSteel: tone("#9aa7b8", "#6c788a"), // the patrol rook's great-helm and the patrol horse's barded barrel: blue-grey, so it reads as steel, not cloth; picked
   parchment: tone("#e7d5ac", "#c9b388"), // the rebel rook's glowing eyes and the rebel bishop's mitre; shade picked
   void: tone(INK, INK), // a helm's eye slot: flat ink with no shadow
   neckerchief: tone("#3275a9", "#245580"), // the rebel knight's accent; shade picked
   rust: tone("#a5562c", "#7c3f1f"), // picked: rust blotches on the rebel knight's bucket
   barding: tone("#d6dce4", "#9aa6b4"), // picked: the patrol horse's barding, lighter than his helm steel and the grey coat
   horse: tone("#bdb6ad", "#8f877d"), // picked: the patrol horse's grey coat, warmer than the steel barding
+  lance: tone("#7fa2e3", "#5a7cc0"), // picked: the patrol knight's lance shaft, lighter than his plate so it isn't lost in ink at game size
   // Frog tones sampled from docs/art/odd-pawn.webp.
   frog: tone("#7cb04c", "#52883b"),
   frogLight: tone("#a7d274", "#7cb04c"), // throat and belly; shade reuses frog green
