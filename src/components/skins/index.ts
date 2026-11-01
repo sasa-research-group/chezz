@@ -4,10 +4,10 @@ import type { RigKind } from "../PieceRig";
 import { frogPawn } from "./frogPawn";
 
 /** An unlockable look for one rebel piece (docs/art/SKINS.md). It replaces the
- * head (face and headgear), optionally the prop, recolours the body through
- * `look`, and may add an idle quirk class whose CSS lives in rig.css. The body,
- * arms, pivots and shield come from the piece's shape-kit build, so every
- * animation in rig.css plays unchanged. Drawings use only the shape kit. */
+ * head (face and headgear) and optionally the body, arms and prop, or recolours
+ * the build's body through `look`, and may add an idle quirk class whose CSS
+ * lives in rig.css. Groups, pivots and shield stay the piece's shape-kit build,
+ * so every animation in rig.css plays unchanged. Drawings use only the shape kit. */
 export type Skin = {
   id: string;
   kind: RigKind;
@@ -17,6 +17,14 @@ export type Skin = {
   look?: Partial<BodyLook>;
   /** Must keep the head contract: `.face > .eyes > .pupil`, `.ko-eyes` and a `.mouth-yell` squint. */
   head: () => ReactNode;
+  /** Optional: replaces the build's body (torso, legs, feet) for a creature
+   * with a different shape. Keep the feet on y 108. */
+  body?: () => ReactNode;
+  /** Optional: replaces the build's arms. Draw the sleeves with `Sleeve` (it
+   * carries the classes the cheer animates) and keep the hands where the build
+   * has them (`PAWN_ARMS` for the pawn), so the prop pivot still lines up. */
+  armBack?: () => ReactNode;
+  armFront?: () => ReactNode;
   /** Drawn inside `.prop`, which swings around the build's propOrigin. */
   prop?: () => ReactNode;
   /** A class on the rig's <svg>; animate only `.quirk-bit`, `.head`, `.prop` or `.eyes` with it. */

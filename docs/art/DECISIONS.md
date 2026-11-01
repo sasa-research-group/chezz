@@ -3,6 +3,27 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: saucepan, plain patrol face, a real frog
+- Rebel pawn: the pot becomes an upturned copper saucepan with a long handle out the
+  back. The straight pot kept reading as a top hat. Kept: copper, the dent, dot eyes
+  under the rim. The handle is thick, has a hanging hole and runs nearly level out the back, inside
+  x 18–82; the pan sits a little forward so the handle can be longer. A declared
+  correction against `rebel-pawn.webp`.
+- Patrol pawn: no moustache or nose ("too knightly"). A plain guard's face: dot eyes
+  and brows under the kettle helm. The patrol king keeps the sculpted moustache. A
+  declared correction against `patrol-pawn.webp`.
+- Frog skin: a real frog instead of a green person in a hat. Eye domes bulge out
+  under the pan (the frog lifts it 9 units), wide mouth, pale throat, squat body on
+  haunches, webbed hands and feet. Colours sampled from `odd-pawn.webp`. Prop: kept
+  the cattail; a pitchfork would make it a recoloured rebel pawn. Skins may now
+  replace the body and arms (`SKINS.md`).
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 7/8/7/8/8 →
+  7/8/6/8/8 → 7/8/7/8/8; patrol 8/8/8/8/6 (the diamond side marker, not the art) →
+  8/8/7/8/8 → 8/8/8/8/8; frog 7/7/7/8/8 → 6/7/6/8/7 → 6/6/7/8/7. The frog did not
+  pass: at 48px its legs and belly lines go muddy, and the red chin cord is the
+  loudest part. Judges still sometimes read the pan as a bowler with a feather.
+  They disagreed on the handle: round 2 wanted it thicker, round 3 thinner and longer.
+
 ## 2026-10-31: skins are plumbing first, art later
 - Skin system built (`SKINS.md`): a run's victory unlocks the next rebel skin, saved
   in `chezz.meta.v1`; skins are drawn on the shape kit and show in battle only with

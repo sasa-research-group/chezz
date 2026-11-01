@@ -14,7 +14,7 @@ weight and silhouette size, not by matching their faces or colours.
 
 ## Style in brief
 - Headgear, armour and props carry the character; faces are two dot eyes at most
-  (the patrol pawn may have brows, a nose and a moustache).
+  (the patrol pawn has brows too).
 - Very thick, even, near-black outline; thinner black lines inside.
 - Flat fills, one hard cel shadow per part, white highlight ticks on metal. Light
   comes from the upper left on every rig, so shadows sit on the lower right.

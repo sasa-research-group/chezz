@@ -65,8 +65,8 @@ function CastMatrix({ rows = ALL_ROWS, label = "Cast by state" }: { rows?: CastR
 /** Board pieces are about 48px on a big board and 84px on a phone's 4×4 board; 192px is 4× the smallest. */
 const PILOT_SIZES: [number, string][] = [[48, "48px · smallest board"], [84, "84px · phone 4×4 board"], [192, "192px · 4×"]];
 const PILOT_PAWNS: { side: RigSide; name: string; ref: string; notes: string }[] = [
-  { side: "white", name: "Rebel pawn", ref: "rebel-pawn", notes: "Copper pot, two dot eyes, red bandana, pitchfork" },
-  { side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel kettle helm with a small comb, brows, moustache, gold-edged pauldrons, pike" },
+  { side: "white", name: "Rebel pawn", ref: "rebel-pawn", notes: "Upturned copper saucepan with a long handle, two dot eyes, red bandana, pitchfork" },
+  { side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel kettle helm with a small comb, plain face (dot eyes, brows), gold-edged pauldrons, pike" },
 ];
 function PilotCompare({ side, refName }: { side: RigSide; refName: string }) {
   const { hue } = useStudio(), facing = side === "white" ? 1 : -1;

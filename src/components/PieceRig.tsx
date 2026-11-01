@@ -251,9 +251,16 @@ const FIGURES = { king, queen, rook, bishop, knight, pawn };
 export type ArtStyle = "old" | "new";
 const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>) => Figure>> = { pawn: armourPawn };
 export const hasNewArt = (kind: RigKind) => kind in NEW_FIGURES;
-/** A skin dresses a piece's shape-kit build: new head and prop, same body groups and pivots. */
+/** A skin dresses a piece's shape-kit build: new head, and optionally new body,
+ * arms and prop, drawn into the same groups around the same pivots. */
 function dress(fig: Figure, skin: Skin): Figure {
-  return { ...fig, head: skin.head(), prop: skin.prop ? <g className="prop">{skin.prop()}</g> : fig.prop };
+  return {
+    ...fig, head: skin.head(),
+    body: skin.body ? skin.body() : fig.body,
+    armBack: skin.armBack ? skin.armBack() : fig.armBack,
+    armFront: skin.armFront ? skin.armFront() : fig.armFront,
+    prop: skin.prop ? <g className="prop">{skin.prop()}</g> : fig.prop,
+  };
 }
 /** `?art=new` in the page URL previews the redrawn pieces in the game. */
 export const URL_ART: ArtStyle = typeof location !== "undefined" && new URLSearchParams(location.search).get("art") === "new" ? "new" : "old";

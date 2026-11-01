@@ -11,12 +11,13 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`; reference art and recipe
   in `docs/art/`). Pawn pilot (`?art=new`): shape kit `inkKit.tsx`, judge
-  loop `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Rebel pot reads hat-like.
+  loop `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Rebel pawn: saucepan;
+  patrol pawn: no moustache (owner, Nov 1).
   Regenerate concepts with `tools/art/gen.mjs` (`docs/art/GENERATING.md`).
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with
-  `?art=new`. The frog pawn is a placeholder until the pot/saucepan call.
+  `?art=new`. Frog pawn redrawn Nov 1; still muddy at 48px (DECISIONS.md).
 - **Studio** (`art.html` → `src/art/`): all art live, mechanics from
   `turns.ts`, style guide. Add new art to `Catalog.tsx`.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
@@ -27,7 +28,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   with a celebration banner.
 - **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
   a queen) with a morph animation; the barracks sells a 3-gold pawn.
-- **Next-square strikes** (#11): sliders must travel next to a target to hit it.
+- **Next-square strikes** (#11): sliders strike only from the next square.
 - **Tap to strike** (#13): tap an enemy to walk up and strike it; pick the
   square when there's more than one.
 - **Knight leap**: knight strikes cost 2; knights flip over and backflip
@@ -52,7 +53,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 
 ## Open items
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
-- The test player (`tests/turns-strategy.ts`) is a two-turn lookahead search, not a person.
+- The test player (`tests/turns-strategy.ts`) is a two-turn search.
 - Enemy intent isn't shown before it acts.
 - App debt: `App.tsx` is dense; intro/promotion/end modals lack Escape and
   a focus trap (`useDialogKeys` in `PauseMenu.tsx` is ready to reuse).

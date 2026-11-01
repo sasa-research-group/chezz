@@ -1,5 +1,5 @@
 import type { Figure, Palette, PatrolHue } from "./PieceRig";
-import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, ellipse, rect, type Tone } from "./inkKit";
+import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, rect, type Tone } from "./inkKit";
 
 /** The pawns redrawn in the "armour does the talking" style (docs/art-style.md,
  * section 9), drawn only with the shape kit in inkKit.tsx. Same groups and
@@ -10,7 +10,7 @@ import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, ellipse, rect, type Ton
 const Boot = ({ x, tone }: { x: number; tone: Tone }) =>
   <Part d={`M${x - 5.5} 108 Q${x - 5.5} 99 ${x} 99 Q${x + 6} 99 ${x + 6} 108 Z`} tone={tone} shade={false} />;
 const Mitt = ({ x, y, tone }: { x: number; y: number; tone: Tone }) => <Part d={circle(x, y, 5.4)} tone={tone} line="inner" shade={false} />;
-const Sleeve = ({ d, tone, front }: { d: string; tone: Tone; front?: boolean }) =>
+export const Sleeve = ({ d, tone, front }: { d: string; tone: Tone; front?: boolean }) =>
   <Pole className={`arm ${front ? "arm-front" : "arm-back"}`} d={d} tone={tone} width={6.4} />;
 
 /** Two dot eyes, KO crosses for death, and an effort squint where the old rigs yell. */
@@ -27,16 +27,35 @@ function Squint({ y, gap }: { y: number; gap: number }) {
   </g>;
 }
 
-/** The rebel pawn's dented copper pot. Every rebel pawn skin wears this same
- * component, so restyling the pot restyles them all. Rim at y 52–60, top at y 28. */
+/** A straight bar from (x1, y1) to (x2, y2), w1 half-wide at the start and w2
+ * at the end, which is rounded. */
+function bar(x1: number, y1: number, x2: number, y2: number, w1: number, w2: number) {
+  const len = Math.hypot(x2 - x1, y2 - y1), px = (y1 - y2) / len, py = (x2 - x1) / len;
+  const at = (x: number, y: number, w: number) => `${(x + px * w).toFixed(2)} ${(y + py * w).toFixed(2)}`;
+  return `M${at(x1, y1, w1)} L${at(x2, y2, w2)} A${w2} ${w2} 0 0 0 ${at(x2, y2, -w2)} L${at(x1, y1, -w1)} Z`;
+}
+
+/** The rebel pawn's dented copper saucepan, worn upside down with its long
+ * handle out the back. Every rebel pawn skin wears this same component, so
+ * restyling it restyles them all. Lip at y 50.5–56.5, top at y 34; the handle's
+ * end stays inside x 18 when the rig is drawn facing right, and the rig's
+ * mirror puts it behind the head either way. */
 export function RebelPot() {
   return <g transform="rotate(-4 50 50)">
-    {["M33 47 Q27.5 47 27.5 51 Q27.5 55 33 55", "M67 47 Q72.5 47 72.5 51 Q72.5 55 67 55"].map(d => <Pole key={d} d={d} tone={T.copper} width={2.4} />)}
-    <Part d="M34 54 L33.5 35.5 Q33.5 28 41 28 L59 28 Q66.5 28 66.5 35.5 L66 54 Z" tone={T.copper} highlight="M38.5 48 L38.5 36" />
-    <Ink d="M56 33 Q60 36.5 58.5 42" weight="inner" />
-    <Part d={rect(31.5, 52, 37, 8, 4)} tone={T.copper} />
+    <Part d={bar(41, 46, 26.5, 42.5, 4.2, 5)} tone={T.copper} highlight="M36 41.3 L29 39.8" />
+    <Dot cx={26.5} cy={42.5} r={2} />
+    <Part d="M38 52.5 L38 39.5 Q38 34 43.5 34 L62.5 34 Q68 34 68 39.5 L68 52.5 Z" tone={T.copper} highlight="M43 48 L43 39.5" />
+    <Ink d="M59.5 38 Q63.5 41 62.5 46.5" weight="inner" />
+    <Part d={rect(35.5, 50.5, 35, 6, 3)} tone={T.copperLight} shade={false} highlight="M39 52.5 L47 52.5" />
   </g>;
 }
+
+/** Where the rebel pawn's sleeves run and its hands sit. A skin that draws its
+ * own arms keeps these, so the prop pivot and the shield still line up. */
+export const PAWN_ARMS = {
+  back: "M41 80 Q36 85 36 91", backHand: [36, 92],
+  front: "M59 80 Q66 83.5 70.5 87", frontHand: [71.5, 88],
+} as const;
 
 /** The tones a skin may swap on a rebel body: cloth (shirt and sleeves), the
  * accent (neckerchief and cuff), the patch, boots and hands. */
@@ -53,13 +72,13 @@ function rebelPawn(look: Partial<BodyLook> = {}): Figure {
       <Part d="M39 75 L26.5 70 L29.5 80.5 Z M39 76 L28.5 86 L38.5 84.5 Z" tone={l.accent} line="inner" shade={false} />
       <Part d="M36.5 73.5 Q50 80 63.5 73.5 L52.5 91 Q50 93.5 47.5 91 Z" tone={l.accent} line="inner" />
     </>,
-    armBack: <><Sleeve d="M41 80 Q36 85 36 91" tone={l.cloth} /><Mitt x={36} y={92} tone={l.hand} /></>,
+    armBack: <><Sleeve d={PAWN_ARMS.back} tone={l.cloth} /><Mitt x={PAWN_ARMS.backHand[0]} y={PAWN_ARMS.backHand[1]} tone={l.hand} /></>,
     prop: <g className="prop">
       <Pole d="M71 105 L72 44" tone={T.wood} width={3.4} />
       <Pole d="M66 20 L66 37 Q66 45 72 45 Q78 45 78 37 L78 20 M72 45 L72 17" tone={T.rustySteel} width={2.6} />
       <Part d={rect(68.5, 43.5, 7, 6.5, 1.5)} tone={T.rustySteel} line="inner" shade={false} />
     </g>,
-    armFront: <><Sleeve d="M59 80 Q66 83.5 70.5 87" tone={l.cloth} front /><g transform="rotate(25 64.5 83.5)"><Part d={rect(61, 80, 7, 7, 1.2)} tone={l.accent} line="inner" shade={false} /></g><Mitt x={71.5} y={88} tone={l.hand} /></>,
+    armFront: <><Sleeve d={PAWN_ARMS.front} tone={l.cloth} front /><g transform="rotate(25 64.5 83.5)"><Part d={rect(61, 80, 7, 7, 1.2)} tone={l.accent} line="inner" shade={false} /></g><Mitt x={PAWN_ARMS.frontHand[0]} y={PAWN_ARMS.frontHand[1]} tone={l.hand} /></>,
     head: <>
       <Part d={circle(50, 65, 14)} tone={T.skin} />
       <Eyes y={67.5} gap={5.2} r={2.7} />
@@ -101,8 +120,6 @@ function patrolPawn(c: Palette, hue: PatrolHue): Figure {
       <Ink d="M42.5 61.5 L47.5 63.2 M57.5 61.5 L52.5 63.2" />
       <Eyes y={66.5} gap={4.8} r={2.4} />
       <Squint y={66.5} gap={4.8} />
-      <Part d="M50 72 Q44.5 70 40 72.5 Q35 75 31.5 71 Q31 79 40 79 Q46.5 79 50 75.5 Q53.5 79 60 79 Q69 79 68.5 71 Q65 75 60 72.5 Q55.5 70 50 72 Z" tone={T.moustache} line="inner" />
-      <Part d={ellipse(50.5, 71, 3.2, 2.8)} tone={T.skin} line="inner" shade={false} />
       <Part d="M45 38 Q45 25 50 22.5 Q55 25 55 38 Z" tone={T.steel} />
       <Part d="M31.5 55 Q30.5 35 50 34.5 Q69.5 35 68.5 55 Z" tone={T.steel} highlight="M38 45 Q39.5 40.5 43.5 38.5" />
       <Part d="M26.5 59.5 Q27 51.5 35 51.5 L65 51.5 Q73 51.5 73.5 59.5 Q72.5 62.5 68 61 Q50 57.5 32 61 Q27.5 62.5 26.5 59.5 Z" tone={T.steel} />

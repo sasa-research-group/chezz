@@ -3,8 +3,8 @@ export const art = (name: string) => ART[`../../docs/art/${name}.webp`];
 
 const PIECES = ["pawn", "knight", "bishop", "rook", "queen", "king"] as const;
 const FACTIONS: { id: string; label: string; look: string; notes: string[] }[] = [
-  { id: "rebel", label: "Rebels", look: "Patched, earthy, one dominant accent each", notes: ["Copper pot, pitchfork, red bandana", "Rusty bucket helm, hobby horse", "Parchment mitre, hood void, crook", "Stonemason: tower great-helm, dot eyes in the slot, mallet", "Kettle helm + crown, frying pan", "Crown low on the brow, beard, sword"] },
-  { id: "patrol", label: "Patrol", look: "Polished royal blue, gold trim on most", notes: ["Morion, moustache, pike", "Plume, armoured horse, lance", "Gilded mitre helm, spectacles", "Keep great-helm, gold cross", "Towering wig, sceptre, no crown", "Crown over a sculpted mask"] },
+  { id: "rebel", label: "Rebels", look: "Patched, earthy, one dominant accent each", notes: ["Copper pot (saucepan in game), pitchfork, red bandana", "Rusty bucket helm, hobby horse", "Parchment mitre, hood void, crook", "Stonemason: tower great-helm, dot eyes in the slot, mallet", "Kettle helm + crown, frying pan", "Crown low on the brow, beard, sword"] },
+  { id: "patrol", label: "Patrol", look: "Polished royal blue, gold trim on most", notes: ["Morion, moustache, pike (in game: kettle helm, no moustache)", "Plume, armoured horse, lance", "Gilded mitre helm, spectacles", "Keep great-helm, gold cross", "Towering wig, sceptre, no crown", "Crown over a sculpted mask"] },
   { id: "odd", label: "Oddballs", look: "Creatures that keep the crest", notes: ["Frog in the pot", "Empty suit on a wooden horse", "Goose in a mitre", "Haystack with battlements", "Melting candle, one flame", "Sleepy cat, big crown"] },
 ];
 
@@ -21,7 +21,7 @@ const REF_PALETTE: { title: string; colors: [string, string][] }[] = [
   { title: "Shared", colors: [["#000000", "Ink"], ["#f0be9a", "Skin"], ["#c6b393", "Tile ground"], ["#75c7d4", "Backdrop teal"], ["#526383", "Backdrop slate"]] },
   { title: "Rebels", colors: [["#9f7853", "Pot copper"], ["#896749", "Pot shadow"], ["#665136", "Beard brown"], ["#865637", "Leather"], ["#a57952", "Light leather"], ["#5f3f2c", "Dark leather"], ["#8d7e66", "Hood cloth"], ["#918b83", "Robe grey"], ["#e7d5ac", "Parchment"], ["#8a9094", "Rusty steel"], ["#a2a4a4", "Stone"], ["#869043", "Drab green"], ["#507b92", "Faded tunic blue"], ["#cd2a25", "Accent red"], ["#3275a9", "Accent blue"], ["#eecd02", "Accent yellow"], ["#d86929", "Accent orange"], ["#a62f42", "Accent crimson"], ["#f7c65d", "Crown gold"]] },
   { title: "Patrol", colors: [["#4b76cf", "Royal blue"], ["#577aba", "Royal blue mid"], ["#314e8f", "Blue shadow"], ["#2c3b77", "Blue deep"], ["#aac7e6", "Blue highlight"], ["#95b1c9", "Steel"], ["#617085", "Steel shadow"], ["#f0bf44", "Gold"], ["#cb8e24", "Gold shadow"], ["#744924", "Moustache"], ["#d5e5f9", "Wig white"]] },
-  { title: "Oddballs", colors: [["#7bad4f", "Frog"], ["#a6d175", "Frog light"], ["#4b7c40", "Frog shadow"], ["#edf1f9", "Goose"], ["#b0b7cd", "Goose shadow"], ["#fe8a34", "Beak"], ["#ebbe52", "Hay"], ["#b2833d", "Hay shadow"], ["#f7e4b5", "Wax"], ["#e0c290", "Wax shadow"], ["#f9aa1f", "Flame"], ["#f19d43", "Cat"], ["#b7631e", "Cat shadow"], ["#9d2143", "Velvet"], ["#fbc635", "Crown gold"]] },
+  { title: "Oddballs", colors: [["#7cb04c", "Frog"], ["#a7d274", "Frog light"], ["#52883b", "Frog shadow"], ["#edf1f9", "Goose"], ["#b0b7cd", "Goose shadow"], ["#fe8a34", "Beak"], ["#ebbe52", "Hay"], ["#b2833d", "Hay shadow"], ["#f7e4b5", "Wax"], ["#e0c290", "Wax shadow"], ["#f9aa1f", "Flame"], ["#f19d43", "Cat"], ["#b7631e", "Cat shadow"], ["#9d2143", "Velvet"], ["#fbc635", "Crown gold"]] },
 ];
 
 export function Reference() {

@@ -16,7 +16,7 @@ Reference crops: `docs/art/<id>.webp`. Judge rubric: `JUDGE.md`.
 - Highlights: a short tick on the part's upper-left (`highlight="M… "`), on metal
   and glass only. The kit clips it and mirrors it when the rig faces left.
 - `line="outer"` for parts that form the silhouette, `"inner"` for parts drawn
-  over another part (bandana, patch, moustache, nose), `"none"` rarely.
+  over another part (bandana, patch, belly), `"none"` rarely.
 - `tests/ink-kit.test.ts` fails on any raw SVG shape, stroke, hex, clip or
   opacity in a file that imports the kit.
 

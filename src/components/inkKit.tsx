@@ -26,6 +26,7 @@ const tone = (fill: string, shade: string): Tone => ({ fill, shade });
 export const TONES = {
   skin: tone("#f0be9a", "#d99a74"), // shade picked, not sampled
   copper: tone("#9f7853", "#6e4f33"), // shade darker than the sheet's #896749, which vanished at game size
+  copperLight: tone("#c9955f", "#9f7853"), // picked: the saucepan's rolled lip, so it reads as metal, not a hat band
   shirtGreen: tone("#869043", "#646d2f"),
   bandana: tone("#cd2a25", "#94201c"),
   patchBlue: tone("#507b92", "#3b5e70"),
@@ -36,12 +37,13 @@ export const TONES = {
   royalBlue: tone("#4b76cf", "#314e8f"),
   gold: tone("#f0bf44", "#cb8e24"),
   steel: tone("#a9c1d6", "#617085"),
-  moustache: tone("#744924", "#56351a"),
   mail: tone("#4b5263", "#363b48"),
-  frog: tone("#7bad4f", "#4b7c40"),
-  frogLight: tone("#a6d175", "#7bad4f"), // shade reuses frog green
-  frogEye: tone("#f3e58a", "#d6c25a"), // picked: the sheet's pale yellow eyes
-  cattail: tone("#7a4a2b", "#5a3520"), // picked
+  // Frog tones sampled from docs/art/odd-pawn.webp.
+  frog: tone("#7cb04c", "#52883b"),
+  frogLight: tone("#a7d274", "#7cb04c"), // throat and belly; shade reuses frog green
+  frogSpot: tone("#659b49", "#52883b"),
+  frogEye: tone("#fdf9b0", "#e3d98a"), // the sheet's eyes are flat; shade picked
+  reed: tone("#9aa64a", "#6e7a30"), // picked: the cattail stem, apart from the frog's green
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

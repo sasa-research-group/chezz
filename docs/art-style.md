@@ -14,7 +14,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Face budget for humans and armour, from least to most face:
   1. No face: a hood void, embers behind bars, a closed visor, spectacle lenses on a helm, or no head at all.
   2. Two dot eyes on a bare skin face, no mouth: under a pot, in a helm opening, between crown and beard, or in hay.
-  3. A small face: dot eyes, one-stroke brows, a nose tick, a one-stroke mouth (rebel queen, patrol pawn).
+  3. A small face: dot eyes, one-stroke brows, a nose tick, a one-stroke mouth (rebel queen). The patrol pawn in game has dot eyes and brows only.
   4. Limit: patrol queen (dot eyes with lid strokes, brows, red lips) and the patrol king's sculpted mask (squinting slits, brows, painted moustache). Never more than these.
 - Humans: no irises. Glowing dots or embers are allowed in a dark void (rebel bishop, rebel rook).
 - Creatures keep a simple cartoon creature face: the frog (yellow eyes, pupils, heavy lids) and the cat (closed-eye arcs, nose, whiskers) are the limit.
@@ -79,7 +79,7 @@ Weak reads on the sheet, to fix before drawing: the patrol queen has no crown at
 
 ## 7. Palette (sampled from the sheet)
 
-Values are cluster means and small-patch medians from `2-armour-talks.png`.
+Values are cluster means and small-patch medians from `2-armour-talks.png`; the frog rows are sampled from `docs/art/odd-pawn.webp`.
 
 **Shared**
 
@@ -135,9 +135,11 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`.
 
 | Name | Hex |
 |---|---|
-| Frog green | `#7bad4f` |
-| Frog light | `#a6d175` |
-| Frog shadow | `#4b7c40` |
+| Frog green | `#7cb04c` |
+| Frog light (throat, belly) | `#a7d274` |
+| Frog shadow | `#52883b` |
+| Frog spot | `#659b49` |
+| Frog eye | `#fdf9b0` |
 | Goose white | `#edf1f9` |
 | Goose shadow | `#b0b7cd` |
 | Beak orange | `#fe8a34` |
@@ -155,20 +157,20 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`.
 
 | Id | Notes |
 |---|---|
-| `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. In game the pot has straight sides, a rim band and two small loop handles low on its sides, just above the rim; handles higher up read as mouse ears. |
+| `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. In game the pot is an upturned copper saucepan (owner's correction, Nov 1): a shallow pan, slightly flared toward a thin lip, pushed a little toward the front, and a thick handle with a hanging hole sticking out the back nearly level. Angled steeply up, a thin handle read as a feather in a hat. The handle is what makes it a pan rather than a top hat. |
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
 | `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
-| `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. |
+| `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
 | `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. |
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. |
 | `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. |
 | `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. |
-| `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. |
+| `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game (skin `frog-pot`): wears the rebel saucepan perched on two eye domes that bulge out under and around its lip; wide flat head, a long grumpy mouth line, pale throat; squat body on haunches with a pale belly, webbed hands and feet; the rebel red neckerchief; a cattail. |
 | `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. |
 | `odd-bishop` | White goose in a parchment mitre, one angry brow, orange beak. |
 | `odd-rook` | Walking haystack with battlements, two black oval eyes. |
@@ -213,6 +215,8 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Keep the figure inside x 18–82, prop and outline included; wider figures crowd the square.
 - Pauldrons need their own outer outline, highlight and a gold edge, and must sit below the head (y 74+), or they read only as gold lines.
 - A shape that narrows toward the top (crown) plus any brim reads as a hat. Pots need straight or widening sides.
+- Even a straight pot with a lip reads as a top hat. A long side handle with a round end and a hanging hole is what sells a saucepan; inside x 18–82 it has to start inside the pan and run nearly level out the back; thick, not thin.
+- A creature wearing the pawn's pan: lift the pan onto the creature's own features (the frog's eye domes) so they bulge out under it; a pan sitting on a flat head hides them.
 
 ## 10. Judge checks
 
