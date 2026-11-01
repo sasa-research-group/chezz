@@ -53,6 +53,9 @@ export const TONES = {
   frogSpot: tone("#659b49", "#52883b"),
   frogEye: tone("#fdf9b0", "#e3d98a"), // the sheet's eyes are flat; shade picked
   reed: tone("#9aa64a", "#6e7a30"), // picked: the cattail stem, apart from the frog's green
+  // Haystack rook tones: hay sampled from docs/art/odd-rook.webp (docs/art-style.md section 7).
+  hay: tone("#ebbe52", "#b2833d"),
+  straw: tone("#c9953f", "#9c6f2c"), // picked: the haystack's straw mitten, a step darker than the hay
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

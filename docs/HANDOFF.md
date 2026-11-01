@@ -18,7 +18,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with
-  `?art=new`. Frog pawn passed the judge Nov 1 (DECISIONS.md).
+  `?art=new`. Frog pawn and haystack rook passed the judge Nov 1 (DECISIONS.md).
 - **Studio** (`art.html` → `src/art/`): all art, mechanics, style guide;
   redrawn pieces in its "New art" section (`Catalog.tsx`).
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
