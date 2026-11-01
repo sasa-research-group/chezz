@@ -3,6 +3,19 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: the frog passes the judge
+- Frog skin redrawn for 48px: a head wider than the pan (rx 23.5) with the pan
+  dropped onto the eye domes so the lids tuck under its rim; legs merged into two
+  plain ovals (no toes, no belly line, no finger pads); round mitts; a shorter
+  frowning mouth; the red cord shrunk to a band tight under the jaw with a knot
+  right of centre (a long cheek cord was the loudest part); a fatter cattail with a
+  wood stalk and leather head, so it parts from the frog's green and from the pan.
+- Judge rounds (readability/style/likeness/motion/consistency): 6/7/6/8/8 →
+  7/7/6/8/8 → 7/7/7/8/8, a pass. Last judge's open notes: the 48px silhouette is
+  a box with a stick (the domes no longer rise above the head), the lid lines meet
+  in a bar like glasses, the cattail head is thin for a cattail, and the cord can
+  still read as a belt.
+
 ## 2026-11-01: saucepan, plain patrol face, a real frog
 - Rebel pawn: the pot becomes an upturned copper saucepan with a long handle out the
   back. The straight pot kept reading as a top hat. Kept: copper, the dent, dot eyes
