@@ -4,9 +4,9 @@ import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, ellipse, rect, type Ton
 /** The queens redrawn in the "armour does the talking" style (docs/art-style.md),
  * drawn only with the shape kit. Same groups and pivots as the old queen rig
  * (the prop pivots at the front hand), so rig.css drives them unchanged,
- * including the promotion morph-in. Queens are tall pieces, drawn to an older
- * y 21 height cap (the figure box now allows y 0, docs/art-style.md section 9):
- * crown tips near y 20, a gown flaring to about 44 wide at the hem.
+ * including the promotion morph-in. Queens are tall pieces with a gown flaring to
+ * about 44 wide at the hem. The rebel's crown stops near y 20; the patrol's wig is a
+ * beehive whose crown and sceptre cross rise to about y 1.
  * The front hand holds the prop, so only the back arm carries an
  * `arm` class (the cheer swings it); the old rig's arm slap has no free arm to
  * move, and the strike is the prop's swing. */
@@ -92,10 +92,11 @@ const SCEPTRE_HAND = [72, 84] as const;
 function Sceptre() {
   const [fx, fy] = SCEPTRE_HAND;
   return <g className="prop">
-    <Pole d={`M74.5 54 L${fx - 0.5} ${fy + 9}`} tone={T.gold} width={3.4} />
-    <Pole d="M74.5 45 L74.5 37.5 M71.5 40.5 L77.5 40.5" tone={T.gold} width={2.6} />
-    <Part d={circle(74.5, 49.5, 4.8)} tone={T.royalBlue} highlight="M72 49 Q72.3 47 74 46.5" />
-    <Part d={rect(71, 53, 7, 3.5, 1.5)} tone={T.gold} line="inner" shade={false} />
+    <Pole d={`M74 18 L${fx - 0.5} ${fy + 9}`} tone={T.gold} width={4.4} />
+    <Pole d="M74 7.5 L74 4 M71.5 5.8 L76.5 5.8" tone={T.gold} width={2.4} />
+    <Part d={circle(74, 13, 5.5)} tone={T.royalBlue} shade={false} highlight="M71 12.5 Q71.3 10 73.3 9.5" />
+    <Part d={rect(70, 18.5, 8, 4, 1.5)} tone={T.gold} line="inner" shade={false} />
+    <Part d={rect(70, 50, 7.5, 4, 1.5)} tone={T.gold} line="inner" shade={false} />
   </g>;
 }
 
@@ -110,8 +111,8 @@ function patrolQueen(c: Palette, hue: PatrolHue): Figure {
   return {
     body: <>
       <Boot x={42} tone={T.mail} /><Boot x={58} tone={T.mail} />
-      <Part d="M37 71 L26.5 54 Q35 55 40.5 62 L59.5 62 Q65 55 73.5 54 L63 71 Z" tone={gown} />
-      <Pole d="M26.5 54 Q35 55 40.5 62 M59.5 62 Q65 55 73.5 54" tone={T.gold} width={2.6} />
+      <Part d="M37 71 L31 59 Q37 59.5 41 63 L59 63 Q63 59.5 69 59 L63 71 Z" tone={gown} />
+      <Pole d="M31 59 Q37 59.5 41 63 M59 63 Q63 59.5 69 59" tone={T.gold} width={2.6} />
       <Part d="M37 70 Q50 65 63 70 Q67 84 72.5 103.5 Q50 109 27.5 103.5 Q33 84 37 70 Z" tone={gown} />
       <Pole d="M29 101 Q50 106.5 71 101" tone={T.gold} width={3.4} />
       <Part d="M42.5 69 L57.5 69 L52.5 92 Q50 95 47.5 92 Z" tone={T.gold} line="inner" />
@@ -130,13 +131,13 @@ function patrolQueen(c: Palette, hue: PatrolHue): Figure {
       <Mitt x={SCEPTRE_HAND[0]} y={SCEPTRE_HAND[1]} tone={T.skin} />
     </>,
     head: <>
-      <Part d="M38.5 55 Q31 55.5 31.5 47.5 Q25.5 42.5 28 36 Q27 29 35 28 Q40 23.5 50 23.5 Q60 23.5 65 28 Q73 29 72 36 Q74.5 42.5 68.5 47.5 Q69 55.5 61.5 55 Z" tone={T.wig} />
-      <Pole d="M29 37 Q39.5 45 50 40.5 Q60.5 45 71 37" tone={T.gold} width={2.6} />
-      <Part d={circle(50, 40.5, 3.2)} tone={T.royalBlue} line="inner" shade={false} />
-      <Crown x={50} y={30} h={11} gem={T.royalBlue} />
+      <Part d="M35 51.5 Q31 46 33 40 Q26 34 28 25 Q30 15.5 40 13 Q50 10.5 60 13 Q70 15.5 72 25 Q74 34 67 40 Q69 46 65 51.5 Q62 53.5 60 49.5 L40 49.5 Q38 53.5 35 51.5 Z" tone={T.wig} highlight="M31 31 Q31 26 33.5 22.5" />
+      <Ink d="M33.5 40 Q37 38 40 39.5 M66.5 40 Q63 38 60 39.5" weight="inner" />
+      <Pole d="M29 27.5 Q39 41 50 33.5 Q61 41 71 27.5" tone={T.gold} width={2.4} />
+      <Part d={circle(50, 33.5, 3.4)} tone={T.royalBlue} line="inner" shade={false} />
+      <Crown x={50} y={13.5} h={10.5} gem={T.royalBlue} />
       <Part d={ellipse(50, 56, 10, 10.5)} tone={T.skin} line="inner" />
       <Part d="M38.5 52 Q38 42.5 50 42 Q62 42.5 61.5 52 Q57 47.5 53 48 L50 51.5 L47 48 Q43 47.5 38.5 52 Z" tone={T.helmSteel} line="inner" shade={false} highlight="M42 47.5 Q43.5 45 46.5 44.5" />
-      <Ink d="M42.8 53.8 Q45.5 52 48 53.4 M52 53.4 Q54.5 52 57.2 53.8" />
       <Eyes xs={[45.5, 54.5]} y={56} r={2.3} cover={T.skin.fill} />
       <Part d="M46.5 61.5 Q48.5 59.8 50 60.8 Q51.5 59.8 53.5 61.5 Q50 64.8 46.5 61.5 Z" tone={T.lips} line="none" shade={false} />
     </>,

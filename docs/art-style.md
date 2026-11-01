@@ -161,7 +161,7 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. In game the hobby horse is the prop, held by the neck at waist height with the stick down between his legs; he bonks with it. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. In game: a wide straight-sided mitre with a small back horn, a hood and robe much lighter than the sheet (or hood, void and robe merge at 48px), round glowing dot eyes, a mid-grey ragged cowl. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
-| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a dark slot, the mallet leans on his front shoulder beside the helm (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
+| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a T opening, the sledge stands on his front shoulder with its head above the right merlon (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. In game: a kettle helm whose brim droops at both ends, a squat three-point gold crown tilted on top, a big near-black pan held up beside the helm, and the purple armband on a back arm that hangs out past the body so it shows. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. In game: a three-point crown (five points close up at 48px) with a red centre gem, a beard lighter than the sheet's, narrowing below the chin so the fur collar shows at the shoulders; a red cloak over a faded blue tunic; a chipped blade with a gold guard above the fist. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
@@ -234,8 +234,10 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Battlements: three merlons with two crenels 8 wide and 8 deep across a 36-wide top (merlons about 6.7). Narrower crenels close up under the outline at 48px.
 - A dark eye slot needs stone around it: keep at least 5 units between the slot and the helm's edge, or the outline and the slot's line swallow the helm.
 - Glowing dot eyes in a void use a light tone (`parchment`), with light KO crosses and squint chevrons; ink on the void vanishes.
-- A wide helm leaves no room for a prop on the back shoulder: the head hides behind the helm at rest, and the shared attack swing (+65° about the front hand) lifts a back-pointing prop straight up behind the helm. The stonemason's mallet therefore leans on his front shoulder, upright beside the helm, so it shows at rest and swings down in front on the strike.
+- A wide helm leaves no room for a prop on the back shoulder: the head hides behind the helm at rest, and the shared attack swing lifts a back-pointing prop straight up behind the helm. The stonemason's sledge therefore stands on his front shoulder, its head above the right merlon, with its own strike.
 - Give a prop's head its own tone, darker than the helm beside it (`darkStone` against `stone`), or the two merge in greyscale and silhouette.
+- A long upright prop beside a crest can't swing back: any backward rotation sweeps its head behind the crest. Let the body's lean be the wind-up, and on the strike slide the prop through the fist (rotate, then translate along the shaft) so the head lands low in front, a short reach (`rig-sledge`).
+- A face opening needs stone around it: a T opening plus framing plates on a 28-wide helm left only outline and void. Keep the T to about 17 × 9 plus a 6-wide stem.
 
 **Learned from the knights** (`src/components/ArmourKnights.tsx`)
 
@@ -246,6 +248,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - A `Pole` is its width plus 4.8 units of ink, so a thin strap (bridle, reins) drawn with it lands as a thick black bar. Draw a strap that matters as a `Flat` band about 3 units wide on top of the part.
 - A rider on a full horse: put the rider's lance in the back hand, upright behind him, so at rest it stays clear of the horse head. The shared strike swing (+65° about the hand) passes it behind the pauldron and helm, where it vanishes; the patrol knight uses its own `rig-lance` that couches it low across his waist.
 - Only give the `arm-front` class (the cheer raises it) to an arm whose hand holds nothing; a hand gripping the prop would lift off it.
+- A horse head reads as a horse through its jaw, throat notch and a dark mane strip; a chanfron covering most of the head turns it into a grey wedge. Give the horse one coat colour, body and head.
 
 **Learned from the bishops** (`src/components/ArmourBishops.tsx`)
 
@@ -254,7 +257,8 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Glowing eyes in a void stay round dots (r 2.8). Half-lidded half-moons read as sleepy and merge into one dash at 48px; put attitude in the pose instead.
 - Lenses on a helm: one gold ring per lens as a `Pole` circle (both in one path, so they fuse at the bridge), pale glass inside. The glass must be paler than the steel around it.
 - A hand that sits at the height of a gold trim line makes the sleeve read as part of the trim; move the hand clear of it.
-- A shepherd's crook beside a tall mitre: the hook must clear the mitre's shoulder by the outline on both sides, so the shaft runs near x 78 and the curl turns back toward the head. That leaves the hook's opening only 2–3 units inside x 82. (The patrol crozier's curl still tucks behind his wider mitre; open.)
+- A shepherd's crook beside a tall mitre: the hook must clear the mitre's shoulder by the outline on both sides, so the shaft runs near x 78 and the curl turns back toward the head. That leaves the hook's opening only 2–3 units inside x 82. The patrol crozier clears his wider mitre with a smaller curl and his head 3 units back.
+- A cope reads as a cope when it is narrow at the shoulders and flares to the hem; gold on the capelet and on the mitre merges into one gold mass, so keep the capelet blue with a gold edge.
 
 **Learned from the kings** (`src/components/ArmourKings.tsx`)
 
@@ -272,6 +276,8 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - A pan seen face-on reads as a magnifying glass or a lollipop when its inside is lighter than its rim. Draw it near-black, with a darker flat inside, and big (about 25 units across).
 - A wig reads as a wig through a scalloped outline (curl lobes down both sides), wider at the top than the head. Straight gold bands across it read as a turban or a layered cake; drape the chains in arcs.
 - An accent on a back arm is hidden by the body unless that arm swings out past the body's edge; the rebel queen's armband arm hangs out to x 21.
+- A pale tall wig: stacked rolls with a cone top read as a mitre, straight swags read as a striped drum. A teardrop with one drooping swag and the crown lifted clear on top reads best so far, though at 48px it is still a wide oval (open).
+- A small orb or ball (under about 12 across) goes unshaded, and no band pole through it: a pole's ink sides fill it.
 
 ## 10. Judge checks
 

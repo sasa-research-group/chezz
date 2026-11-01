@@ -11,8 +11,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
   the shape kit `inkKit.tsx` behind `?art=new`: every piece (`Armour*.tsx`);
-  rebel rook, patrol knight, bishop and queen short of the judge's pass
-  (DECISIONS.md). Ink stays in y 0+, x 18–82
+  all pass the judge but the patrol queen (wig reads as a flat oval at 48px;
+  DECISIONS.md "polishing the four pieces"). Ink stays in y 0+, x 18–82
   (`figure-bounds.test.ts`); the board's deep far rim keeps top-row crests
   on the frame. Battle shot: `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
   Concepts: `tools/art/gen.mjs`.

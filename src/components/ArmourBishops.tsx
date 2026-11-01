@@ -67,26 +67,28 @@ function rebelBishop(): Figure {
 
 function patrolBishop(c: Palette, hue: PatrolHue): Figure {
   const robe: Tone = hue === "blue" ? T.royalBlue : { fill: c.main, shade: c.mainSh };
-  const lenses = [44.2, 55.8], hand: [number, number] = [72, 89];
+  const lenses = [44.2, 55.8], hand: [number, number] = [74, 89];
   return {
     body: <>
       <Boot x={42} tone={T.leatherDark} /><Boot x={58} tone={T.leatherDark} />
-      <Part d="M36 78 Q30 91 28.5 104 Q50 108.5 71.5 104 Q70 91 64 78 Z" tone={robe} highlight="M35.5 98 Q35.5 91 37.5 86" />
-      <Pole d="M31.5 100.5 Q50 104.5 68.5 100.5" tone={T.gold} width={3.4} />
-      <Pole d="M50 82 L50 101" tone={T.gold} width={4} />
-      <Part d="M27 85 Q27.5 72 40 68 Q50 65 60 68 Q72.5 72 73 85 Q50 79 27 85 Z" tone={robe} highlight="M32 79 Q34 73.5 39 71" />
-      <Pole d="M29.5 83.5 Q50 78 70.5 83.5" tone={T.gold} width={5} />
-      <Part d={circle(50, 74, 3.6)} tone={T.gold} line="inner" shade={false} />
+      <Part d="M38 67.5 Q30.5 69 29 79 L22.5 104 Q50 109.5 77.5 104 L71 79 Q69.5 69 62 67.5 Z" tone={robe} highlight="M28 99 Q28.5 92 30.5 86" />
+      <Part d="M45.5 86 L54.5 86 L58.5 105.5 Q50 107 41.5 105.5 Z" tone={{ fill: robe.shade, shade: robe.shade }} line="inner" shade={false} />
+      <Pole d="M26 102 Q50 107.5 74 102" tone={T.gold} width={3.4} />
+      <Pole d="M50 90 L50 104.5" tone={T.gold} width={5} />
+      <Part d="M50 92.5 Q46 95.5 50 100.5 Q54 95.5 50 92.5 Z M44.5 97 Q47 95.5 50 98.5 Q53 95.5 55.5 97 Q53 99.5 50 100 Q47 99.5 44.5 97 Z" tone={T.gold} line="inner" shade={false} />
+      <Part d="M28.5 81 Q32 70.5 41 68.5 Q50 69.5 59 68.5 Q68 70.5 71.5 81 L65 86 L57.5 84 L50 92 L42.5 84 L35 86 Z" tone={robe} highlight="M31 78 Q34 73.5 38 72" />
+      <Pole d="M30 81 L35 85.5 L42.5 83.5 L50 91.5 L57.5 83.5 L65 85.5 L70 81" tone={T.gold} width={3.2} />
+      <Part d={circle(50, 82, 3.6)} tone={T.gold} line="inner" shade={false} />
     </>,
     armBack: <><Sleeve d="M35 83 Q31 87 32.5 92" tone={robe} /><Mitt x={33.5} y={94} tone={T.glove} /></>,
     prop: <g className="prop">
-      <Pole d="M71 106 L76.5 24" tone={T.steel} width={3.6} />
-      <Pole d="M76.5 25 C76.5 11 73 6.5 68.5 6.5 C64 6.5 61.5 9.5 61.5 13 C61.5 16.5 64 18 66.5 17" tone={T.gold} width={4.4} />
-      <Part d={circle(68.5, 13.5, 3.4)} tone={T.gold} line="inner" shade={false} />
+      <Pole d="M73.5 106 L76.5 24" tone={T.darkStone} width={3.6} />
+      <Pole d="M76.5 25 C76.5 13 75 7.5 71.5 7.5 C68.5 7.5 66.5 10 66.5 12.5 C66.5 15 68.5 16.5 70.5 16" tone={T.gold} width={4.4} />
+      <Part d={circle(71, 12.5, 3)} tone={T.gold} line="inner" shade={false} />
       <Part d={ellipse(76, 30, 4.4, 3.6)} tone={T.gold} line="inner" shade={false} />
     </g>,
     armFront: <><Sleeve d={`M64.5 83 Q67 86.5 ${hand[0] - 4} ${hand[1]}`} tone={robe} front /><Pole d={`M${hand[0] - 7.5} ${hand[1] + 1} L${hand[0] - 3} ${hand[1] - 2.5}`} tone={T.gold} width={3} /><Part d={circle(hand[0], hand[1], 6)} tone={T.glove} line="inner" shade={false} /><Ink d={`M${hand[0] + 1.5} ${hand[1] - 3.5} Q${hand[0] + 3} ${hand[1]} ${hand[0] + 1.5} ${hand[1] + 3.5}`} weight="inner" /></>,
-    head: <>
+    head: <g transform="translate(-3 0)">
       <Part d="M33.5 70 L33.5 42 L66.5 42 L66.5 70 Q50 74 33.5 70 Z" tone={T.helmSteel} highlight="M37.5 63 L37.5 66" />
       <Pole d="M50 61 L50 70.5" tone={T.gold} width={3.4} />
       <Pole d={`${circle(lenses[0], 54, 4.6)} ${circle(lenses[1], 54, 4.6)}`} tone={T.gold} width={2.6} />
@@ -104,7 +106,7 @@ function patrolBishop(c: Palette, hue: PatrolHue): Figure {
       <Part d="M31.5 43.5 Q30 21 50 3 Q70 21 68.5 43.5 Q50 47.5 31.5 43.5 Z" tone={T.gold} highlight="M37.5 35 Q37.5 24 43 16" />
       <Part d="M47 42 L47.5 15 L50 10 L52.5 15 L53 42 Z" tone={T.goldDeep} line="inner" shade={false} />
       <Part d="M31 37.5 Q50 41.5 69 37.5 L68.5 43.5 Q50 47.5 31.5 43.5 Z" tone={T.goldDeep} line="inner" shade={false} />
-    </>,
+    </g>,
     mouths: null,
     propOrigin: `${hand[0]}px ${hand[1]}px`, shield: [34, 84], mouth: [50, 62, 5],
   };
