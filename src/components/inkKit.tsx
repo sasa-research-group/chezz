@@ -79,6 +79,9 @@ export const TONES = {
   iron: tone("#474a51", "#2f3135"), // the frying pan, near-black so it never merges with her rusty helm
   wig: tone("#d5e5f9", "#a3b6d3"), // the patrol queen's powdered wig
   lips: tone("#c8403c", "#962d2a"),
+  // Goose bishop, sampled from docs/art/odd-bishop.webp (docs/art-style.md section 7).
+  goose: tone("#edf1f9", "#b0b7cd"),
+  beak: tone("#fe8a34", "#c9621a"), // shade picked
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;
