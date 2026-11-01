@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { META_KEY, creditWin, emptyMeta, equip, loadMeta, readMeta, saveMeta, type Meta, type SkinRef } from "../src/game/meta";
-import { newRun } from "../src/game/turns";
+import { newRun, readRun } from "../src/game/turns";
 
 const SKINS: SkinRef[] = [{ id: "frog", kind: "pawn" }, { id: "goose", kind: "bishop" }];
 const won = () => ({ ...newRun(), phase: "victory" as const });
@@ -42,6 +42,12 @@ describe("creditWin", () => {
   it("credits the same run only once, so a reload of its victory unlocks nothing", () => {
     const once = creditWin(emptyMeta(), won(), SKINS).meta;
     expect(creditWin(once, won(), SKINS)).toEqual({ meta: once });
+  });
+  it("still recognises a credited run after it is saved and loaded again", () => {
+    const run = won(), once = creditWin(emptyMeta(), run, SKINS).meta;
+    const reloaded = readRun(JSON.stringify(run))!;
+    expect(reloaded).not.toBeNull();
+    expect(creditWin(readMeta(JSON.stringify(once), SKINS), reloaded, SKINS).unlocked).toBeUndefined();
   });
   it("ignores runs that are not won", () => {
     for (const phase of ["player", "camp", "defeat"] as const) expect(creditWin(emptyMeta(), { ...newRun(), phase }, SKINS).unlocked).toBeUndefined();

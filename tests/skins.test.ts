@@ -6,8 +6,8 @@ import { SKINS } from "../src/components/skins";
 
 /** Each render numbers its line-boil filter; drop the number so renders compare. */
 const rig = (props: Parameters<typeof PieceRig>[0]) => renderToStaticMarkup(createElement(PieceRig, props)).replace(/boil-\d+/g, "boil");
-/** The groups rig.css animates; a skin that drops one breaks an action. */
-const SLOTS = ["flip", "hop", "squash", "prop", "head-tilt", "head", "face", "eyes", "pupil", "ko-eyes", "mouth-yell", "shield"];
+/** Groups rig.css animates that the skin's own head must draw; a skin that drops one breaks an action. */
+const SLOTS = ["eyes", "pupil", "ko-eyes", "mouth-yell"];
 const hasClass = (html: string, c: string) => new RegExp(`class="(?:[^"]* )?${c}(?: [^"]*)?"`).test(html);
 
 describe("skin registry", () => {
@@ -17,6 +17,8 @@ describe("skin registry", () => {
     it("keeps every animated group", () => {
       const html = rig({ kind: skin.kind, side: "white", skin: skin.id });
       for (const c of SLOTS) expect(hasClass(html, c), c).toBe(true);
+      const eyes = html.slice(html.search(/class="eyes"/), html.search(/class="ko-eyes"/));
+      expect(eyes.includes('class="pupil"'), "pupils sit inside .eyes").toBe(true);
       expect(hasClass(html, `skin-${skin.id}`)).toBe(true);
       if (skin.quirk) expect(hasClass(html, skin.quirk)).toBe(true);
     });

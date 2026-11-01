@@ -33,7 +33,7 @@ export function readMeta(raw: string | null, skins: SkinRef[]): Meta {
   return { version: 1, unlocked: owned, equipped: worn, ...(typeof lastWin === "string" ? { lastWin } : {}) };
 }
 
-/** A short hash of the whole run, history included: two different won runs never share it in practice. */
+/** A short hash of the whole run, history included. Only a run replayed move for move hashes the same, and then it earns no second unlock. */
 export function runPrint(run: Run): string {
   let h = 5381;
   for (const ch of JSON.stringify(run)) h = (h * 33 + ch.charCodeAt(0)) >>> 0;

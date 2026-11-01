@@ -14,7 +14,7 @@ const lid = (x: number) => `M${x - lidHalf} ${EYE_Y - LID} A${EYE_R} ${EYE_R} 0 
 
 function FrogHead() {
   return <>
-    <g className="quirk-bit"><Part d={ellipse(50, 80, 6.5, 4)} tone={T.frogLight} line="inner" shade={false} /></g>
+    <g className="quirk-bit"><Part d={ellipse(50, 79, 5, 3)} tone={T.frogLight} line="inner" shade={false} /></g>
     <Part d={ellipse(50, 70.5, 17.5, 11.5)} tone={T.frog} />
     {eyeXs.map(x => <Part key={x} d={circle(x, EYE_Y - .5, 7.2)} tone={T.frog} shade={false} />)}
     <g className="face">

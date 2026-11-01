@@ -118,7 +118,7 @@ function SkinCompare({ skin }: { skin: Skin }) {
 function Skins() {
   const { hue } = useStudio();
   return <Group id="skins" title="Skins" intro={<>Unlockable rebel looks: finishing a run unlocks the next one. Each skin is one entry in <code>components/skins/index.ts</code> plus its drawing, on the shape kit; it swaps head, prop, body tones and an idle quirk and keeps the piece's body and pivots. In battle they show only with <code>?art=new</code>. Guide: <code>docs/art/SKINS.md</code>.</>}>
-    {SKINS.map(s => <Entry key={s.id} name={`${s.name} (${s.kind}): base · skin · reference`} src={`skins/${s.id} · docs/art/${s.ref ?? "—"}.webp`} note={s.quirk && `idle quirk: ${s.quirk}`} full><SkinCompare skin={s} /></Entry>)}
+    {SKINS.map(s => <Entry key={s.id} name={`${s.name} (${s.kind}): base · skin · reference`} src={`components/skins · ${s.id} · docs/art/${s.ref ?? "—"}.webp`} note={s.quirk && `idle quirk: ${s.quirk}`} full><SkinCompare skin={s} /></Entry>)}
     <Entry name="Silhouette at 48px" src="judge check 1: filled solid black" wide>
       <div className="pilot-row silhouettes">
         {SKINS.map(s => <figure key={s.id} style={{ width: 48 }}><PieceRig kind={s.kind} side="white" skin={s.id} seed="sil" /></figure>)}

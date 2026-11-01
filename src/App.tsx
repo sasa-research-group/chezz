@@ -194,7 +194,8 @@ export default function App() {
   useEffect(() => { if (!saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
   // Skins are drawn on the shape kit, so in battle they show only with the redrawn art (?art=new).
   const skinOf = (kind: Kind) => URL_ART === "new" ? meta.equipped[kind] : undefined;
-  const skinPicker = <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} />;
+  // Offered only where a worn skin can actually show; unlocks still count without it.
+  const skinPicker = URL_ART === "new" ? <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} /> : null;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const e = ENCOUNTERS[run.encounter], king = run.units.find(u => u.id === "king");

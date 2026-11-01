@@ -185,9 +185,11 @@
 .rig.rig-pawn.art-new.act-idle:not(.is-wounded) .sweat{opacity:0;animation:none}
 
 /* Skin quirks (src/components/skins/): idle-only extras keyed by a skin's quirk class.
-   They animate only .quirk-bit, .head, .prop or .eyes, so every action still plays. */
+   They animate only .quirk-bit, .head, .prop or .eyes, so every action still plays,
+   and may switch off the piece's own idle loop. A .quirk-bit is drawn at its resting size. */
 .rig .quirk-bit{transform-box:fill-box;transform-origin:50% 0}
-/* Frog: a slow throat-sac croak instead of the rebel pawn's nervous jitter. */
-.rig.rig-pawn.quirk-croak.act-idle .squash{animation:none}
+/* Frog: a slow throat-sac croak instead of the rebel pawn's nervous jitter
+   (beats `.rig.rig-pawn.rebel.act-idle .squash` on specificity, whatever the file order). */
+.rig.rig-pawn.rebel.quirk-croak.act-idle .squash{animation:none}
 .rig.quirk-croak.act-idle .quirk-bit{animation:rig-croak 2.6s var(--ease-soft) var(--seed) infinite}
-@keyframes rig-croak{0%,50%,100%{transform:scale(.75)}66%{transform:scale(1.3,1.55)}76%{transform:scale(1.15,1.3)}}
+@keyframes rig-croak{0%,50%,100%{transform:scale(1)}66%{transform:scale(1.75,2.05)}76%{transform:scale(1.55,1.75)}}

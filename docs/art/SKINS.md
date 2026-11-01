@@ -17,7 +17,11 @@ reference oddballs: `docs/art/odd-*.webp`. Style rules: `docs/art-style.md`
 - Skins are cosmetic. They never change stats or rules; `turns.ts` knows
   nothing about them.
 - Skins are drawn on the shape kit (`src/components/inkKit.tsx`), so in battle
-  they show only with `?art=new`. The studio and the picker always show them.
+  they show only with `?art=new`, and the picker (☰ menu and Victory screen)
+  appears only there too. Wins still unlock skins without it. The studio always
+  shows them. The hideout's army portraits don't show skins yet.
+- Two tabs open at once can overwrite each other's unlocks (each writes its whole
+  copy). Fine for the prototype.
 
 ## How a skin plugs into the rig
 
@@ -26,10 +30,10 @@ A rig takes `skin="<id>"`. `PieceRig` builds the piece's shape-kit figure
 
 | Slot | What the skin gives | Rule |
 |---|---|---|
-| Head | `head()`: face and headgear | Keep `.face > .eyes > .pupil`, `.ko-eyes` and a `.mouth-yell` squint, so blink, hit, death and yell still play. Keep the crest. |
+| Head | `head()`: face and headgear | Keep `.eyes > .pupil`, `.ko-eyes` and a `.mouth-yell` squint (wrapping them in `.face` is only for grouping), so blink, hit, death and yell still play. Keep the crest. |
 | Body tones | `look`: `cloth`, `accent`, `patch`, `boot`, `hand` | Shapes, groups and pivots stay the build's. |
 | Prop | `prop()`, optional | Drawn inside `.prop`; it swings around the build's `propOrigin`, so hold it in the front hand. |
-| Idle quirk | `quirk`: a class on the `<svg>` | CSS in `rig.css` under "Skin quirks". Animate only `.quirk-bit`, `.head`, `.prop` or `.eyes`, in `act-idle`. Reduced motion stops `.quirk-bit`. |
+| Idle quirk | `quirk`: a class on the `<svg>` | CSS in `rig.css` under "Skin quirks". Animate only `.quirk-bit`, `.head`, `.prop` or `.eyes`, in `act-idle`; it may also switch off the piece's own idle loop (the frog stops the pawn's jitter). Draw a `.quirk-bit` at its resting size. Reduced motion stops `.quirk-bit`. |
 
 The skin only applies to a rebel of its own `kind`; anything else ignores it.
 
