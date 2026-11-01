@@ -29,6 +29,22 @@ PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm 
 In cloud containers, use the preinstalled Chromium (check the build number under
 `/opt/pw-browsers`). Never run `playwright install`.
 
+## The art harness lives in this repo
+Someone else must be able to clone this repo and generate the same art. So
+everything the art depends on is committed here, never only in an agent's
+memory, a scratch folder or a personal tool:
+- Style: `docs/art-style.md` (rules), `docs/art/` (reference images, one crop
+  per character), `docs/art/recipe.md` (exact model + prompts that made them).
+- Decisions and rejected directions: `docs/art/DECISIONS.md`. Add to it when
+  the owner picks or rejects a look, with their reason.
+- Pipeline (concept → style guide → builder → judge): `docs/art/PIPELINE.md`,
+  `docs/art/BRIEF.md`, `docs/art/JUDGE.md`, scripts in `tools/art/`.
+- A prompt, script, palette or rule that produced something the owner kept
+  goes into these files in the same change. Don't save project knowledge to
+  agent memory.
+- Concept images are scratch until picked; the picked one is committed (webp,
+  under ~800KB) with its prompt.
+
 ## Workflow
 - Local development only: no PRs and no pushes unless the owner asks. Agents
   commit on a local `claude/*` branch; the lead merges it into local `main`.
