@@ -13,7 +13,7 @@ test("studio: every area renders without errors and fits a phone", async ({ page
     // Named swatches flag hexes that no longer appear in the art sources.
     if (area === "Style guide") {
       await expect(page.locator(".swatch .missing")).toHaveCount(0);
-      await expect(page.locator(".ref-grid img")).toHaveCount(19);
+      await expect(page.locator(".ref-grid img")).toHaveCount(18);
       await expect(page.getByRole("heading", { name: "Palette: current in-game art" })).toBeVisible();
     }
   }

@@ -3,7 +3,7 @@
 Target look for all character art. Chosen by the owner on Oct 31 2026 from five generated sheets.
 
 - Reference: `docs/art/sheet-armour-talks.webp` (18 characters), one crop per character in `docs/art/`.
-- Rebel rook: use `docs/art/sheet1-rebel-rook.webp` (from another sheet) rather than the sheet-2 rook.
+- Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
 - Status: the in-game rigs (`PieceRig.tsx`) predate this guide and have not been redrawn. The reference is the target; the rigs are the current state.
@@ -158,8 +158,8 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`.
 | `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. |
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
-| `rebel-rook` | Sheet 2: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. Superseded by the sheet-1 rook below. |
-| `rebel-rook` (preferred) | Sheet 1 (`sheet1-rebel-rook.webp`): stonemason in a castle-tower great-helm with a T-slot, bare muscular arms, torn beige tunic, cross straps, wrist wrap, big mallet with a red-wrapped grip (his accent) on his shoulder. Sheet 1 shows a full face in the slot; redraw with only two dot eyes there. Consider a slot shape other than the rebel knight's T. |
+| `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
+| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. |

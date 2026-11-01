@@ -3,7 +3,7 @@ const art = (name: string) => ART[`../../docs/art/${name}.webp`];
 
 const PIECES = ["pawn", "knight", "bishop", "rook", "queen", "king"] as const;
 const FACTIONS: { id: string; label: string; look: string; notes: string[] }[] = [
-  { id: "rebel", label: "Rebels", look: "Patched, earthy, one dominant accent each", notes: ["Copper pot, pitchfork, red bandana", "Rusty bucket helm, hobby horse", "Parchment mitre, hood void, crook", "Tower helm, embers behind bars, mallet", "Kettle helm + crown, frying pan", "Crown low on the brow, beard, sword"] },
+  { id: "rebel", label: "Rebels", look: "Patched, earthy, one dominant accent each", notes: ["Copper pot, pitchfork, red bandana", "Rusty bucket helm, hobby horse", "Parchment mitre, hood void, crook", "Stonemason: tower great-helm, dot eyes in the slot, mallet", "Kettle helm + crown, frying pan", "Crown low on the brow, beard, sword"] },
   { id: "patrol", label: "Patrol", look: "Polished royal blue, gold trim on most", notes: ["Morion, moustache, pike", "Plume, armoured horse, lance", "Gilded mitre helm, spectacles", "Keep great-helm, gold cross", "Towering wig, sceptre, no crown", "Crown over a sculpted mask"] },
   { id: "odd", label: "Oddballs", look: "Creatures that keep the crest", notes: ["Frog in the pot", "Empty suit on a wooden horse", "Goose in a mitre", "Haystack with battlements", "Melting candle, one flame", "Sleepy cat, big crown"] },
 ];
@@ -39,10 +39,6 @@ export function Reference() {
           <img src={art(`${f.id}-${p}`)} alt={`${f.label} ${p}`} loading="lazy" width={406} height={498} />
           <figcaption><b>{p}</b><span>{f.notes[i]}</span></figcaption></figure>)}</div>
       </div>)}
-      <div className="ref-row"><h4>Preferred rebel rook <span>From sheet 1; redraw in this style with two dot eyes in the slot</span></h4>
-        <div className="ref-grid"><figure className="ref-tile rebel"><img src={art("sheet1-rebel-rook")} alt="Preferred rebel rook: stonemason in a castle-tower great-helm with a mallet" loading="lazy" width={400} height={515} />
-          <figcaption><b>rook</b><span>Tower great-helm, bare arms, mallet on shoulder; redraw with dot eyes only</span></figcaption></figure></div>
-      </div>
     </section>
 
     <section className="group" id="rules"><h3>Rules</h3>

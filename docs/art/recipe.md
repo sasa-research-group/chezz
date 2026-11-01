@@ -58,4 +58,4 @@ For a full-body game pose, replace "head and shoulders" with "full body, standin
 - Patrol knight: rides a horse in steel barding, not a plated hobby horse.
 - Odd knight: a carved wooden horse with no rockers visible.
 - Patrol queen: a real wig over a small steel cap, not a helm shaped like hair, and no crown.
-- Patrol king: the crown sits on hair rather than fused to the visor. The owner prefers the sheet-1 rook (`sheet1-rebel-rook.webp`); the example SUBJECT above describes it.
+- Patrol king: the crown sits on hair rather than fused to the visor. The owner prefers the sheet-1 stonemason rook; `rebel-rook.webp` is it redrawn in this style (edit of `sheet1-rebel-rook.webp` with the sheet as a reference image, same model). The example SUBJECT above describes it.
