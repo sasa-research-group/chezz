@@ -66,7 +66,7 @@ const Patch = ({ x, y, fill }: { x: number; y: number; fill: string }) =>
   <g transform={`rotate(-8 ${x} ${y})`}><rect x={x - 4.5} y={y - 4.5} width="9" height="9" rx="1.2" fill={fill} {...f} strokeWidth="1.6" /><path d={`M${x - 3} ${y - 6} L${x - 3} ${y - 3.5} M${x + 3} ${y + 3.5} L${x + 3} ${y + 6}`} stroke={INK} strokeWidth="1.2" /></g>;
 
 /** `mouths` replaces the toon yell/ouch overlay; null draws none. */
-export type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; head: ReactNode; mouths?: ReactNode; propOrigin: string; shield: [number, number]; mouth: [number, number, number] };
+export type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; armFrontOverHead?: boolean; head: ReactNode; mouths?: ReactNode; propOrigin: string; shield: [number, number]; mouth: [number, number, number] };
 
 function king(rebel: boolean, c: Palette): Figure {
   return {
@@ -308,8 +308,9 @@ export function PieceRig({ kind, side, action = "idle", defending = false, facin
       {fig.armBack}
       {fig.body}
       {fig.prop}
-      {fig.armFront}
+      {!fig.armFrontOverHead && fig.armFront}
       <g className="head-tilt"><g className="head">{fig.head}{fig.mouths === undefined ? <Mouths x={fig.mouth[0]} y={fig.mouth[1]} w={fig.mouth[2]} /> : fig.mouths}<path className="sweat" d={`M${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Q${fig.mouth[0] + 18} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 13} Q${fig.mouth[0] + 10} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Z`} fill="#8fd3e8" stroke={INK} strokeWidth="1.4" /></g></g>
+      {fig.armFrontOverHead && fig.armFront}
       {wounded && <g className="bandage"><rect x="56" y={kind === "pawn" ? 48 : 30} width="12" height="5" rx="1" fill="#fffaf0" {...f} strokeWidth="1.6" transform={`rotate(25 62 ${kind === "pawn" ? 50 : 32})`} /><path d="M30 100 L36 96" stroke={INK} strokeWidth="1.6" /></g>}
       <Shield rebel={rebel} c={c} at={fig.shield} />
       <path className="fx-smear" d="M64 30 Q100 56 80 102" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" opacity=".55" />

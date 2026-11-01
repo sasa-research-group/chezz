@@ -36,6 +36,9 @@ export type Painted = {
   face?: { x: number; y: number; gap: number; r: number; glow?: boolean; eyes?: false; brows?: string; skin?: keyof typeof TONES };
   /** Draw the back arm over the body, for a torso painted with an empty armhole. */
   armBackOver?: boolean;
+  /** Draw the front arm and its prop over the head, for a prop whose tip stands where the
+   * headgear would otherwise cover it. */
+  armFrontOverHead?: boolean;
   /** Extra class on the prop group, for a piece-specific strike in rig.css. */
   propClass?: string;
   shield: Xy;
@@ -216,16 +219,17 @@ export const PAINTED: Record<string, Painted> = {
   },
   "patrol-knight": {
     id: "patrol-knight",
-    unit: 0.105,
+    unit: 0.099,
     parts: {
-      armBack: { anchor: [75, 85], at: [50.5, 56] },
-      body: { anchor: [300, 601], at: [50, 108] },
-      armFront: { anchor: [190, 80], at: [39.5, 55], hand: [55, 200] },
-      prop: { anchor: [55, 410], scale: 1.1 },
-      head: { anchor: [205, 290], at: [46.5, 51], scale: 1.05 },
+      armBack: { anchor: [70, 60], at: [48, 56], scale: 0.8 },
+      body: { anchor: [322, 603], at: [50, 108] },
+      armFront: { anchor: [200, 70], at: [37, 58], hand: [55, 210], scale: 0.85 },
+      prop: { anchor: [54, 640], scale: 1.08 },
+      head: { anchor: [200, 320], at: [44, 55], scale: 1.25 },
     },
-    face: { x: 48.2, y: 40.7, gap: 3.3, r: 2.5, eyes: false },
+    face: { x: 45.9, y: 38.9, gap: 3.3, r: 2.5, eyes: false },
     armBackOver: true,
+    armFrontOverHead: true,
     shield: [30, 84],
     mouth: [48, 48, 5],
   },

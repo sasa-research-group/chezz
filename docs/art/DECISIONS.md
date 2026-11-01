@@ -642,3 +642,19 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
   slanted wedge, but that shadow is the same as before this change.
 - Cost: about $0.87 (one rebel run, two patrol runs; the first patrol roll kept a gold skirt
   stripe).
+
+## 2026-11-01: patrol knight repainted
+- Why: the painted patrol knight read as a lump at 48px (readability 5): the horse head
+  tucked under the rider's arm, the lance hugged the plume, the helm was about 18% of the figure.
+- Re-rolled twice (`paint-patrol-knight.json`). Round 1: dark charcoal horse with its head
+  pushed forward, bigger great-helm, lance gripped mid-shaft. Round 2: an armet like the
+  reference (the T-slot great-helm rhymed with the rebel's bucket) and a low grip, so the
+  couched lance points forward past the horse's nose on the strike.
+- Draw order: a new opt-in `armFrontOverHead` spec flag puts the front arm and lance over the
+  head, since the plume sweeps back over the lance side in every roll. Other rigs render as before.
+- Judge rounds (readability/style/likeness/motion/consistency): 7/7/6/4/7 (the strike's long
+  butt trailed backward, so it pointed away from its hit) → 8/8/8/7/8 (pass).
+- Open, per the last judge: on the strike the shared squash narrows the horse and the star
+  covers most of the lance; at 48px the dark horse and mid-blue armour merge, and the rider's
+  torso is small beside the horse; the death head pop is the shared one and lifts the big helm
+  clear of the shoulders. Cost: about $0.58 (two pose-and-parts runs).
