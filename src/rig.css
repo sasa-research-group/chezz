@@ -77,6 +77,11 @@
 .rig.rig-rook.rebel.art-new:not([class*="skin-"]).act-attack .prop.sledge{animation-name:rig-sledge}
 .rig.rig-rook.rebel.art-new:not([class*="skin-"]).act-attack .squash{animation-name:rig-slam}
 @keyframes rig-sledge{0%{transform:none}28%{transform:rotate(-7deg) translate(0,-9px)}40%,58%{transform:rotate(76deg) translate(0,46px)}74%{transform:rotate(18deg) translate(0,10px)}90%,100%{transform:none}}
+/* The painted sledge is gripped near the butt of its handle, so it only chokes up a little:
+   a long choke would pull the stone head back into his fist. Painted rigs also carry art-new,
+   so this rule must stay after rig-sledge's, which it beats only on source order. */
+.rig.rig-rook.rebel.art-paint:not([class*="skin-"]).act-attack .prop.sledge{animation-name:rig-sledge-paint}
+@keyframes rig-sledge-paint{0%{transform:none}28%{transform:rotate(-4deg) translate(0,-10px)}40%,58%{transform:rotate(104deg) translate(0,8px)}74%{transform:rotate(24deg) translate(0,3px)}90%,100%{transform:none}}
 @keyframes rig-slam{0%{transform:none}28%{transform:translateX(-4px) rotate(-9deg) scale(.92,1.1)}40%{transform:translateX(5px) rotate(5deg) scale(1.12,.86)}58%{transform:translateX(5px) rotate(4deg) scale(1.08,.9)}72%{transform:translateX(2px) scale(.97,1.04)}100%{transform:none}}
 @keyframes rig-slap{0%,28%{transform:none}40%,58%{transform:rotate(-70deg)}100%{transform:none}}
 @keyframes rig-smear{0%,37%{opacity:0}42%{opacity:.6}55%,100%{opacity:0}}

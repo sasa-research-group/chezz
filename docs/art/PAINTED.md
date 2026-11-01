@@ -79,3 +79,20 @@ and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilo
 - The patrol cape hangs behind the robe, so his back arm stays behind the body (no
   `armBackOver`) and the cape shows on his back side.
 - The studio sheet (`shoot.mjs`) shows a `mate` row for kings, so a judge sees the crown fly.
+
+## Rooks (re-roll)
+
+- Re-rolled with the kings' lessons: the pose names the front fist wrapping the prop's shaft
+  with the prop upright at his side, the back arm hanging uncrossed, few interior lines (no
+  muscle hatching, no chainmail), and a compact sledge head or a small crescent halberd blade
+  that points away from the helm. Parts step: the pose image only; outline 12.
+- The body is anchored at the feet (`at: [50, 108]`), as for the kings, and the head sits on
+  the neck stump; the rooks' helms are now at 1.15 (not the 1.3 under "Limits") so the prop
+  heads clear them.
+- Stonemason: the front arm's shoulder sits at the body's right edge (x 59.5) at 0.72 so the
+  upper arm leaves the bandana showing, and the fist lands near x 71 so the sledge head fits
+  x 82. His painted sledge keeps its own strike (`propClass: "sledge"`, `rig-sledge-paint`):
+  the drawn `rig-sledge` chokes up 46px, which on the painted handle (gripped near its butt)
+  pulled the stone head back into the fist.
+- Patrol rook: his parts sheet painted both arms bent forward, so the back arm is turned 55°
+  in the cut (`rotate`) to hang at his back side, over the armhole (`armBackOver`).
