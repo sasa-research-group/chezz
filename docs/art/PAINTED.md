@@ -1,8 +1,10 @@
 # Painted sprites
 
 Image-generated parts hung on the same rig as the drawn art. Behind `?art=paint`;
-pieces without painted parts fall back to the SVG kit (`?art=new`). Pilot: both pawns
-and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilot".
+pieces without painted parts fall back to the SVG kit (`?art=new`). All twelve pieces are
+painted (Nov 2026); skins and the red patrol fall back to the kit. Decision record:
+`DECISIONS.md`, "painted sprite pilot" and one entry per pair. `cut-parts.mjs` takes an
+optional recipe `fuzz` (background-fill tolerance, default 14) for parts with gappy outlines.
 
 ## How it works
 
@@ -112,3 +114,23 @@ and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilo
   (wig, crown, cap and face) comes out about 1.55:1, so it reads tall at 48px. The collar stays
   tan lace from the pose: asking the parts step for a white collar didn't change it, because
   the parts copy the pose.
+
+## Knights (Nov 2026)
+
+- **Rebel knight** (`paint-rebel-knight.json`): the hobby horse is cut whole at the angle he
+  holds it ("at exactly the same angle as in the first image"), so `specs.ts` needs no
+  prop rotation; its grip is the top of the stick under the head, and its stick reaches the
+  ground behind him. The head is pinned high (helm rim at y 58) so the blue neckerchief
+  shows; the arms are scaled down (0.8–0.85) so the vest shows between them.
+- **Cream parts need `fuzz`.** The flood fill that removes the background and die-cut
+  border uses a 14% colour fuzz by default; it ate the knight's cream sleeves through gaps
+  in their outline. The recipe's `"fuzz": 5` keeps them.
+- **Patrol knight** (`paint-patrol-knight.json`): the horse is part of `body`, with the
+  rider's torso, saddle and near leg. The parts step mirrored the horse once; the prompt now
+  says "facing RIGHT ... do not mirror it". The lance stands in the front fist on the
+  horse's rump side, as in the SVG rig, so `rig-lance` couches it forward over the horse.
+  The front arm is turned 50° in the cut so it reaches out to the lance and crosses it only
+  at the fist; a straighter arm hid the lance behind the sleeve.
+- **The plume limits the patrol helm.** The head draws over the prop, and the plume sweeps
+  back over the lance's side, so a bigger helm hides the lance tip. Head scale 1.05 keeps
+  the tip clear; the last judge wanted the helm about 1.6× bigger.

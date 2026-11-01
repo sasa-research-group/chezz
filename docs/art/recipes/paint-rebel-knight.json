@@ -1,0 +1,39 @@
+{
+  "id": "paint-rebel-knight",
+  "description": "Painted sprite parts for the rebel knight on his hobby horse (?art=paint). Same three steps as paint-rebel-pawn.json: pose, parts sheet, background removal; then tools/art/cut-parts.mjs. The hobby horse is cut at the angle he holds it, so its stick runs down behind him.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": ["docs/art/rebel-knight.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-rebel-knight.webp"],
+      "prompt": "Full-body game sprite of the rebel KNIGHT from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose, chunky proportions and where he holds the hobby horse, not for its style. SUBJECT: a scrappy rebel exile knight. On his head a tall rusty steel bucket helm with straight sides and a flat top, orange rust blotches and a crack, and a T-shaped opening at the front that shows bare skin and two small black dot eyes, no mouth, no nose. A blue neckerchief knotted at his throat with its point hanging over his chest, a brown leather vest with a dark belt, cream shirt sleeves with one green square patch on the back sleeve, short dark brown boots. He rides a wooden HOBBY HORSE: a big carved brown wooden horse head in profile facing right, with two pointed ears, a dark brown mane, a black dot eye and a simple dark leather bridle, on the end of a plain straight wooden stick. His right fist visibly grips the horse's neck just under the head, at waist height in front of his belly; the stick runs from that fist down and back between his legs to touch the ground behind his left heel, and the horse head rises on the right side of the figure, its ears about level with the bottom of his helm, clear of the helm. The horse head is compact and clearly a chess knight's horse head. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the bucket helm is about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, earthy colours with the blue neckerchief as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": ["$previous"],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD: the rusty bucket helm. The T-shaped opening shows plain blank skin with NO eyes, no brows, no mouth and no nose. The helm ends at its bottom rim, no neck.\n- Top row, middle: the BODY: the brown leather vest and belt with the blue neckerchief knotted at the neck, the legs and dark brown boots, with no arms, no head and no hobby horse; a short skin neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a cream shirt sleeve with a green square patch, from the shoulder hanging down to a bare skin fist.\n- Bottom row, left: the FRONT ARM (his right arm): a cream shirt sleeve from the shoulder, bent at the elbow, ending in a big closed bare skin fist that points to the right.\n- Right half, bottom: the HOBBY HORSE on its own, whole and not held: the carved wooden horse head with its mane, ears and bridle on its straight wooden stick, at exactly the same angle as in the first image, the head up on the right and the stick slanting down to the left."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": ["$previous"]
+    }
+  ],
+  "output": "paint-rebel-knight.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "parts": {
+    "head": [0.14, 0.25],
+    "body": [0.4, 0.49],
+    "armBack": [0.62, 0.37],
+    "armFront": [0.15, 0.78],
+    "prop": [0.82, 0.49]
+  },
+  "fuzz": 5,
+  "rotate": {
+    "armFront": 30
+  }
+}
