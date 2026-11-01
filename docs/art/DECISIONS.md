@@ -3,6 +3,67 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: the cat king skin
+- `cat-king` (`src/components/skins/catKing.tsx`), sixth in the unlock order. Declared
+  corrections against `odd-king.webp`: the cat sits up instead of curling, so it stands
+  like a piece in a square; three bold crown points, not five, with the rebel king's
+  gems; the crown tilts 15° and squashes one ear out sideways, as the "too big" joke.
+- The crown is the `.crown` group (the checkmate finale throws it off);
+  `tests/skins.test.ts` now checks every king skin keeps one. Its tips stop near y 16,
+  so it can't be as big as the reference's.
+- The skin drops the rebel king's cape through a new optional `back()` slot; without
+  it the cape showed round the cat.
+- Death: a neck block with no outline read as a stalk when the head popped (round 2).
+  The body's top now rises behind the head instead, so the pop shows outlined shoulders.
+- Judge rounds (readability/style/likeness/motion/consistency): 7/8/8/6/8 → 7/8/8/6/8
+  → 6/7/6/7/8, not a pass. After round 3, unjudged: the whiskers reach past the
+  cheeks (round 3 saw none: they ended inside the head's outline). Still open: at 48px
+  the crown points, hidden left ear and squashed right ear merge into one notched
+  block; the ear reads as a dark wedge; ink fills the gaps between the crown points;
+  the head has no stripes and the body's stripes are faint; the velvet reads dark.
+
+## 2026-11-01: the candle queen skin
+- `candle-queen` (`src/components/skins/candleQueen.tsx`), fifth in the unlock order.
+  Declared corrections against `odd-queen.webp`: three flame points, not one, so the
+  queen's crown crest reads at 48px; a creature face (dot eyes, a melted frown); a plain
+  copper bowl with no finger loop (a loop that fits inside x 18 is all ink); a purple
+  ribbon as the rebel accent; no arms or prop.
+- The wax and flame are in the body slot, so the flame stays on the wick in the death
+  pop (round 1 saw it fly off). The head slot holds only the face.
+- Flame: the sheet's `#f9aa1f` merged with the cream wax at 48px, so the flame is a
+  redder orange with a yellow core, on a short dark wick.
+- Shape: a straight, wide block read as a rook's tower (round 1); a squat block read as
+  a box or a cake (round 2). The kept build is a narrower column with a drippy cap whose
+  outer drips break the outline, a foot slumping into the bowl, and a thick ribbon with
+  a knot and tails past the right side.
+- Judge rounds (readability/style/likeness/motion/consistency): 6/7/6/7/8 → 6/7/6/8/8
+  → 7/8/6/7/8, not a pass. After round 3, unjudged: the frown moved up clear of the
+  ribbon, which hid its corner. Still open: the wax is a tidy candle, where the reference is
+  lumpy with long drips down the body and a puddle over the rim; the bowl reads as wood
+  or clay and sinks into the ground shadow at 48px; the flame crown is about 2px per
+  point at 48px, so the silhouette reads as a bottle or bell; the guard shield floats
+  in front of the bowl.
+
+## 2026-11-01: the empty knight redrawn
+- Followed the plan from the first pass: the horse head now stands in front of the
+  cuirass's right edge with its ear above the helm, and the cuirass tapers to the waist.
+- The horse head is `RebelHorseHead` at its own size on a longer wooden neck, not
+  scaled up: at 1.25–1.4× its outlines were thicker than the cast's, its dark mane read
+  as a plank, and judges asked for the base knight's head. The helm moved left to keep
+  a notch between helm and ear; the ear stays under y 21.
+- The red rag moved from the helm's top, where it read as a lid stripe in every round,
+  to the helm's foot, knotted at the back with one end flying.
+- The suit is a new lighter `armourIron`: the rebel `rustySteel` read as charcoal with
+  so much outline around it. The collar is a pale steel ring round a black hole, and the
+  helm floats a clear gap above it. The T has no eye dots and no outline.
+- Judge rounds (readability/style/likeness/motion/consistency): 5/7/5/7/6 → 5/6/5/7/5
+  → 5/7/5/8/6, not a pass. After round 3, unjudged: the rust spot on the chest went (it
+  read as a nose or button). Still open: at 48px the emptiness cues don't read: the void
+  T looks like an ordinary visor, the gap between helm and collar is about 1px, and the
+  vambrace and its wrist gap don't show; the barrel and rocker read as a pedestal; the
+  head plus helm is about a third of the figure, not half. A next pass might drop the
+  rocker for a plain barrel, enlarge the helm, and draw one long forearm to the rein.
+
 ## 2026-11-01: the goose bishop skin
 - `goose-mitre` (`src/components/skins/gooseBishop.tsx`), third in the unlock order
   after the frog and the haystack: the empty knight was not on main yet, and it goes

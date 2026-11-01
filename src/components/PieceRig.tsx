@@ -256,11 +256,12 @@ const FIGURES = { king, queen, rook, bishop, knight, pawn };
 export type ArtStyle = "old" | "new";
 const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>) => Figure>> = { pawn: armourPawn, rook: armourRook, knight: armourKnight, bishop: armourBishop, queen: armourQueen, king: armourKing };
 export const hasNewArt = (kind: RigKind) => kind in NEW_FIGURES;
-/** A skin dresses a piece's shape-kit build: new head, and optionally new body,
+/** A skin dresses a piece's shape-kit build: new head, and optionally new body, back,
  * arms and prop, drawn into the same groups around the same pivots. */
 function dress(fig: Figure, skin: Skin): Figure {
   return {
     ...fig, head: skin.head(),
+    back: skin.back ? skin.back() : fig.back,
     body: skin.body ? skin.body() : fig.body,
     armBack: skin.armBack ? skin.armBack() : fig.armBack,
     armFront: skin.armFront ? skin.armFront() : fig.armFront,

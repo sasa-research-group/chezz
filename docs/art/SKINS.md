@@ -33,6 +33,7 @@ A rig takes `skin="<id>"`. `PieceRig` builds the piece's shape-kit figure
 | Head | `head()`: face and headgear | Keep `.eyes > .pupil`, `.ko-eyes` and a `.mouth-yell` squint (wrapping them in `.face` is only for grouping), so blink, hit, death and yell still play. Keep the crest. |
 | Body tones | `look`: `cloth`, `accent`, `patch`, `boot`, `hand` | Recolours the build's own shapes. |
 | Body, arms | `body()`, `armBack()`, `armFront()`, optional | For a creature with its own shape. Feet stay on y 108; draw sleeves with `Sleeve` (the cheer animates its classes) and keep the hands where the build has them (`PAWN_ARMS`), so the prop pivot and shield line up. |
+| Back | `back()`, optional | Replaces what the build draws behind everything, such as the king's cape; `() => null` drops it. |
 | Prop | `prop()`, optional | Drawn inside `.prop`; it swings around the build's `propOrigin`, so hold it in the front hand. |
 | Idle quirk | `quirk`: a class on the `<svg>` | CSS in `rig.css` under "Skin quirks". Animate only `.quirk-bit`, `.head`, `.prop` or `.eyes`, in `act-idle`; it may also switch off the piece's own idle loop (the frog stops the pawn's jitter). A skin with no prop may also move its `.head` and `.quirk-bit` in `act-attack` (the goose pecks). Draw a `.quirk-bit` at its resting size. Reduced motion stops `.quirk-bit`. |
 
@@ -45,7 +46,7 @@ The skin only applies to a rebel of its own `kind`; anything else ignores it.
    Reuse the piece's shared headgear (for example `RebelPot` from
    `ArmourPawns.tsx`) so a restyle of the crest reaches every skin.
 2. Add one entry to `SKINS` in `src/components/skins/index.ts`: `id`, `kind`,
-   `name`, `ref` (the reference crop), `look`, `head`, and optionally `body`,
+   `name`, `ref` (the reference crop), `look`, `head`, and optionally `body`, `back`,
    `armBack`, `armFront`, `prop`, `quirk`.
    The order is the unlock order.
 3. Add any new colours to `TONES` and any quirk CSS to `rig.css`.
@@ -62,11 +63,11 @@ redrawn on the kit first.
 | Piece | Skin | Crest | Status |
 |---|---|---|---|
 | Pawn | Frog in the saucepan (`odd-pawn`) | Rebel saucepan | Drawn: `frog-pot` |
-| Knight | Empty suit of armour on a rocking horse (`odd-knight`) | Rebel carved horse head | Drawn: `empty-knight` (third unlock; did not pass the judge yet). Rebel rusty iron, not the reference's patrol blue |
-| Bishop | Goose in a mitre (`odd-bishop`) | Rebel mitre | Drawn: `goose-mitre`. fourth unlock |
+| Knight | Empty suit of armour on a rocking horse (`odd-knight`) | Rebel carved horse head | Drawn: `empty-knight`, third unlock; redrawn Nov 1, still not a pass (readability 5). Rebel iron, not the reference's patrol blue |
+| Bishop | Goose in a mitre (`odd-bishop`) | Rebel mitre | Drawn: `goose-mitre`, fourth unlock |
 | Rook | Walking haystack with battlements (`odd-rook`) | Rebel stone battlements | Drawn: `haystack` |
-| Queen | Melting candle with a crown of flame (`odd-queen`) | Flame points as a crown | Planned. Reference has one flame; add points |
-| King | Sleepy cat in a too-big crown (`odd-king`) | Gold gem crown | Planned |
+| Queen | Melting candle with a crown of flame (`odd-queen`) | Flame points as a crown | Drawn: `candle-queen`, fifth unlock; not a pass yet (likeness 6). Three flame points, not the reference's one |
+| King | Sleepy cat in a too-big crown (`odd-king`) | Gold gem crown | Drawn: `cat-king`, sixth unlock; not a pass yet (readability 6). Sits up rather than curled |
 
 Ideas from the first plan, not yet shown to the owner: mushroom-cap pawn with
 a snail, beehive rook, walrus bishop in a wizard hat, cow knight, snail-shell
@@ -99,17 +100,22 @@ hide behind the mound, so the skin draws none. Tones: `hay` (sampled from
 ## The empty knight
 
 `src/components/skins/emptyKnight.tsx`, third in the unlock order. An empty suit
-of rusty iron on a rocking horse. The horse is the rebel knight's carved head
-(`RebelHorseHead`, shared with `ArmourKnights.tsx`), scaled 1.25× in the body slot
-(so its outlines are 1.25× the kit weights, the one exception in the cast),
-on a wooden barrel and a thick rocker. The head slot is the rebel bucket helm,
-tilted, with a red rag tied round it and a plain void T: no eyes. The pupils are
+of iron (`armourIron`, a step lighter than the rebel's `rustySteel`) on a rocking
+horse. The horse is the rebel knight's carved head (`RebelHorseHead`, shared with
+`ArmourKnights.tsx`) at its own size, raised 10 units on a longer wooden neck so it
+stands in front of the cuirass's right edge with its ear above the helm: the
+silhouette has the knight's notch between helm and ear. Scaled up, its lines came
+out thicker than the cast's and its mane read as a dark plank. Under it, a wooden
+barrel, a tail tuft and a 10-unit rocker. The head slot is the rebel bucket helm,
+tilted, floating a clear gap above the collar, with a plain void T (no eyes) and a
+red rag round its foot, knotted at the back with one end flying. The pupils are
 void on the void, so blink, hit and death keep their groups. Death shows a dust
-puff in the T, and the yell shows rattle ticks over the helm. The cuirass has a dark
-neck hole, two round pauldrons, and one forearm whose vambrace is open at the wrist;
-the gauntlet sits a gap away on the red rein. It has no prop and no back arm, so the
-attack is the body's lunge, which rocks the horse. Idle quirk `quirk-hover`: the
-helm bobs over the collar.
+puff in the T, and the yell shows rattle ticks beside the helm. The cuirass tapers
+to the waist over a short fauld; the collar is a pale steel ring round a black
+hole; one big pauldron at the back, and a front pauldron and forearm whose
+vambrace is open at the wrist, the gauntlet a gap away on the red rein. It has no
+prop and no back arm, so the attack is the body's lunge. Idle quirk `quirk-hover`:
+the helm bobs over the collar.
 
 ## The goose
 
@@ -128,6 +134,37 @@ the beak inside x 82, and the crest is enough for an oddball. Its quirk
 settle) in place of the prop swing; the mitre is its `.quirk-bit` and tips back
 as the head lunges. Tones: `goose` and `beak`, sampled from
 `odd-bishop.webp`.
+
+## The candle
+
+`src/components/skins/candleQueen.tsx`, fifth in the unlock order. A melting
+candle in a copper bowl. The reference has one flame; the queen's crest is a
+crown, so the flame burns as three points, the middle one tallest (tip near y 17.5),
+on a short dark wick. The wax is one column in the body slot, its top a
+lighter cap with fat drips, two of them bulging past the corners, and its foot
+slumping into a puddle inside the bowl. A purple ribbon (the rebel queen's
+`armband`) is tied round it with a knot and two tails out the right side: the
+rebel accent. The flame is in the body too, so it stays on the wick when the head
+pops in death; the head slot holds only the face, two dot eyes and a melted
+frown. No arms and no prop: the strike is the body's lunge. Tones: `wax` (shade
+darker than the sheet's), `waxLight`, `flame` (redder than the sheet's, which
+merged with the wax) and `flameCore`.
+
+## The cat
+
+`src/components/skins/catKing.tsx`, sixth in the unlock order. A sleepy orange
+tabby sitting up, under a gold crown far too big for it: three bold points over a
+red velvet cap, the rebel king's gems, tilted 15° so it slides down the left side
+of the head and squashes the right ear out sideways. The crown is the `.crown`
+group, so the checkmate finale throws it off (`tests/skins.test.ts` checks a king
+skin keeps it). The crown's tips stay under y 15 and inside x 18–82, which is why
+it can't be bigger. Face: closed-eye arcs, a pink nose and four
+whiskers. The body is a round sitting cat with a pale chest, a few chunky stripes
+(more on the shadow side), two front paws and the tail wrapped round the front, its
+tip curling up past the body. The body's top rises well behind the head, so the
+death pop shows outlined shoulders, not a gap. No arms, no prop and no cape (the
+skin's `back()` drops the rebel king's cape): the strike is the body's lunge.
+Tones: `cat`, `catStripe`, `catPale`, `velvet`.
 
 ## Later
 

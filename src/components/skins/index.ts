@@ -5,9 +5,11 @@ import { frogPawn } from "./frogPawn";
 import { haystackRook } from "./haystackRook";
 import { emptyKnight } from "./emptyKnight";
 import { gooseBishop } from "./gooseBishop";
+import { candleQueen } from "./candleQueen";
+import { catKing } from "./catKing";
 
 /** An unlockable look for one rebel piece (docs/art/SKINS.md). It replaces the
- * head (face and headgear) and optionally the body, arms and prop, or recolours
+ * head (face and headgear) and optionally the body, back, arms and prop, or recolours
  * the build's body through `look`, and may add an idle quirk class whose CSS
  * lives in rig.css. Groups, pivots and shield stay the piece's shape-kit build,
  * so every animation in rig.css plays unchanged. Drawings use only the shape kit. */
@@ -23,6 +25,8 @@ export type Skin = {
   /** Optional: replaces the build's body (torso, legs, feet) for a creature
    * with a different shape. Keep the feet on y 108. */
   body?: () => ReactNode;
+  /** Optional: replaces what the build draws behind everything (the king's cape). */
+  back?: () => ReactNode;
   /** Optional: replaces the build's arms. Draw the sleeves with `Sleeve` (it
    * carries the classes the cheer animates) and keep the hands where the build
    * has them (`PAWN_ARMS` for the pawn), so the prop pivot still lines up. */
@@ -35,6 +39,6 @@ export type Skin = {
 };
 
 /** Rebel skins in unlock order: finishing a run unlocks the first one not yet owned. */
-export const SKINS: Skin[] = [frogPawn, haystackRook, emptyKnight, gooseBishop];
+export const SKINS: Skin[] = [frogPawn, haystackRook, emptyKnight, gooseBishop, candleQueen, catKing];
 
 export const skinById = (id: string | undefined) => id ? SKINS.find(s => s.id === id) : undefined;
