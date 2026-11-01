@@ -553,3 +553,29 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
 - Still open: the patrol collar scrollwork and fleur-de-lis blur away below 84px; the
   rebel's yellow patch sits high under the hood, so the accent is small at 48px; the shared
   strike swing and death slide carry the long crozier past the cell edge.
+
+## 2026-11-01: painted queens
+- Both queens painted behind `?art=paint` with the pilot's pipeline (`PAINTED.md`, "Queens").
+  Declared correction kept: the small crown on the patrol queen's wig. For the tall wig the owner wants,
+  the painted head part (wig, crown, cap, face) is about 1.55:1, with ridged rolls and
+  pearl swags.
+- Rig: painted queens have real `.arm-front` and `.arm-back` groups, with the prop in the front
+  fist. The old queen slap is skipped on painted queens because it cancelled the swing. The
+  rebel queen's pan has its own strike (`rig-pan`), so it stays in view through the wind-up.
+  The promotion morph-in plays unchanged.
+- Judge (readability/style/likeness/motion/consistency). Round 1: rebel 7/8/7/7/8, patrol
+  7/7/7/7/7, a pass (with the slap still on). Round 2, slap off: rebel 7/8/7/6/8 (the pan hid
+  behind the brim in the wind-up), patrol 7/6/7/7/7 (a tan collar panel read as a stray card).
+  Round 3 had `rig-pan` and a patrol parts re-roll that asked for a white collar. The collar
+  stayed tan, but the wig came out taller. Scores: rebel 6/8/7/8/7, patrol 6/6/6/7/7. The
+  re-roll scored lower, so the first patrol roll is kept, exactly as rounds 1 and 2 judged it.
+  The rebel queen's last scores came with `rig-pan`. Not a pass in the last round. Judges
+  disagree a lot between rounds on unchanged art: the rebel queen's readability went 7 → 7 → 6.
+- Still open: the rebel queen's crown is small, a 3px fleck at 48px (judges want it about as
+  wide as the helm dome); she has purple armbands on both arms (the reference has one); her
+  pan sits partly behind the helm brim, since the x 18–82 box leaves no room to hold it clear.
+  The patrol queen's tan lace collar shows beside her face as a flat panel; her wig is painted
+  with soft strokes rather than one hard cel shadow; her front skirt panel is gold where the
+  reference is blue; at 48px her silhouette (an egg on a bell) can read as a bishop. A pose
+  re-roll asking for a white or blue fan collar, a bigger crown and a blue skirt is the next try.
+- Cost: about $0.75 (two full recipe runs and one parts re-roll).

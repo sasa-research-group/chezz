@@ -95,3 +95,20 @@ and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilo
   the long robe stands on the baseline whatever its height.
 - Patrol placement: body and head sit left of centre (x 46–47) so the crozier stands clear
   of the cope with a gap and its curl clears the mitre, all inside x 82.
+
+## Queens (Nov 2026)
+
+- Recipes `paint-rebel-queen.json` and `paint-patrol-queen.json`, pose renders
+  `paint/svg-*-queen.webp`. The pose prompt asks for the fist "clearly wrapped round" the handle
+  or rod and a narrow prop (pan no wider than the brim, orb no wider than the face).
+- No door, so the parts layout has an empty bottom-middle cell. The patrol queen's first parts
+  sheet came back in a different layout; read the blob centres off the sheet before cutting.
+- The queen's old `rig-slap` turns `.arm-front` up 70° while the shared swing turns the prop down
+  65°. On a painted rig the prop rides in that arm, so the two cancel and the pan just rises.
+  `rig.css` skips the slap on `art-paint` queens, and the rebel queen's pan has its own strike
+  (`propClass: "pan"`, `rig-pan`). Under the shared -55° wind-up the pan hid behind her wide
+  brim, so `rig-pan` cocks it back only 14° and lifts it.
+- The patrol wig: asked for "about 1.3 times as tall as wide" with ridged rolls. The head part
+  (wig, crown, cap and face) comes out about 1.55:1, so it reads tall at 48px. The collar stays
+  tan lace from the pose: asking the parts step for a white collar didn't change it, because
+  the parts copy the pose.
