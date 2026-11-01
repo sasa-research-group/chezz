@@ -1,0 +1,50 @@
+{
+  "patrol-bishop": [
+    332,
+    504
+  ],
+  "patrol-king": [
+    328,
+    504
+  ],
+  "patrol-knight": [
+    370,
+    504
+  ],
+  "patrol-pawn": [
+    335,
+    504
+  ],
+  "patrol-queen": [
+    274,
+    504
+  ],
+  "patrol-rook": [
+    386,
+    504
+  ],
+  "rebel-bishop": [
+    339,
+    504
+  ],
+  "rebel-king": [
+    396,
+    504
+  ],
+  "rebel-knight": [
+    399,
+    504
+  ],
+  "rebel-pawn": [
+    446,
+    504
+  ],
+  "rebel-queen": [
+    412,
+    504
+  ],
+  "rebel-rook": [
+    396,
+    504
+  ]
+}

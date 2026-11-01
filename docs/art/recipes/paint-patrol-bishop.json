@@ -1,6 +1,6 @@
 {
   "id": "paint-patrol-bishop",
-  "description": "Painted sprite parts for the patrol bishop (?art=paint). Same three steps as paint-rebel-pawn.json: pose, parts sheet, background removal; then tools/art/cut-parts.mjs.",
+  "description": "Painted sprite for the patrol bishop (?art=paint): one whole image, eyes painted in. Step 1 paints a full-body game pose from the reference crop, the style sheet and the SVG rig's pose; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/patrol-bishop.webp.",
   "model": "google/nano-banana-pro",
   "steps": [
     {
@@ -11,15 +11,7 @@
         "docs/art/sheet-armour-talks.webp",
         "docs/art/paint/svg-patrol-bishop.webp"
       ],
-      "prompt": "Full-body game sprite of the royal patrol BISHOP from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and tall proportions, not for its style. SUBJECT: a royal patrol bishop in armour. On his head a tall polished gold bishop's mitre with a pointed cleft top, a deep-gold band up the middle and round the base and one gold swirl on each side, sitting on a plain steel bucket great-helm that covers the whole face: two big round gold-rimmed spectacle lenses of pale blue glass with no eyes behind them, a gold nose strip down the middle, no mouth. A broad royal-blue cope that flares out wide to the hem like a bell, with a heavy gold collar over the shoulders with a round gold clasp, a gold orphrey stripe down the front with a gold fleur-de-lis, a gold hem, short dark boots, white gloves with a gold cuff. A tall gold crozier held upright in his right fist on the right side of the figure, held out clear of the mitre with a gap between them: a slim steel shaft, a gold knop under the head, and a small tight gold spiral curl at the top, about as wide as a fist, its top level with the mitre's peak. His white-gloved right fist is clearly closed round the shaft, the fingers wrapped over it, the shaft showing above and below the fist. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the helm and mitre are about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights, polished royal blue with gold trim and steel. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
-    },
-    {
-      "name": "parts",
-      "aspect_ratio": "16:9",
-      "images": [
-        "$previous"
-      ],
-      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD: the tall gold mitre on top of the steel bucket great-helm with its two round gold-rimmed pale blue lenses (no eyes) and gold nose strip. The helm ends at its bottom rim, no neck.\n- Top row, middle: the BODY: the broad flared royal-blue cope with its heavy gold collar and round clasp, the gold orphrey with the fleur-de-lis, the gold hem and the dark boots, with no head and with both arms left off: NO sleeves, NO gloves, NO hands on the body, the cope's sides falling in one smooth curve from the gold collar to the hem; a short dark neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a royal-blue cope sleeve from the shoulder hanging down to a white-gloved fist.\n- Bottom row, left: the FRONT ARM (his right arm): a royal-blue cope sleeve from the shoulder, bent at the elbow, with a gold cuff, ending in a closed white-gloved fist that points to the right.\n- Bottom row, middle: empty.\n- Right edge, spanning from top to bottom: the gold CROZIER on its own, standing straight up, the gold spiral at the top, whole and not held."
+      "prompt": "Full-body game sprite, painted as one single whole image, of the royal patrol BISHOP from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and tall proportions, not for its style. SUBJECT: a royal patrol bishop in armour. On his head a tall polished gold bishop's mitre with a pointed cleft top, a deep-gold band up the middle and round the base and one gold swirl on each side, sitting on a plain steel bucket great-helm that covers the whole face: two big round gold-rimmed spectacle lenses of pale blue glass, each with one clear black dot eye looking out through the middle of it a gold nose strip down the middle, no mouth. A broad royal-blue cope that flares out wide to the hem like a bell, with a heavy gold collar over the shoulders with a round gold clasp, a gold orphrey stripe down the front with a gold fleur-de-lis, a gold hem, short dark boots, white gloves with a gold cuff. A tall gold crozier held upright in his right fist on the right side of the figure, held out clear of the mitre with a gap between them: a slim steel shaft, a gold knop under the head, and a small tight gold spiral curl at the top, about as wide as a fist, its top level with the mitre's peak. His white-gloved right fist is clearly closed round the shaft, the fingers wrapped over it, the shaft showing above and below the fist. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the helm and mitre are about half the figure's height. EYES: he is NOT blank-eyed: a solid black dot eye, about a third of the lens width, sits in the middle of EACH lens and must be clearly visible. POSE: a natural, anatomically correct pose. Each arm hangs from its own shoulder, the elbows bend the natural way and the hands sit at the ends of the arms; nothing is backwards, reversed or twisted. The weapon is gripped firmly in the front fist with the fingers wrapped round it, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights, polished royal blue with gold trim and steel. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
     },
     {
       "name": "cutout",
@@ -31,31 +23,8 @@
     }
   ],
   "output": "paint-patrol-bishop.png",
-  "partScale": 0.5,
-  "outline": 12,
-  "rotate": {
-    "armFront": 30
-  },
-  "parts": {
-    "head": [
-      0.18,
-      0.28
-    ],
-    "body": [
-      0.5,
-      0.45
-    ],
-    "armBack": [
-      0.75,
-      0.4
-    ],
-    "armFront": [
-      0.2,
-      0.78
-    ],
-    "prop": [
-      0.91,
-      0.5
-    ]
+  "sprite": {
+    "height": 480,
+    "outline": 12
   }
 }

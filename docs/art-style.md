@@ -299,7 +299,7 @@ A concept or a rig passes only if all of these hold.
 
 **Painted sprites** (`?art=paint`, `docs/art/PAINTED.md`)
 
-- The same rules hold; the parts are painted by Nano Banana Pro from the reference crop and the sheet, then cut and hung on the rig. Faces stay vector dot eyes, so the face budget is set in `paint/specs.ts`, not by the model.
-- Ask for a blank face (no eyes) on the head part; the model draws dot eyes far larger than the rig's 2.4–2.7.
-- The generated outline is about 0.4 units at game size, a third of `WEIGHT.outer`. The cut thickens each part's outer outline by 12 px (about 1.2 units), so the silhouette matches the kit at 48px; inner lines and painted texture still soften there.
-- Painted props come out wide (tines, hammer and axe heads); inside x 18–82 the fist sits near x 70 and long props are held off the ground.
+- The same rules hold, but each piece is one whole image painted by Nano Banana Pro from the reference crop, the sheet and the SVG pose. There are no parts and no rig: the eyes are painted in, and animations move the whole sprite (`src/sprite.css`).
+- Ask for small, level dot eyes in the right place, a natural arm pose with the weapon gripped in the fist, a clean silhouette and a very thick outer outline. Re-roll any sprite whose arms, anatomy or eyes look wrong.
+- The generated outline is about 0.4 units at game size, a third of `WEIGHT.outer`. `tools/art/sprite.mjs` thickens the outer outline by 12 px at 480 px tall (about 1.2 units in game), so the silhouette reads at 48px; inner lines and painted texture still soften there.
+- A sprite is scaled to fit x 18–82 with its feet on y 108, so wide props (the pan handle, the hobby horse) make the whole figure smaller.

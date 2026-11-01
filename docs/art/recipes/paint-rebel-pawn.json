@@ -1,36 +1,30 @@
 {
   "id": "paint-rebel-pawn",
-  "description": "Painted sprite parts for the rebel pawn (?art=paint). Step 1 paints a full-body game pose from the reference crop, the style sheet and the SVG rig's pose; step 2 cuts that pose into a parts sheet in a fixed layout; step 3 removes the background. Then tools/art/cut-parts.mjs splits the sheet into one trimmed webp per part using the `parts` cells below.",
+  "description": "Painted sprite for the rebel pawn (?art=paint): one whole image, eyes painted in. Step 1 paints a full-body game pose from the reference crop, the style sheet and the SVG rig's pose; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/rebel-pawn.webp.",
   "model": "google/nano-banana-pro",
   "steps": [
     {
       "name": "pose",
       "aspect_ratio": "3:4",
-      "images": ["docs/art/rebel-pawn.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-rebel-pawn.webp"],
-      "prompt": "Full-body game sprite of the rebel PAWN from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose, chunky proportions and the shape of the helmet, not for its style. SUBJECT: a scrappy rebel exile pawn. On his head an upturned dented copper saucepan worn as a helmet: a shallow pan with straight sides that flare slightly to a thin rolled lip, pushed a little toward the front, and a long thick copper handle with a round end and a hanging hole sticking out nearly level from the back of the pan on the left side, behind his head. Under the rim a bare skin face with only two black dot eyes, no mouth, no nose. A red bandana knotted round his neck, a green patched tunic with one blue square patch, short brown boots. A pitchfork with three steel tines on a long wooden shaft, held upright in his right fist on the right side of the figure. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the head and pan are about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, earthy colours with the red bandana as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
-    },
-    {
-      "name": "parts",
-      "aspect_ratio": "16:9",
-      "images": ["$previous"],
-      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD with the copper saucepan helmet and its long handle sticking out to the left. The face under the rim is plain blank skin with NO eyes, no mouth and no nose. The head ends at the chin, no neck.\n- Top row, middle: the BODY: the green patched tunic with the red bandana knotted at the neck, and the legs and brown boots, with no arms and no head; a short skin neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a green sleeve from the shoulder hanging down to a bare skin fist.\n- Bottom row, left: the FRONT ARM (his right arm): a green sleeve from the shoulder, bent at the elbow, ending in a closed bare skin fist that points to the right.\n- Bottom row, middle: empty.\n- Right edge, spanning from top to bottom: the PITCHFORK on its own, standing straight up, tines at the top, whole and not held."
+      "images": [
+        "docs/art/rebel-pawn.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-rebel-pawn.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the rebel PAWN from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose, chunky proportions and the shape of the helmet, not for its style. SUBJECT: a scrappy rebel exile pawn. On his head an upturned dented copper saucepan worn as a helmet: a shallow pan with straight sides that flare slightly to a thin rolled lip, pushed a little toward the front, and a long thick copper handle with a round end and a hanging hole sticking out nearly level from the back of the pan on the left side, behind his head. Under the rim a bare skin face with only two black dot eyes, no mouth, no nose. A red bandana knotted round his neck, a green patched tunic with one blue square patch, short brown boots. A pitchfork with three steel tines on a long wooden shaft, held upright in his right fist on the right side of the figure. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the head and pan are about half the figure's height. EYES: two small black dot eyes painted into the bare face under the pan rim, side by side, level, a little toward the right side of the face, clearly visible. POSE: a natural, anatomically correct pose. Each arm hangs from its own shoulder, the elbows bend the natural way and the hands sit at the ends of the arms; nothing is backwards, reversed or twisted. The weapon is gripped firmly in the front fist with the fingers wrapped round it, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, earthy colours with the red bandana as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
     },
     {
       "name": "cutout",
       "model": "bria/remove-background",
       "imageField": "image",
-      "images": ["$previous"]
+      "images": [
+        "$previous"
+      ]
     }
   ],
   "output": "paint-rebel-pawn.png",
-  "partScale": 0.5,
-  "outline": 12,
-  "rotate": { "armFront": 50 },
-  "parts": {
-    "head": [0.18, 0.28],
-    "body": [0.5, 0.45],
-    "armBack": [0.75, 0.4],
-    "armFront": [0.2, 0.78],
-    "prop": [0.91, 0.5]
+  "sprite": {
+    "height": 480,
+    "outline": 12
   }
 }

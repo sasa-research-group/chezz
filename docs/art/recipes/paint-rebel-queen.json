@@ -1,35 +1,30 @@
 {
   "id": "paint-rebel-queen",
-  "description": "Painted sprite parts for the rebel queen, the scrapper with the frying pan (?art=paint). Same three steps as paint-rebel-pawn.json; then tools/art/cut-parts.mjs.",
+  "description": "Painted sprite for the rebel queen (?art=paint): one whole image, eyes painted in. Step 1 paints a full-body game pose from the reference crop, the style sheet and the SVG rig's pose; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/rebel-queen.webp.",
   "model": "google/nano-banana-pro",
   "steps": [
     {
       "name": "pose",
       "aspect_ratio": "3:4",
-      "images": ["docs/art/rebel-queen.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-rebel-queen.webp"],
-      "prompt": "Full-body game sprite of the rebel QUEEN from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. SUBJECT: a tough scrappy rebel queen. A dented grey steel kettle helm with a wide brim that droops at both ends, rust patches and one dent, and a BIG gold crown welded on top of it, a little crooked: the crown is as wide as the helm's dome and about half as tall as the helm, with three tall pointed spikes and a red gem at the front, so it reads clearly even at a tiny size. Under the brim a small stern skin face with two black dot eyes, short angry brows and a flat frowning mouth. A rusty grey steel breastplate on straps over a cream apron with a frayed hem, a mauve-brown shirt with short patched sleeves, ONE bright purple cloth armband tied round her LEFT upper arm only (the back arm, away from the viewer, with two short knotted ends); her right arm, the one holding the pan, has NO armband, only the patched mauve sleeve. Grey gauntlets, short dark boots. A big black cast-iron frying pan held upright in her right fist on the right side of the figure: her gauntleted fist is closed tightly round the pan's straight handle, the fingers curled over the front of the handle and the handle passing right through her fist, sticking out a little below the fist and running up above it to the pan, with the round pan raised beside her helm and turned a little so its face is a tilted oval with a lighter grey rim. The pan is narrow from the side: no wider than her helm's brim. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the helm and crown are about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, earthy rusty colours with the purple armband as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
-    },
-    {
-      "name": "parts",
-      "aspect_ratio": "16:9",
-      "images": ["$previous"],
-      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep her exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD: the dented steel kettle helm with the big gold crown welded on top. The face under the brim is plain blank skin with NO eyes and NO eyebrows, only the small flat frowning mouth. The head ends at the chin, no neck.\n- Top row, middle: the BODY: the rusty breastplate on straps over the cream apron with the frayed hem, the mauve-brown shirt, the legs and dark boots, with no arms and no head; a short skin neck stump at the top.\n- Top row, right: the BACK ARM (her left arm): a short patched mauve sleeve with the bright purple armband tied round it, hanging down to a grey gauntlet fist.\n- Bottom row, left: the FRONT ARM (her right arm): a short patched mauve sleeve with NO armband from the shoulder, bent at the elbow, ending in a closed grey gauntlet fist that points to the right, curled as if round a handle.\n- Bottom row, middle: empty.\n- Right edge, spanning from top to bottom: the FRYING PAN on its own, standing upright with the pan at the top and the straight handle pointing down, the pan a tilted oval, whole and not held."
+      "images": [
+        "docs/art/rebel-queen.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-rebel-queen.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the rebel QUEEN from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. SUBJECT: a tough scrappy rebel queen. A dented grey steel kettle helm with a wide brim that droops at both ends, rust patches and one dent, and a BIG gold crown welded on top of it, a little crooked: the crown is as wide as the helm's dome and about half as tall as the helm, with three tall pointed spikes and a red gem at the front, so it reads clearly even at a tiny size. Under the brim a small stern skin face with two black dot eyes, short angry brows and a flat frowning mouth. A rusty grey steel breastplate on straps over a cream apron with a frayed hem, a mauve-brown shirt with short patched sleeves, ONE bright purple cloth armband tied round her LEFT upper arm only (the back arm, away from the viewer, with two short knotted ends); her right arm, the one holding the pan, has NO armband, only the patched mauve sleeve. Grey gauntlets, short dark boots. A big black cast-iron frying pan held upright in her right fist on the right side of the figure: her gauntleted fist is closed tightly round the pan's straight handle, the fingers curled over the front of the handle and the handle passing right through her fist, sticking out a little below the fist and running up above it to the pan, with the round pan raised beside her helm and turned a little so its face is a tilted oval with a lighter grey rim. The pan is narrow from the side: no wider than her helm's brim. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the helm and crown are about half the figure's height. EYES: two small black dot eyes painted into the face under the angry brows, side by side, level, a little toward the right side of the face, clearly visible. POSE: a natural, anatomically correct pose. Each arm hangs from its own shoulder, the elbows bend the natural way and the hands sit at the ends of the arms; nothing is backwards, reversed or twisted. The weapon is gripped firmly in the front fist with the fingers wrapped round it, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, earthy rusty colours with the purple armband as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
     },
     {
       "name": "cutout",
       "model": "bria/remove-background",
       "imageField": "image",
-      "images": ["$previous"]
+      "images": [
+        "$previous"
+      ]
     }
   ],
   "output": "paint-rebel-queen.png",
-  "partScale": 0.5,
-  "outline": 12,
-  "parts": {
-    "head": [0.17, 0.28],
-    "body": [0.48, 0.52],
-    "armBack": [0.7, 0.5],
-    "armFront": [0.17, 0.77],
-    "prop": [0.89, 0.5]
+  "sprite": {
+    "height": 480,
+    "outline": 12
   }
 }

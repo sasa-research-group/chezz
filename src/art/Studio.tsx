@@ -9,7 +9,7 @@ import { RigStudio } from "./RigStudio";
 import { Studio as StudioCtx } from "./kit";
 
 const AREAS = [
-  { id: "catalog", label: "Art catalog", toc: [["pilot", "New art"], ["painted", "Painted"], ["skins", "Skins"], ["cast","Cast × state"], ["cast-pairs", "Pairs"], ["sequences", "Sequences"], ["board", "Board"], ["markers", "Markers"], ["effects", "Effects"], ["banners", "Banners"], ["hub", "Hideout"], ["table", "Table HUD"], ["ui", "UI"], ["icons", "Icons"], ["legacy", "Legacy"]] },
+  { id: "catalog", label: "Art catalog", toc: [["pilot", "New art"], ["painted", "Sprites"], ["skins", "Skins"], ["cast","Cast × state"], ["cast-pairs", "Pairs"], ["sequences", "Sequences"], ["board", "Board"], ["markers", "Markers"], ["effects", "Effects"], ["banners", "Banners"], ["hub", "Hideout"], ["table", "Table HUD"], ["ui", "UI"], ["icons", "Icons"], ["legacy", "Legacy"]] },
   { id: "rig", label: "Rig", toc: [["rig-stage", "Player"], ["rig-parts", "Parts"], ["rig-data", "Rig data"], ["rig-contract", "Contract"]] },
   { id: "mechanics", label: "Mechanics", toc: [["turn", "Turn"], ["pieces", "Pieces"], ["check", "Check"], ["strike", "Tap to strike"], ["knight", "Knight"], ["promotion", "Promotion"], ["enemy", "Enemy"], ["battles", "Battles"], ["hideout", "Hideout"], ["gold", "Gold"], ["run", "Run"]] },
   { id: "guide", label: "Style guide", toc: [["target", "Target style"], ["ref-cast", "Reference cast"], ["rules", "Rules"], ["ref-palette", "Reference palette"], ["palette", "Current palette"], ["type", "Type"], ["construction", "Construction"], ["sides", "Side markers"], ["timing", "Timing"], ["a11y", "Accessibility"], ["doc-diffs", "vs doc"]] },

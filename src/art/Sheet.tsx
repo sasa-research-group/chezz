@@ -1,6 +1,6 @@
 import { PieceRig, RIG_MS, hasNewArt, type ArtStyle, type RigAction, type RigKind, type RigSide } from "../components/PieceRig";
 import { skinById } from "../components/skins";
-import { hasPaintedArt } from "../components/PaintedRig";
+import { hasSprite } from "../components/SpriteRig";
 
 /** The judge sheet: `art.html?sheet=pawn.white,pawn.black` (append `.old` to a
  * rig for the old art, `.paint` for the painted sprites, or a skin id such as
@@ -23,12 +23,12 @@ export function parseSheet(q: string): Spec[] {
   return q.split(",").map(s => s.split(".")).filter(([k, s]) => KINDS.includes(k as RigKind) && (s === "white" || s === "black"))
     .map(([kind, side, extra]) => {
       const skin = skinById(extra);
-      return { kind: kind as RigKind, side: side as RigSide, art: extra === "old" || !hasNewArt(kind as RigKind) ? "old" : extra === "paint" && hasPaintedArt(kind as RigKind, side === "white") ? "paint" : "new", skin: skin?.kind === kind && side === "white" ? skin.id : undefined };
+      return { kind: kind as RigKind, side: side as RigSide, art: extra === "old" || !hasNewArt(kind as RigKind) ? "old" : extra === "paint" && hasSprite(kind as RigKind, side === "white") ? "paint" : "new", skin: skin?.kind === kind && side === "white" ? skin.id : undefined };
     });
 }
 
 const facing = (side: RigSide) => side === "white" ? 1 : -1;
-const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : s.art === "old" ? " (old art)" : s.art === "paint" ? " (painted)" : ""}`;
+const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : s.art === "old" ? " (old art)" : s.art === "paint" ? " (painted sprite)" : ""}`;
 
 function Rig({ spec, px, action = "idle", frac = .25, wounded, defending, label }: { spec: Spec; px: number; action?: RigAction; frac?: number; wounded?: boolean; defending?: boolean; label?: string }) {
   return <figure className="sheet-cell" data-frac={frac} data-ms={RIG_MS[action] || 1000} data-px={px}>

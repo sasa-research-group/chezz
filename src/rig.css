@@ -63,12 +63,7 @@
 .rig.act-attack .mouth-yell{animation:rig-show-mid calc(.56s * var(--spd,1)) steps(1) both}
 .rig.act-attack .fx-burst{animation:rig-burst calc(.56s * var(--spd,1)) ease-out both}
 @keyframes rig-burst{0%,36%{opacity:0;transform:scale(.2) rotate(0)}44%{opacity:1;transform:scale(1.25) rotate(12deg)}62%{opacity:1;transform:scale(1) rotate(8deg)}80%,100%{opacity:0;transform:scale(1.1) rotate(8deg)}}
-/* The painted rebel queen's pan: the shared wind-up (-55°) hides it behind her wide helm brim,
-   so it cocks back by rising high beside the helm, then swings out level. */
-.rig.rig-queen.art-paint.act-attack .prop.pan{animation-name:rig-pan}
-@keyframes rig-pan{0%,100%{transform:translateY(0) rotate(0)}28%{transform:translateY(-14px) rotate(-12deg)}40%,58%{transform:translateY(0) rotate(72deg)}}
-/* Painted queens carry the prop in the front arm, so a slap would cancel the swing. */
-.rig.rig-queen:not(.art-paint).act-attack .arm-front{animation:rig-slap calc(.56s * var(--spd,1)) linear both;transform-origin:57px 50px}
+.rig.rig-queen.act-attack .arm-front{animation:rig-slap calc(.56s * var(--spd,1)) linear both;transform-origin:57px 50px}
 @keyframes rig-attack{0%{transform:none}28%{transform:translateX(-7px) rotate(-16deg) scale(1.22,.8)}38%{transform:translateX(24px) rotate(12deg) scale(.74,1.32)}58%{transform:translateX(22px) rotate(10deg) scale(.8,1.24)}70%{transform:translateX(6px) scale(1.1,.92)}100%{transform:none}}
 @keyframes rig-swing{0%{transform:none}28%{transform:rotate(-55deg)}40%,58%{transform:rotate(65deg)}100%{transform:none}}
 /* The patrol knight's lance: pulled back, then couched level across his waist and out past
@@ -82,11 +77,6 @@
 .rig.rig-rook.rebel.art-new:not([class*="skin-"]).act-attack .prop.sledge{animation-name:rig-sledge}
 .rig.rig-rook.rebel.art-new:not([class*="skin-"]).act-attack .squash{animation-name:rig-slam}
 @keyframes rig-sledge{0%{transform:none}28%{transform:rotate(-7deg) translate(0,-9px)}40%,58%{transform:rotate(76deg) translate(0,46px)}74%{transform:rotate(18deg) translate(0,10px)}90%,100%{transform:none}}
-/* The painted sledge is gripped near the butt of its handle, so it only chokes up a little:
-   a long choke would pull the stone head back into his fist. Painted rigs also carry art-new,
-   so this rule must stay after rig-sledge's, which it beats only on source order. */
-.rig.rig-rook.rebel.art-paint:not([class*="skin-"]).act-attack .prop.sledge{animation-name:rig-sledge-paint}
-@keyframes rig-sledge-paint{0%{transform:none}28%{transform:rotate(-4deg) translate(0,-10px)}40%,58%{transform:rotate(104deg) translate(0,8px)}74%{transform:rotate(24deg) translate(0,3px)}90%,100%{transform:none}}
 @keyframes rig-slam{0%{transform:none}28%{transform:translateX(-4px) rotate(-9deg) scale(.92,1.1)}40%{transform:translateX(5px) rotate(5deg) scale(1.12,.86)}58%{transform:translateX(5px) rotate(4deg) scale(1.08,.9)}72%{transform:translateX(2px) scale(.97,1.04)}100%{transform:none}}
 @keyframes rig-slap{0%,28%{transform:none}40%,58%{transform:rotate(-70deg)}100%{transform:none}}
 @keyframes rig-smear{0%,37%{opacity:0}42%{opacity:.6}55%,100%{opacity:0}}
@@ -226,9 +216,3 @@
 .rig.quirk-peck.act-attack .quirk-bit{animation:rig-peck-mitre calc(.56s * var(--spd,1)) linear both;transform-origin:50% 100%}
 @keyframes rig-peck{0%{transform:none}28%{transform:translate(-3px,-1px) rotate(-12deg)}40%,58%{transform:translate(2px,1px) rotate(22deg)}100%{transform:none}}
 @keyframes rig-peck-mitre{0%,28%{transform:none}40%,58%{transform:rotate(-20deg)}100%{transform:none}}
-
-/* Painted sprites (PaintedRig.tsx, ?art=paint): the prop rides in the front arm, so the
-   cheer pumps the fist up with a slight tilt; the shared 35° raise would lay the prop back
-   over the head. */
-.rig.art-paint.act-cheer .arm-front{animation-name:rig-pump}
-@keyframes rig-pump{0%{transform:none}20%,85%{transform:translateY(-9px) rotate(-8deg)}100%{transform:none}}

@@ -13,7 +13,7 @@ import "./rig-studio.css";
 
 const KINDS: RigKind[] = ["pawn", "knight", "bishop", "rook", "queen", "king"];
 const SIDES: [RigSide, string][] = [["white", "Rebel"], ["black", "Patrol"]];
-const ARTS: [string, string][] = [["old", "Old"], ["new", "SVG kit"], ["paint", "Painted"]];
+const ARTS: [string, string][] = [["old", "Old"], ["new", "SVG kit"], ["paint", "Sprite"]];
 const SPEEDS = [.25, .5, 1, 1.5, 2];
 const FRAME = 1000 / 30;
 const GHOSTS = [1, 2, 3, 4];
@@ -211,7 +211,7 @@ function useSteppableUnderReducedMotion(reduced: boolean) {
   }, [reduced]);
 }
 
-/** Whether PieceRig draws painted parts for this piece: `art="paint"` falls back to the SVG kit (`art="new"`) where it has none. */
+/** Whether PieceRig draws a painted sprite for this piece: `art="paint"` falls back to the SVG kit (`art="new"`) where it has none. */
 const PaintProbe = memo(function PaintProbe({ kind, side, onResult }: { kind: RigKind; side: RigSide; onResult: (ready: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -417,6 +417,7 @@ export function RigStudio() {
         <li><b>Prop pivot</b> the front hand (<code>propOrigin</code>)</li>
         <li><b>Pivots</b> viewBox px; fill-box = own box</li>
         <li><b>Skins</b> same groups, same pivots</li>
+        <li><b>Sprites</b> one image in <code>.squash</code>, no parts: only the root groups move</li>
         <li><b>Doc</b> <code>docs/art/RIG.md</code></li>
       </ul>
       <dl className="rs-contract">{parts.filter(p => !p.fx && !p.id.includes("#")).map(p => <div key={p.id}>

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PieceRig, hasNewArt, type PatrolHue, type RigKind } from "../src/components/PieceRig";
 import { SKINS } from "../src/components/skins";
-import { PAINTED } from "../src/components/paint/specs";
+import { SPRITE_IDS } from "../src/components/SpriteRig";
 import { inkBox } from "./ink-bounds";
 
 /** The figure contract (docs/art-style.md section 9): at rest, every redrawn figure keeps its ink,
@@ -32,12 +32,13 @@ describe("redrawn figures stay inside the figure contract", () => {
   });
 });
 
-/** Painted sprites (`?art=paint`): each part is an image trimmed to its ink, so its box is its ink. */
-describe("painted figures stay inside the figure contract", () => {
-  for (const id of Object.keys(PAINTED)) it(id, () => {
+/** Painted sprites (`?art=paint`): one image per piece, trimmed to its ink, so its box is its ink. */
+describe("painted sprites stay inside the figure contract", () => {
+  it("covers every piece on both sides", () => expect(SPRITE_IDS.length).toBe(12));
+  for (const id of SPRITE_IDS) it(id, () => {
     const [side, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
     const html = renderToStaticMarkup(createElement(PieceRig, { kind, side: side === "rebel" ? "white" : "black", art: "paint" }));
-    expect(html, "draws the painted parts, not the fallback").toContain("<image");
+    expect(html.match(/<image/g), "draws one whole sprite, not the fallback").toHaveLength(1);
     const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
     expect(ink.top, "topmost ink").toBeGreaterThanOrEqual(BOUNDS.top);
     expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);

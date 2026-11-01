@@ -13,9 +13,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`Armour*.tsx`); all pass the judge but the patrol queen. Figure box y 0+,
   x 18–82 (`figure-bounds.test.ts`). Tools: `battle-shot.mjs`, `shoot.mjs`
   (judge, `docs/art/BRIEF.md`), `gen.mjs` (concepts).
-- **Painted sprites** (`docs/art/PAINTED.md`): generated parts on the same
-  rig behind `?art=paint`, all twelve pieces; most pass the judge, patrol
-  knight and queens being re-rolled (DECISIONS.md). Owner prefers painted.
+- **Painted sprites** (`docs/art/PAINTED.md`): one generated image per piece,
+  eyes painted in, behind `?art=paint` (`SpriteRig.tsx`, `src/sprite.css`).
+  No rig (owner's call): animations move the whole sprite plus effects.
+  All twelve pass the judge.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with

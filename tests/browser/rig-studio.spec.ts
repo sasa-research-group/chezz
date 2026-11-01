@@ -30,6 +30,22 @@ test("rig tab: every piece and art style shows its bones and parts, on a phone",
   expect(errors).toEqual([]);
 });
 
+test("rig tab: a painted sprite has no parts, and its attack moves the root", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/art.html#rig");
+  await seg(page, "Piece").getByRole("button", { name: "Knight" }).click();
+  await seg(page, "Art").getByRole("button", { name: "Sprite" }).click();
+  await expect(page.locator(".rs-fig .rig.art-sprite image")).toHaveCount(1);
+  await expect(page.locator('.rs-bones [data-part="prop"]')).toHaveCount(0);
+  await seg(page, "Action").getByRole("button", { name: "attack", exact: true }).click();
+  const scrub = page.getByLabel("Scrub");
+  await scrub.fill("0");
+  const rest = await joint(page, "shield");
+  await scrub.fill("220");
+  await expect.poll(() => joint(page, "shield")).not.toBe(rest);
+  expect(errors).toEqual([]);
+});
+
 test("rig tab: an action plays, and the scrubber moves the bones", async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto("/art.html#rig");

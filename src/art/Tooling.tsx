@@ -20,7 +20,7 @@ const FONTS: [string, string, string, string][] = [
   ["Georgia", "System font (not shipped)", "OS-licensed", "—"],
   ["system-ui", "System font (not shipped)", "OS-licensed", "—"],
 ];
-const NOT_USED = ["Raster images or sprite sheets", "Image editors or exported assets", "Animation libraries (no GSAP, Lottie, Spine)", "Canvas or WebGL", "Third-party art or icon packs"];
+const NOT_USED = ["Sprite sheets or cut-out raster parts (the painted style is one webp per piece, ?art=paint only)", "Image editors or exported assets", "Animation libraries (no GSAP, Lottie, Spine)", "Canvas or WebGL", "Third-party art or icon packs"];
 const ADD = [
   "Characters: draw with the shape kit (src/components/inkKit.tsx) per docs/art/BRIEF.md; viewBox 0 0 100 120",
   "Use palette constants from PieceRig.tsx or the hexes listed in the style guide",

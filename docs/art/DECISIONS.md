@@ -3,6 +3,42 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: painted sprites become whole images
+- Owner's verdict on the cut-out painted rigs: "all of your arms are backwards. The eyes look
+  positioned incorrectly." And the new direction: "have the painted reference be all one piece
+  instead of multiple pieces so no more rigging, and then just make the animations. The
+  animations won't look as good for now but that's okay. The animations can use particles or
+  effects like you already have in some cases, like flashing, stretching, motion, compression,
+  but not pieces, not like rigs in different parts. That also goes for the eyes: make the eyes
+  part of the generated piece as well. An attack, for example, will just be the whole thing
+  kind of lunging in one direction. It'll look a little goofy but it's fine for now."
+- Built (`docs/art/PAINTED.md`): each `paint-*.json` recipe is now pose → BRIA cutout;
+  `tools/art/sprite.mjs` trims, outlines and installs one webp per piece
+  (`src/assets/sprites/`); `SpriteRig.tsx` draws it inside `.flip › .hop › .squash`; whole-sprite
+  keyframes and effects live in `src/sprite.css`. The parts pipeline (`PaintedRig.tsx`,
+  `paint/specs.ts`, `cut-parts.mjs`, the part images, `rig-pan`, `rig-sledge-paint`, `rig-pump`)
+  is removed; git history keeps it. Every earlier look decision still holds.
+- Prompts add a per-character EYES sentence and a shared block: natural arms, nothing backwards,
+  the weapon gripped in the fist, a clean silhouette, an outer outline twice the inner lines.
+- Re-rolls: the patrol bishop's lenses came out blank, so the pose now asks for a dot eye in
+  each lens. The patrol knight was re-rolled twice. One roll lost the fist on the lance, so it was
+  rejected. The kept roll paints his leg to the stirrup and an eye glint in the slit. A patrol
+  queen roll with cheek guards and no lips lost the grip on the sceptre, so her first roll
+  (with lips) is kept.
+- Mate: the crown can't leave a whole sprite. A gold crown particle (the old rig's crown shape)
+  flies off and lands beside him, and the painted crown stays on.
+- Judge round 1, all twelve (readability/style/likeness/motion/consistency): rebel pawn
+  9/9/9/8/8, rook 9/9/9/8/8, knight 8/9/9/7/8, bishop 9/9/10/8/8, queen 8/8/9/8/8, king
+  9/9/9/8/8; patrol pawn 9/9/8/8/8, rook 9/9/9/8/8, knight 7/8/8/7/8, bishop 9/9/9/8/8, queen
+  8/8/7/8/8, king 8/8/9/8/8. All pass. Round 2 covered the knights after the knight re-roll and a
+  plain-hop move (the move had flipped like the leap): rebel 8/8/9/7/8, patrol 7/7/8/7/7, a pass.
+  The defend flash was then softened, since judges read it as the hit's white flash.
+- Still open: at 48px the patrol knight's dark horse is one mass; on his attack the impact
+  burst sits at the horse's nose, not the lance tip. The patrol queen has lips and no visible
+  helmet (judges marked likeness 7). Wide props (the pan handle, the hobby horse) shrink their
+  whole figure to fit x 18–82.
+- Cost: about $2.40 on Replicate (16 pose calls, 16 BRIA cutouts).
+
 ## 2026-11-01: painted sprite pilot (pawns and rooks)
 - Why: the owner found the SVG cast "so much simpler than the concept images" and wanted the
   sheet's richness in game. This reopens the Oct 31 rejection of painted raster parts (below):

@@ -4,6 +4,7 @@ import Studio from "./Studio";
 import { Sheet, parseSheet } from "./Sheet";
 import "../exile.css";
 import "../rig.css";
+import "../sprite.css";
 import "../table.css";
 import "./art.css";
 const sheet = new URLSearchParams(location.search).get("sheet");
