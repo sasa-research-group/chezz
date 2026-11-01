@@ -11,10 +11,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
   the shape kit `inkKit.tsx` behind `?art=new`: pawns, rooks, knights,
-  bishops (`Armour*.tsx`); rebel rook, patrol knight and patrol bishop are
-  short of the judge's pass (DECISIONS.md). Battle shot:
-  `tools/art/battle-shot.mjs`. Judge loop:
-  `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Concepts: `tools/art/gen.mjs`.
+  bishops, kings (`Armour*.tsx`); rebel rook, patrol knight, patrol bishop
+  miss the judge's pass (DECISIONS.md). No ink above y 15 (board frame).
+  Battle shot: `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
+  Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with

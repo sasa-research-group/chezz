@@ -66,6 +66,12 @@ export const TONES = {
   goldDeep: tone("#cb8e24", "#9e6a14"), // the bands on the patrol's gilded mitre; shade picked
   lens: tone("#d6ebf7", "#a2c5ed"), // picked: paler than the sheet's lens so it parts from the steel helm
   glove: tone("#f4f1ea", "#cfcac0"), // picked
+  // Kings, sampled from docs/art/rebel-king.webp and patrol-king.webp unless marked.
+  crimson: tone("#a62f42", "#7a2131"), // the rebel king's cloak; shade picked
+  beard: tone("#86663f", "#64492b"), // picked: lighter than the sheet's #665136, which merged with the ink at 48px
+  fur: tone("#efe3c8", "#cdbb98"), // picked: the rebel cloak's fur collar
+  moustache: tone("#744924", "#56351a"), // the patrol king's painted moustache, goatee and curls; shade picked
+  mask: tone("#8fa0b8", "#64738c"), // picked: the patrol king's sculpted mask, bluer than the rook's helm steel
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

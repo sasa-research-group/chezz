@@ -3,6 +3,32 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: kings on the shape kit
+- Both kings redrawn behind `?art=new` (`src/components/ArmourKings.tsx`) in the old
+  king's groups; the crown is its own `.crown` group inside the head, so the checkmate
+  finale still throws it off. The kings are the widest pieces, not the tallest: on a
+  phone's 4×4 board ink above about y 15 pokes out of the board frame from the top row,
+  so both crowns stop there (checked with `battle-shot.mjs king`).
+- Rebel king: a three-point gold crown pulled low, a red centre gem and two blue ones on
+  its band; only two dot eyes between it and a huge wild beard (lighter than the sheet's
+  brown, which merged with the outline at 48px), narrowing below the chin so the fur
+  collar shows; red cloak over a faded blue tunic; a chipped sword whose gold guard sits
+  above the sleeve (under it, it was all ink). Declared corrections: three crown points,
+  not five; the lighter beard.
+- Patrol king: three ball-tipped points on one solid gold crown with a blue centre gem;
+  brown curls; a steel-blue mask with two closed-eye squint arcs, a painted moustache and
+  goatee; a short scalloped gold mantle over a blue robe; a sword with a curled gold
+  guard. Tried and dropped: five ball points (their gaps filled with ink, a dark comb at
+  48px), red side gems (read as glowing red eyes over the mask), gold eye paint and brows
+  on the mask (a grey-yellow smear at 48px). A neck block under the head keeps the death
+  pop from showing a gap. Declared corrections: three points; the short mantle.
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 7/8/7/8/8 →
+  7/8/7/8/8 → 8/8/7/7/8, a pass throughout; patrol 6/7/7/5/7 → 7/7/6/8/8 → 7/8/7/7/8, a
+  pass in round 3. Still open: the fist sits a hand's height under the crossguard with
+  the sleeve between (the sword can look like it floats); the rebel sword is slimmer
+  than the reference's and the fur collar shows mostly on the back shoulder; the patrol
+  mask reads as a visor at 48px and his dark curls merge with the outline.
+
 ## 2026-11-01: bishops on the shape kit
 - Both bishops redrawn behind `?art=new` (`src/components/ArmourBishops.tsx`) in the
   old bishop's groups; the shield still shows on defend. Tall and slim like the old

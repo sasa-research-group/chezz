@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks, knights and bishops are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
+- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks, knights, bishops and kings are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
 
 ## 1. Armour does the talking
 
@@ -163,13 +163,13 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
 | `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a dark slot, the mallet leans on his front shoulder beside the helm (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
-| `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
+| `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. In game: a three-point crown (five points close up at 48px) with a red centre gem, a beard lighter than the sheet's, narrowing below the chin so the fur collar shows at the shoulders; a red cloak over a faded blue tunic; a chipped blade with a gold guard above the fist. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
 | `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. In game: a grey horse with a steel chanfron and neck plates under a blue, gold-trimmed saddle cloth; gold plume holder and gorget; the lance stands upright in his back hand behind him. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. In game: the mitre is wider than the helm, lenses are pale glass in gold rims, a blue cape with a thick gold edge, a crozier curl ending in a gold ball on a steel shaft. |
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
 | `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. |
-| `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. |
+| `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. In game: three ball-tipped crown points and one blue centre gem; a steel-blue mask with two closed-eye squint arcs (gold eye paint and brows smeared at 48px); a short scalloped gold mantle over the blue robe, gold orphrey and hem; a sword with a curled gold guard. |
 | `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game (skin `frog-pot`): a wide flat head, wider than the rebel saucepan, with two eye domes tucked under its rim; a short frowning mouth over a pale throat; squat body on two plain leg ovals with a pale belly, round mitts; a red cord knotted under the jaw; a cattail on a wood stalk. |
 | `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. |
 | `odd-bishop` | White goose in a parchment mitre, one angry brow, orange beak. |
@@ -249,6 +249,16 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Lenses on a helm: one gold ring per lens as a `Pole` circle (both in one path, so they fuse at the bridge), pale glass inside. The glass must be paler than the steel around it.
 - A hand that sits at the height of a gold trim line makes the sleeve read as part of the trim; move the hand clear of it.
 - A shepherd's crook beside a tall mitre: the hook must clear the mitre's shoulder by the outline on both sides, so the shaft runs near x 78 and the curl turns back toward the head. That leaves the hook's opening only 2–3 units inside x 82. (The patrol crozier's curl still tucks behind his wider mitre; open.)
+
+**Learned from the kings** (`src/components/ArmourKings.tsx`)
+
+- On a phone's 4×4 board a piece on the top row may stand only about 15 units above the board's frame (topmost ink no higher than y 15, outline included); the old king's cross, the patrol bishop's mitre and the patrol knight's plume all poke out. The kings' crowns stop there, so the king is the widest piece, not the tallest. Check with `node tools/art/battle-shot.mjs king out.png`, which puts the patrol king on the top row.
+- Crown points need open gaps: five ball-tipped points on a 40-wide crown fill their gaps with ink at 48px and read as a dark comb. Three bold points (rebel) or three ball-tipped points (patrol) keep daylight between them.
+- Red gems on a crown band sit right over the face and read as glowing red eyes; keep red to one centre gem and use blue for the rest.
+- A beard that fills the chest hides any collar under it. Narrow the beard's lower half so the fur collar shows at the shoulders.
+- A crossguard under about 7 units tall is all ink, and a sleeve drawn over the prop hides it: put the guard above the sleeve's ink, a hand's height over the fist, with an inner line.
+- The head pops loose in the shared death animation. A figure without a beard over the chest needs a neck block in the body under the head, so no background shows between head and shoulders.
+- The crown must be its own `.crown` group inside the head: the checkmate finale throws it off.
 
 ## 10. Judge checks
 
