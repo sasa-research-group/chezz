@@ -41,7 +41,7 @@ export const TONES = {
   stone: tone("#a2a4a4", "#76787a"), // shade picked
   darkStone: tone("#6b7077", "#4c5056"), // the rebel rook's mallet head, darker than his helm so the two never merge; picked
   helmSteel: tone("#9aa7b8", "#6c788a"), // the patrol rook's great-helm: blue-grey, so it reads as steel, not cloth; picked
-  parchment: tone("#e7d5ac", "#c9b388"), // the rebel rook's eyes glowing in the slot; shade picked
+  parchment: tone("#e7d5ac", "#c9b388"), // the rebel rook's glowing eyes and the rebel bishop's mitre; shade picked
   void: tone(INK, INK), // a helm's eye slot: flat ink with no shadow
   neckerchief: tone("#3275a9", "#245580"), // the rebel knight's accent; shade picked
   rust: tone("#a5562c", "#7c3f1f"), // picked: rust blotches on the rebel knight's bucket
@@ -56,6 +56,16 @@ export const TONES = {
   // Haystack rook tones: hay sampled from docs/art/odd-rook.webp (docs/art-style.md section 7).
   hay: tone("#ebbe52", "#b2833d"),
   straw: tone("#c9953f", "#9c6f2c"), // picked: the haystack's straw mitten, a step darker than the hay
+  // Bishops, sampled from docs/art/rebel-bishop.webp and patrol-bishop.webp unless marked.
+  mitreBand: tone("#cdab69", "#a8884c"), // the rebel mitre's bands; shade picked
+  hood: tone("#7a7068", "#5e554e"), // picked: much lighter than the sheet's #423d34, or hood, void and robe merge at 48px
+  cowl: tone("#8a8580", "#6b6762"), // picked: the rebel capelet, between hood and robe so the three part
+  robeGrey: tone("#a3a09a", "#7f7c77"), // picked: the rebel bishop's robe, lighter than the sheet's so it parts from the hood
+  patchYellow: tone("#eecd02", "#c2a700"), // shade picked
+  glow: tone("#f9e998", "#d9c46a"), // the rebel bishop's eyes in the hood void; shade picked
+  goldDeep: tone("#cb8e24", "#9e6a14"), // the bands on the patrol's gilded mitre; shade picked
+  lens: tone("#d6ebf7", "#a2c5ed"), // picked: paler than the sheet's lens so it parts from the steel helm
+  glove: tone("#f4f1ea", "#cfcac0"), // picked
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

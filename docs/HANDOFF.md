@@ -10,9 +10,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** rigs are misfit characters with Pizza Tower animations
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
-  the shape kit `inkKit.tsx` behind `?art=new`: pawns (`ArmourPawns.tsx`),
-  rooks (`ArmourRooks.tsx`; rebel short of the judge's pass) and knights
-  (`ArmourKnights.tsx`; patrol short of it): DECISIONS.md. Battle shot:
+  the shape kit `inkKit.tsx` behind `?art=new`: pawns, rooks, knights,
+  bishops (`Armour*.tsx`); rebel rook, patrol knight and patrol bishop are
+  short of the judge's pass (DECISIONS.md). Battle shot:
   `tools/art/battle-shot.mjs`. Judge loop:
   `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks

@@ -3,6 +3,37 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: bishops on the shape kit
+- Both bishops redrawn behind `?art=new` (`src/components/ArmourBishops.tsx`) in the
+  old bishop's groups; the shield still shows on defend. Tall and slim like the old
+  rig: mitre peak near y 4, a cowl or cape about 40 wide over the shoulders, robe
+  flaring to a 40-wide hem. The crook rises beside the mitre inside x 18–82.
+- Rebel bishop: wide parchment mitre with straight sides, tan bands and a small back
+  horn peeking out at the upper left (the cleft); a grey-brown hood with a black void
+  and two round glowing dots; a mid-grey ragged cowl over a light-grey robe with a
+  zigzag hem and a yellow patch; a wavy wooden crook with a twig. The hood is much
+  lighter than the reference's near-black, and the robe lighter too: at 48px the
+  sheet's colours merged into one dark mass (round 1). Half-lidded "smug" eyes read
+  as sleepy and merged into a dash at 48px (round 2), so the eyes are round and the
+  smugness is only a slight backward head tilt. Declared corrections.
+- Patrol bishop: gilded mitre wider than the helm, deep-gold bands; a steel bucket
+  helm with gold-rimmed spectacle lenses (pale glass, so they part from the steel)
+  and a gold nose strip; blue cape with a thick gold edge and clasp; blue robe with a
+  gold hem and orphrey; white gloves, a gold cuff on the front one; a gold crozier whose curl ends
+  in a ball, on a steel shaft with a gold knop. Breathing holes, filigree and crozier
+  studs are dropped (sub-pixel at 48px). His front hand sits lower than the rebel's
+  (y 89, not 80): at y 80 the sleeve lay along the cape's gold edge and read as a
+  gold bar.
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 6/7/6/7/8 →
+  7/8/6/8/8 → 8/8/7/8/8, a pass; patrol 8/8/6/7/8 → 8/7/7/7/8 → 7/7/6/8/8, not a pass.
+  After round 3, unjudged: the patrol shaft went from dark mail to steel (it merged
+  with the outline) and his hem widened. Still open: the patrol body reads as a
+  trooper's tunic, not a cope (the judge wants a broad flared cope with a heavy gold
+  collar), the cape's gold edge still reads as a bar across the chest, and the
+  crozier hugs the body so the 48px silhouette is one slab, and its curl tucks behind
+  the mitre's shoulder; the judge never saw the rebel's back horn as a second point,
+  and the rebel hook's opening is only 2–3 units (about a pixel at 48px).
+
 ## 2026-11-01: knights on the shape kit
 - Both knights redrawn behind `?art=new` (`src/components/ArmourKnights.tsx`), with the
   old knight's group names, so the flip hop, leap and leap-back play unchanged.

@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks and knights are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
+- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks, knights and bishops are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
 
 ## 1. Armour does the talking
 
@@ -159,14 +159,14 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 |---|---|
 | `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. In game the pot is an upturned copper saucepan (owner's correction, Nov 1): a shallow pan, slightly flared toward a thin lip, pushed a little toward the front, and a thick handle with a hanging hole sticking out the back nearly level. Angled steeply up, a thin handle read as a feather in a hat. The handle is what makes it a pan rather than a top hat. |
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. In game the hobby horse is the prop, held by the neck at waist height with the stick down between his legs; he bonks with it. |
-| `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
+| `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. In game: a wide straight-sided mitre with a small back horn, a hood and robe much lighter than the sheet (or hood, void and robe merge at 48px), round glowing dot eyes, a mid-grey ragged cowl. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
 | `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a dark slot, the mallet leans on his front shoulder beside the helm (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
 | `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. In game: a grey horse with a steel chanfron and neck plates under a blue, gold-trimmed saddle cloth; gold plume holder and gorget; the lance stands upright in his back hand behind him. |
-| `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. |
+| `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. In game: the mitre is wider than the helm, lenses are pale glass in gold rims, a blue cape with a thick gold edge, a crozier curl ending in a gold ball on a steel shaft. |
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
 | `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. |
 | `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. |
@@ -240,6 +240,15 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - A `Pole` is its width plus 4.8 units of ink, so a thin strap (bridle, reins) drawn with it lands as a thick black bar. Draw a strap that matters as a `Flat` band about 3 units wide on top of the part.
 - A rider on a full horse: put the rider's lance in the back hand, upright behind him, so at rest it stays clear of the horse head; the shared strike swing (+65° about the hand) brings it over the helm.
 - Only give the `arm-front` class (the cheer raises it) to an arm whose hand holds nothing; a hand gripping the prop would lift off it.
+
+**Learned from the bishops** (`src/components/ArmourBishops.tsx`)
+
+- A mitre carries the bishop only when it is at least as wide as the head under it, with straight sides that taper in the top third. A narrow pointed mitre reads as a candle flame or a cowl's point at 48px.
+- A dark hood around a black void needs a mid tone (about `#7a7068`), and the robe below it lighter still; the sheet's near-black hood merged hood, void and robe into one mass.
+- Glowing eyes in a void stay round dots (r 2.8). Half-lidded half-moons read as sleepy and merge into one dash at 48px; put attitude in the pose instead.
+- Lenses on a helm: one gold ring per lens as a `Pole` circle (both in one path, so they fuse at the bridge), pale glass inside. The glass must be paler than the steel around it.
+- A hand that sits at the height of a gold trim line makes the sleeve read as part of the trim; move the hand clear of it.
+- A shepherd's crook beside a tall mitre: the hook must clear the mitre's shoulder by the outline on both sides, so the shaft runs near x 78 and the curl turns back toward the head. That leaves the hook's opening only 2–3 units inside x 82. (The patrol crozier's curl still tucks behind his wider mitre; open.)
 
 ## 10. Judge checks
 
