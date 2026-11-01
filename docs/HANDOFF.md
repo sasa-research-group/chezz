@@ -15,7 +15,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (judge, `docs/art/BRIEF.md`), `gen.mjs` (concepts).
 - **Painted sprites** (`docs/art/PAINTED.md`): one generated image per piece,
   eyes painted in, behind `?art=paint` (`SpriteRig.tsx`, `src/sprite.css`).
-  No rig (owner's call): animations move the whole sprite plus effects.
+  No rig: animations move the whole sprite plus effects.
   All twelve pass the judge.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from

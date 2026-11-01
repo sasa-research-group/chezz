@@ -13,7 +13,7 @@ const FRACS = [0, .2, .35, .5, .65, .85];
 function Frame({ kind, side, action, frac }: { kind: RigKind; side: RigSide; action: RigAction; frac: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    for (const a of ref.current?.getAnimations({ subtree: true }) ?? []) { a.pause(); a.currentTime = frac * RIG_MS[action]; }
+    for (const a of ref.current?.getAnimations({ subtree: true }) ?? []) { a.pause(); a.currentTime = frac * Number(a.effect?.getComputedTiming().endTime ?? RIG_MS[action]); }
   }, [action, frac]);
   return <figure role="cell"><div ref={ref} style={{ width: 56 }}>
     <PieceRig kind={kind} side={side} art="paint" action={action} defending={action === "defend"} facing={side === "white" ? 1 : -1} seed="sprite" />

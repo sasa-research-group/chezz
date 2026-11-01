@@ -1,6 +1,6 @@
 /** The ink extent of a rendered rig, read from its static SVG markup: every visible shape's
  * geometry, transformed by its groups' `transform` attributes and grown by half its stroke.
- * A painted part (`<image>`) counts its whole box: the cut parts are trimmed to their ink.
+ * A painted sprite (`<image>`) counts its whole box: the image is trimmed to its ink.
  * Curves are sampled, so the result is exact to a few hundredths of a unit. */
 
 type Matrix = [number, number, number, number, number, number];
