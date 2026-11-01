@@ -3,6 +3,30 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: patrol knight simplified
+- Horse: one plain steel-barded barrel (`helmSteel`) on two chunky legs (each pair drawn as
+  one), no rider's leg, no tail. The head leans forward with a chanfron, a dot eye and two
+  ears that stay below the helm, so the plume is the tallest point. A brown rein across
+  the head read as the rebel's hobby-horse stick and was dropped.
+- Helm and visor in pale `barding` steel; a darker steel helm read as a black lump at 48px.
+  One compact royal-blue plume curl, swept back; at rest the lance tip sits about 11
+  units below and behind the plume tail.
+- Lance: a `Pole` shaft in a new lighter `lance` blue (a `Part` shaft was mostly outline),
+  steel tip with a gold ring, big steel vamplate by the hand, shorter (tip at y 35). The
+  hand moved down to the horse's flank (26.5, 90).
+- Strike: the shared `rig-swing` passed the lance behind the pauldron and helm, so it
+  vanished mid-swing and its wind-up left the sheet cell. The patrol knight gets its own
+  `rig-lance` (rig.css): a short lift, then couched forward and up (about 30° above level)
+  across his waist from 33% to 58%, back upright by 90%. It can't reach past the muzzle without leaving the frame.
+- In a 390-wide battle he now sits lower than the patrol rook; the plume still reaches
+  about 11 CSS px above his square into the board frame. The lance tip stays inside.
+- Judge rounds (readability/style/likeness/motion/consistency): 5/6/5/6/6 → 6/7/6/6/6 →
+  6/7/5/6/6. Not passed. Still open, per the last judge: at 48px the helm and plume are
+  ink-heavy; the horse head reads as a grey wedge, not a barded warhorse; on the strike
+  the lance crosses the torso but its tip hides behind the horse head and the impact star
+  lands on the helm. The judges also suggest a lower-tilt hop than the full flip for the
+  move, which is shared knight motion.
+
 ## 2026-11-01: knights on the shape kit
 - Both knights redrawn behind `?art=new` (`src/components/ArmourKnights.tsx`), with the
   old knight's group names, so the flip hop, leap and leap-back play unchanged.

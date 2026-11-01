@@ -70,7 +70,7 @@ const NEW_ART: { kind: RigKind; side: RigSide; name: string; ref: string; notes:
   { kind: "rook", side: "white", name: "Rebel rook", ref: "rebel-rook", notes: "Stonemason: stone tower helm with battlements, two dot eyes glowing in a dark slot, red bandana, patched tunic, bare arms, stone mallet on the shoulder; defends with a plank door" },
   { kind: "rook", side: "black", name: "Patrol rook", ref: "patrol-rook", notes: "Steel keep great-helm with battlements and a gold cross visor, royal-blue plate with gold trim, halberd; defends with a portcullis" },
   { kind: "knight", side: "white", name: "Rebel knight", ref: "rebel-knight", notes: "Rusty bucket helm with a T-shaped opening and two dot eyes, blue neckerchief, leather vest, patched sleeve, wooden hobby horse he bonks with" },
-  { kind: "knight", side: "black", name: "Patrol knight", ref: "patrol-knight", notes: "Steel helm with a closed visor and a tall blue plume, royal-blue plate with gold trim, on a grey horse in steel barding, lance upright in the back hand" },
+  { kind: "knight", side: "black", name: "Patrol knight", ref: "patrol-knight", notes: "Steel helm with a closed visor and a tall blue plume, royal-blue plate with gold trim, on a grey horse in steel barding, lance upright in the back hand; it couches across his waist on the strike" },
 ];
 function PilotCompare({ kind, side, refName }: { kind: RigKind; side: RigSide; refName: string }) {
   const { hue } = useStudio(), facing = side === "white" ? 1 : -1;

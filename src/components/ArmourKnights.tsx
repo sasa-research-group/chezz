@@ -13,12 +13,6 @@ const Boot = ({ x, tone }: { x: number; tone: Tone }) =>
   <Part d={`M${x - 6} 108 Q${x - 6} 99 ${x} 99 Q${x + 6.5} 99 ${x + 6.5} 108 Z`} tone={tone} shade={false} />;
 const Mitt = ({ x, y, tone }: { x: number; y: number; tone: Tone }) => <Part d={circle(x, y, 5.6)} tone={tone} line="inner" shade={false} />;
 
-/** A bar from (x1, y1), w1 half-wide, narrowing to a point at (x2, y2). */
-function taper(x1: number, y1: number, x2: number, y2: number, w1: number) {
-  const len = Math.hypot(x2 - x1, y2 - y1), px = (y1 - y2) / len * w1, py = (x2 - x1) / len * w1;
-  return `M${(x1 + px).toFixed(2)} ${(y1 + py).toFixed(2)} L${x2} ${y2} L${(x1 - px).toFixed(2)} ${(y1 - py).toFixed(2)} Z`;
-}
-
 /** Two dot eyes over a cover tone, so the squint can hide them on its own colour. */
 function Eyes({ xs, y, r, cover }: { xs: number[]; y: number; r: number; cover: string }) {
   return <>
@@ -89,63 +83,55 @@ const Pauldron = ({ x, y, tone }: { x: number; y: number; tone: Tone }) => <>
   <Pole d={`M${x - 8} ${y + 13.2} Q${x} ${y + 16.4} ${x + 8} ${y + 13.2}`} tone={T.gold} width={2.8} />
 </>;
 
-/** A horse leg tapering to a dark hoof; its top hides under the barrel. */
-const Leg = ({ x, tone }: { x: number; tone: Tone }) => <>
-  <Part d={`M${x - 4.8} 84 L${x + 4.8} 84 L${x + 3.4} 102 L${x - 3.4} 102 Z`} tone={tone} shade={false} />
-  <Part d={rect(x - 5, 100, 10, 8, 2)} tone={T.leatherDark} shade={false} />
+/** A chunky horse leg, front or hind pair drawn as one, with a dark hoof. */
+const Leg = ({ x }: { x: number }) => <>
+  <Part d={`M${x - 6} 94 L${x + 6} 94 L${x + 4.8} 103 L${x - 4.8} 103 Z`} tone={T.horse} shade={false} />
+  <Part d={rect(x - 5.6, 101, 11.2, 7, 2)} tone={T.leatherDark} line="inner" shade={false} />
 </>;
 
-/** The patrol knight carries the lance upright in his back hand, behind his
- * back, so at rest it stays clear of the horse head; the strike swings it
- * forward over his helm and the horse. */
-const LANCE_HAND = [27, 80] as const;
+/** The patrol knight stands his lance upright in his back hand, low at the
+ * horse's flank, so at rest it clears the plume and the horse head. His strike
+ * (rig.css `rig-lance`) couches it forward and up across his waist, below the
+ * pauldron and helm that would otherwise hide it. */
+const LANCE_HAND = [26.5, 90] as const;
 
 function patrolKnight(c: Palette, hue: PatrolHue): Figure {
   const plate: Tone = hue === "blue" ? T.royalBlue : { fill: c.main, shade: c.mainSh };
-  const farLeg: Tone = { fill: T.horse.shade, shade: T.horse.shade };
+  const lance: Tone = hue === "blue" ? T.lance : plate;
   const [hx, hy] = LANCE_HAND;
   return {
     body: <>
-      <Leg x={34.5} tone={farLeg} /><Leg x={69} tone={farLeg} />
-      <Leg x={26.5} tone={T.horse} /><Leg x={61} tone={T.horse} />
-      <Part d="M24.5 84 Q19 89 22 100 Q23.5 94 27.5 90 Z" tone={T.leatherDark} line="outer" shade={false} />
-      <Part d="M21 86 Q20 75 30 73.5 L62 72.5 Q72.5 73.5 73.5 82 Q73.5 90 67 91 L28 91.5 Q21 91.5 21 86 Z" tone={T.horse} />
-      <Part d="M62.5 35 L60 24 L67.5 32 Z" tone={T.horse} line="inner" shade={false} />
-      <Part d="M53 84 Q52 60 57 44 Q59 36 63.5 34 Q71 33.5 75 41 L79 53 Q80.5 61 76.5 64 Q74 66 70 64.5 Q66.5 65.5 66.5 69 Q67.5 76 73.5 82 Z" tone={T.horse} />
-      <Part d="M60.5 38 Q66 33 72.5 38.5 L79 51 Q80 54 77.5 55.5 L70 54.5 Q62 49 60.5 38 Z" tone={T.barding} line="inner" highlight="M63.5 39 Q65.5 37 68 37.5" />
-      <Part d="M55.5 55 L65 51.5 L67.5 60 L54.5 63 Z" tone={T.barding} line="inner" shade={false} />
-      <Part d="M54 66 L67 63.5 L69.5 72.5 L53.5 75 Z" tone={T.barding} line="inner" shade={false} />
-      <Dot cx={66.5} cy={45} r={2.4} />
-      <Part d="M31 84 Q29 67 35 61 Q42 57.5 49 61 Q55 67 53.5 84 Z" tone={plate} highlight="M35 76 Q34.5 70 37 66" />
-      <Part d="M30 79 L56 78 L57 86 Q43 89.5 29 86 Z" tone={plate} line="inner" />
-      <Pole d="M30 86 Q43 89.5 57 86" tone={T.gold} width={2.8} />
-      <Part d="M38 82 L49 82 L50.5 94 L44 95.5 Z" tone={plate} line="outer" />
+      <Leg x={31} /><Leg x={62.5} />
+      <Part d="M21 87 Q20 75 31 73.5 L61 72.5 Q71.5 73.5 72 84 Q72 97.5 63.5 98 L30 98.5 Q21 98 21 87 Z" tone={T.helmSteel} />
+      <Part d="M59 86 Q58 64 61 52 L62.5 42 L63 34 L67 39 L70 34 L71.5 41 Q75.5 45 78 51 L79.5 57.5 Q79.5 63 76 63.5 L68 63.5 Q66.5 64 66.5 68 Q67.5 76 72 82 Z" tone={T.horse} />
+      <Part d="M65.5 42 Q69 39 72 42 L78 55 L78 60.5 L73 60.5 Q66.5 53 65.5 42 Z" tone={T.barding} line="inner" highlight="M68 43.5 Q69.5 41.5 71.5 42" />
+      <Dot cx={69} cy={48} r={2.4} />
+      <Part d="M31 87 Q29 66 35 61 Q42 57.5 49 61 Q55 66 53.5 87 Q42 90 31 87 Z" tone={plate} highlight="M35 76 Q34.5 69 37 65" />
     </>,
     prop: <g className="prop">
-      <Pole d={`M${hx} ${hy} L${hx + 1} ${hy + 22}`} tone={plate} width={3.4} />
-      <Part d={taper(hx, hy - 6, hx - 5, 6, 4)} tone={plate} />
-      <Part d={taper(hx - 4.4, 17, hx - 5, 4, 2.2)} tone={T.steel} line="inner" shade={false} />
-      <Part d={`M${hx - 6} ${hy - 4} L${hx + 6} ${hy - 4} L${hx - 0.5} ${hy - 15} Z`} tone={T.steel} line="inner" shade={false} />
-      <Pole d={`M${hx - 3.5} ${hy - 13} L${hx + 2.5} ${hy - 13}`} tone={T.gold} width={2.4} />
+      <Pole d={`M${hx + 0.6} ${hy + 11} L${hx - 2.5} 50`} tone={lance} width={6} />
+      <Part d={`M${hx - 7} 51 L${hx - 2.5} 35 L${hx + 2} 51 Z`} tone={T.steel} line="inner" shade={false} />
+      <Pole d={`M${hx - 4.7} 53 L${hx + 0.5} 53`} tone={T.gold} width={2.6} />
+      <Part d={`M${hx - 7} ${hy - 3} L${hx + 6.5} ${hy - 3} L${hx - 0.5} ${hy - 22} Z`} tone={T.steel} line="inner" highlight={`M${hx - 3} ${hy - 7} L${hx - 1.3} ${hy - 12}`} />
     </g>,
     armFront: <>
-      <Mitt x={hx} y={hy} tone={T.leather} />
-      <Sleeve d="M51 68 Q57 72 59 76" tone={T.mail} front /><Pauldron x={49} y={60} tone={plate} /><Mitt x={60} y={77} tone={T.leather} />
+      <Mitt x={hx} y={hy} tone={T.steel} />
+      <Sleeve d="M51 68 Q56 71 58 74" tone={T.mail} front /><Pauldron x={49} y={60} tone={plate} /><Mitt x={59} y={75} tone={T.steel} />
     </>,
-    head: <>
-      <Part d="M38.5 30.5 Q35.5 25 36.5 20 Q32 22 29.5 28 Q27.5 20 33 15 Q29.5 14 27.5 17.5 Q28 8.5 36.5 7 Q42 2 50 4 Q55.5 5.5 55.5 10.5 Q49.5 8 47 13 Q44.5 21 45 30.5 Z" tone={plate} highlight="M40 18 Q40 13 42.5 10.5" />
-      <Part d="M27 58 Q25.5 30 41 28 Q56.5 30 55 58 Q41 62 27 58 Z" tone={T.steel} highlight="M31.5 47 Q31 39 34.5 34" />
-      <Part d="M33.5 37 Q46.5 34 56 39.5 L56 48.5 Q46.5 51 34 48 Z" tone={T.steel} line="outer" />
+    head: <g transform="translate(0 2)">
+      <Part d="M45.5 31 Q47.5 20 42.5 15 Q36.5 11.5 30 16 Q27 18.5 28 23 Q32 19.5 36 21 Q39.5 23 38.5 31 Z" tone={plate} highlight="M40 25 Q40.5 20.5 37.5 18" />
+      <Part d="M30 58 Q28.5 30 42.5 28 Q56.5 30 55 58 Q42.5 62 30 58 Z" tone={T.barding} highlight="M34 47 Q33.5 39 37 34" />
+      <Part d="M35 37 Q46 34 54.5 39.5 L54.5 48.5 Q46 51 35.5 48 Z" tone={T.barding} line="inner" />
       <g className="face">
         <g className="eyes">{[39, 48].map(x => <g key={x} className="pupil"><Part d={rect(x - 3.5, 41, 7.5, 4.5, 1)} tone={T.void} line="none" shade={false} /></g>)}</g>
         <g className="ko-eyes"><Ink d="M36.5 40 L41.5 46 M41.5 40 L36.5 46 M45.5 40 L50.5 46 M50.5 40 L45.5 46" /></g>
       </g>
-      <g className="mouth-yell"><Flat d={rect(35, 40.5, 17, 5.5)} fill={T.steel.fill} /><Ink d="M35.5 41 L42.5 44 L35.5 46 M51.5 41 L44.5 44 L51.5 46" /></g>
-      <Part d={rect(38, 25.5, 7.5, 5, 1.5)} tone={T.gold} line="inner" shade={false} />
-      <Pole d="M28.5 57 Q41 61.5 54 57" tone={T.gold} width={2.8} />
-    </>,
+      <g className="mouth-yell"><Flat d={rect(35, 40.5, 17, 5.5)} fill={T.barding.fill} /><Ink d="M35.5 41 L42.5 44 L35.5 46 M51.5 41 L44.5 44 L51.5 46" /></g>
+      <Part d={rect(38.5, 25.5, 8, 5, 1.5)} tone={T.gold} line="inner" shade={false} />
+      <Pole d="M31 57 Q43 61.5 54 57" tone={T.gold} width={2.8} />
+    </g>,
     mouths: null,
-    propOrigin: `${hx}px ${hy}px`, shield: [30, 84], mouth: [41, 52, 5],
+    propOrigin: `${hx}px ${hy}px`, shield: [30, 84], mouth: [41, 54, 5],
   };
 }
 
