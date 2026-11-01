@@ -69,6 +69,8 @@ const NEW_ART: { kind: RigKind; side: RigSide; name: string; ref: string; notes:
   { kind: "pawn", side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel kettle helm with a small comb, plain face (dot eyes, brows), gold-edged pauldrons, pike" },
   { kind: "rook", side: "white", name: "Rebel rook", ref: "rebel-rook", notes: "Stonemason: stone tower helm with battlements, two dot eyes glowing in a dark slot, red bandana, patched tunic, bare arms, stone mallet on the shoulder; defends with a plank door" },
   { kind: "rook", side: "black", name: "Patrol rook", ref: "patrol-rook", notes: "Steel keep great-helm with battlements and a gold cross visor, royal-blue plate with gold trim, halberd; defends with a portcullis" },
+  { kind: "knight", side: "white", name: "Rebel knight", ref: "rebel-knight", notes: "Rusty bucket helm with a T-shaped opening and two dot eyes, blue neckerchief, leather vest, patched sleeve, wooden hobby horse he bonks with" },
+  { kind: "knight", side: "black", name: "Patrol knight", ref: "patrol-knight", notes: "Steel helm with a closed visor and a tall blue plume, royal-blue plate with gold trim, on a grey horse in steel barding, lance upright in the back hand" },
 ];
 function PilotCompare({ kind, side, refName }: { kind: RigKind; side: RigSide; refName: string }) {
   const { hue } = useStudio(), facing = side === "white" ? 1 : -1;
@@ -82,11 +84,11 @@ function PilotCompare({ kind, side, refName }: { kind: RigKind; side: RigSide; r
 }
 function Pilot() {
   const { hue } = useStudio();
-  return <Group id="pilot" title="New art" intro={<>Pieces redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code> and <code>components/ArmourRooks.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs rook.white,rook.black,pawn.white,pawn.black out.png</code>.</>}>
+  return <Group id="pilot" title="New art" intro={<>Pieces redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code>, <code>components/ArmourRooks.tsx</code> and <code>components/ArmourKnights.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs knight.white,knight.black out.png</code> (add the rooks and pawns to compare).</>}>
     {NEW_ART.map(p => <Entry key={p.kind + p.side} name={`${p.name}: old · new · reference`} src={`PieceRig art="old" | "new" · docs/art/${p.ref}.webp`} note={p.notes} full><PilotCompare kind={p.kind} side={p.side} refName={p.ref} /></Entry>)}
     <Entry name="Silhouette at 48px" src="judge check 1: filled solid black" wide>
       <div className="pilot-row silhouettes">{NEW_ART.map(p => <figure key={p.kind + p.side} style={{ width: 48 }}><PieceRig kind={p.kind} side={p.side} hue={hue} facing={p.side === "white" ? 1 : -1} art="new" seed="sil" /></figure>)}
-        {(["knight", "bishop"] as const).map(k => <figure key={k} style={{ width: 48 }}><PieceRig kind={k} side="black" hue={hue} facing={-1} seed="sil" /></figure>)}</div>
+        {(["bishop", "queen"] as const).map(k => <figure key={k} style={{ width: 48 }}><PieceRig kind={k} side="black" hue={hue} facing={-1} seed="sil" /></figure>)}</div>
     </Entry>
     <Entry name="Rook defend: door and portcullis" src="rig.css .door" wide>
       <div className="pilot-row">{(["white", "black"] as const).map(side => <figure key={side} style={{ width: 84 }}><PieceRig kind="rook" side={side} hue={hue} facing={side === "white" ? 1 : -1} art="new" defending seed="door" /></figure>)}</div>
@@ -95,7 +97,7 @@ function Pilot() {
       <MiniBoard cols={3} rows={2} pieces={[
         { kind: "pawn", side: "black", art: "new", x: 0, y: 0 },
         { kind: "rook", side: "black", art: "new", x: 1, y: 0, hp: 3, max: HP.rook },
-        { kind: "knight", side: "black", x: 2, y: 0, hp: 3, max: HP.knight },
+        { kind: "knight", side: "black", art: "new", x: 2, y: 0, hp: 3, max: HP.knight },
         { kind: "rook", side: "white", art: "new", x: 0, y: 1 },
         { kind: "pawn", side: "white", art: "new", x: 1, y: 1, hp: 1, max: HP.pawn },
         { kind: "bishop", side: "white", x: 2, y: 1 },
@@ -133,7 +135,7 @@ function Skins() {
     <Entry name="On the board" src="kit MiniBoard · exile.css" wide>
       <MiniBoard cols={3} rows={2} pieces={[
         { kind: "pawn", side: "black", art: "new", x: 0, y: 0 },
-        { kind: "knight", side: "black", x: 2, y: 0, hp: 3, max: HP.knight },
+        { kind: "knight", side: "black", art: "new", x: 2, y: 0, hp: 3, max: HP.knight },
         ...SKINS.slice(0, 2).map((s, i) => ({ kind: s.kind, side: "white" as const, skin: s.id, x: i, y: 1, hp: HP[s.kind], max: HP[s.kind] })),
         { kind: "pawn", side: "white", art: "new", x: 2, y: 1 },
       ]} />

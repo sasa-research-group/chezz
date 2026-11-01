@@ -10,6 +10,7 @@ type Spec = { kind: RigKind; side: RigSide; art: ArtStyle; skin?: string };
 const KINDS: RigKind[] = ["pawn", "knight", "bishop", "rook", "queen", "king"];
 const SIZES = [48, 84, 192];
 const ACTIONS: RigAction[] = ["move", "attack", "defend", "hit", "death", "cheer", "morph-out"];
+const KNIGHT_ACTIONS: RigAction[] = ["leap", "leap-back"];
 const FRACS = [0, .2, .35, .5, .65, .85];
 
 export function parseSheet(q: string): Spec[] {
@@ -43,7 +44,7 @@ function RigRows({ spec }: { spec: Spec }) {
       <Rig spec={spec} px={84} wounded label="wounded" />
       <Rig spec={spec} px={84} defending label="guarding" />
     </div>
-    {ACTIONS.map(a => <div key={a} className="sheet-row sheet-frames"><b>{a}</b>
+    {[...ACTIONS, ...(spec.kind === "knight" ? KNIGHT_ACTIONS : [])].map(a => <div key={a} className="sheet-row sheet-frames"><b>{a}</b>
       {FRACS.map(f => <Rig key={f} spec={spec} px={84} action={a} frac={f} label={`${Math.round(f * 100)}%`} />)}</div>)}
   </section>;
 }
