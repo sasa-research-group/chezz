@@ -216,3 +216,9 @@
 .rig.quirk-peck.act-attack .quirk-bit{animation:rig-peck-mitre calc(.56s * var(--spd,1)) linear both;transform-origin:50% 100%}
 @keyframes rig-peck{0%{transform:none}28%{transform:translate(-3px,-1px) rotate(-12deg)}40%,58%{transform:translate(2px,1px) rotate(22deg)}100%{transform:none}}
 @keyframes rig-peck-mitre{0%,28%{transform:none}40%,58%{transform:rotate(-20deg)}100%{transform:none}}
+
+/* Painted sprites (PaintedRig.tsx, ?art=paint): the prop rides in the front arm, so the
+   cheer pumps the fist up with a slight tilt; the shared 35° raise would lay the prop back
+   over the head. */
+.rig.art-paint.act-cheer .arm-front{animation-name:rig-pump}
+@keyframes rig-pump{0%{transform:none}20%,85%{transform:translateY(-9px) rotate(-8deg)}100%{transform:none}}

@@ -18,6 +18,7 @@ import { SkinPicker } from "../components/SkinPicker";
 import { emptyMeta, type Meta } from "../game/meta";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST } from "../game/turns";
 import { Entry, Group, LoopRig, MiniBoard, usePhase, useStudio } from "./kit";
+import { Painted } from "./Painted";
 import { art as refArt } from "./Reference";
 
 export const KINDS: RigKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
@@ -227,6 +228,7 @@ export function Catalog() {
   const fav = `${import.meta.env.BASE_URL}favicon.svg`;
   return <div className="catalog">
     <Pilot />
+    <Painted />
     <Skins />
 
     <Group id="cast" title="Cast × state">

@@ -1,0 +1,37 @@
+{
+  "id": "paint-patrol-rook",
+  "description": "Painted sprite parts for the patrol rook (?art=paint). Same three steps as paint-rebel-pawn.json, plus a portcullis part for his defend; then tools/art/cut-parts.mjs.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": ["docs/art/patrol-rook.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-patrol-rook.webp"],
+      "prompt": "Full-body game sprite of the royal patrol ROOK from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. SUBJECT: the bulkiest royal guard. An enormous steel great-helm shaped like a castle keep: straight sides with square battlements cut into its top edge, a bold gold cross over the eye slit with two dark slits, breathing holes, no face visible. Massive rounded royal-blue pauldrons with gold rims, a royal-blue breastplate with a gold ridge, a gold belt, steel gauntlets, short dark boots. A halberd held upright in his right fist on the right side of the figure: a long wooden shaft, a solid steel axe blade and spike at the top with a small gold collar. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the keep helm is about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, polished royal blue with gold trim, no damage. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": ["$previous"],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD: the steel castle-keep great-helm with its battlements and the gold cross visor with two dark slits. The helm ends at its bottom rim, no neck.\n- Top row, middle: the BODY: the royal-blue breastplate with the gold ridge and gold belt, the legs and dark boots, with no arms, no pauldrons and no head; a short dark neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a massive rounded blue gold-rimmed pauldron on top of a short dark sleeve hanging down to a steel gauntlet fist.\n- Bottom row, left: the FRONT ARM (his right arm): a massive rounded blue gold-rimmed pauldron on top of a short dark sleeve, bent at the elbow, ending in a closed steel gauntlet fist that points to the right.\n- Bottom row, middle: a PORTCULLIS: a small square steel grille of crossed bars with a gold rim and spiked bottom ends, about as wide as the helm, flat and face-on.\n- Right edge, spanning from top to bottom: the HALBERD on its own, standing straight up, axe blade and spike at the top, whole and not held."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": ["$previous"]
+    }
+  ],
+  "output": "paint-patrol-rook.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "rotate": { "armFront": 40 },
+  "parts": {
+    "head": [0.18, 0.28],
+    "body": [0.5, 0.45],
+    "armBack": [0.75, 0.4],
+    "armFront": [0.2, 0.78],
+    "door": [0.5, 0.85],
+    "prop": [0.91, 0.5]
+  }
+}

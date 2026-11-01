@@ -7,15 +7,15 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (2; reach only the next square in the piece's shape, so sliders
   travel first) and defend (1); fixed damage; strikes land in place. The
   simultaneous engine (`exile.ts`) stays for the lab Duel.
-- **Art:** rigs are misfit characters with Pizza Tower animations
-  (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
-  "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
-  the shape kit `inkKit.tsx` behind `?art=new`: every piece (`Armour*.tsx`);
-  all pass the judge but the patrol queen (wig reads as a flat oval at 48px;
-  DECISIONS.md "polishing the four pieces"). Ink stays in y 0+, x 18–82
-  (`figure-bounds.test.ts`); the board's deep far rim keeps top-row crests
-  on the frame. Battle shot: `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
-  Concepts: `tools/art/gen.mjs`.
+- **Art:** live rigs are placeholder misfits (`PieceRig.tsx`, `rig.css`).
+  Target style (Oct 31): "armour does the talking" (`docs/art-style.md`,
+  `docs/art/`). Redrawn on the shape kit `inkKit.tsx` behind `?art=new`
+  (`Armour*.tsx`); all pass the judge but the patrol queen. Figure box y 0+,
+  x 18–82 (`figure-bounds.test.ts`). Tools: `battle-shot.mjs`, `shoot.mjs`
+  (judge, `docs/art/BRIEF.md`), `gen.mjs` (concepts).
+- **Painted sprites** (`claude/sprites`, `docs/art/PAINTED.md`): generated
+  parts on the same rig behind `?art=paint`, pawns and rooks only; judged
+  below the SVG kit so far (DECISIONS.md). Owner to compare in the studio.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with

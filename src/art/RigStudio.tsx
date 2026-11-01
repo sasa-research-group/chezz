@@ -211,7 +211,7 @@ function useSteppableUnderReducedMotion(reduced: boolean) {
   }, [reduced]);
 }
 
-/** Whether PieceRig draws something for `art="paint"` yet: it falls back to the old art until then. */
+/** Whether PieceRig draws painted parts for this piece: `art="paint"` falls back to the SVG kit (`art="new"`) where it has none. */
 const PaintProbe = memo(function PaintProbe({ kind, side, onResult }: { kind: RigKind; side: RigSide; onResult: (ready: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -220,7 +220,7 @@ const PaintProbe = memo(function PaintProbe({ kind, side, onResult }: { kind: Ri
   }, [kind, side, onResult]);
   return <div ref={ref} className="rs-offstage" aria-hidden="true">
     <PieceRig kind={kind} side={side} art={"paint" as ArtStyle} seed={0} />
-    <PieceRig kind={kind} side={side} art="old" seed={0} />
+    <PieceRig kind={kind} side={side} art="new" seed={0} />
   </div>;
 });
 

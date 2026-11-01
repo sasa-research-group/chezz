@@ -53,6 +53,9 @@ another group. Group names are classes; the studio and CSS find them by name.
 - Cut where a group moves on its own: head off the neck at y≈74, prop at the
   hand, each arm at the shoulder, eyes and pupils separate.
 - Check in the Rig tab: every joint on its pivot, every take moves the right part.
+- Built: `PaintedRig.tsx` (`docs/art/PAINTED.md`). Its `.prop` sits inside `.arm-front`
+  so the cheer lifts the prop with the fist, and each arm sets its own
+  `transform-origin` at the shoulder rather than the shared 60, 70 / 40, 70.
 
 ## Gaps the Rig tab shows today (SVG kit)
 - No `.arm-front`: rebel rook, rebel knight, both queens, both kings. Their

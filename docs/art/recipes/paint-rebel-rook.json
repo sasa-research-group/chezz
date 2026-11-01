@@ -1,0 +1,37 @@
+{
+  "id": "paint-rebel-rook",
+  "description": "Painted sprite parts for the rebel rook, the stonemason (?art=paint). Same three steps as paint-rebel-pawn.json, plus a plank door part for his defend; then tools/art/cut-parts.mjs.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": ["docs/art/rebel-rook.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-rebel-rook.webp"],
+      "prompt": "Full-body game sprite of the stonemason ROOK from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. SUBJECT: a huge scrappy rebel stonemason. A grey stone castle-tower great-helm with an overhanging band of three square battlements on top, and a T-shaped eye opening that is a solid black void showing only two small cream dot eyes. Bare muscular arms, a patched brown-and-green sleeveless tunic with ragged hem, a red bandana knotted round his neck, a leather wrist wrap, short brown boots. A big grey stone sledgehammer with a chipped block head on a long wooden handle, held in his right fist and resting upright against his right shoulder so the hammer head rises above the battlements on the right. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the tower helm is about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights, earthy colours with the red bandana as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": ["$previous"],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD: the stone castle-tower great-helm with its battlements, the T-shaped opening a solid black void with NO eyes in it. The helm ends at its bottom rim, no neck.\n- Top row, middle: the BODY: the patched brown-and-green sleeveless tunic with the red bandana knotted at the neck, the legs and brown boots, with no arms and no head; a short skin neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a bare muscular arm from the shoulder hanging down to a big bare fist.\n- Bottom row, left: the FRONT ARM (his right arm): a bare muscular arm from the shoulder, bent at the elbow, with a leather wrist wrap, ending in a big closed fist that points to the right.\n- Bottom row, middle: a DOOR: a small rectangular plank door of three vertical wooden boards held by two dark iron bands, about as wide as the helm, flat and face-on.\n- Right edge, spanning from top to bottom: the SLEDGEHAMMER on its own, standing straight up, stone head at the top, long wooden handle, whole and not held."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": ["$previous"]
+    }
+  ],
+  "output": "paint-rebel-rook.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "rotate": { "armFront": 45 },
+  "parts": {
+    "head": [0.12, 0.27],
+    "body": [0.44, 0.46],
+    "armBack": [0.69, 0.29],
+    "armFront": [0.14, 0.78],
+    "door": [0.71, 0.77],
+    "prop": [0.89, 0.4]
+  }
+}

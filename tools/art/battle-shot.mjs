@@ -1,11 +1,12 @@
 // Screenshots a battle with the new art, with redrawn pieces added to the board, and measures
 // how far each top-row piece's ink rises above its square and the board's frame.
-//   node tools/art/battle-shot.mjs <kinds> <out.png> [--width 390] [--height 844] [--battle 1] [--old]
+//   node tools/art/battle-shot.mjs <kinds> <out.png> [--width 390] [--height 844] [--battle 1] [--art new|paint|old] [--old]
 // <kinds> is a comma list such as knight or knight,rook: each adds one rebel
 // (bottom rows) and one patrol piece (top row first) on free squares.
 // --battle 1 (the default) is a fresh run of battle 1 with its own enemies. Any other battle
 // number starts that battle's board with only your king and the listed pieces, so the top row
-// is free for them. --old shows the live art instead of ?art=new.
+// is free for them. --art picks the art switch (default new; paint for the painted sprites);
+// --old is --art old, the live art.
 // The run save is seeded once per page. Starts its own Vite server. PLAYWRIGHT_CHROMIUM_PATH
 // picks a browser binary.
 import { createServer } from "vite";
@@ -16,9 +17,10 @@ import path from "node:path";
 const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); return i < 0 ? fallback : args.splice(i, 2)[1]; };
 const flag = name => { const i = args.indexOf(`--${name}`); return i >= 0 && !!args.splice(i, 1); };
-const width = Number(opt("width", 390)), height = Number(opt("height", 844)), battle = Number(opt("battle", 1)), old = flag("old");
+const width = Number(opt("width", 390)), height = Number(opt("height", 844)), battle = Number(opt("battle", 1));
+const artOpt = opt("art", "new"), art = flag("old") ? "old" : artOpt, old = art === "old";
 const [kinds, out] = args;
-if (!kinds || !out?.endsWith(".png") || !(width > 0) || !(height > 0) || !Number.isInteger(battle)) { console.error("usage: node tools/art/battle-shot.mjs knight out.png [--width 390] [--height 844] [--battle 1] [--old]"); process.exit(1); }
+if (!kinds || !out?.endsWith(".png") || !(width > 0) || !(height > 0) || !Number.isInteger(battle) || !["new", "paint", "old"].includes(art)) { console.error("usage: node tools/art/battle-shot.mjs knight out.png [--width 390] [--height 844] [--battle 1] [--art new|paint|old]"); process.exit(1); }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const server = await createServer({ root, logLevel: "error", server: { port: 5392, strictPort: false, host: "127.0.0.1" } });
@@ -47,7 +49,7 @@ try {
   browser = await chromium.launch({ args: ["--disable-audio-output"], executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 3 });
   await page.addInitScript(r => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", r); } }, JSON.stringify(run));
-  await page.goto(`${server.resolvedUrls.local[0]}${old ? "" : "?art=new"}`);
+  await page.goto(`${server.resolvedUrls.local[0]}${old ? "" : `?art=${art}`}`);
   await page.locator(".piece-layer svg.rig").first().waitFor();
   // The seeded pieces only show if the game accepted the save; otherwise it opens a fresh run.
   const ids = run.units.filter(u => u.id.startsWith("shot-")).map(u => u.id);
@@ -55,7 +57,7 @@ try {
   if (shown < run.units.length) throw new Error(`the game rejected the seeded save (${shown} of ${run.units.length} pieces, wanted ${ids.join(", ")})`);
   await page.waitForTimeout(1200);
   await page.screenshot({ path: out });
-  console.log(`wrote ${out} (battle ${battle}, ${board.width}×${board.height}, ${width}×${height}${old ? ", old art" : ""})`);
+  console.log(`wrote ${out} (battle ${battle}, ${board.width}×${board.height}, ${width}×${height}${old ? ", old art" : `, ?art=${art}`})`);
   // Idle loops start at negative per-piece delays, so cancel them to measure the rest pose.
   const rows = await page.evaluate(() => {
     for (const a of document.getAnimations()) a.cancel();
@@ -67,7 +69,7 @@ try {
       const svg = p.querySelector("svg.rig"), box = svg.getBoundingClientRect(), px = box.width / 100;
       const kind = svg.className.baseVal.match(/rig-(\w+)/)[1], side = svg.classList.contains("rebel") ? "rebel" : "patrol";
       let ink = Infinity;
-      for (const el of svg.querySelectorAll(".flip path, .flip circle, .flip ellipse, .flip rect")) {
+      for (const el of svg.querySelectorAll(".flip path, .flip circle, .flip ellipse, .flip rect, .flip image")) {
         // Shading copies and highlights are clipped to their part, which bounding boxes ignore.
         if (hidden(el) || el.closest("clipPath, defs, [clip-path]")) continue;
         const s = getComputedStyle(el), r = el.getBoundingClientRect();

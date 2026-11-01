@@ -14,6 +14,7 @@ test("studio: every area renders without errors and fits a phone", async ({ page
       await expect(page.getByRole("heading", { name: "Skins", exact: true })).toBeVisible();
       await expect(page.locator("#skins .rig.skin-frog-pot").first()).toBeVisible();
       await expect(page.locator("#cast .rig.skin-frog-pot").first()).toBeAttached();
+      await expect(page.locator("#painted .rig.art-paint image").first()).toBeAttached();
     }
     // Named swatches flag hexes that no longer appear in the art sources.
     if (area === "Style guide") {

@@ -3,6 +3,40 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: painted sprite pilot (pawns and rooks)
+- Why: the owner found the SVG cast "so much simpler than the concept images" and wanted the
+  sheet's richness in game. This reopens the Oct 31 rejection of painted raster parts (below):
+  the kit fixed shading spill, but not richness.
+- Built behind `?art=paint` (`docs/art/PAINTED.md`): Nano Banana Pro paints a full-body pose
+  from the crop, the sheet and the SVG rig, then cuts it into a paper-doll parts sheet; BRIA
+  removes the background; `tools/art/cut-parts.mjs` splits, outlines and installs the parts;
+  one generic rig (`PaintedRig.tsx`) places them from data (`paint/specs.ts`). Owner decisions
+  kept: the saucepan with its handle out the back, the patrol pawn's kettle helm and plain face.
+- Approach choices: a pose then a parts sheet, not each part alone, so the parts share one
+  scale and style. Parts drawn whole, so nothing shows a hole when an arm swings. Eyes stay
+  vector (blank painted face) so blink, KO and squint still play and stay at the guide's
+  dot size; the model's own eyes were twice that. The prop rides in the front arm so the
+  cheer lifts it; arm turns happen in the cut so image boxes stay tight for the bounds test.
+- Lost: the patrol rook's blink and pupil dart (his slits are painted). The rebel rook's
+  `rig-sledge` choke-up was tuned to the drawn sledge, so his painted sledge uses the shared
+  swing; his body keeps the planted `rig-slam`, since painted rigs also carry `art-new`. Everything else plays (the Rig tab and `tests/painted.test.ts` check the groups).
+- Failure seen: with the style sheet as a second image, the parts step copied the sheet's
+  oddball row into 2 of 4 sheets (patrol pawn, rebel rook); the recipes now give it only the
+  pose, and those two parts sheets were re-rolled that way. The other two came from the first prompt.
+- Judge (readability/style/likeness/motion/consistency). Round 1, same judge, both styles:
+  painted rebel pawn 7/7/9/8/8, patrol pawn 7/7/8/8/8, rebel rook 6/7/6/8/7, patrol rook
+  5/8/7/7/7; SVG kit 9/9/7/8/9, 9/9/7/8/9, 9/9/8/8/9, 9/9/8/8/9. Round 2 (bigger pawn heads,
+  halberd clear of the helm): 7/7/8/7/7 and 8/7/7/8/8 (both pawns pass), rooks 6/6/6/6/7 and
+  6/8/7/7/8. Round 3 (smaller rook helms, so the sledge and halberd heads clear them):
+  pawns 8/8/7/8/7 and 8/7/7/8/7 (pass), rebel rook 7/7/6/6/7, patrol rook 7/8/7/6/7 (not a
+  pass). Top gap on both rooks: no fist visibly grips the shaft, so the prop seems to swing
+  by itself, and at 48px the halberd's axe merges with the helm.
+- Open: at 48px painted interiors (muscle lines, chainmail, face shadow) blur where the kit's
+  flat shapes stay crisp; the rooks' wide generated props must squeeze inside x 18–82, so the
+  sledge and halberd sit partly behind the helm; the stonemason's bandana hides under his arm.
+  A re-roll asking for a raised arm with the sledge on the shoulder, and narrower prop heads,
+  is the next try. Cost so far: about $1.45 for four characters.
+
 ## 2026-11-01: the cat king skin
 - `cat-king` (`src/components/skins/catKing.tsx`), sixth in the unlock order. Declared
   corrections against `odd-king.webp`: the cat sits up instead of curling, so it stands

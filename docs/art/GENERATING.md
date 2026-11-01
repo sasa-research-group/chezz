@@ -22,6 +22,16 @@ Results go to `art-out/` (gitignored), never over the committed files. Intermedi
 
 Cost is roughly $0.13 per call (Nano Banana Pro).
 
+## Painted sprite parts
+
+```sh
+node tools/art/gen.mjs docs/art/recipes/paint-rebel-pawn.json            # pose, parts sheet, background removal
+node tools/art/gen.mjs docs/art/recipes/paint-rebel-pawn.json --from 2   # re-roll the parts sheet only
+node tools/art/cut-parts.mjs docs/art/recipes/paint-rebel-pawn.json --install
+```
+
+The `paint-*.json` recipes make the in-game painted parts (`?art=paint`). Their last step uses another model (`"model": "bria/remove-background"`, about $0.02) with `"imageField": "image"`, which sends the previous image under that input name with no prompt. `--from N` reuses step N-1's image from an earlier run in `art-out/<id>/`. The extra keys `parts`, `partScale`, `outline` and `rotate` are read by `tools/art/cut-parts.mjs`, which writes the parts into `src/assets/paint/<id>/` with `--install`. About $0.29 per character, $0.42 with one re-roll of the parts sheet. Full guide: `docs/art/PAINTED.md`.
+
 ## What the recipes do
 
 A recipe is JSON: `model`, `steps` (each with `prompt`, optional `aspect_ratio`, `images`, optional `input` merged into the request), optional `postprocess` (`resize`, `quality`; output is webp), and `output`. In `images`, the first entry is the source image, the rest are references, and `"$previous"` means the previous step's output. Image paths are relative to the repo root. Each step is one request to `POST /v1/models/<model>/predictions` with `image_input` as base64 data URIs and `output_format: png`.

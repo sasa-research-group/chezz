@@ -106,3 +106,11 @@
 .sheet-sil .rig{filter:brightness(0)}
 .sheet-grey .rig{filter:grayscale(1)}
 .sheet-cast .sheet-cell{background:#c6b393}
+/* Painted sprites vs the SVG kit (Painted.tsx). */
+.paint-char{grid-column:1/-1;background:#fbf6e8;border:1px solid #cabc9e;border-radius:10px;padding:10px;min-width:0}
+.paint-char h4{margin:0 0 8px}
+.paint-sizes,.paint-actions>div{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.paint-sizes figure,.paint-actions figure{margin:0;display:grid;justify-items:center;gap:2px;font-size:11px;color:#766a58}
+.paint-sizes img{display:block;width:156px;height:auto;border-radius:6px}
+.paint-actions{display:grid;gap:6px;margin-top:10px}.paint-actions b{width:100%;font-size:12px}
+.paint-actions .loop-rig{width:64px}

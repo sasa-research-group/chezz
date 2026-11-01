@@ -1,5 +1,6 @@
 /** The ink extent of a rendered rig, read from its static SVG markup: every visible shape's
  * geometry, transformed by its groups' `transform` attributes and grown by half its stroke.
+ * A painted part (`<image>`) counts its whole box: the cut parts are trimmed to their ink.
  * Curves are sampled, so the result is exact to a few hundredths of a unit. */
 
 type Matrix = [number, number, number, number, number, number];
@@ -89,7 +90,7 @@ function pathPoints(d: string): [number, number][] {
 }
 
 const attr = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
-const SHAPES = new Set(["path", "circle", "ellipse", "rect", "line", "polygon", "polyline"]);
+const SHAPES = new Set(["path", "circle", "ellipse", "rect", "line", "polygon", "polyline", "image"]);
 
 function shapePoints(name: string, tag: string): [number, number][] {
   const n = (a: string) => Number(attr(tag, a) ?? 0);
@@ -98,7 +99,7 @@ function shapePoints(name: string, tag: string): [number, number][] {
     const rx = name === "circle" ? n("r") : n("rx"), ry = name === "circle" ? n("r") : n("ry");
     return Array.from({ length: STEPS * 4 }, (_, k) => [n("cx") + rx * Math.cos((k / (STEPS * 4)) * 2 * Math.PI), n("cy") + ry * Math.sin((k / (STEPS * 4)) * 2 * Math.PI)]);
   }
-  if (name === "rect") return [[n("x"), n("y")], [n("x") + n("width"), n("y")], [n("x"), n("y") + n("height")], [n("x") + n("width"), n("y") + n("height")]];
+  if (name === "rect" || name === "image") return [[n("x"), n("y")], [n("x") + n("width"), n("y")], [n("x"), n("y") + n("height")], [n("x") + n("width"), n("y") + n("height")]];
   if (name === "line") return [[n("x1"), n("y1")], [n("x2"), n("y2")]];
   return pathPoints(`M${attr(tag, "points")}`);
 }

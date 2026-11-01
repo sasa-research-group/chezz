@@ -1,0 +1,36 @@
+{
+  "id": "paint-patrol-pawn",
+  "description": "Painted sprite parts for the patrol pawn (?art=paint). Same three steps as paint-rebel-pawn.json: pose, parts sheet, background removal; then tools/art/cut-parts.mjs.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": ["docs/art/patrol-pawn.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-patrol-pawn.webp"],
+      "prompt": "Full-body game sprite of the royal patrol PAWN from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose, chunky proportions and the shape of the helmet, not for its style. SUBJECT: a common royal patrol guard. On his head a compact plain steel kettle helm: a round dome with a short downturned brim all round and a small pointed comb on top, no upswept points. A plain guard's face: bare skin with two black dot eyes under short stern brows, NO moustache, no beard, no nose, no mouth. A royal-blue tunic with a gold edge at the hem and collar, rounded royal-blue pauldrons with thick gold edging on both shoulders, dark chainmail sleeves, brown leather gloves, short dark boots. A long pike held upright in his right fist on the right side of the figure: a wooden shaft, a steel leaf-shaped spearhead and a small gold collar under it. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the head and helm are about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, polished royal blue with gold trim. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": ["$previous"],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD with the steel kettle helm and its small comb. The face under the brim is plain blank skin with NO eyes, no brows, no mouth and no nose. The head ends at the chin, no neck.\n- Top row, middle: the BODY: the royal-blue tunic with its gold edges, and the legs and dark boots, with no arms, no pauldrons and no head; a short skin neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a rounded blue gold-edged pauldron on top of a chainmail sleeve hanging down to a brown leather fist.\n- Bottom row, left: the FRONT ARM (his right arm): a rounded blue gold-edged pauldron on top of a chainmail sleeve, bent at the elbow, ending in a closed brown leather fist that points to the right.\n- Bottom row, middle: empty.\n- Right edge, spanning from top to bottom: the PIKE on its own, standing straight up, spearhead at the top, whole and not held."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": ["$previous"]
+    }
+  ],
+  "output": "paint-patrol-pawn.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "rotate": { "armFront": 25 },
+  "parts": {
+    "head": [0.18, 0.28],
+    "body": [0.5, 0.45],
+    "armBack": [0.75, 0.4],
+    "armFront": [0.2, 0.78],
+    "prop": [0.91, 0.5]
+  }
+}

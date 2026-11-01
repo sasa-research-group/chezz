@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PieceRig, hasNewArt, type PatrolHue, type RigKind } from "../src/components/PieceRig";
 import { SKINS } from "../src/components/skins";
+import { PAINTED } from "../src/components/paint/specs";
 import { inkBox } from "./ink-bounds";
 
 /** The figure contract (docs/art-style.md section 9): at rest, every redrawn figure keeps its ink,
@@ -31,6 +32,20 @@ describe("redrawn figures stay inside the figure contract", () => {
   });
 });
 
+/** Painted sprites (`?art=paint`): each part is an image trimmed to its ink, so its box is its ink. */
+describe("painted figures stay inside the figure contract", () => {
+  for (const id of Object.keys(PAINTED)) it(id, () => {
+    const [side, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
+    const html = renderToStaticMarkup(createElement(PieceRig, { kind, side: side === "rebel" ? "white" : "black", art: "paint" }));
+    expect(html, "draws the painted parts, not the fallback").toContain("<image");
+    const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
+    expect(ink.top, "topmost ink").toBeGreaterThanOrEqual(BOUNDS.top);
+    expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);
+    expect(ink.right, "rightmost ink").toBeLessThanOrEqual(BOUNDS.right);
+    expect(ink.bottom, "feet on the ground line").toBeCloseTo(108, -0.5);
+  });
+});
+
 describe("inkBox", () => {
   const box = (svg: string) => inkBox(`<svg><g class="flip">${svg}</g></svg>`, { within: "flip", skip: ["hidden"] });
   it("counts half the stroke, transforms and arcs", () => {
@@ -40,6 +55,7 @@ describe("inkBox", () => {
     expect(ring.top).toBeCloseTo(40, 1);
     expect(ring.bottom).toBeCloseTo(60, 1);
     expect(box('<g transform="rotate(90 50 50)"><path d="M50 50 L70 50" fill="#000"></path></g>').bottom).toBeCloseTo(70, 5);
+    expect(box('<image href="a.webp" x="20" y="30" width="10" height="40"></image>')).toMatchObject({ top: 30, left: 20, right: 30, bottom: 70 });
   });
   it("ignores clipped copies, hidden parts and parts outside the figure", () => {
     const html = '<path d="M0 0 L1 1" stroke="#000"></path><g class="flip"><path d="M10 20 L30 20" fill="#000"></path>'

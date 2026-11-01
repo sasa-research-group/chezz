@@ -296,3 +296,10 @@ A concept or a rig passes only if all of these hold.
 | 9 | Palette | Main fills within the section 7 families for the faction. |
 | 10 | Game size | At 48px nothing turns to mush: no detail smaller than about 6 viewBox units. |
 | 11 | No text | No labels, captions or titles inside the art. |
+
+**Painted sprites** (`?art=paint`, `docs/art/PAINTED.md`)
+
+- The same rules hold; the parts are painted by Nano Banana Pro from the reference crop and the sheet, then cut and hung on the rig. Faces stay vector dot eyes, so the face budget is set in `paint/specs.ts`, not by the model.
+- Ask for a blank face (no eyes) on the head part; the model draws dot eyes far larger than the rig's 2.4–2.7.
+- The generated outline is about 0.4 units at game size, a third of `WEIGHT.outer`. The cut thickens each part's outer outline by 12 px (about 1.2 units), so the silhouette matches the kit at 48px; inner lines and painted texture still soften there.
+- Painted props come out wide (tines, hammer and axe heads); inside x 18–82 the fist sits near x 70 and long props are held off the ground.

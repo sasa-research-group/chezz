@@ -1,8 +1,10 @@
 import { PieceRig, RIG_MS, hasNewArt, type ArtStyle, type RigAction, type RigKind, type RigSide } from "../components/PieceRig";
 import { skinById } from "../components/skins";
+import { hasPaintedArt } from "../components/PaintedRig";
 
 /** The judge sheet: `art.html?sheet=pawn.white,pawn.black` (append `.old` to a
- * rig for the old art, or a skin id such as `.frog-pot` for a skin).
+ * rig for the old art, `.paint` for the painted sprites, or a skin id such as
+ * `.frog-pot` for a skin).
  * tools/art/shoot.mjs opens it, freezes every animation at the `data-frac` of
  * its cell and saves one PNG. */
 
@@ -19,12 +21,12 @@ export function parseSheet(q: string): Spec[] {
   return q.split(",").map(s => s.split(".")).filter(([k, s]) => KINDS.includes(k as RigKind) && (s === "white" || s === "black"))
     .map(([kind, side, extra]) => {
       const skin = skinById(extra);
-      return { kind: kind as RigKind, side: side as RigSide, art: extra === "old" || !hasNewArt(kind as RigKind) ? "old" : "new", skin: skin?.kind === kind && side === "white" ? skin.id : undefined };
+      return { kind: kind as RigKind, side: side as RigSide, art: extra === "old" || !hasNewArt(kind as RigKind) ? "old" : extra === "paint" && hasPaintedArt(kind as RigKind, side === "white") ? "paint" : "new", skin: skin?.kind === kind && side === "white" ? skin.id : undefined };
     });
 }
 
 const facing = (side: RigSide) => side === "white" ? 1 : -1;
-const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : s.art === "old" ? " (old art)" : ""}`;
+const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : s.art === "old" ? " (old art)" : s.art === "paint" ? " (painted)" : ""}`;
 
 function Rig({ spec, px, action = "idle", frac = .25, wounded, defending, label }: { spec: Spec; px: number; action?: RigAction; frac?: number; wounded?: boolean; defending?: boolean; label?: string }) {
   return <figure className="sheet-cell" data-frac={frac} data-ms={RIG_MS[action] || 1000} data-px={px}>
@@ -57,7 +59,7 @@ export function Sheet({ specs }: { specs: Spec[] }) {
     {specs.map(s => <RigRows key={`${s.kind}${s.side}${s.art}${s.skin ?? ""}`} spec={s} />)}
     <section className="sheet-rig"><h2>Next to the rest of the cast at 84px</h2>
       {sides.map(side => <div key={side} className="sheet-row sheet-cast">
-        {specs.filter(s => s.side === side).map(s => <Rig key={s.kind + s.art + (s.skin ?? "")} spec={s} px={84} label={s.skin ?? (s.art === "new" ? `${s.kind} · new` : s.kind)} />)}
+        {specs.filter(s => s.side === side).map(s => <Rig key={s.kind + s.art + (s.skin ?? "")} spec={s} px={84} label={s.skin ?? (s.art === "old" ? s.kind : `${s.kind} · ${s.art}`)} />)}
         {KINDS.filter(k => !specs.some(s => s.side === side && s.kind === k)).map(k => <Rig key={k} spec={{ kind: k, side, art: "old" }} px={84} label={k} />)}
       </div>)}
     </section>
