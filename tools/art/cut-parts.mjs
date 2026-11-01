@@ -8,7 +8,9 @@
 // before it (the full-resolution parts sheet) for the colour, since the background remover
 // returns a smaller image. Then:
 // 1. flattens onto white and flood-fills the outside from the corners, which removes both the
-//    background and the white die-cut border the model draws round each part;
+//    background and the white die-cut border the model draws round each part (`fuzz`, percent,
+//    default 14; lower it for cream or white parts, which the fill otherwise eats through
+//    any gap in their outline);
 // 2. erodes the alpha by one pixel to drop the light fringe left at the outline;
 // 3. finds each opaque blob and gives it to the nearest part centre in the recipe's `parts`
 //    ({ name: [x, y] } as fractions of the sheet), crops each part to its blobs and scales it
@@ -51,7 +53,7 @@ const [W, H] = magick('identify', '-format', '%w %h', colour).split(' ').map(Num
 const clean = join(work, 'clean.png')
 const corners = [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]].flatMap(([x, y]) => ['-draw', `color ${x},${y} floodfill`])
 magick(colour, '(', alpha, '-alpha', 'extract', '-resize', `${W}x${H}!`, ')', '-compose', 'CopyOpacity', '-composite',
-  '-background', 'white', '-alpha', 'remove', '-alpha', 'set', '-fill', 'none', '-fuzz', '14%', ...corners,
+  '-background', 'white', '-alpha', 'remove', '-alpha', 'set', '-fill', 'none', '-fuzz', `${recipe.fuzz ?? 14}%`, ...corners,
   '-channel', 'A', '-morphology', 'Erode', 'Disk:1', '+channel', clean)
 
 const speck = Math.round(W * H * 0.002)

@@ -508,3 +508,25 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
 - The owner hates textbook LLM prose and cute story lines in the game.
 - The game and studio use labels, numbers and icons.
 - The story ("Escape from Exile", hideout, patrol) stays and is unwritten.
+
+## 2026-11-01: painted knights
+- Both knights painted behind `?art=paint` with the pilot's pipeline (recipes
+  `paint-rebel-knight.json`, `paint-patrol-knight.json`; notes in `PAINTED.md`, "Knights").
+  The leap, leap-back and the patrol knight's `rig-lance` play unchanged.
+- Rebel knight: rusty bucket helm with a skin T-opening and vector dot eyes, blue
+  neckerchief, leather vest, patched cream sleeves, and the hobby horse gripped at the neck at
+  waist height with its stick to the ground behind him (the SVG rig's declared correction).
+- Patrol knight: blue plate on a stocky grey horse in steel barding with a chanfron and a
+  blue saddle cloth, lance upright on the rump side at rest. Re-rolled twice: once because
+  the lance read upside down (vamplate below the fist) and he stood beside the horse, once
+  to seat him astride with a thigh and stirrup on the horse.
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 7/8/6/7/8 →
+  8/8/7/7/7 → 8/7/7/8/8 (passed from round 2); patrol 6/6/6/6/7 → 6/7/6/6/6 → 5/7/7/7/7
+  (not a pass). After round 3 the rebel's dot eyes were shrunk (r 2, wider apart), which
+  the judge read as a sunglasses bar; not re-judged.
+- Open: at 48px the patrol knight is a lump; the horse head tucks under the rider's arm,
+  the lance hugs the plume, and the helm is about 18% of the figure (the plume over the
+  lance side caps it). Next try: a re-roll with the plume upright, the horse head pushed
+  forward, and a darker horse. The rebel's neckerchief is still small, and the reference's
+  hip satchel is missing. Cost: about $1.30 for both (four pose-and-parts runs, one
+  parts-only re-roll).

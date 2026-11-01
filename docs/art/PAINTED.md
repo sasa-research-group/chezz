@@ -65,3 +65,23 @@ and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilo
 5. Add its entry to `specs.ts`; check `npx vitest run tests/figure-bounds.test.ts`, the
    studio (Catalog → Painted, and Rig → Painted) and
    `node tools/art/shoot.mjs <kind>.<side>.paint out.png`.
+
+## Knights (Nov 2026)
+
+- **Rebel knight** (`paint-rebel-knight.json`): the hobby horse is cut whole at the angle he
+  holds it ("at exactly the same angle as in the first image"), so `specs.ts` needs no
+  prop rotation; its grip is the top of the stick under the head, and its stick reaches the
+  ground behind him. The head is pinned high (helm rim at y 58) so the blue neckerchief
+  shows; the arms are scaled down (0.8–0.85) so the vest shows between them.
+- **Cream parts need `fuzz`.** The flood fill that removes the background and die-cut
+  border uses a 14% colour fuzz by default; it ate the knight's cream sleeves through gaps
+  in their outline. The recipe's `"fuzz": 5` keeps them.
+- **Patrol knight** (`paint-patrol-knight.json`): the horse is part of `body`, with the
+  rider's torso, saddle and near leg. The parts step mirrored the horse once; the prompt now
+  says "facing RIGHT ... do not mirror it". The lance stands in the front fist on the
+  horse's rump side, as in the SVG rig, so `rig-lance` couches it forward over the horse.
+  The front arm is turned 50° in the cut so it reaches out to the lance and crosses it only
+  at the fist; a straighter arm hid the lance behind the sleeve.
+- **The plume limits the patrol helm.** The head draws over the prop, and the plume sweeps
+  back over the lance's side, so a bigger helm hides the lance tip. Head scale 1.05 keeps
+  the tip clear; the last judge wanted the helm about 1.6× bigger.

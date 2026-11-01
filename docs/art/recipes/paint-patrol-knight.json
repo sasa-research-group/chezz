@@ -1,0 +1,38 @@
+{
+  "id": "paint-patrol-knight",
+  "description": "Painted sprite parts for the patrol knight on his barded horse (?art=paint). Same three steps as paint-patrol-pawn.json: pose, parts sheet, background removal; then tools/art/cut-parts.mjs. The horse is part of the body; the lance stands upright in the front fist at the horse's flank, and rig-lance couches it.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": ["docs/art/patrol-knight.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-patrol-knight.webp"],
+      "prompt": "Full-body game sprite of the royal patrol KNIGHT from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose, chunky proportions and where the horse head and the lance sit, not for its style. SUBJECT: a royal patrol knight riding a small chunky warhorse. On his head a rounded steel great-helm with a closed visor showing two dark eye slits, no face visible, a thin gold band at the neck, and one big royal-blue plume standing tall on top of the helm and curling back, its tail ending above the back of the helm, not hanging down behind it. Royal-blue plate armour: a royal-blue breastplate, big rounded royal-blue pauldrons with gold rims, steel gauntlets. He sits astride the horse, clearly riding it: his hips on the horse's back, his near armoured thigh lying along the horse's back over the saddle cloth, knee bent forward, a gold stirrup under his steel boot at the cloth's hem. The horse is short and stocky, seen from the side facing right, in mid steel-grey barding (darker than the pale steel of his helm): a big head with a pale steel chanfron plate with a gold edge and a round eye guard around a black dot eye, two pointed ears, a dark mane, a royal-blue saddle cloth with gold trim, four short chunky legs with dark hooves. The horse head is big, about a third of the figure's width, and rises on the right side of the figure with its ears level with the rider's shoulders, clear of his helm, a clear horse head in profile like a chess knight piece. His right fist visibly grips a long lance held straight upright on the LEFT side of the figure, low beside the horse's rump: a THICK royal-blue shaft with gold rings, a steel cone guard (vamplate) just ABOVE his fist that opens upward toward the point, and a big steel leaf-shaped spear point at the top, the tip reaching above his plume; only a short butt below his fist. His left fist rests on the horse's neck holding the reins. Three-quarter view facing right, the whole horse and rider visible, chunky and big-headed: the helm and plume are big, about 40% of the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, polished royal blue with gold trim, pale steel. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": ["$previous"],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows, no black gaps or holes.\n\nLayout, exactly:\n- Top left: the HEAD: the steel great-helm with its closed visor, two dark eye slits and the blue plume. It ends at the gold neck band, no neck.\n- Middle, large: the BODY, facing RIGHT exactly as in the first image, the horse's head on the right and its tail on the left (do not mirror it): the whole horse in its steel barding with its head, saddle cloth and legs, and the rider's royal-blue breastplate and leg sitting on it, with no arms, no pauldrons, no head and no lance; a short steel neck stump at the top of the rider.\n- Top right: the BACK ARM (his left arm): a rounded blue gold-rimmed pauldron on top of a blue plate arm bent forward, ending in a closed steel gauntlet.\n- Bottom left: the FRONT ARM (his right arm): a rounded blue gold-rimmed pauldron on top of a blue plate arm hanging down and a little back, ending in a big closed steel gauntlet fist.\n- Right edge, spanning from top to bottom: the LANCE on its own, standing straight up, spear point at the top, the steel cone guard near the bottom opening upward, a thick shaft, whole and not held."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": ["$previous"]
+    }
+  ],
+  "output": "paint-patrol-knight.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "parts": {
+    "head": [0.12, 0.22],
+    "body": [0.5, 0.55],
+    "armBack": [0.78, 0.22],
+    "armFront": [0.15, 0.72],
+    "prop": [0.91, 0.5]
+  },
+  "rotate": {
+    "armFront": 50
+  }
+}
