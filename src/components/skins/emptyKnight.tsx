@@ -48,7 +48,7 @@ function RockingRide() {
     <Part d="M22.5 67 Q22.5 61 29.5 61 L52 61 Q58 61 58 67 L51.5 83 L33.5 83 Z" tone={T.armourIron} highlight="M27.5 73 Q27.5 69 29 66.5" />
     <Part d={ellipse(40.5, 62.5, 12, 4.5)} tone={T.barding} shade={false} />
     <Part d={ellipse(40.5, 62, 7.5, 2.4)} tone={T.void} line="none" shade={false} />
-    <Pauldron x={28.5} y={61} w={8.5} />
+    <Pauldron x={28.75} y={61} w={8.25} />
     <Part d="M56 90 L57 66 L69 66 L70.5 89 Z" tone={T.wood} />
     <g transform="translate(-1.5 -10)"><RebelHorseHead /></g>
   </>;
