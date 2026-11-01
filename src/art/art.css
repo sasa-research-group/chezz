@@ -86,3 +86,12 @@
 .table-spec .top-bar{width:100%;padding:0}.table-spec .table-hud{width:100%;background:none;padding:0}.table-spec .pause-menu{max-height:none}
 .table-spec .top-bar{flex-wrap:wrap}.table-spec .table-hud{grid-template-columns:auto auto;grid-template-areas:"info info" "lan lan" "shield bell";justify-items:center}.table-spec .hud-info{flex-wrap:wrap;justify-content:center}
 .ribbon-spec{position:relative;min-height:56px}.ribbon-spec .turn-ribbon,.ribbon-spec .playback-caption{top:50%;bottom:auto;transform:translate(-50%,-50%)}
+
+/* Pilot: old rig, new rig and reference side by side at game sizes. */
+.entry.pilot-full{grid-column:1/-1}
+.pilot-compare{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;justify-content:center;width:100%}
+.pilot-size{display:grid;gap:4px;justify-items:center}.pilot-size>small{font-size:10px;color:#766a58;font-weight:700}
+.pilot-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:flex-end;max-width:100%}.pilot-row figure{margin:0;display:grid;gap:2px;justify-items:center}
+.pilot-row figure img{width:100%;height:auto;border-radius:4px;display:block}
+.pilot-row figcaption{font-size:10px;color:#766a58}
+.silhouettes{padding:8px;background:#e9d6ae;border-radius:6px}.silhouettes .rig{filter:brightness(0)}

@@ -1,5 +1,5 @@
 const ART = import.meta.glob("../../docs/art/*.webp", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
-const art = (name: string) => ART[`../../docs/art/${name}.webp`];
+export const art = (name: string) => ART[`../../docs/art/${name}.webp`];
 
 const PIECES = ["pawn", "knight", "bishop", "rook", "queen", "king"] as const;
 const FACTIONS: { id: string; label: string; look: string; notes: string[] }[] = [

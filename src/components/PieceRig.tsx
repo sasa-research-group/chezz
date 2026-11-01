@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { armourPawn } from "./ArmourPawns";
 
 /** A cast of misfits. Each chess piece is a distinct character whose costume
  * echoes its chess shape; rebels (white) are patched exiles, the patrol
@@ -57,7 +58,8 @@ const Boots = ({ xs, y = 104, fill = WOOD_SH }: { xs: number[]; y?: number; fill
 const Patch = ({ x, y, fill }: { x: number; y: number; fill: string }) =>
   <g transform={`rotate(-8 ${x} ${y})`}><rect x={x - 4.5} y={y - 4.5} width="9" height="9" rx="1.2" fill={fill} {...f} strokeWidth="1.6" /><path d={`M${x - 3} ${y - 6} L${x - 3} ${y - 3.5} M${x + 3} ${y + 3.5} L${x + 3} ${y + 6}`} stroke={INK} strokeWidth="1.2" /></g>;
 
-type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; head: ReactNode; propOrigin: string; shield: [number, number]; mouth: [number, number, number] };
+/** `mouths` replaces the toon yell/ouch overlay; null draws none. */
+export type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; head: ReactNode; mouths?: ReactNode; propOrigin: string; shield: [number, number]; mouth: [number, number, number] };
 
 function king(rebel: boolean, c: Palette): Figure {
   return {
@@ -244,6 +246,12 @@ function pawn(rebel: boolean, c: Palette): Figure {
 
 const FIGURES = { king, queen, rook, bishop, knight, pawn };
 
+/** "old" is the live art; "new" draws the pieces redrawn so far in the docs/art-style.md style. */
+export type ArtStyle = "old" | "new";
+const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue) => Figure>> = { pawn: armourPawn };
+/** `?art=new` in the page URL previews the redrawn pieces in the game. */
+export const URL_ART: ArtStyle = typeof location !== "undefined" && new URLSearchParams(location.search).get("art") === "new" ? "new" : "old";
+
 function Shield({ rebel, c, at: [x, y] }: { rebel: boolean; c: Palette; at: [number, number] }) {
   return <g className="shield" style={{ transformOrigin: `${x}px ${y}px` }}>{rebel
     ? <><circle cx={x} cy={y} r="11" fill={WOOD} {...o} /><path d={`M${x - 10} ${y} L${x + 10} ${y} M${x} ${y - 10} L${x} ${y + 10}`} stroke={WOOD_SH} strokeWidth="2" /><circle cx={x} cy={y} r="3.4" fill={STEEL} {...f} /></>
@@ -251,15 +259,16 @@ function Shield({ rebel, c, at: [x, y] }: { rebel: boolean; c: Palette; at: [num
 }
 
 let rigCount = 0;
-export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false }: {
-  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number | string; wounded?: boolean;
+export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false, art = URL_ART }: {
+  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number | string; wounded?: boolean; art?: ArtStyle;
 }) {
-  const rebel = side === "white", c = rebel ? REBEL : PATROL[hue], fig = FIGURES[kind](rebel, c);
+  const rebel = side === "white", c = rebel ? REBEL : PATROL[hue], redrawn = art === "new" ? NEW_FIGURES[kind] : undefined;
+  const fig = redrawn ? redrawn(rebel, c, hue) : FIGURES[kind](rebel, c);
   const [boil] = useState(() => `boil-${++rigCount}`);
   // A stable per-piece number (ids hash), so idle loops don't jump when the cast changes.
   const n = typeof seed === "number" ? seed : [...seed].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
   const style = { "--seed": `${(n % 7) * -0.37}s`, "--face": facing, "--prop-origin": fig.propOrigin } as CSSProperties;
-  return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
+  return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} ${redrawn ? "art-new" : ""} act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
     {/* Line boil: the outlines wobble a little, like hand-drawn frames. */}
     <defs><filter id={boil} x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="1" seed={n % 5}><animate attributeName="seed" values="1;2;3;4" dur=".48s" calcMode="discrete" repeatCount="indefinite" /></feTurbulence><feDisplacementMap in="SourceGraphic" scale="1.8" /></filter></defs>
     {rebel ? <ellipse className="rig-shadow" cx="50" cy="108" rx="28" ry="6" fill={INK} opacity=".22" />
@@ -272,7 +281,7 @@ export function PieceRig({ kind, side, action = "idle", defending = false, facin
       {fig.body}
       {fig.prop}
       {fig.armFront}
-      <g className="head-tilt"><g className="head">{fig.head}<Mouths x={fig.mouth[0]} y={fig.mouth[1]} w={fig.mouth[2]} /><path className="sweat" d={`M${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Q${fig.mouth[0] + 18} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 13} Q${fig.mouth[0] + 10} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Z`} fill="#8fd3e8" stroke={INK} strokeWidth="1.4" /></g></g>
+      <g className="head-tilt"><g className="head">{fig.head}{fig.mouths === undefined ? <Mouths x={fig.mouth[0]} y={fig.mouth[1]} w={fig.mouth[2]} /> : fig.mouths}<path className="sweat" d={`M${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Q${fig.mouth[0] + 18} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 13} Q${fig.mouth[0] + 10} ${fig.mouth[1] - 15} ${fig.mouth[0] + 14} ${fig.mouth[1] - 22} Z`} fill="#8fd3e8" stroke={INK} strokeWidth="1.4" /></g></g>
       {wounded && <g className="bandage"><rect x="56" y={kind === "pawn" ? 48 : 30} width="12" height="5" rx="1" fill="#fffaf0" {...f} strokeWidth="1.6" transform={`rotate(25 62 ${kind === "pawn" ? 50 : 32})`} /><path d="M30 100 L36 96" stroke={INK} strokeWidth="1.6" /></g>}
       <Shield rebel={rebel} c={c} at={fig.shield} />
       <path className="fx-smear" d="M64 30 Q100 56 80 102" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" opacity=".55" />

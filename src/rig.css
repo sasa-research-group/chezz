@@ -180,3 +180,6 @@
   100%{transform:translate(70px,8px) rotate(380deg)}}
 @keyframes rig-show-late{0%,30%{opacity:0}31%,100%{opacity:1}}
 @keyframes rig-hide-late{0%,30%{opacity:1}31%,100%{opacity:0}}
+
+/* Redrawn pieces (ArmourPawns.tsx) keep the sweat drop for defend and hit, not as an idle loop. */
+.rig.rig-pawn.art-new.act-idle .sweat{opacity:0;animation:none}
