@@ -56,6 +56,12 @@ export const TONES = {
   // Haystack rook tones: hay sampled from docs/art/odd-rook.webp (docs/art-style.md section 7).
   hay: tone("#ebbe52", "#b2833d"),
   straw: tone("#c9953f", "#9c6f2c"), // picked: the haystack's straw mitten, a step darker than the hay
+  // Queen tones (docs/art/rebel-queen.webp, patrol-queen.webp); wig white from section 7, the rest picked near the crops.
+  smock: tone("#8a6d6c", "#6a5253"), // the rebel queen's mauve-brown shirt
+  armband: tone("#8e4fb5", "#6a3a88"), // her purple accent, brighter than the crop so it pops off the mauve shirt
+  iron: tone("#474a51", "#2f3135"), // the frying pan, near-black so it never merges with her rusty helm
+  wig: tone("#d5e5f9", "#a3b6d3"), // the patrol queen's powdered wig
+  lips: tone("#c8403c", "#962d2a"),
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

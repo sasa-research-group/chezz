@@ -11,8 +11,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
   the shape kit `inkKit.tsx` behind `?art=new`: pawns (`ArmourPawns.tsx`),
-  rooks (`ArmourRooks.tsx`; rebel short of the judge's pass) and knights
-  (`ArmourKnights.tsx`; patrol short of it): DECISIONS.md. Battle shot:
+  rooks (`ArmourRooks.tsx`), knights (`ArmourKnights.tsx`), queens
+  (`ArmourQueens.tsx`); rebel rook, patrol knight and patrol queen short of
+  the judge's pass: DECISIONS.md. Battle shot:
   `tools/art/battle-shot.mjs`. Judge loop:
   `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
@@ -25,8 +26,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
   `table.css`). Rules, New run, fast turns, skins, log, export, studio live
   in the ☰ `PauseMenu` (pauses playback). Next: drag-to-defend, art.
-- **Busier enemy** (#9): closes in, pawns race to promote; battles end
-  with a celebration banner.
 - **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
   a queen) with a morph animation; the barracks sells a 3-gold pawn.
 - **Next-square strikes** (#11): sliders strike only from the next square.

@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks and knights are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
+- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks, knights and queens are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
 
 ## 1. Armour does the talking
 
@@ -162,13 +162,13 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
 | `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a dark slot, the mallet leans on his front shoulder beside the helm (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
-| `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
+| `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. In game: a kettle helm whose brim droops at both ends, a squat three-point gold crown tilted on top, a big near-black pan held up beside the helm, and the purple armband on a back arm that hangs out past the body so it shows. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
 | `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. In game: a grey horse with a steel chanfron and neck plates under a blue, gold-trimmed saddle cloth; gold plume holder and gorget; the lance stands upright in his back hand behind him. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. |
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
-| `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. |
+| `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. In game (declared correction): a small gold crown sits on the wig so the queen crest reads at 48px. The wig is scalloped and wider at the top than her head but kept low enough for the square (top near y 25); one draped gold chain with a blue jewel; a steel cap with a central point; a high gold-rimmed collar and puffed sleeves; the sceptre leans out so its orb clears the wig. |
 | `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. |
 | `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game (skin `frog-pot`): a wide flat head, wider than the rebel saucepan, with two eye domes tucked under its rim; a short frowning mouth over a pale throat; squat body on two plain leg ovals with a pale belly, round mitts; a red cord knotted under the jaw; a cattail on a wood stalk. |
 | `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. |
@@ -240,6 +240,14 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - A `Pole` is its width plus 4.8 units of ink, so a thin strap (bridle, reins) drawn with it lands as a thick black bar. Draw a strap that matters as a `Flat` band about 3 units wide on top of the part.
 - A rider on a full horse: put the rider's lance in the back hand, upright behind him, so at rest it stays clear of the horse head; the shared strike swing (+65° about the hand) brings it over the helm.
 - Only give the `arm-front` class (the cheer raises it) to an arm whose hand holds nothing; a hand gripping the prop would lift off it.
+
+**Learned from the queens** (`src/components/ArmourQueens.tsx`)
+
+- In battle a piece is 0.92 of a square wide and anchored at 64% of its height, so the square's top edge sits at about y 21 in the rig. A crest above y 21 pokes onto the board frame from the top row. Tall pieces get their height from headgear that is wide and stacked, not from a crest that rises past y 21; the queens' crown tips sit near y 18–20.
+- Narrow crown points fill with ink at 48px: the outer stroke and the cel crescent swallow anything under about 8 units wide. Draw a small crown with three fat points, unshaded and traced with the `inner` line.
+- A pan seen face-on reads as a magnifying glass or a lollipop when its inside is lighter than its rim. Draw it near-black, with a darker flat inside, and big (about 25 units across).
+- A wig reads as a wig through a scalloped outline (curl lobes down both sides), wider at the top than the head. Straight gold bands across it read as a turban or a layered cake; drape the chains in arcs.
+- An accent on a back arm is hidden by the body unless that arm swings out past the body's edge; the rebel queen's armband arm hangs out to x 21.
 
 ## 10. Judge checks
 

@@ -3,6 +3,42 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: queens on the shape kit
+- Both queens redrawn behind `?art=new` (`src/components/ArmourQueens.tsx`) with the old
+  queen's groups and front-hand prop pivot, so every action plays, including the promotion
+  morph-in (the judge sheet now has a morph-in row for queens). The front hand grips the
+  prop, so neither queen has an `arm-front`: the old rig's queen slap has no free arm to
+  move, and her strike is the prop swing. The free back arm carries `arm-back`; the shared
+  cheer swings it in behind the gown, as on every back arm, hiding the armband for a moment.
+- Height: tall pieces, but kept inside the battle square, whose top edge sits at about
+  y 21–22 in the rig. Crown tips sit near y 20 (rebel) and y 18 (patrol) counting the line,
+  so both crowns are squat and the patrol wig can't tower like the reference. A declared
+  correction. In battle the patrol crown's tip still pokes a few units over a top-row square
+  (the patrol pawns' pikes poke more).
+- Rebel queen: a steel kettle helm with its brim drooping at both ends and a dent, a squat
+  gold crown with a red gem welded on crooked, a stern small face (dot eyes, brows, a
+  one-stroke mouth), a rusty breastplate on straps over a cream apron with a frayed hem,
+  and a mauve-brown shirt. The purple armband sits on a back arm that hangs out past the
+  body; tucked behind the body, it didn't show. The frying pan is held up beside the helm,
+  big and near-black: a smaller, lighter pan read as a magnifying glass.
+- Patrol queen: a scalloped powdered wig, wider at the top than her head, with one draped
+  gold chain and a blue jewel; a steel cap with a central point; a face with dot eyes, lid
+  strokes and red lips (the guide's face limit); a gold-rimmed collar fanning up behind the
+  face; puffed sleeves with a gold stripe; a gold stomacher and hem; and a sceptre leaning
+  out so its orb clears the wig. Declared correction: a small gold crown on the wig, so the
+  queen crest reads at 48px (the reference has none). Collar tips that stuck out past the
+  wig read as a stray tab, so the wig's sides were shortened and the collar fans behind
+  the face instead.
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 7/6/6/7/6 →
+  7/8/7/8/7 → 7/8/7/7/8, a pass from round 2; patrol 5/6/5/7/6 → 6/7/6/8/7 →
+  6/8/6/7/8, not a pass. Still open: at 48px the patrol wig and collar make a box, so she
+  reads as a bucket. The last judge wants three stacked rolls, each bulging past the one
+  below, pearl swags and a cone-shaped top within the height cap. The pan still reads as a
+  mace or lollipop to some judges, who want a tilted ellipse with a lighter rim. In the
+  20% attack frame both props swing behind the head and vanish (the shared wind-up). The
+  round-1 judge wanted dot-eye-only faces; the guide allows both queens' faces, so later
+  judges were told the guide's budget.
+
 ## 2026-11-01: knights on the shape kit
 - Both knights redrawn behind `?art=new` (`src/components/ArmourKnights.tsx`), with the
   old knight's group names, so the flip hop, leap and leap-back play unchanged.

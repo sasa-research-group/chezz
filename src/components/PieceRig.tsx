@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { armourPawn, type BodyLook } from "./ArmourPawns";
 import { armourRook } from "./ArmourRooks";
 import { armourKnight } from "./ArmourKnights";
+import { armourQueen } from "./ArmourQueens";
 import { skinById, type Skin } from "./skins";
 
 /** A cast of misfits. Each chess piece is a distinct character whose costume
@@ -251,7 +252,7 @@ const FIGURES = { king, queen, rook, bishop, knight, pawn };
 
 /** "old" is the live art; "new" draws the pieces redrawn so far in the docs/art-style.md style. */
 export type ArtStyle = "old" | "new";
-const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>) => Figure>> = { pawn: armourPawn, rook: armourRook, knight: armourKnight };
+const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>) => Figure>> = { pawn: armourPawn, rook: armourRook, knight: armourKnight, queen: armourQueen };
 export const hasNewArt = (kind: RigKind) => kind in NEW_FIGURES;
 /** A skin dresses a piece's shape-kit build: new head, and optionally new body,
  * arms and prop, drawn into the same groups around the same pivots. */
