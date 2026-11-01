@@ -3,6 +3,28 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: rooks on the shape kit
+- Both rooks redrawn behind `?art=new` (`src/components/ArmourRooks.tsx`), in the old
+  rook's groups and pivots, including the `.door` that drops over the face on defend
+  (rebel: a plank door; patrol: a portcullis). Bigger than the pawns, like the old rig:
+  helm top at y 12, body about 44 wide, still inside x 18–82.
+- Rebel rook: stone tower helm with an overhanging battlement band, cream dot eyes in
+  a dark slot, red bandana, green tunic with two patches, bare arms. The mallet leans
+  on his front shoulder, upright beside the helm. On the back shoulder (the reference
+  pose) the head hid behind the helm at rest and the shared swing lifted it straight up
+  behind the helm on the strike, so two judge rounds saw no weapon. A declared
+  correction against `rebel-rook.webp`; the owner may want the back-shoulder pose back,
+  which would need a rook-specific swing.
+- Patrol rook: straight-sided steel keep (blue-grey `helmSteel`, so it reads as metal,
+  not cloth) with battlements cut into its top, gold cross visor with dark slits,
+  gold-rimmed pauldrons, belt and ridge, halberd with the blade raised above the helm.
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 7/8/5/6/7 →
+  6/8/6/6/7 → 8/8/6/6/8; patrol 8/8/7/8/7 → 8/7/7/7/8 → 8/8/7/7/8. Neither passed after
+  3 rounds. Still open: the rebel attack's wind-up hides the mallet behind his body and
+  helm (20–35%), the mallet head is small next to the reference's sledge, and the
+  judge wants the reference's split faceplate around a bigger T-opening; the patrol
+  halberd head is a dark blob at 48px and touches the top of the cell.
+
 ## 2026-11-01: saucepan, plain patrol face, a real frog
 - Rebel pawn: the pot becomes an upturned copper saucepan with a long handle out the
   back. The straight pot kept reading as a top hat. Kept: copper, the dent, dot eyes

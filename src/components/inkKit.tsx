@@ -38,6 +38,11 @@ export const TONES = {
   gold: tone("#f0bf44", "#cb8e24"),
   steel: tone("#a9c1d6", "#617085"),
   mail: tone("#4b5263", "#363b48"),
+  stone: tone("#a2a4a4", "#76787a"), // shade picked
+  darkStone: tone("#6b7077", "#4c5056"), // the rebel rook's mallet head, darker than his helm so the two never merge; picked
+  helmSteel: tone("#9aa7b8", "#6c788a"), // the patrol rook's great-helm: blue-grey, so it reads as steel, not cloth; picked
+  parchment: tone("#e7d5ac", "#c9b388"), // the rebel rook's eyes glowing in the slot; shade picked
+  void: tone(INK, INK), // a helm's eye slot: flat ink with no shadow
   // Frog tones sampled from docs/art/odd-pawn.webp.
   frog: tone("#7cb04c", "#52883b"),
   frogLight: tone("#a7d274", "#7cb04c"), // throat and belly; shade reuses frog green

@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the in-game rigs (`PieceRig.tsx`) predate this guide and have not been redrawn. The reference is the target; the rigs are the current state.
+- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns and rooks are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
 
 ## 1. Armour does the talking
 
@@ -161,13 +161,13 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
-| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. |
+| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a dark slot, the mallet leans on his front shoulder beside the helm (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
 | `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. |
-| `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. |
+| `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
 | `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. |
 | `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. |
 | `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game (skin `frog-pot`): wears the rebel saucepan perched on two eye domes that bulge out under and around its lip; wide flat head, a long grumpy mouth line, pale throat; squat body on haunches with a pale belly, webbed hands and feet; the rebel red neckerchief; a cattail. |
@@ -217,6 +217,19 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - A shape that narrows toward the top (crown) plus any brim reads as a hat. Pots need straight or widening sides.
 - Even a straight pot with a lip reads as a top hat. A long side handle with a round end and a hanging hole is what sells a saucepan; inside x 18–82 it has to start inside the pan and run nearly level out the back; thick, not thin.
 - A creature wearing the pawn's pan: lift the pan onto the creature's own features (the frog's eye domes) so they bulge out under it; a pan sitting on a flat head hides them.
+- Inner lines (`WEIGHT.inner` 2.8) come out about 1.3px at 48px and blur away; a seam, dent or crack that matters to the read must be a shape or a colour change, not only an inner line. Inner lines are for 84px and up.
+- Every gap counts the outline: the outer stroke eats 2.25 units from each side, so a gap between two outlined shapes needs at least 7.5 units of geometry to show 3 units of daylight. Parts under about 6 units turn into ink.
+- Prop tines and prongs merge at 48px: a pole is its width plus 4.8 units of ink, so the pitchfork's three tines read as one grey block. Draw a multi-prong head as one solid shape, or space the poles by at least their inked width plus 3.
+- The ground shadow differs by faction on purpose (`PieceRig.tsx`): an ellipse under rebels and a diamond under the patrol. It is the game's side marker, drawn by the rig, not the figure; tell the judge.
+
+**Learned from the rooks** (`src/components/ArmourRooks.tsx`)
+
+- Rooks are the big pieces, like the old rig: helm top at y 12, body about 44 wide (pawns 32), still inside x 18–82.
+- Battlements: three merlons with two crenels 8 wide and 8 deep across a 36-wide top (merlons about 6.7). Narrower crenels close up under the outline at 48px.
+- A dark eye slot needs stone around it: keep at least 5 units between the slot and the helm's edge, or the outline and the slot's line swallow the helm.
+- Glowing dot eyes in a void use a light tone (`parchment`), with light KO crosses and squint chevrons; ink on the void vanishes.
+- A wide helm leaves no room for a prop on the back shoulder: the head hides behind the helm at rest, and the shared attack swing (+65° about the front hand) lifts a back-pointing prop straight up behind the helm. The stonemason's mallet therefore leans on his front shoulder, upright beside the helm, so it shows at rest and swings down in front on the strike.
+- Give a prop's head its own tone, darker than the helm beside it (`darkStone` against `stone`), or the two merge in greyscale and silhouette.
 
 ## 10. Judge checks
 

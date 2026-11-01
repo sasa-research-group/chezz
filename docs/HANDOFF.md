@@ -9,17 +9,17 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   simultaneous engine (`exile.ts`) stays for the lab Duel.
 - **Art:** rigs are misfit characters with Pizza Tower animations
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
-  "armour does the talking" (`docs/art-style.md`; reference art and recipe
-  in `docs/art/`). Pawn pilot (`?art=new`): shape kit `inkKit.tsx`, judge
-  loop `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Rebel pawn: saucepan;
-  patrol pawn: no moustache (owner, Nov 1).
-  Regenerate concepts with `tools/art/gen.mjs` (`docs/art/GENERATING.md`).
+  "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
+  the shape kit `inkKit.tsx` behind `?art=new`: pawns (`ArmourPawns.tsx`;
+  saucepan, plain patrol face) and rooks (`ArmourRooks.tsx`, Nov 1; judge
+  scores short of 7 on likeness/motion, see DECISIONS.md). Judge loop:
+  `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with
   `?art=new`. Frog pawn redrawn Nov 1; still muddy at 48px (DECISIONS.md).
-- **Studio** (`art.html` → `src/art/`): all art live, mechanics from
-  `turns.ts`, style guide. Add new art to `Catalog.tsx`.
+- **Studio** (`art.html` → `src/art/`): all art, mechanics, style guide;
+  redrawn pieces in its "New art" section (`Catalog.tsx`).
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
   wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
   `table.css`). Rules, New run, fast turns, skins, log, export, studio live
@@ -46,9 +46,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - Difficulty needs tuning from Wesley's play.
 
 ## History (merged PRs)
-- #2 foundation pass; #3 research + lab Duel; #4–#5 simultaneous-engine rule
-  changes (reach-based return hits, pass-through, order pool); #6 turn-based
-  rebuild; #7 art pass; #8 strike in place; #9 phone layout + busier enemy;
+- #2 foundation; #3 research + lab Duel; #4–#5 simultaneous-engine rules;
+  #6 turn-based rebuild; #7 art pass; #8 strike in place; #9 phone layout + busier enemy;
   #10 promotion; #11 next-square strikes; #12 hideout hub; #13 tap to strike.
 
 ## Open items

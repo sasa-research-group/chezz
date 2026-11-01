@@ -64,39 +64,44 @@ function CastMatrix({ rows = ALL_ROWS, label = "Cast by state" }: { rows?: CastR
 
 /** Board pieces are about 48px on a big board and 84px on a phone's 4×4 board; 192px is 4× the smallest. */
 const PILOT_SIZES: [number, string][] = [[48, "48px · smallest board"], [84, "84px · phone 4×4 board"], [192, "192px · 4×"]];
-const PILOT_PAWNS: { side: RigSide; name: string; ref: string; notes: string }[] = [
-  { side: "white", name: "Rebel pawn", ref: "rebel-pawn", notes: "Upturned copper saucepan with a long handle, two dot eyes, red bandana, pitchfork" },
-  { side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel kettle helm with a small comb, plain face (dot eyes, brows), gold-edged pauldrons, pike" },
+const NEW_ART: { kind: RigKind; side: RigSide; name: string; ref: string; notes: string }[] = [
+  { kind: "pawn", side: "white", name: "Rebel pawn", ref: "rebel-pawn", notes: "Upturned copper saucepan with a long handle, two dot eyes, red bandana, pitchfork" },
+  { kind: "pawn", side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel kettle helm with a small comb, plain face (dot eyes, brows), gold-edged pauldrons, pike" },
+  { kind: "rook", side: "white", name: "Rebel rook", ref: "rebel-rook", notes: "Stonemason: stone tower helm with battlements, two dot eyes glowing in a dark slot, red bandana, patched tunic, bare arms, stone mallet on the shoulder; defends with a plank door" },
+  { kind: "rook", side: "black", name: "Patrol rook", ref: "patrol-rook", notes: "Steel keep great-helm with battlements and a gold cross visor, royal-blue plate with gold trim, halberd; defends with a portcullis" },
 ];
-function PilotCompare({ side, refName }: { side: RigSide; refName: string }) {
+function PilotCompare({ kind, side, refName }: { kind: RigKind; side: RigSide; refName: string }) {
   const { hue } = useStudio(), facing = side === "white" ? 1 : -1;
   return <div className="pilot-compare">{PILOT_SIZES.map(([px, label]) => <div key={px} className="pilot-size">
     <small>{label}</small>
     <div className="pilot-row">
-      {(["old", "new"] as const).map(a => <figure key={a} style={{ width: px }}><PieceRig kind="pawn" side={side} hue={hue} facing={facing} art={a} seed={`pilot${a}`} /><figcaption>{a}</figcaption></figure>)}
+      {(["old", "new"] as const).map(a => <figure key={a} style={{ width: px }}><PieceRig kind={kind} side={side} hue={hue} facing={facing} art={a} seed={`pilot${a}`} /><figcaption>{a}</figcaption></figure>)}
       <figure style={{ width: px * .82 }}><img src={refArt(refName)} alt="" width={406} height={498} /><figcaption>ref</figcaption></figure>
     </div>
   </div>)}</div>;
 }
 function Pilot() {
   const { hue } = useStudio();
-  return <Group id="pilot" title="Pilot: pawns" intro={<>Both pawns redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs pawn.white,pawn.black out.png</code>.</>}>
-    {PILOT_PAWNS.map(p => <Entry key={p.side} name={`${p.name}: old · new · reference`} src={`PieceRig art="old" | "new" · docs/art/${p.ref}.webp`} note={p.notes} full><PilotCompare side={p.side} refName={p.ref} /></Entry>)}
+  return <Group id="pilot" title="New art" intro={<>Pieces redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code> and <code>components/ArmourRooks.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs rook.white,rook.black,pawn.white,pawn.black out.png</code>.</>}>
+    {NEW_ART.map(p => <Entry key={p.kind + p.side} name={`${p.name}: old · new · reference`} src={`PieceRig art="old" | "new" · docs/art/${p.ref}.webp`} note={p.notes} full><PilotCompare kind={p.kind} side={p.side} refName={p.ref} /></Entry>)}
     <Entry name="Silhouette at 48px" src="judge check 1: filled solid black" wide>
-      <div className="pilot-row silhouettes">{PILOT_PAWNS.map(p => <figure key={p.side} style={{ width: 48 }}><PieceRig kind="pawn" side={p.side} hue={hue} facing={p.side === "white" ? 1 : -1} art="new" seed="sil" /></figure>)}
-        {(["rook", "knight", "bishop"] as const).map(k => <figure key={k} style={{ width: 48 }}><PieceRig kind={k} side="black" hue={hue} facing={-1} seed="sil" /></figure>)}</div>
+      <div className="pilot-row silhouettes">{NEW_ART.map(p => <figure key={p.kind + p.side} style={{ width: 48 }}><PieceRig kind={p.kind} side={p.side} hue={hue} facing={p.side === "white" ? 1 : -1} art="new" seed="sil" /></figure>)}
+        {(["knight", "bishop"] as const).map(k => <figure key={k} style={{ width: 48 }}><PieceRig kind={k} side="black" hue={hue} facing={-1} seed="sil" /></figure>)}</div>
+    </Entry>
+    <Entry name="Rook defend: door and portcullis" src="rig.css .door" wide>
+      <div className="pilot-row">{(["white", "black"] as const).map(side => <figure key={side} style={{ width: 84 }}><PieceRig kind="rook" side={side} hue={hue} facing={side === "white" ? 1 : -1} art="new" defending seed="door" /></figure>)}</div>
     </Entry>
     <Entry name="On the board, next to unchanged pieces" src="kit MiniBoard · exile.css" wide>
       <MiniBoard cols={3} rows={2} pieces={[
         { kind: "pawn", side: "black", art: "new", x: 0, y: 0 },
-        { kind: "knight", side: "black", x: 1, y: 0, hp: 3, max: HP.knight },
-        { kind: "pawn", side: "black", x: 2, y: 0, hp: 1, max: HP.pawn },
-        { kind: "rook", side: "white", x: 0, y: 1 },
+        { kind: "rook", side: "black", art: "new", x: 1, y: 0, hp: 3, max: HP.rook },
+        { kind: "knight", side: "black", x: 2, y: 0, hp: 3, max: HP.knight },
+        { kind: "rook", side: "white", art: "new", x: 0, y: 1 },
         { kind: "pawn", side: "white", art: "new", x: 1, y: 1, hp: 1, max: HP.pawn },
-        { kind: "pawn", side: "white", x: 2, y: 1 },
+        { kind: "bishop", side: "white", x: 2, y: 1 },
       ]} />
     </Entry>
-    <CastMatrix label="New pawns by state" rows={PILOT_PAWNS.map(p => ({ kind: "pawn", side: p.side, name: `${p.name.split(" ")[0]} · new`, art: "new" }))} />
+    <CastMatrix label="New art by state" rows={NEW_ART.map(p => ({ kind: p.kind, side: p.side, name: `${p.name.split(" ")[0]} · new`, art: "new" }))} />
   </Group>;
 }
 

@@ -20,7 +20,7 @@ const BANNED: [RegExp, string][] = [
 ];
 
 describe("new art draws only with the shape kit", () => {
-  it("finds the new-art files", () => expect(newArt.map(f => basename(f))).toEqual(expect.arrayContaining(["ArmourPawns.tsx", "frogPawn.tsx"])));
+  it("finds the new-art files", () => expect(newArt.map(f => basename(f))).toEqual(expect.arrayContaining(["ArmourPawns.tsx", "ArmourRooks.tsx", "frogPawn.tsx"])));
   for (const file of newArt) for (const [re, what] of BANNED) it(`${basename(file)}: no ${what}`, () => {
     const hits = readFileSync(file, "utf8").split("\n").map((l, i) => [i + 1, l] as const).filter(([, l]) => re.test(l));
     expect(hits.map(([n, l]) => `${basename(file)}:${n}: ${l.trim().slice(0, 80)}`)).toEqual([]);
