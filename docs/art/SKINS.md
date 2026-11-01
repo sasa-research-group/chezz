@@ -64,7 +64,7 @@ redrawn on the kit first.
 | Pawn | Frog in the saucepan (`odd-pawn`) | Rebel saucepan | Drawn: `frog-pot` |
 | Knight | Empty suit of armour on a rocking horse (`odd-knight`) | Horse head | Planned. Reference is in patrol blue (drift); use rebel or neutral steel |
 | Bishop | Goose in a mitre (`odd-bishop`) | Rebel mitre | Planned |
-| Rook | Walking haystack with battlements (`odd-rook`) | Battlements | Planned |
+| Rook | Walking haystack with battlements (`odd-rook`) | Rebel stone battlements | Drawn: `haystack` |
 | Queen | Melting candle with a crown of flame (`odd-queen`) | Flame points as a crown | Planned. Reference has one flame; add points |
 | King | Sleepy cat in a too-big crown (`odd-king`) | Gold gem crown | Planned |
 
@@ -82,6 +82,19 @@ mitts, a red cord knotted under the jaw, a cattail on a wood stalk, and a slow
 throat-sac croak in place of the rebel pawn's nervous jitter. Kept sparse on
 purpose: inner lines turn to stripes at 48px. Colours are sampled from
 `odd-pawn.webp` (`frog`, `frogLight`, `frogSpot`, `frogEye` in `TONES`).
+
+## The haystack
+
+`src/components/skins/haystackRook.tsx`, second in the unlock order. One bell of
+hay from under the rebel rook's stone battlements (`RebelBattlements`, shared with
+`ArmourRooks.tsx`) to a tufted hem, as wide as the crest where they meet, with
+tufts poking out of its sides and two dark boots under the hem. The hay is in the
+body slot, so no seam crosses it; the head slot holds only the two tall oval eyes,
+the crest and the rook's plank `.door`, which still drops on defend. Hay strands
+are a few short inner strokes under the crest, mid-body and over the hem, on top
+of the kit's shading. A straw mitten holds a two-tined hayfork; the back arm would
+hide behind the mound, so the skin draws none. Tones: `hay` (sampled from
+`odd-rook.webp`) and `straw` for the mitten.
 
 ## Later
 

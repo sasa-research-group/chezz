@@ -19,6 +19,11 @@ function battlements(x: number, y: number, w: number) {
   return xs.map((at, i) => i === 0 || i === 5 ? `L${at} ${y}` : `L${at} ${i % 2 ? y : y + 8} L${at} ${i % 2 ? y + 8 : y}`).join(" ");
 }
 
+/** The rebel rook's crest: a stone battlement band overhanging its tower, y 12–34.
+ * Skins of the rebel rook wear it too, so a restyle of the crest reaches them. */
+export const RebelBattlements = () =>
+  <Part d={`M32 30 ${battlements(32, 12, 36)} L68 30 Q65 34 62.5 34 L37.5 34 Q35 34 32 30 Z`} tone={T.stone} highlight="M35 17 L35 25" />;
+
 /** The stonemason's stone mallet: a chipped block at `head`, its shaft running
  * through the fist at `hand` and a little past it. */
 function Mallet({ head: [hx, hy], hand: [fx, fy] }: { head: [number, number]; hand: [number, number] }) {
@@ -65,7 +70,7 @@ function rebelRook(): Figure {
     </>,
     head: <>
       <Part d="M36 64.5 L37 30 L63 30 L64 64.5 Q50 68 36 64.5 Z" tone={T.stone} highlight="M40 54 L40 58" />
-      <Part d={`M32 30 ${battlements(32, 12, 36)} L68 30 Q65 34 62.5 34 L37.5 34 Q35 34 32 30 Z`} tone={T.stone} highlight="M35 17 L35 25" />
+      <RebelBattlements />
       <Part d="M41.5 37 L58.5 37 L58.5 49 L41.5 49 Z" tone={T.void} line="inner" shade={false} />
       <SlotEyes y={43} gap={4.4} />
       <g className="door">

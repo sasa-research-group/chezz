@@ -3,6 +3,27 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: the haystack rook skin
+- Second skin in the unlock order, after the frog (`src/components/skins/haystackRook.tsx`).
+  It wears the rebel rook's stone battlements (`RebelBattlements`), not the reference's
+  hay-coloured ones: a skin keeps its piece's crest. A declared correction against
+  `odd-rook.webp`.
+- The hay is one mound in the body slot. Splitting it into a head dome and a body skirt
+  drew an outline across the middle that judges read as a "ghost in a layered dress". The
+  head slot keeps only the eyes, the crest and the plank `.door`, so the eyes peek out of
+  the hay as the head bobs.
+- A smooth tapering bell with two oval eyes read as a ghost or a bedsheet. Bulging
+  shoulders and tufts poking out of both sides made it a haystack.
+- Prop: a two-tined hayfork in place of the mallet. The fork is the haystack's own joke;
+  a stone mallet belongs to the stonemason. Two tines, not three, so the gap stays open at
+  48px (the brief's tine rule). The front arm is only a straw mitten on the shaft, and the
+  skin draws no back arm: an arm behind the mound showed only as a black smear of outline.
+- Judge rounds (readability/style/likeness/motion/consistency): 7/7/6/8/8 → 7/6/6/7/7
+  → 8/7/7/7/7, a pass. Last judge's open notes: the right side's tufts hide behind the
+  fork, so that edge looks smooth; the kit's cel crescent barely shows on such a large
+  part; the strands look like stitches; the crest lifts off the hay at death 20% (the
+  shared head pop); and the mitten has no thumb and gets lost at 48px.
+
 ## 2026-11-01: rooks on the shape kit
 - Both rooks redrawn behind `?art=new` (`src/components/ArmourRooks.tsx`), in the old
   rook's groups and pivots, including the `.door` that drops over the face on defend

@@ -173,7 +173,7 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game (skin `frog-pot`): a wide flat head, wider than the rebel saucepan, with two eye domes tucked under its rim; a short frowning mouth over a pale throat; squat body on two plain leg ovals with a pale belly, round mitts; a red cord knotted under the jaw; a cattail on a wood stalk. |
 | `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. |
 | `odd-bishop` | White goose in a parchment mitre, one angry brow, orange beak. |
-| `odd-rook` | Walking haystack with battlements, two black oval eyes. |
+| `odd-rook` | Walking haystack with battlements, two black oval eyes. In game (skin `haystack`): one hay mound with bulging shoulders and tufted sides under the rebel rook's stone battlements, two tall oval eyes, dark boots under the hem, a two-tined hayfork in a straw mitten. |
 | `odd-queen` | Melting candle in a holder, one flame, no face. Prompt asked for a crown of flame; add flame points. |
 | `odd-king` | Sleepy orange tabby curled under a too-big jewelled crown with red velvet. |
 
