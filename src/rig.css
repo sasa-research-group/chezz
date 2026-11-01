@@ -63,7 +63,12 @@
 .rig.act-attack .mouth-yell{animation:rig-show-mid calc(.56s * var(--spd,1)) steps(1) both}
 .rig.act-attack .fx-burst{animation:rig-burst calc(.56s * var(--spd,1)) ease-out both}
 @keyframes rig-burst{0%,36%{opacity:0;transform:scale(.2) rotate(0)}44%{opacity:1;transform:scale(1.25) rotate(12deg)}62%{opacity:1;transform:scale(1) rotate(8deg)}80%,100%{opacity:0;transform:scale(1.1) rotate(8deg)}}
-.rig.rig-queen.act-attack .arm-front{animation:rig-slap calc(.56s * var(--spd,1)) linear both;transform-origin:57px 50px}
+/* The painted rebel queen's pan: the shared wind-up (-55°) hides it behind her wide helm brim,
+   so it cocks back only a little. */
+.rig.rig-queen.art-paint.act-attack .prop.pan{animation-name:rig-pan}
+@keyframes rig-pan{0%,100%{transform:translateY(0) rotate(0)}28%{transform:translateY(-6px) rotate(-14deg)}40%,58%{transform:translateY(0) rotate(70deg)}}
+/* Painted queens carry the prop in the front arm, so a slap would cancel the swing. */
+.rig.rig-queen:not(.art-paint).act-attack .arm-front{animation:rig-slap calc(.56s * var(--spd,1)) linear both;transform-origin:57px 50px}
 @keyframes rig-attack{0%{transform:none}28%{transform:translateX(-7px) rotate(-16deg) scale(1.22,.8)}38%{transform:translateX(24px) rotate(12deg) scale(.74,1.32)}58%{transform:translateX(22px) rotate(10deg) scale(.8,1.24)}70%{transform:translateX(6px) scale(1.1,.92)}100%{transform:none}}
 @keyframes rig-swing{0%{transform:none}28%{transform:rotate(-55deg)}40%,58%{transform:rotate(65deg)}100%{transform:none}}
 /* The patrol knight's lance: pulled back, then couched level across his waist and out past
