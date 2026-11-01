@@ -11,8 +11,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
   the shape kit `inkKit.tsx` behind `?art=new`: pawns (`ArmourPawns.tsx`;
-  saucepan, plain patrol face) and rooks (`ArmourRooks.tsx`, Nov 1; judge
-  scores short of 7 on likeness/motion, see DECISIONS.md). Judge loop:
+  saucepan, plain patrol face) and rooks (`ArmourRooks.tsx`, Nov 1; patrol
+  passed the judge, rebel 6 on likeness/motion: DECISIONS.md). Judge loop:
   `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from

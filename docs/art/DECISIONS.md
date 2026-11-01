@@ -19,11 +19,12 @@ proposing a new look. Generation details for kept art are in `recipe.md`.
   not cloth) with battlements cut into its top, gold cross visor with dark slits,
   gold-rimmed pauldrons, belt and ridge, halberd with the blade raised above the helm.
 - Judge rounds (readability/style/likeness/motion/consistency): rebel 7/8/5/6/7 →
-  6/8/6/6/7 → 8/8/6/6/8; patrol 8/8/7/8/7 → 8/7/7/7/8 → 8/8/7/7/8. Neither passed after
-  3 rounds. Still open: the rebel attack's wind-up hides the mallet behind his body and
+  6/8/6/6/7 → 8/8/6/6/8; patrol 8/8/7/8/7 → 8/7/7/7/8 → 8/8/7/7/8. The patrol rook passed in
+  round 3; the rebel rook did not (likeness 6, motion 6). Still open: the rebel attack's wind-up hides the mallet behind his body and
   helm (20–35%), the mallet head is small next to the reference's sledge, and the
   judge wants the reference's split faceplate around a bigger T-opening; the patrol
-  halberd head is a dark blob at 48px and touches the top of the cell.
+  halberd head is a dark blob at 48px (after the last round it moved down and in, to
+  stay inside the cell and x 82).
 
 ## 2026-11-01: saucepan, plain patrol face, a real frog
 - Rebel pawn: the pot becomes an upturned copper saucepan with a long handle out the

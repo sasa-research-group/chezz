@@ -1,6 +1,6 @@
 import type { Figure, Palette, PatrolHue } from "./PieceRig";
 import { Sleeve } from "./ArmourPawns";
-import { Flat, INK, Ink, Part, Pole, TONES as T, circle, rect, type Tone } from "./inkKit";
+import { Flat, Ink, Part, Pole, TONES as T, circle, rect, type Tone } from "./inkKit";
 
 /** The rooks redrawn in the "armour does the talking" style (docs/art-style.md),
  * drawn only with the shape kit. Same groups and pivots as the old rook rig, so
@@ -37,8 +37,8 @@ function SlotEyes({ y, gap }: { y: number; gap: number }) {
       <g className="ko-eyes">{[-gap, gap].map(x => <Pole key={x} d={`M${47.5 + x} ${y - 2.5} L${52.5 + x} ${y + 2.5} M${52.5 + x} ${y - 2.5} L${47.5 + x} ${y + 2.5}`} tone={T.parchment} width={1.8} />)}</g>
     </g>
     <g className="mouth-yell">
-      {[-gap, gap].map(x => <Flat key={x} d={circle(50 + x, y, 3.4)} fill={INK} />)}
-      <Pole d={`M${46.5 - gap} ${y - 2.5} L${51.5 - gap} ${y} L${46.5 - gap} ${y + 2.5} M${53.5 + gap} ${y - 2.5} L${48.5 + gap} ${y} L${53.5 + gap} ${y + 2.5}`} tone={T.parchment} width={1.8} />
+      {[-gap, gap].map(x => <Flat key={x} d={circle(50 + x, y, 3.4)} fill={T.void.fill} />)}
+      <Pole d={`M${47.5 - gap} ${y - 2} L${51.5 - gap} ${y} L${47.5 - gap} ${y + 2} M${52.5 + gap} ${y - 2} L${48.5 + gap} ${y} L${52.5 + gap} ${y + 2}`} tone={T.parchment} width={1.8} />
     </g>
   </>;
 }
@@ -57,11 +57,11 @@ function rebelRook(): Figure {
       <Fist x={26.5} y={95.5} tone={T.skin} />
     </>,
     prop: <g className="prop">
-      <Mallet head={[67.5, 47]} hand={[74.5, 90]} />
+      <Mallet head={[67, 47]} hand={[74, 90]} />
     </g>,
     armFront: <>
       <Part d="M62 73 Q76 70.5 78.5 83 Q79.5 90.5 75 92.5 Q70 93.5 69 88.5 Q68 83 62 81 Z" tone={T.skin} />
-      <Fist x={74.5} y={90} tone={T.skin} />
+      <Fist x={74} y={90} tone={T.skin} />
     </>,
     head: <>
       <Part d="M36 64.5 L37 30 L63 30 L64 64.5 Q50 68 36 64.5 Z" tone={T.stone} highlight="M40 54 L40 58" />
@@ -75,7 +75,7 @@ function rebelRook(): Figure {
       </g>
     </>,
     mouths: null,
-    propOrigin: "74.5px 90px", shield: [27, 92], mouth: [50, 50, 5],
+    propOrigin: "74px 90px", shield: [27, 92], mouth: [50, 50, 5],
   };
 }
 
@@ -93,17 +93,19 @@ function patrolRook(c: Palette, hue: PatrolHue): Figure {
       <Part d="M30 100.5 Q27 84 33 72 Q50 66 67 72 Q73 84 70 100.5 Q50 105.5 30 100.5 Z" tone={plate} highlight="M37 92 Q36 84 39 78" />
       <Pole d="M32 96.5 Q50 101 68 96.5" tone={T.gold} width={3.4} />
       <Pole d="M50 76 L50 94" tone={T.gold} width={2.6} />
-      <Pauldron x={32} tone={plate} />
+      <Pauldron x={32.5} tone={plate} />
     </>,
     armBack: <><Sleeve d="M27 84 Q25 89 26 94" tone={T.mail} /><Fist x={26} y={95} tone={T.steel} /></>,
     prop: <g className="prop">
-      <Pole d="M67.5 106 L74 6" tone={T.wood} width={3.4} />
+      <Pole d="M66.5 106 L70.5 13" tone={T.wood} width={3.4} />
+      <g transform="translate(-3.5 7)">
       <Part d="M74 -1 Q77 3 76.5 7 L71.5 7 Q71 3 74 -1 Z" tone={T.steel} line="inner" shade={false} />
       <Part d="M75 5 Q80 5 81.5 1.5 Q85 14 81 26 Q79 22 75 21.5 Z" tone={T.steel} highlight="M78 9 L78 17" />
       <Part d="M73 8.5 L64.5 5.5 Q67 12 73 15.5 Z" tone={T.steel} line="inner" shade={false} />
       <Part d={rect(70, 22, 8, 5.5, 1.5)} tone={T.gold} line="inner" shade={false} />
+      </g>
     </g>,
-    armFront: <><Sleeve d="M70 84 Q71.5 88.5 69.5 93" tone={T.mail} front /><Pauldron x={68} tone={plate} /><Fist x={69} y={94} tone={T.steel} /></>,
+    armFront: <><Sleeve d="M70 84 Q71.5 88.5 69.5 93" tone={T.mail} front /><Pauldron x={67.5} tone={plate} /><Fist x={69} y={94} tone={T.steel} /></>,
     head: <>
       <Part d={`M32 64 ${battlements(32, 12, 36)} L68 64 Q50 71 32 64 Z`} tone={T.helmSteel} highlight="M36 26 L36 40" />
       <Part d="M46.5 29 L53.5 29 L53.5 35 L63 35 L63 47.5 L53.5 47.5 L53.5 60 L46.5 60 L46.5 47.5 L37 47.5 L37 35 L46.5 35 Z" tone={T.gold} line="inner" />
@@ -112,7 +114,7 @@ function patrolRook(c: Palette, hue: PatrolHue): Figure {
         <g className="ko-eyes"><Ink d="M40.5 37.5 L45.5 44.5 M45.5 37.5 L40.5 44.5 M54.5 37.5 L59.5 44.5 M59.5 37.5 L54.5 44.5" /></g>
       </g>
       <g className="mouth-yell">
-        <Flat d={rect(39, 38.5, 8, 5.5)} fill={T.gold.fill} /><Flat d={rect(53, 38.5, 8, 5.5)} fill={T.gold.fill} />
+        <Flat d={rect(39, 38.5, 8, 5.5)} fill={T.gold.fill} /><Flat d={rect(53.5, 38.5, 7.5, 5.5)} fill={T.gold.fill} />
         <Ink d="M39.5 39 L46 43 M60.5 39 L54 43" />
       </g>
       <g className="door">
