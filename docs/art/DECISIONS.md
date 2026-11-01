@@ -3,6 +3,32 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: the goose bishop skin
+- `goose-mitre` (`src/components/skins/gooseBishop.tsx`), third in the unlock order
+  after the frog and the haystack: the empty knight was not on main yet, and it goes
+  before the goose once it lands. A white goose wearing the rebel bishop's own
+  `RebelMitre` at 0.82 scale (the new `scale` shrinks the geometry, not the ink),
+  peak under y 15 for the top row's board frame. The full-size mitre had to sit so
+  low that it swallowed the head and brow (round 2).
+- Smugness: the head and mitre tipped back 9°, a raised beak and one low brow over a
+  single round dot eye; no half-lidded eye (the bishops' lesson: it blurs to a dash).
+- No prop. A crook's hook would collide with the beak inside x 82, and an oddball's
+  crest is enough. Instead the attack is a head peck (`quirk-peck` in `rig.css`): the
+  head coils back, lunges beak first and settles while the mitre tips back. This
+  extends the quirk rule (idle only) to an attack move for a skin with no prop.
+- The neck lives in the body and runs up under the head, so the death pop no longer
+  shows a gap between head and body (round 1 read it as a decapitation).
+- Judge rounds (readability/style/likeness/motion/consistency): 7/7/5/5/7 →
+  7/8/6/6/7 → 7/7/6/6/7, not a pass. After round 3, unjudged: the neck's square top
+  is rounded and sits lower, and the peck pivots at the head's base with a smaller
+  lunge, so the lunging head no longer leaves the neck's top bare (a notch showed
+  behind the hit burst). Still open: judges read the
+  mitre as a ribbed helmet or bell at 48px, wider than the reference's tall
+  back-tilted mitre; the head shows only under the brim; the body reads squat and
+  duck-like because the top-row limit leaves little height for the neck; the peck is
+  buried under the shared squash stretch and hit burst; the wing's cel shadow reads as
+  a jagged band.
+
 ## 2026-11-01: kings on the shape kit
 - Both kings redrawn behind `?art=new` (`src/components/ArmourKings.tsx`) in the old
   king's groups; the crown is its own `.crown` group inside the head, so the checkmate

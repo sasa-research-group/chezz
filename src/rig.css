@@ -184,7 +184,8 @@
 /* Redrawn pieces (ArmourPawns.tsx) keep the sweat drop for defend and hit, not as an idle loop. */
 .rig.rig-pawn.art-new.act-idle:not(.is-wounded) .sweat{opacity:0;animation:none}
 
-/* Skin quirks (src/components/skins/): idle-only extras keyed by a skin's quirk class.
+/* Skin quirks (src/components/skins/): idle extras keyed by a skin's quirk class
+   (a skin with no prop may also move its .head and .quirk-bit on the attack).
    They animate only .quirk-bit, .head, .prop or .eyes, so every action still plays,
    and may switch off the piece's own idle loop. A .quirk-bit is drawn at its resting size. */
 .rig .quirk-bit{transform-box:fill-box;transform-origin:50% 0}
@@ -193,3 +194,10 @@
 .rig.rig-pawn.rebel.quirk-croak.act-idle .squash{animation:none}
 .rig.quirk-croak.act-idle .quirk-bit{animation:rig-croak 2.6s var(--ease-soft) var(--seed) infinite}
 @keyframes rig-croak{0%,50%,100%{transform:scale(1)}66%{transform:scale(1.75,2.05)}76%{transform:scale(1.55,1.75)}}
+/* Goose: no prop to swing, so the head pecks on the attack: it coils back on the
+   swing's wind-up, lunges beak-first on the hit while the mitre (its .quirk-bit)
+   tips back, then settles. */
+.rig.quirk-peck.act-attack .head{animation:rig-peck calc(.56s * var(--spd,1)) linear both;transform-origin:55px 76px}
+.rig.quirk-peck.act-attack .quirk-bit{animation:rig-peck-mitre calc(.56s * var(--spd,1)) linear both;transform-origin:50% 100%}
+@keyframes rig-peck{0%{transform:none}28%{transform:translate(-3px,-1px) rotate(-12deg)}40%,58%{transform:translate(2px,1px) rotate(22deg)}100%{transform:none}}
+@keyframes rig-peck-mitre{0%,28%{transform:none}40%,58%{transform:rotate(-20deg)}100%{transform:none}}

@@ -19,6 +19,21 @@ const HAND: [number, number] = [73, 80];
  * toward the mitre, which leaves it no room to open wider inside x 82. */
 const HOOK_CURL = "C77.5 15 75.8 5.7 71.8 5.7 C68.3 5.7 66 8.5 66 11.5 C66 14.5 67.8 16 69.8 16";
 
+/** Scales an absolute M/L/Q/C path with space-separated pairs about (50, 43), the mitre's
+ * base, so a smaller mitre keeps the kit's ink weights instead of thinning them. */
+const atScale = (d: string, k: number) => k === 1 ? d
+  : d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (_, x: string, y: string) => `${+(50 + (+x - 50) * k).toFixed(2)} ${+(43 + (+y - 43) * k).toFixed(2)}`);
+
+/** The rebel bishop's crest: a wide parchment mitre with a small back horn, y 4–46,
+ * its base centred on (50, 43). Skins of the rebel bishop wear it too, so a
+ * restyle of the crest reaches them. */
+export const RebelMitre = ({ scale: k = 1 }: { scale?: number }) => <>
+  <Part d={atScale("M35.5 40 L36 25 Q38.5 15 43.5 9.5 Q47 18 48 40 Z", k)} tone={T.parchment} />
+  <Part d={atScale("M34 43 L34.5 26 Q38 14 51 4 Q63 13 65.5 27 L66 43 Q50 46.5 34 43 Z", k)} tone={T.parchment} highlight={atScale("M38.5 36 L38.5 28 Q40 22 43 18.5", k)} />
+  <Part d={atScale("M47.5 42 L48 16 L51 9 L54 16 L54.5 42 Z", k)} tone={T.mitreBand} line="inner" shade={false} />
+  <Part d={atScale("M33.5 36 Q50 40 66.5 36 L66 43 Q50 46.5 34 43 Z", k)} tone={T.mitreBand} line="inner" shade={false} />
+</>;
+
 function rebelBishop(): Figure {
   return {
     body: <>
@@ -43,10 +58,7 @@ function rebelBishop(): Figure {
         {[-4.6, 4.6].map(x => <Flat key={x} d={circle(50 + x, 55, 4)} fill={T.void.fill} />)}
         <Pole d="M42.5 53 L46.5 55 L42.5 57 M57.5 53 L53.5 55 L57.5 57" tone={T.glow} width={1.8} />
       </g>
-      <Part d="M35.5 40 L36 25 Q38.5 15 43.5 9.5 Q47 18 48 40 Z" tone={T.parchment} />
-      <Part d="M34 43 L34.5 26 Q38 14 51 4 Q63 13 65.5 27 L66 43 Q50 46.5 34 43 Z" tone={T.parchment} highlight="M38.5 36 L38.5 28 Q40 22 43 18.5" />
-      <Part d="M47.5 42 L48 16 L51 9 L54 16 L54.5 42 Z" tone={T.mitreBand} line="inner" shade={false} />
-      <Part d="M33.5 36 Q50 40 66.5 36 L66 43 Q50 46.5 34 43 Z" tone={T.mitreBand} line="inner" shade={false} />
+      <RebelMitre />
     </g>,
     mouths: null,
     propOrigin: `${HAND[0]}px ${HAND[1]}px`, shield: [34, 84], mouth: [50, 62, 5],

@@ -72,6 +72,9 @@ export const TONES = {
   fur: tone("#efe3c8", "#cdbb98"), // picked: the rebel cloak's fur collar
   moustache: tone("#744924", "#56351a"), // the patrol king's painted moustache, goatee and curls; shade picked
   mask: tone("#8fa0b8", "#64738c"), // picked: the patrol king's sculpted mask, bluer than the rook's helm steel
+  // Goose bishop, sampled from docs/art/odd-bishop.webp (docs/art-style.md section 7).
+  goose: tone("#edf1f9", "#b0b7cd"),
+  beak: tone("#fe8a34", "#c9621a"), // shade picked
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

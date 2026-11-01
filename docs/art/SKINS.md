@@ -34,7 +34,7 @@ A rig takes `skin="<id>"`. `PieceRig` builds the piece's shape-kit figure
 | Body tones | `look`: `cloth`, `accent`, `patch`, `boot`, `hand` | Recolours the build's own shapes. |
 | Body, arms | `body()`, `armBack()`, `armFront()`, optional | For a creature with its own shape. Feet stay on y 108; draw sleeves with `Sleeve` (the cheer animates its classes) and keep the hands where the build has them (`PAWN_ARMS`), so the prop pivot and shield line up. |
 | Prop | `prop()`, optional | Drawn inside `.prop`; it swings around the build's `propOrigin`, so hold it in the front hand. |
-| Idle quirk | `quirk`: a class on the `<svg>` | CSS in `rig.css` under "Skin quirks". Animate only `.quirk-bit`, `.head`, `.prop` or `.eyes`, in `act-idle`; it may also switch off the piece's own idle loop (the frog stops the pawn's jitter). Draw a `.quirk-bit` at its resting size. Reduced motion stops `.quirk-bit`. |
+| Idle quirk | `quirk`: a class on the `<svg>` | CSS in `rig.css` under "Skin quirks". Animate only `.quirk-bit`, `.head`, `.prop` or `.eyes`, in `act-idle`; it may also switch off the piece's own idle loop (the frog stops the pawn's jitter). A skin with no prop may also move its `.head` and `.quirk-bit` in `act-attack` (the goose pecks). Draw a `.quirk-bit` at its resting size. Reduced motion stops `.quirk-bit`. |
 
 The skin only applies to a rebel of its own `kind`; anything else ignores it.
 
@@ -63,7 +63,7 @@ redrawn on the kit first.
 |---|---|---|---|
 | Pawn | Frog in the saucepan (`odd-pawn`) | Rebel saucepan | Drawn: `frog-pot` |
 | Knight | Empty suit of armour on a rocking horse (`odd-knight`) | Horse head | Planned. Reference is in patrol blue (drift); use rebel or neutral steel |
-| Bishop | Goose in a mitre (`odd-bishop`) | Rebel mitre | Planned |
+| Bishop | Goose in a mitre (`odd-bishop`) | Rebel mitre | Drawn: `goose-mitre`. Third in the unlock order for now; fourth once the empty knight lands |
 | Rook | Walking haystack with battlements (`odd-rook`) | Rebel stone battlements | Drawn: `haystack` |
 | Queen | Melting candle with a crown of flame (`odd-queen`) | Flame points as a crown | Planned. Reference has one flame; add points |
 | King | Sleepy cat in a too-big crown (`odd-king`) | Gold gem crown | Planned |
@@ -95,6 +95,24 @@ are a few short inner strokes under the crest, mid-body and over the hem, on top
 of the kit's shading. A straw mitten holds a two-tined hayfork; the back arm would
 hide behind the mound, so the skin draws none. Tones: `hay` (sampled from
 `odd-rook.webp`) and `straw` for the mitten.
+
+## The goose
+
+`src/components/skins/gooseBishop.tsx`. A white goose wearing the rebel
+bishop's own parchment mitre (`RebelMitre`, shared with `ArmourBishops.tsx`)
+at 0.82 scale (its `scale` shrinks the geometry, not the ink), lowered so its
+peak stays under y 15 and the top row fits inside the board frame. At full size
+it swallowed the head. Even so there is little height for the goose: the skull
+shows just under the brim, a thick S-curved neck runs into a low, round body with a
+short tail, a folded wing with two scallops, and orange webbed feet. One dot eye
+in profile; the smugness is the head and mitre tipped back 9°, the beak raised,
+and one low brow. The neck lives in the body and runs up under the head, so the
+death pop keeps head and neck joined. No prop: a crook's hook would collide with
+the beak inside x 82, and the crest is enough for an oddball. Its quirk
+`quirk-peck` turns the attack into a head peck (coil back, lunge beak first,
+settle) in place of the prop swing; the mitre is its `.quirk-bit` and tips back
+as the head lunges. Tones: `goose` and `beak`, sampled from
+`odd-bishop.webp`.
 
 ## Later
 
