@@ -74,12 +74,13 @@ queen, toad king in a birdbath crown.
 
 ## The frog
 
-`src/components/skins/frogPawn.tsx`. A wide flat frog head with two eye domes
-that bulge out under and around the rebel saucepan (it lifts the shared
-`RebelPot` 9 units onto them), heavy-lidded yellow eyes, a long grumpy mouth
-line over a pale throat; a squat body on haunches with a pale belly, webbed
-hands and feet, the rebel red neckerchief, a cattail, and a slow throat-sac
-croak in place of the rebel pawn's nervous jitter. Colours are sampled from
+`src/components/skins/frogPawn.tsx`. A wide flat frog head, wider than the
+rebel saucepan, with two eye domes tucked under its rim (it lifts the shared
+`RebelPot` 4 units onto them), heavy-lidded yellow eyes, a short frowning mouth
+over a pale throat; a squat body on two plain leg ovals with a pale belly, round
+mitts, a red cord knotted under the jaw, a cattail on a wood stalk, and a slow
+throat-sac croak in place of the rebel pawn's nervous jitter. Kept sparse on
+purpose: inner lines turn to stripes at 48px. Colours are sampled from
 `odd-pawn.webp` (`frog`, `frogLight`, `frogSpot`, `frogEye` in `TONES`).
 
 ## Later
