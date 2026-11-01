@@ -508,3 +508,23 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
 - The owner hates textbook LLM prose and cute story lines in the game.
 - The game and studio use labels, numbers and icons.
 - The story ("Escape from Exile", hideout, patrol) stays and is unwritten.
+
+## 2026-11-01: painted bishops
+- Both bishops painted behind `?art=paint` with the pilot's pipeline (`PAINTED.md`, "Bishops"):
+  recipes `paint-<side>-bishop.json`, parts in `src/assets/paint/<side>-bishop/`, entries in
+  `paint/specs.ts`. No shared code changed. Cost: about $0.70 (two full runs and one
+  patrol parts re-roll).
+- Rebel: tall parchment mitre over a charcoal hood void with vector glow eyes (round, as on
+  the SVG rig), ragged grey robe and cowl with the yellow patch, gnarled crook through the
+  fist. Patrol: gilded mitre on a steel great-helm with gold-rimmed glass lenses (painted, so
+  no blink, like the patrol rook), a flared blue cope with a gold collar, clasp and
+  fleur-de-lis, a gold spiral crozier held out from the cope with its curl clear of the mitre.
+- Declared corrections: round eyes, not half-lidded; plain glass lenses with no eyes.
+- Judge (readability/style/likeness/motion/consistency): round 1 rebel 7/8/7/8/8, patrol
+  6/8/7/8/7 (the crozier hugged the cope and its curl overlapped the mitre, one lump at
+  48px). Round 2, after moving the patrol body and head to x 46–47, the crozier out to a gap
+  and the mitre up 8%: rebel 8/7/7/8/8, patrol 8/8/7/7/8, both a pass. After round 2,
+  unjudged: the rebel crook moved under his fist (it sat beside it).
+- Still open: the patrol collar scrollwork and fleur-de-lis blur away below 84px; the
+  rebel's yellow patch sits high under the hood, so the accent is small at 48px; the shared
+  strike swing and death slide carry the long crozier past the cell edge.

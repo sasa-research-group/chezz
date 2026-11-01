@@ -1,0 +1,61 @@
+{
+  "id": "paint-rebel-bishop",
+  "description": "Painted sprite parts for the rebel bishop (?art=paint). Same three steps as paint-rebel-pawn.json: pose, parts sheet, background removal; then tools/art/cut-parts.mjs.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": [
+        "docs/art/rebel-bishop.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-rebel-bishop.webp"
+      ],
+      "prompt": "Full-body game sprite of the rebel BISHOP from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and tall slim proportions, not for its style. SUBJECT: a shadowy hooded rebel bishop. On his head a tall wide parchment-cream bishop's mitre with straight sides, a pointed cleft top, tan bands up the middle and round the base, and a few small stains. Under it a dark charcoal-grey hood whose opening is a solid black void showing only two round glowing pale-yellow dot eyes, no face, no mouth. A ragged mid-grey cowl with a torn zigzag edge over the shoulders, a long ragged light-grey robe with a torn zigzag hem down to the ankles and one bright yellow square patch stitched on the front, short dark boots. A tall gnarled wooden crook held upright in his right fist on the right side of the figure: a twisted brown branch whose top curls into a small tight hook bending back toward the mitre, about as wide as a fist, its top level with the mitre's peak. His bare right fist is clearly closed round the shaft, the fingers wrapped over it, the staff showing above and below the fist. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the hood and mitre are about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights, earthy greys and parchment with the yellow patch as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": [
+        "$previous"
+      ],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD: the tall parchment mitre on top of the dark grey hood, the hood opening a solid black void with NO eyes in it. The hood ends at its bottom edge, no neck.\n- Top row, middle: the BODY: the ragged grey cowl over the shoulders and the long ragged light-grey robe with the yellow patch and the zigzag hem, and the dark boots, with no arms and no head; a short dark neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a ragged grey robe sleeve from the shoulder hanging down to a small bare skin fist.\n- Bottom row, left: the FRONT ARM (his right arm): a ragged grey robe sleeve from the shoulder, bent at the elbow, ending in a closed bare skin fist that points to the right.\n- Bottom row, middle: empty.\n- Right edge, spanning from top to bottom: the gnarled wooden CROOK on its own, standing straight up, the small tight hook at the top, whole and not held."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-rebel-bishop.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "rotate": {
+    "armFront": 40
+  },
+  "parts": {
+    "head": [
+      0.18,
+      0.28
+    ],
+    "body": [
+      0.5,
+      0.45
+    ],
+    "armBack": [
+      0.75,
+      0.4
+    ],
+    "armFront": [
+      0.2,
+      0.78
+    ],
+    "prop": [
+      0.91,
+      0.5
+    ]
+  }
+}

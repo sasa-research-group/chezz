@@ -65,3 +65,19 @@ and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilo
 5. Add its entry to `specs.ts`; check `npx vitest run tests/figure-bounds.test.ts`, the
    studio (Catalog → Painted, and Rig → Painted) and
    `node tools/art/shoot.mjs <kind>.<side>.paint out.png`.
+
+## Bishops
+
+- Recipes `paint-rebel-bishop.json` and `paint-patrol-bishop.json`, pose references
+  `paint/svg-<side>-bishop.webp`. Both front fists grip the shaft in the pose prompt; the
+  crook and crozier ask for a curl "about as wide as a fist" so the prop fits x 18–82.
+- The patrol's first parts sheet painted both sleeves and gloves onto the cope as well as
+  the separate arms. The body line now says "NO sleeves, NO gloves, NO hands on the body";
+  the re-roll (`--from 2`) came out clean.
+- Rebel: glow eyes (vector) in the painted hood void, so blink and KO play. Patrol: lenses
+  are painted glass (`eyes: false`), like the patrol rook, so he loses the blink and pupil dart
+  too; the KO crosses land on the lenses.
+- Both bishop bodies pin the boot-sole centre to the feet (50, 108) rather than the neck, so
+  the long robe stands on the baseline whatever its height.
+- Patrol placement: body and head sit left of centre (x 46–47) so the crozier stands clear
+  of the cope with a gap and its curl clears the mitre, all inside x 82.
