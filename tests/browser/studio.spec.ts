@@ -10,6 +10,11 @@ test("studio: every area renders without errors and fits a phone", async ({ page
     await page.getByRole("navigation", { name: "Studio areas" }).getByRole("link", { name: area }).click();
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    if (area === "Art catalog") {
+      await expect(page.getByRole("heading", { name: "Skins", exact: true })).toBeVisible();
+      await expect(page.locator("#skins .rig.skin-frog-pot").first()).toBeVisible();
+      await expect(page.locator("#cast .rig.skin-frog-pot").first()).toBeAttached();
+    }
     // Named swatches flag hexes that no longer appear in the art sources.
     if (area === "Style guide") {
       await expect(page.locator(".swatch .missing")).toHaveCount(0);

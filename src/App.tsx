@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { PieceRig, RIG_MS as DURATION } from "./components/PieceRig";
+import { PieceRig, RIG_MS as DURATION, URL_ART } from "./components/PieceRig";
+import { SKINS } from "./components/skins";
+import { SkinPicker } from "./components/SkinPicker";
+import { creditWin, equip, loadMeta, saveMeta } from "./game/meta";
 import { BattleBanner, GuardBadge } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
@@ -32,7 +35,7 @@ const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
-function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage, spd, picking, checkers, pips }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean }) {
+function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage, spd, picking, checkers, pips, skinOf }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined }) {
   const e = ENCOUNTERS[run.encounter];
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
@@ -77,7 +80,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
         const strike = !ghost && !picking ? strikes.find(t => t.id === piece.id) : undefined;
         return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
           style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
-          <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} />
+          <PieceRig key={`${piece.id}-${anim.key}`} kind={stage.morph[piece.id] ?? piece.kind} side={piece.side} hue="blue" action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < HP[piece.kind] && piece.hp <= HP[piece.kind] / 2} skin={skinOf(stage.morph[piece.id] ?? piece.kind)} />
           {strike && <span className="strike-badge"><StrikeIcon />{strike.cost}</span>}
           {!ghost && !picking && unsafe.includes(piece.id) && <span className="strike-badge unsafe" title="Exposes king">✕</span>}
           {!ghost && checkers.includes(piece.id) && <span className="check-mark" title="Threatens king">!</span>}
@@ -185,6 +188,13 @@ export default function App() {
   const [menu, setMenu] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [notice, setNotice] = useState("");
+  const [meta, setMeta] = useState(() => loadMeta(() => localStorage, SKINS));
+  // A won run unlocks the next skin; creditWin ignores a victory it has already counted (a reload, say).
+  useEffect(() => { if (run.phase === "victory") setMeta(m => creditWin(m, run, SKINS).meta); }, [run]);
+  useEffect(() => { if (!saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
+  // Skins are drawn on the shape kit, so in battle they show only with the redrawn art (?art=new).
+  const skinOf = (kind: Kind) => URL_ART === "new" ? meta.equipped[kind] : undefined;
+  const skinPicker = <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} />;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const e = ENCOUNTERS[run.encounter], king = run.units.find(u => u.id === "king");
@@ -336,7 +346,7 @@ export default function App() {
   return <main className="exile-app">
     <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={HP.king} battle={run.encounter + 1} battles={ENCOUNTERS.length} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
-      <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} />
+      <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} />
       {playback && <span className="turn-ribbon">ENEMY TURN</span>}
       {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
       <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div>
@@ -347,7 +357,7 @@ export default function App() {
     <section className="table-hud" aria-label="Actions">
       <Lanterns lit={playback ? 0 : run.energy} total={ENERGY} />
       <div className="hud-info">
-        {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>}
+        {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" skin={skinOf(selected.kind)} /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{DAMAGE[selected.kind]}</span><span className="action-pips" role="img" aria-label={selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted ? "" : "full"} /><i className={selected.acted ? "" : "full"} /></span></div></div>}
         {!playback && run.phase === "player" && <Legend />}
       </div>
       {playback
@@ -358,7 +368,7 @@ export default function App() {
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={start}>Start<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><h1>Promote</h1><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kindName(kind)}</h2><p>♥{HP[kind]} ⚔{DAMAGE[kind]}</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
-    {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${ENCOUNTERS.length} · turn ${run.turn}`}</p><label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
-    {menu && <PauseMenu log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onExport={() => exportRun(run, feedback)} onClose={() => setMenu(false)} />}
+    {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${ENCOUNTERS.length} · turn ${run.turn}`}</p>{run.phase === "victory" && skinPicker}<label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
+    {menu && <PauseMenu log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onExport={() => exportRun(run, feedback)} onClose={() => setMenu(false)} skins={skinPicker} />}
   </main>;
 }

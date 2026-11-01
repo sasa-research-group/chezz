@@ -403,6 +403,35 @@ test("complete the exile run through browser controls", async ({ page }) => {
   }
   expect((await saved(page)).phase).toBe("victory");
   await expect(page.getByRole("dialog", { name: "Victory" })).toBeVisible();
+  // Finishing the run unlocks the first skin, kept apart from the run save.
+  const meta = () => page.evaluate(() => JSON.parse(localStorage.getItem("chezz.meta.v1")!) as { unlocked: string[] });
+  expect((await meta()).unlocked).toEqual(["frog-pot"]);
+  await page.reload();
+  expect((await meta()).unlocked).toEqual(["frog-pot"]);
   await page.getByRole("button", { name: /Play again/ }).click();
   expect((await saved(page)).encounter).toBe(0);
+  expect((await meta()).unlocked).toEqual(["frog-pot"]);
+});
+
+test("wear an unlocked skin from the pause menu; the board shows it only with the new art", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, units: [...start.units, { id: "p1", side: "white" as const, kind: "pawn" as const, x: 0, y: 3, hp: 1 }] };
+  await page.addInitScript(([run, meta]) => {
+    if (sessionStorage.getItem("seeded")) return;
+    sessionStorage.setItem("seeded", "1");
+    localStorage.setItem("chezz.turns.v1", run);
+    localStorage.setItem("chezz.meta.v1", meta);
+  }, [JSON.stringify(g), JSON.stringify({ version: 1, unlocked: ["frog-pot"], equipped: {} })]);
+  await page.goto("/?art=new");
+  const frogs = page.locator(".piece-layer .rig.skin-frog-pot");
+  await expect(frogs).toHaveCount(0);
+  await page.getByRole("button", { name: "Menu" }).click();
+  const pick = page.getByRole("dialog", { name: "Menu" }).getByTestId("skin-frog-pot");
+  await pick.click();
+  await expect(pick).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(frogs).toHaveCount(1);
+  await page.goto("/");
+  await expect(page.locator(".piece-layer svg.rig")).toHaveCount(4);
+  await expect(frogs).toHaveCount(0);
 });

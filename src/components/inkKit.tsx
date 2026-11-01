@@ -38,6 +38,10 @@ export const TONES = {
   steel: tone("#a9c1d6", "#617085"),
   moustache: tone("#744924", "#56351a"),
   mail: tone("#4b5263", "#363b48"),
+  frog: tone("#7bad4f", "#4b7c40"),
+  frogLight: tone("#a6d175", "#7bad4f"), // shade reuses frog green
+  frogEye: tone("#f3e58a", "#d6c25a"), // picked: the sheet's pale yellow eyes
+  cattail: tone("#7a4a2b", "#5a3520"), // picked
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

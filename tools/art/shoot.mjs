@@ -1,6 +1,7 @@
 // Renders the judge sheet for one or more rigs into one PNG.
 //   node tools/art/shoot.mjs <rigs> <out.png> [--scale 1] [--crop 192]
-// <rigs> is a comma list of kind.side[.old], for example pawn.white,pawn.black.
+// <rigs> is a comma list of kind.side[.old|.<skin id>], for example
+// pawn.white,pawn.black or pawn.white,pawn.white.frog-pot.
 // The sheet (src/art/Sheet.tsx) shows each rig at 48px, 84px and 192px, a black
 // silhouette, greyscale, idle/wounded/guarding, six frames of every action, and
 // the rigs beside the rest of the cast. --crop 192 saves only the 192px renders,

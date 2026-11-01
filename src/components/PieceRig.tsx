@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { armourPawn } from "./ArmourPawns";
+import { armourPawn, type BodyLook } from "./ArmourPawns";
+import { skinById, type Skin } from "./skins";
 
 /** A cast of misfits. Each chess piece is a distinct character whose costume
  * echoes its chess shape; rebels (white) are patched exiles, the patrol
@@ -248,8 +249,12 @@ const FIGURES = { king, queen, rook, bishop, knight, pawn };
 
 /** "old" is the live art; "new" draws the pieces redrawn so far in the docs/art-style.md style. */
 export type ArtStyle = "old" | "new";
-const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue) => Figure>> = { pawn: armourPawn };
+const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>) => Figure>> = { pawn: armourPawn };
 export const hasNewArt = (kind: RigKind) => kind in NEW_FIGURES;
+/** A skin dresses a piece's shape-kit build: new head and prop, same body groups and pivots. */
+function dress(fig: Figure, skin: Skin): Figure {
+  return { ...fig, head: skin.head(), prop: skin.prop ? <g className="prop">{skin.prop()}</g> : fig.prop };
+}
 /** `?art=new` in the page URL previews the redrawn pieces in the game. */
 export const URL_ART: ArtStyle = typeof location !== "undefined" && new URLSearchParams(location.search).get("art") === "new" ? "new" : "old";
 
@@ -260,16 +265,20 @@ function Shield({ rebel, c, at: [x, y] }: { rebel: boolean; c: Palette; at: [num
 }
 
 let rigCount = 0;
-export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false, art = URL_ART }: {
-  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number | string; wounded?: boolean; art?: ArtStyle;
+/** `skin` is a skin id from components/skins; it applies to rebels whose piece has a shape-kit build, whatever `art` says. */
+export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false, art = URL_ART, skin: skinId }: {
+  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number | string; wounded?: boolean; art?: ArtStyle; skin?: string;
 }) {
-  const rebel = side === "white", c = rebel ? REBEL : PATROL[hue], redrawn = art === "new" ? NEW_FIGURES[kind] : undefined;
-  const fig = redrawn ? redrawn(rebel, c, hue) : FIGURES[kind](rebel, c);
+  const rebel = side === "white", c = rebel ? REBEL : PATROL[hue];
+  const found = skinById(skinId), skin = found && rebel && found.kind === kind && NEW_FIGURES[kind] ? found : undefined;
+  const redrawn = art === "new" || skin ? NEW_FIGURES[kind] : undefined;
+  const built = redrawn ? redrawn(rebel, c, hue, skin?.look) : FIGURES[kind](rebel, c);
+  const fig = skin ? dress(built, skin) : built;
   const [boil] = useState(() => `boil-${++rigCount}`);
   // A stable per-piece number (ids hash), so idle loops don't jump when the cast changes.
   const n = typeof seed === "number" ? seed : [...seed].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
   const style = { "--seed": `${(n % 7) * -0.37}s`, "--face": facing, "--prop-origin": fig.propOrigin } as CSSProperties;
-  return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} ${redrawn ? "art-new" : ""} act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
+  return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} ${redrawn ? "art-new" : ""} ${skin ? `skin-${skin.id} ${skin.quirk ?? ""}` : ""} act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
     {/* Line boil: the outlines wobble a little, like hand-drawn frames. */}
     <defs><filter id={boil} x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="1" seed={n % 5}><animate attributeName="seed" values="1;2;3;4" dur=".48s" calcMode="discrete" repeatCount="indefinite" /></feTurbulence><feDisplacementMap in="SourceGraphic" scale="1.8" /></filter></defs>
     {rebel ? <ellipse className="rig-shadow" cx="50" cy="108" rx="28" ry="6" fill={INK} opacity=".22" />

@@ -3,6 +3,12 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-10-31: skins are plumbing first, art later
+- Skin system built (`SKINS.md`): a run's victory unlocks the next rebel skin, saved
+  in `chezz.meta.v1`; skins are drawn on the shape kit and show in battle only with
+  `?art=new`. The frog pawn is a placeholder that wears the shared `RebelPot`,
+  because whether the pot becomes a saucepan is still the owner's call.
+
 ## 2026-10-31: pawn redraw on the shape kit
 - Patrol pawn helmet: the guide's morion (tall comb, upswept pointed brim) read as a
   sombrero or cowboy hat at 48px in two judge rounds. Replaced in game by a compact

@@ -67,6 +67,15 @@
 .menu-card .rules-card{margin:4px 6px 8px;color:#f6e3b4}.menu-card .rules-card dt{color:#ffe08a}.menu-card .rules-card dd{color:#f6e3b4cc}
 .menu-log p{font-size:12px;line-height:1.5;color:#f6e3b4bb;margin:6px 14px 0}
 .menu-log[open]{padding-bottom:6px}
+.skin-picker{display:flex;flex-wrap:wrap;gap:10px;padding:6px 4px}
+.skin-pick{position:relative;width:64px;height:76px;padding:2px 4px;border-radius:10px;border:2px solid #5a4434;background:#3a2b22;cursor:pointer}
+.skin-pick .rig{width:100%;height:100%}
+.skin-pick.worn{border-color:#e2a92a;background:#4a3826}
+.skin-pick.locked{cursor:default}
+.skin-pick.locked .rig{filter:brightness(0) opacity(.4)}
+.skin-mark{position:absolute;right:-6px;top:-6px;width:22px;height:22px;border-radius:11px;background:#e2a92a;color:#2b201b;font-size:12px;font-weight:900;display:grid;place-items:center}
+.skin-pick.locked .skin-mark{background:#2b201b;border:2px solid #5a4434}
+.exile-modal .skin-picker{justify-content:center}
 
 /* Small phones (under 375px): shrink the table objects so the strip and the bar still fit. */
 @media(orientation:portrait) and (max-width:374px){

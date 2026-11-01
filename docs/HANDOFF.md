@@ -13,14 +13,16 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   in `docs/art/`). Pawn pilot (`?art=new`): shape kit `inkKit.tsx`, judge
   loop `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Rebel pot reads hat-like.
   Regenerate concepts with `tools/art/gen.mjs` (`docs/art/GENERATING.md`).
+- **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
+  the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
+  the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with
+  `?art=new`. The frog pawn is a placeholder until the pot/saucepan call.
 - **Studio** (`art.html` → `src/art/`): all art live, mechanics from
   `turns.ts`, style guide. Add new art to `Catalog.tsx`.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
-  wooden table, no page scroll. Top bar (`TopBar.tsx`), board sized to the
-  field on both axes at 8° tilt, HUD strip (rails in landscape) with
-  swappable `table/Lantern`, `Bell`, `ShieldToken` (`table.css`). Rules,
-  New run, fast turns, log, export, studio live in the ☰ `PauseMenu`
-  (Escape, focus trap; pauses playback). Next: drag-to-defend, art.
+  wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
+  `table.css`). Rules, New run, fast turns, skins, log, export, studio live
+  in the ☰ `PauseMenu` (pauses playback). Next: drag-to-defend, art.
 - **Busier enemy** (#9): closes in, pawns race to promote; battles end
   with a celebration banner.
 - **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
@@ -30,14 +32,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   square when there's more than one.
 - **Knight leap**: knight strikes cost 2; knights flip over and backflip
   home (animation only; `stage.lunge` in `App.tsx`).
-- **Check** (`claude/check`): if the enemy's next turn could kill the king,
-  End turn locks until he's safe (unless no escape exists); moves that would
-  put him in check are blocked (red ✕). A fallen king
-  gets a checkmate finale (zoom, crown flies off, CHECKMATE! banner).
+- **Check** (`claude/check`): End turn locks while the enemy could kill the
+  king next turn (unless no escape exists); moves into check are blocked
+  (red ✕). A fallen king gets a checkmate finale.
 - **Hideout hub** (#12): between battles the king walks a little
-  village (`Hub.tsx`, `hub.css`): barracks (recruit, heal, several buys), next
-  battle; training grounds, armory, merchant and Grandmaster's Guild are
-  locked (🔒) placeholders.
+  village (`Hub.tsx`, `hub.css`): barracks (recruit, heal), next battle,
+  and four locked (🔒) placeholders.
 - **No narrator text** (`claude/cut-llm-text`): on screen only numbers,
   nouns and icons; battles are numbered; Rules is a card. Board cues teach
   instead: strike-reach ticks, ✕ chip on unsafe strikes, move/act pips.

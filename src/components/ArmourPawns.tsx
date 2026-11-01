@@ -27,32 +27,44 @@ function Squint({ y, gap }: { y: number; gap: number }) {
   </g>;
 }
 
-function rebelPawn(): Figure {
+/** The rebel pawn's dented copper pot. Every rebel pawn skin wears this same
+ * component, so restyling the pot restyles them all. Rim at y 52–60, top at y 28. */
+export function RebelPot() {
+  return <g transform="rotate(-4 50 50)">
+    {["M33 47 Q27.5 47 27.5 51 Q27.5 55 33 55", "M67 47 Q72.5 47 72.5 51 Q72.5 55 67 55"].map(d => <Pole key={d} d={d} tone={T.copper} width={2.4} />)}
+    <Part d="M34 54 L33.5 35.5 Q33.5 28 41 28 L59 28 Q66.5 28 66.5 35.5 L66 54 Z" tone={T.copper} highlight="M38.5 48 L38.5 36" />
+    <Ink d="M56 33 Q60 36.5 58.5 42" weight="inner" />
+    <Part d={rect(31.5, 52, 37, 8, 4)} tone={T.copper} />
+  </g>;
+}
+
+/** The tones a skin may swap on a rebel body: cloth (shirt and sleeves), the
+ * accent (neckerchief and cuff), the patch, boots and hands. */
+export type BodyLook = { cloth: Tone; accent: Tone; patch: Tone; boot: Tone; hand: Tone };
+const REBEL_PAWN_LOOK: BodyLook = { cloth: T.shirtGreen, accent: T.bandana, patch: T.patchBlue, boot: T.leatherDark, hand: T.skin };
+
+function rebelPawn(look: Partial<BodyLook> = {}): Figure {
+  const l = { ...REBEL_PAWN_LOOK, ...look };
   return {
     body: <>
-      <Boot x={41.5} tone={T.leatherDark} /><Boot x={58.5} tone={T.leatherDark} />
-      <Part d="M35 100 L42.5 103 L50 100 L57.5 103 L65 100 Q67 84 61 76 Q50 71 39 76 Q33 84 35 100 Z" tone={T.shirtGreen} />
-      <g transform="rotate(-10 56 91)"><Part d={rect(50.5, 86, 11, 10, 1.5)} tone={T.patchBlue} line="inner" shade={false} /></g>
-      <Part d="M39 75 L26.5 70 L29.5 80.5 Z M39 76 L28.5 86 L38.5 84.5 Z" tone={T.bandana} line="inner" shade={false} />
-      <Part d="M36.5 73.5 Q50 80 63.5 73.5 L52.5 91 Q50 93.5 47.5 91 Z" tone={T.bandana} line="inner" />
+      <Boot x={41.5} tone={l.boot} /><Boot x={58.5} tone={l.boot} />
+      <Part d="M35 100 L42.5 103 L50 100 L57.5 103 L65 100 Q67 84 61 76 Q50 71 39 76 Q33 84 35 100 Z" tone={l.cloth} />
+      <g transform="rotate(-10 56 91)"><Part d={rect(50.5, 86, 11, 10, 1.5)} tone={l.patch} line="inner" shade={false} /></g>
+      <Part d="M39 75 L26.5 70 L29.5 80.5 Z M39 76 L28.5 86 L38.5 84.5 Z" tone={l.accent} line="inner" shade={false} />
+      <Part d="M36.5 73.5 Q50 80 63.5 73.5 L52.5 91 Q50 93.5 47.5 91 Z" tone={l.accent} line="inner" />
     </>,
-    armBack: <><Sleeve d="M41 80 Q36 85 36 91" tone={T.shirtGreen} /><Mitt x={36} y={92} tone={T.skin} /></>,
+    armBack: <><Sleeve d="M41 80 Q36 85 36 91" tone={l.cloth} /><Mitt x={36} y={92} tone={l.hand} /></>,
     prop: <g className="prop">
       <Pole d="M71 105 L72 44" tone={T.wood} width={3.4} />
       <Pole d="M66 20 L66 37 Q66 45 72 45 Q78 45 78 37 L78 20 M72 45 L72 17" tone={T.rustySteel} width={2.6} />
       <Part d={rect(68.5, 43.5, 7, 6.5, 1.5)} tone={T.rustySteel} line="inner" shade={false} />
     </g>,
-    armFront: <><Sleeve d="M59 80 Q66 83.5 70.5 87" tone={T.shirtGreen} front /><g transform="rotate(25 64.5 83.5)"><Part d={rect(61, 80, 7, 7, 1.2)} tone={T.bandana} line="inner" shade={false} /></g><Mitt x={71.5} y={88} tone={T.skin} /></>,
+    armFront: <><Sleeve d="M59 80 Q66 83.5 70.5 87" tone={l.cloth} front /><g transform="rotate(25 64.5 83.5)"><Part d={rect(61, 80, 7, 7, 1.2)} tone={l.accent} line="inner" shade={false} /></g><Mitt x={71.5} y={88} tone={l.hand} /></>,
     head: <>
       <Part d={circle(50, 65, 14)} tone={T.skin} />
       <Eyes y={67.5} gap={5.2} r={2.7} />
       <Squint y={67.5} gap={5.2} />
-      <g transform="rotate(-4 50 50)">
-        {["M33 47 Q27.5 47 27.5 51 Q27.5 55 33 55", "M67 47 Q72.5 47 72.5 51 Q72.5 55 67 55"].map(d => <Pole key={d} d={d} tone={T.copper} width={2.4} />)}
-        <Part d="M34 54 L33.5 35.5 Q33.5 28 41 28 L59 28 Q66.5 28 66.5 35.5 L66 54 Z" tone={T.copper} highlight="M38.5 48 L38.5 36" />
-        <Ink d="M56 33 Q60 36.5 58.5 42" weight="inner" />
-        <Part d={rect(31.5, 52, 37, 8, 4)} tone={T.copper} />
-      </g>
+      <RebelPot />
     </>,
     mouths: null,
     propOrigin: "71.5px 88px", shield: [38, 90], mouth: [50, 70, 5],
@@ -100,6 +112,6 @@ function patrolPawn(c: Palette, hue: PatrolHue): Figure {
   };
 }
 
-export function armourPawn(rebel: boolean, c: Palette, hue: PatrolHue): Figure {
-  return rebel ? rebelPawn() : patrolPawn(c, hue);
+export function armourPawn(rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>): Figure {
+  return rebel ? rebelPawn(look) : patrolPawn(c, hue);
 }

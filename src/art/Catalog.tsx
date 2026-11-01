@@ -13,6 +13,9 @@ import { ShieldToken } from "../components/table/ShieldToken";
 import { SkipToken } from "../components/table/SkipToken";
 import { TopBar } from "../components/TopBar";
 import { MenuCard } from "../components/PauseMenu";
+import { SKINS, type Skin } from "../components/skins";
+import { SkinPicker } from "../components/SkinPicker";
+import { emptyMeta, type Meta } from "../game/meta";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST } from "../game/turns";
 import { Entry, Group, LoopRig, MiniBoard, usePhase, useStudio } from "./kit";
 import { art as refArt } from "./Reference";
@@ -40,17 +43,19 @@ const STATES: State[] = [
   { label: "Mate", action: "mate", used: (k, s) => k === "king" && s === "white" },
 ];
 
-type CastRow = { kind: RigKind; side: RigSide; name: string; art?: ArtStyle };
-const ALL_ROWS: CastRow[] = KINDS.flatMap(kind => SIDES.map(({ side, name }) => ({ kind, side, name })));
+type CastRow = { kind: RigKind; side: RigSide; name: string; art?: ArtStyle; skin?: string };
+/** Skins are rebel-only and sit under their piece's rows, so every state shows them with no extra code. */
+const skinRows = (kind: RigKind): CastRow[] => SKINS.filter(s => s.kind === kind).map(s => ({ kind, side: "white", name: `Rebel · skin: ${s.name}`, skin: s.id }));
+const ALL_ROWS: CastRow[] = KINDS.flatMap(kind => [...SIDES.map(({ side, name }) => ({ kind, side, name })), ...skinRows(kind)]);
 function CastMatrix({ rows = ALL_ROWS, label = "Cast by state" }: { rows?: CastRow[]; label?: string }) {
   const states = STATES.filter(s => rows.some(r => s.used(r.kind, r.side)));
   return <div className="matrix-wrap" tabIndex={0} aria-label={`${label} (scrolls sideways)`}>
     <table className="matrix">
       <thead><tr><th scope="col">Piece</th>{states.map(s => <th key={s.label} scope="col">{s.label}<small>{s.action === "idle" ? "loop" : `${RIG_MS[s.action]}ms`}</small></th>)}</tr></thead>
-      <tbody>{rows.map(({ kind, side, name, art }) => <tr key={kind + side + (art ?? "")}>
+      <tbody>{rows.map(({ kind, side, name, art, skin }) => <tr key={kind + side + (art ?? "") + (skin ?? "")}>
         <th scope="row">{kind}<small>{name}{side === "black" && !PATROL_IN_GAME.has(kind) ? " · not in a battle yet" : side === "black" && kind === "queen" ? " · via promotion" : ""}</small></th>
         {states.map(s => <td key={s.label}>{s.used(kind, side)
-          ? <LoopRig kind={kind} side={side} action={s.action} wounded={s.wounded} defending={s.defending} art={art} />
+          ? <LoopRig kind={kind} side={side} action={s.action} wounded={s.wounded} defending={s.defending} art={art} skin={skin} />
           : <span className="na" title="Not used in the game">—</span>}</td>)}
       </tr>)}</tbody>
     </table>
@@ -92,6 +97,46 @@ function Pilot() {
       ]} />
     </Entry>
     <CastMatrix label="New pawns by state" rows={PILOT_PAWNS.map(p => ({ kind: "pawn", side: p.side, name: `${p.name.split(" ")[0]} · new`, art: "new" }))} />
+  </Group>;
+}
+
+const PICKER_STATES: [string, (s: Skin) => Meta][] = [
+  ["Locked", () => emptyMeta()],
+  ["Unlocked", s => ({ ...emptyMeta(), unlocked: [s.id] })],
+  ["Worn", s => ({ ...emptyMeta(), unlocked: [s.id], equipped: { [s.kind]: s.id } })],
+];
+function SkinCompare({ skin }: { skin: Skin }) {
+  return <div className="pilot-compare">{PILOT_SIZES.map(([px, label]) => <div key={px} className="pilot-size">
+    <small>{label}</small>
+    <div className="pilot-row">
+      <figure style={{ width: px }}><PieceRig kind={skin.kind} side="white" art="new" seed="skin-base" /><figcaption>base</figcaption></figure>
+      <figure style={{ width: px }}><PieceRig kind={skin.kind} side="white" skin={skin.id} seed="skin" /><figcaption>skin</figcaption></figure>
+      {skin.ref && <figure style={{ width: px * .82 }}><img src={refArt(skin.ref)} alt="" width={406} height={498} /><figcaption>ref</figcaption></figure>}
+    </div>
+  </div>)}</div>;
+}
+function Skins() {
+  const { hue } = useStudio();
+  return <Group id="skins" title="Skins" intro={<>Unlockable rebel looks: finishing a run unlocks the next one. Each skin is one entry in <code>components/skins/index.ts</code> plus its drawing, on the shape kit; it swaps head, prop, body tones and an idle quirk and keeps the piece's body and pivots. In battle they show only with <code>?art=new</code>. Guide: <code>docs/art/SKINS.md</code>.</>}>
+    {SKINS.map(s => <Entry key={s.id} name={`${s.name} (${s.kind}): base · skin · reference`} src={`skins/${s.id} · docs/art/${s.ref ?? "—"}.webp`} note={s.quirk && `idle quirk: ${s.quirk}`} full><SkinCompare skin={s} /></Entry>)}
+    <Entry name="Silhouette at 48px" src="judge check 1: filled solid black" wide>
+      <div className="pilot-row silhouettes">
+        {SKINS.map(s => <figure key={s.id} style={{ width: 48 }}><PieceRig kind={s.kind} side="white" skin={s.id} seed="sil" /></figure>)}
+        {KINDS.map(k => <figure key={k} style={{ width: 48 }}><PieceRig kind={k} side="white" hue={hue} art="new" seed="sil" /></figure>)}
+      </div>
+    </Entry>
+    <Entry name="On the board" src="kit MiniBoard · exile.css" wide>
+      <MiniBoard cols={3} rows={2} pieces={[
+        { kind: "pawn", side: "black", art: "new", x: 0, y: 0 },
+        { kind: "knight", side: "black", x: 2, y: 0, hp: 3, max: HP.knight },
+        ...SKINS.slice(0, 2).map((s, i) => ({ kind: s.kind, side: "white" as const, skin: s.id, x: i, y: 1, hp: HP[s.kind], max: HP[s.kind] })),
+        { kind: "pawn", side: "white", art: "new", x: 2, y: 1 },
+      ]} />
+    </Entry>
+    {PICKER_STATES.map(([label, meta]) => <Entry key={label} name={`Picker · ${label.toLowerCase()}`} src="components/SkinPicker.tsx · pause menu, victory">
+      <div className="table-spec"><div className="pause-menu"><SkinPicker meta={SKINS[0] ? meta(SKINS[0]) : emptyMeta()} onEquip={() => {}} /></div></div>
+    </Entry>)}
+    <CastMatrix label="Skins by state" rows={KINDS.flatMap(skinRows)} />
   </Group>;
 }
 
@@ -170,6 +215,7 @@ export function Catalog() {
   const fav = `${import.meta.env.BASE_URL}favicon.svg`;
   return <div className="catalog">
     <Pilot />
+    <Skins />
 
     <Group id="cast" title="Cast × state">
       <CastMatrix />

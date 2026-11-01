@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { RulesCard } from "./Panels";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input:not(:disabled), summary, [tabindex]:not([tabindex='-1'])";
@@ -29,10 +29,10 @@ export function useDialogKeys(ref: RefObject<HTMLElement | null>, onClose: () =>
   }, [ref]);
 }
 
-type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onExport: () => void; onClose: () => void };
+type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onExport: () => void; onClose: () => void; skins?: ReactNode };
 
 /** The pause menu's card: everything that isn't play. Rendered bare in the studio; the game wraps it in PauseMenu. */
-export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onExport, onClose }: MenuProps) {
+export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onExport, onClose, skins }: MenuProps) {
   const [rules, setRules] = useState(false);
   return <div className="menu-card">
     <button className="menu-row resume" onClick={onClose}><span aria-hidden="true">▶</span>Resume</button>
@@ -40,6 +40,7 @@ export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onExport
     {rules && <RulesCard />}
     <button className="menu-row" disabled={newRunDisabled} onClick={onNewRun}><span aria-hidden="true">↺</span>New run</button>
     <label className="menu-row toggle"><span aria-hidden="true">»</span>Fast enemy turns<input type="checkbox" checked={fast} onChange={ev => onFast(ev.target.checked)} /></label>
+    {skins}
     <details className="menu-log"><summary className="menu-row"><span aria-hidden="true">≡</span>Battle log</summary>{log.map((text, i) => <p key={i}>{text}</p>)}</details>
     <button className="menu-row" onClick={onExport}><span aria-hidden="true">↗</span>Export</button>
     <a className="menu-row" href="./art.html"><span aria-hidden="true">✎</span>Art studio</a>
