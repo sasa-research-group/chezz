@@ -4,8 +4,9 @@ import { Flat, Ink, Part, Pole, TONES as T, circle, rect, type Tone } from "./in
 
 /** The rooks redrawn in the "armour does the talking" style (docs/art-style.md),
  * drawn only with the shape kit. Same groups and pivots as the old rook rig, so
- * rig.css drives them unchanged, including the `.door` that drops over the face
- * from y 22 when the rook defends. Rooks are the big pieces: helm top at y 12,
+ * rig.css drives them, including the `.door` that drops over the face from y 22
+ * when the rook defends; the rebel's sledge has its own strike (`rig-sledge`).
+ * Rooks are the big pieces: helm top at y 12 (the sledge head rises to y 2),
  * body about 44 wide, against the pawns' 32; the figure stays inside x 18–82. */
 
 const Boot = ({ x, tone }: { x: number; tone: Tone }) =>
@@ -24,13 +25,14 @@ function battlements(x: number, y: number, w: number) {
 export const RebelBattlements = () =>
   <Part d={`M32 30 ${battlements(32, 12, 36)} L68 30 Q65 34 62.5 34 L37.5 34 Q35 34 32 30 Z`} tone={T.stone} highlight="M35 17 L35 25" />;
 
-/** The stonemason's stone mallet: a chipped block at `head`, its shaft running
- * through the fist at `hand` and a little past it. */
-function Mallet({ head: [hx, hy], hand: [fx, fy] }: { head: [number, number]; hand: [number, number] }) {
+/** The stonemason's sledge: a big chipped block at `head`, long axis across the
+ * shaft, the shaft running through the fist at `hand` and a little past it. */
+function Sledge({ head: [hx, hy], hand: [fx, fy] }: { head: [number, number]; hand: [number, number] }) {
   const deg = Math.atan2(fy - hy, fx - hx) * 180 / Math.PI, len = Math.hypot(fx - hx, fy - hy) + 6;
   return <g transform={`translate(${hx} ${hy}) rotate(${deg.toFixed(1)})`}>
-    <Pole d={`M0 0 L${len.toFixed(1)} 0`} tone={T.wood} width={4} />
-    <Part d="M-7.5 -11 L7.5 -11 L7.5 11 L-2 11 L-7.5 5.5 Z" tone={T.darkStone} highlight="M-3 -7 L-3 2" />
+    <Pole d={`M0 0 L${len.toFixed(1)} 0`} tone={T.wood} width={4.4} />
+    <Part d={rect(7.5, -3.6, 6, 7.2, 1)} tone={T.leatherDark} line="inner" shade={false} />
+    <Part d="M-10 -12 L10 -12 L10 12 L2 12 L-2 8.5 L-10 9 Z" tone={T.darkStone} highlight="M-5 -9 L-5 4" />
   </g>;
 }
 
@@ -61,24 +63,25 @@ function rebelRook(): Figure {
       <Part d="M38 73 Q23.5 71 21.5 84 Q20.5 92 25.5 94.5 Q31 96 32 90.5 Q33 84 38 81 Z" tone={T.skin} />
       <Fist x={26.5} y={95.5} tone={T.skin} />
     </>,
-    prop: <g className="prop">
-      <Mallet head={[67, 47]} hand={[74, 90]} />
+    prop: <g className="prop sledge">
+      <Sledge head={[66.5, 13.5]} hand={[74, 90]} />
     </g>,
     armFront: <>
       <Part d="M62 73 Q76 70.5 78.5 83 Q79.5 90.5 75 92.5 Q70 93.5 69 88.5 Q68 83 62 81 Z" tone={T.skin} />
+      <g transform="rotate(-12 73.5 83)"><Part d={rect(67.5, 80.5, 12, 5.5, 1.2)} tone={T.leather} line="inner" shade={false} /></g>
       <Fist x={74} y={90} tone={T.skin} />
     </>,
-    head: <>
-      <Part d="M36 64.5 L37 30 L63 30 L64 64.5 Q50 68 36 64.5 Z" tone={T.stone} highlight="M40 54 L40 58" />
+    head: <g transform="translate(-4 0)">
+      <Part d="M35 65 L36 30 L64 30 L65 65 Q50 68.5 35 65 Z" tone={T.stone} highlight="M39 54 L39 59" />
       <RebelBattlements />
-      <Part d="M41.5 37 L58.5 37 L58.5 49 L41.5 49 Z" tone={T.void} line="inner" shade={false} />
-      <SlotEyes y={43} gap={4.4} />
+      <Part d="M41.5 37.5 L58.5 37.5 L58.5 46.5 L53 46.5 L53 66.4 Q50 66.9 47 66.4 L47 46.5 L41.5 46.5 Z" tone={T.void} line="inner" shade={false} />
+      <SlotEyes y={42} gap={4.6} />
       <g className="door">
         <Part d={rect(37.5, 23, 25, 40, 2)} tone={T.wood} />
         <Ink d="M45.5 26 L45.5 60 M54.5 26 L54.5 60" weight="inner" />
         <Pole d="M39 31 L61 31 M39 54 L61 54" tone={T.rustySteel} width={2.6} />
       </g>
-    </>,
+    </g>,
     mouths: null,
     propOrigin: "74px 90px", shield: [27, 92], mouth: [50, 50, 5],
   };

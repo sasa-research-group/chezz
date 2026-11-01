@@ -39,8 +39,8 @@ export const TONES = {
   steel: tone("#a9c1d6", "#617085"),
   mail: tone("#4b5263", "#363b48"),
   stone: tone("#a2a4a4", "#76787a"), // shade picked
-  darkStone: tone("#6b7077", "#4c5056"), // the rebel rook's mallet head, darker than his helm so the two never merge; picked
-  helmSteel: tone("#9aa7b8", "#6c788a"), // the patrol rook's great-helm and the patrol horse's barded barrel: blue-grey, so it reads as steel, not cloth; picked
+  darkStone: tone("#6b7077", "#4c5056"), // the rebel rook's sledge head, darker than his helm so the two never merge; picked
+  helmSteel: tone("#9aa7b8", "#6c788a"), // the patrol rook's great-helm and the patrol knight's visor band: blue-grey, so it reads as steel, not cloth; picked
   parchment: tone("#e7d5ac", "#c9b388"), // the rebel rook's glowing eyes and the rebel bishop's mitre; shade picked
   void: tone(INK, INK), // a helm's eye slot: flat ink with no shadow
   neckerchief: tone("#3275a9", "#245580"), // the rebel knight's accent; shade picked

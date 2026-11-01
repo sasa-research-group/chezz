@@ -66,10 +66,18 @@
 .rig.rig-queen.act-attack .arm-front{animation:rig-slap calc(.56s * var(--spd,1)) linear both;transform-origin:57px 50px}
 @keyframes rig-attack{0%{transform:none}28%{transform:translateX(-7px) rotate(-16deg) scale(1.22,.8)}38%{transform:translateX(24px) rotate(12deg) scale(.74,1.32)}58%{transform:translateX(22px) rotate(10deg) scale(.8,1.24)}70%{transform:translateX(6px) scale(1.1,.92)}100%{transform:none}}
 @keyframes rig-swing{0%{transform:none}28%{transform:rotate(-55deg)}40%,58%{transform:rotate(65deg)}100%{transform:none}}
-/* The patrol knight's lance: a short lift, then couched forward and up across his waist,
-   where the shared swing would hide it behind his helm and leave the sheet cell. */
+/* The patrol knight's lance: pulled back, then couched level across his waist and out past
+   the horse's muzzle, where the shared swing would hide it behind his helm and leave the sheet cell. */
 .rig.rig-knight.patrol.art-new.act-attack .prop{animation-name:rig-lance}
-@keyframes rig-lance{0%{transform:none}28%{transform:rotate(-12deg)}33%,58%{transform:rotate(60deg)}78%{transform:rotate(-6deg)}90%,100%{transform:none}}
+@keyframes rig-lance{0%{transform:none}28%{transform:rotate(-16deg)}36%,58%{transform:rotate(80deg)}76%{transform:rotate(-6deg)}90%,100%{transform:none}}
+/* The stonemason's long sledge: lifted as he leans back, then slammed down in front.
+   It slides through his fist on the way down (he chokes up on the handle), so the head
+   lands low in front of him, a short reach instead of a full shaft's length away;
+   he plants his feet rather than lunging. Skins of the rebel rook keep the shared strike. */
+.rig.rig-rook.rebel.art-new:not([class*="skin-"]).act-attack .prop.sledge{animation-name:rig-sledge}
+.rig.rig-rook.rebel.art-new:not([class*="skin-"]).act-attack .squash{animation-name:rig-slam}
+@keyframes rig-sledge{0%{transform:none}28%{transform:rotate(-7deg) translate(0,-9px)}40%,58%{transform:rotate(76deg) translate(0,46px)}74%{transform:rotate(18deg) translate(0,10px)}90%,100%{transform:none}}
+@keyframes rig-slam{0%{transform:none}28%{transform:translateX(-4px) rotate(-9deg) scale(.92,1.1)}40%{transform:translateX(5px) rotate(5deg) scale(1.12,.86)}58%{transform:translateX(5px) rotate(4deg) scale(1.08,.9)}72%{transform:translateX(2px) scale(.97,1.04)}100%{transform:none}}
 @keyframes rig-slap{0%,28%{transform:none}40%,58%{transform:rotate(-70deg)}100%{transform:none}}
 @keyframes rig-smear{0%,37%{opacity:0}42%{opacity:.6}55%,100%{opacity:0}}
 @keyframes rig-stars{0%,40%{opacity:0;transform:scale(.3)}55%{opacity:1;transform:scale(1.15)}85%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}

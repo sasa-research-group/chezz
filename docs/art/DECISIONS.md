@@ -3,6 +3,54 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: polishing the four pieces short of the pass
+With the far rim giving headroom down to y 0, the rebel rook, patrol knight, patrol bishop
+and patrol queen were redrawn against their last judges' notes. Three passed; the queen did not.
+- Rebel rook: a T opening (a 17-wide eye band over a 6-wide stem that runs to the helm's
+  rim, splitting the faceplate into two cheeks; the helm widened to 30 so stone shows around
+  it). A first try that framed the T with separate cheek-plate parts left almost no stone:
+  outlines plus the void made the helm a black block. The sledge head grew to 20 × 24, sits
+  above the right merlon (top at y 2), and the helm moved 4 left so less of it hides behind
+  the crest; a leather wrist wrap on the gripping arm. Its own strike (`rig-sledge`, and
+  `rig-slam` for the body, rebel rook only, not its skins): the body's lean is the wind-up,
+  with the sledge lifted rather than swung back (any backward swing of a shaft this long
+  sweeps the head behind the battlements), then the sledge slides through his fist as it
+  chops down so the head lands low in front of him, a short reach rather than a full
+  shaft's length; he plants his feet instead of lunging. Declared corrections: front-shoulder carry, the choke-up on the strike.
+  Rounds (readability/style/likeness/motion/consistency): 8/8/7/6/8 → 8/8/7/7/8, a pass.
+  Open: the sledge head is still smaller than the reference's slab (x 82 caps it); the
+  arms read as small fists.
+- Patrol knight: a bigger horse head (about 22% wider) with a jaw, throat notch, a dark
+  mane strip and a smaller pale chanfron, so it reads as a horse, not a grey wedge; the
+  barrel in the same grey coat (two greys read as two animals). The rider moved 3 left to
+  make room. Helm: the inner visor line and gold plume holder went (ink at 48px); one
+  darker visor band carries the slits, with a gold pivot dot; one fat swept plume. The
+  vamplate is a short funnel (a tall cone read as a second spearhead). `rig-lance` now
+  pulls back, then couches the lance level (80°) across his waist past the muzzle. The
+  helm's shout cover is the visor band's steel.
+  Rounds: 8/7/6/6/7 → 8/8/7/7/8, a pass. Open: judges still see the couched lance as
+  partly hidden behind the horse and want a front pauldron with more bulk.
+- Patrol bishop: a cope narrow at the shoulders and flaring to a 55-wide hem; a shoulder
+  capelet in the robe colour with a gold zigzag edge and gold clasp (an all-gold capelet merged with
+  the gold mitre into one gold mass); one central gold orphrey with a lily mark over a darker
+  front panel. The back arm is now hidden under the cope, cheer included. The head moved 3 left and the crozier curl got smaller and opens outward,
+  so a gap separates it from the mitre in the 48px silhouette; the shaft is dark stone
+  (pale steel read as glass). Rounds: 7/8/6/7/8 → 8/8/7/8/8, a pass. Open: judges want a
+  bigger fleur and a fist that reads as gripping, not a white ball.
+- Patrol queen: round 1's three stacked rolls with a cone top read as a mitre (it echoed
+  the bishop) and the crown vanished in it; round 2's rounded rolls with straight swags read
+  as a striped drum. Kept: a teardrop beehive (34 wide at the base, 46 at mid-height, a
+  domed top), one drooping gold swag to a blue gem, the crown lifted clear on top (26 wide,
+  tips at y 3), a sceptre with an unshaded blue orb (a gold band through it was all ink)
+  above the wig at y 13, a smaller collar so a neck notch shows between wig and collar, no
+  brows (with the cap edge they read as sunglasses). Rounds: 5/7/6/7/7 → 6/7/6/7/7 →
+  7/8/6/7/7, not a pass. Open: at 48px the wig still reads as a wide flat oval or cap, not a
+  tall ridged beehive; the last judge wants it taller than wide (about 1.3:1, 40% of the
+  figure) with ridge lines and a domed top above the crown.
+- Judges this pass also marked pieces outside the brief: the patrol rook's halberd (mostly
+  behind the helm at 48px, 6 for likeness in two rounds) and the rebel knight's hobby horse
+  (readability 6 in one round). Both passed before; worth a look.
+
 ## 2026-11-01: the goose bishop skin
 - `goose-mitre` (`src/components/skins/gooseBishop.tsx`), third in the unlock order
   after the frog and the haystack: the empty knight was not on main yet, and it goes
