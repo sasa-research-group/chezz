@@ -87,6 +87,7 @@ export function buildPainted(spec: Painted): Figure {
       {door && <g className="door" style={origin(zoomed(spec, door.at))}><Img spec={spec} name="door" /></g>}
       {crown && <g className="crown"><Img spec={spec} name="crown" /></g>}
     </>,
+    armFrontOverHead: spec.armFrontOverHead,
     mouths: null,
     propOrigin: `${hand[0]}px ${hand[1]}px`,
     shield: zoomed(spec, spec.shield),

@@ -42,6 +42,8 @@ optional recipe `fuzz` (background-fill tolerance, default 14) for parts with ga
 - Arms carry their own inline `transform-origin` at the shoulder, not the shared 60,70 / 40,70.
 - `armBackOver` draws the back arm over the body where the torso was painted with an
   empty armhole (patrol pieces, the stonemason).
+- `armFrontOverHead` draws the front arm and its prop after the head, for a prop tip the
+  headgear would otherwise cover; without it the head draws over the arm (patrol knight).
 - Lost: the pupil dart and blink on the patrol rook (his slits are painted); the toon
   yell and ouch mouths (none of the new art has them either). Everything else plays.
 
@@ -131,6 +133,11 @@ optional recipe `fuzz` (background-fill tolerance, default 14) for parts with ga
   horse's rump side, as in the SVG rig, so `rig-lance` couches it forward over the horse.
   The front arm is turned 50° in the cut so it reaches out to the lance and crosses it only
   at the fist; a straighter arm hid the lance behind the sleeve.
-- **The plume limits the patrol helm.** The head draws over the prop, and the plume sweeps
-  back over the lance's side, so a bigger helm hides the lance tip. Head scale 1.05 keeps
-  the tip clear; the last judge wanted the helm about 1.6× bigger.
+- **Patrol knight repaint.** The pose asks for a dark charcoal horse whose head
+  stretches forward with a gap before the rider, a big armet (domed, pointed visor, one eye
+  slit, two breath slits, not a T-slot bucket that rhymed with the rebel's) and a low grip on
+  the lance. The plume still sweeps back over the lance side whatever the prompt says, so the
+  spec sets `armFrontOverHead`: the front arm and lance draw over the head, and the helm can
+  be 1.25× with the tip still showing. The grip anchor sits near the butt (prop pixel y 640
+  of 749), so `rig-lance` couches the long end forward past the horse's nose; gripped
+  mid-shaft, the butt trailed backward and the strike read as pointing away from its hit.
