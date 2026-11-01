@@ -55,9 +55,12 @@ test("rig tab: an action plays, and the scrubber moves the bones", async ({ page
 test("rig tab: with reduced motion the player waits, and still steps by hand", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/art.html#rig");
+  const scrub = page.getByLabel("Scrub");
+  // The opening take (attack) is read with the reduced-motion rules already lifted.
+  await expect(scrub).toHaveAttribute("max", "560");
+  await expect(page.locator(".rs-table tbody tr", { hasText: ".prop" }).first()).toContainText("rig-");
   await seg(page, "Action").getByRole("button", { name: "hit", exact: true }).click();
   await expect(page.getByRole("button", { name: "▶ Play" })).toBeVisible();
-  const scrub = page.getByLabel("Scrub");
   expect(await scrub.inputValue()).toBe("0");
   const rest = await joint(page, "head");
   for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Next frame" }).click();

@@ -34,12 +34,11 @@ const MEANING: Record<string, string> = {
   flip: "facing mirror · death fade",
   hop: "jump height · knight flips",
   squash: "body · squash, lean, lunge",
-  cape: "cape behind the body",
   "arm-back": "back arm · cheer",
   "arm-front": "front arm · cheer, slap",
   prop: "weapon · swings at the hand",
   "head-tilt": "head pop · death",
-  head: "head · lag, hover, peck",
+  head: "head · skin hover, peck",
   eyes: "blink · bulge",
   pupil: "look · dart, shrink",
   crown: "crown · flies off on mate",
@@ -118,7 +117,7 @@ function sample(svg: SVGSVGElement, overlay: SVGSVGElement, groups: Set<string>)
     const { el, id, name } = e, root = el === svg, cs = getComputedStyle(el);
     const own = el.getScreenCTM(), par = root ? own : ctm(el.parentElement);
     const parent = parentId(e, els, svg), bbox = bboxOf(el);
-    if (!own || !par) return { id, name, parent, pivot: { x: 0, y: 0 }, parentM: new DOMMatrix(), m: new DOMMatrix(), bbox, hidden: true };
+    if (!own || !par) return { id, name, parent, pivot: { x: 0, y: 0 }, parentM: new DOMMatrix(), m: new DOMMatrix(), bbox, hidden: true, unset: true };
     const m = toOverlay.multiply(own);
     const hidden = cs.display === "none" || +cs.opacity === 0 || flat(m);
     return { id, name, parent, pivot: root ? rootPivot(svg, cs) : parsePivot(cs.transformOrigin, cs.transformBox, bbox), parentM: toOverlay.multiply(par), m, bbox, hidden, unset: !root && unsetPivot(cs.transformOrigin, cs.transformBox) };
@@ -178,8 +177,10 @@ function probe(svg: SVGSVGElement, groups: Set<string>, clips: Clip[]): Part[] {
       dress(c);
       rest.forEach((r, i) => {
         const cs = getComputedStyle(r.el);
-        for (const n of cs.animationName.split(",").map(s => s.trim())) if (n && n !== "none") anims[i].set(n, [...(anims[i].get(n) ?? []), c.label]);
-        const at = r.el === clone ? rootPivot(clone, cs) : unsetPivot(cs.transformOrigin, cs.transformBox) ? null : apply(r.P, parsePivot(cs.transformOrigin, cs.transformBox, bboxOf(r.el)));
+        const names = cs.animationName.split(",").map(s => s.trim()).filter(n => n && n !== "none");
+        for (const n of names) anims[i].set(n, [...(anims[i].get(n) ?? []), c.label]);
+        if (!names.length) return;
+        const at =r.el === clone ? rootPivot(clone, cs) : unsetPivot(cs.transformOrigin, cs.transformBox) ? null : apply(r.P, parsePivot(cs.transformOrigin, cs.transformBox, bboxOf(r.el)));
         if (at && (!r.pivot || Math.hypot(at.x - r.pivot.x, at.y - r.pivot.y) > .5)) {
           const k = fmt(at), o = moved[i].get(k) ?? { at, clips: [] };
           o.clips.push(c.label); moved[i].set(k, o);
@@ -198,7 +199,7 @@ function probe(svg: SVGSVGElement, groups: Set<string>, clips: Clip[]): Part[] {
  * player could not step through them. While this area is open they are lifted;
  * the player starts paused instead and only moves when asked. */
 function useSteppableUnderReducedMotion(reduced: boolean) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!reduced) return;
     const lifted: [MediaList, string][] = [];
     for (const sheet of [...document.styleSheets]) {
@@ -211,7 +212,7 @@ function useSteppableUnderReducedMotion(reduced: boolean) {
 }
 
 /** Whether PieceRig draws something for `art="paint"` yet: it falls back to the old art until then. */
-function PaintProbe({ kind, side, onResult }: { kind: RigKind; side: RigSide; onResult: (ready: boolean) => void }) {
+const PaintProbe = memo(function PaintProbe({ kind, side, onResult }: { kind: RigKind; side: RigSide; onResult: (ready: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const [a, b] = [...ref.current!.querySelectorAll("svg")].map(s => s.outerHTML.replace(/boil-\d+/g, ""));
@@ -221,7 +222,7 @@ function PaintProbe({ kind, side, onResult }: { kind: RigKind; side: RigSide; on
     <PieceRig kind={kind} side={side} art={"paint" as ArtStyle} seed={0} />
     <PieceRig kind={kind} side={side} art="old" seed={0} />
   </div>;
-}
+});
 
 function Seg<T extends string | number>({ label, value, options, onPick, disabled }: { label: string; value: T; options: [T, string][]; onPick: (v: T) => void; disabled?: (v: T) => string | undefined }) {
   return <div className="rs-seg" role="group" aria-label={label}><span>{label}</span><div>
@@ -243,7 +244,7 @@ const BonesLayer = memo(function BonesLayer({ skel, hl, labels }: { skel: Skelet
 
 const PartsGrid = memo(function PartsGrid({ parts, hl, onHl }: { parts: Part[]; hl: string | null; onHl: (id: string | null) => void }) {
   return <div className="rs-parts">{parts.filter(p => !p.fx).map(p =>
-    <button key={p.id} type="button" className={`rs-part ${hl === p.id ? "on" : ""}`} data-part={p.id} onMouseEnter={() => onHl(p.id)} onMouseLeave={() => onHl(null)} onFocus={() => onHl(p.id)} onBlur={() => onHl(null)} onClick={() => onHl(hl === p.id ? null : p.id)}>
+    <button key={p.id} type="button" className={`rs-part ${hl === p.id ? "on" : ""}`} data-part={p.id} onMouseEnter={() => onHl(p.id)} onMouseLeave={() => onHl(null)} onFocus={() => onHl(p.id)} onBlur={() => onHl(null)} onClick={() => onHl(p.id)}>
       {p.mini ? <span className="rs-mini" dangerouslySetInnerHTML={{ __html: p.mini }} /> : <span className="rs-mini empty">no art<br />moves children</span>}
       <b>{p.id}</b>
       <small>{p.parent ? `in ${p.parent}` : "root"}{p.rest ? ` · ${p.rest}` : ""}</small>
@@ -286,7 +287,7 @@ export function RigStudio() {
   const skin = skinById(spec.skin);
   const clips = useMemo(() => [...BASE_CLIPS, ...quirkClips(skin?.quirk)], [skin?.quirk]);
   const clip = clips.find(c => c.id === clipId) ?? clips[0];
-  const art = spec.art === "paint" && !paintReady ? "new" : spec.art;
+  const art = spec.skin || (spec.art === "paint" && !paintReady) ? "new" : spec.art;
 
   const figRef = useRef<HTMLDivElement>(null), overlayRef = useRef<SVGSVGElement>(null), ghostRefs = useRef<(HTMLDivElement | null)[]>([]);
   const clock = useRef({ t: 0, len: 1000, playing, speed, loop, dirty: true, anims: [] as Animation[], ghosts: [] as Animation[][], svgs: [] as SVGSVGElement[] });
@@ -295,6 +296,9 @@ export function RigStudio() {
   const rigKey = `${spec.kind}.${spec.side}.${art}.${spec.skin ?? ""}.${clip.id}.${hue}`;
   const specKey = `${spec.kind}.${spec.side}.${art}.${spec.skin ?? ""}.${hue}`;
   const figure = (k: string) => <PieceRig key={k} kind={spec.kind} side={spec.side} art={art as ArtStyle} skin={spec.skin} hue={hue} facing={spec.side === "white" ? 1 : -1} action={clip.action} defending={!!clip.defending} wounded={clip.wounded} seed={0} />;
+  // rigKey covers every prop the figures take; memoising keeps the per-frame clock from re-rendering them.
+  const main = useMemo(() => figure(rigKey), [rigKey]);
+  const ghosts = useMemo(() => GHOSTS.map(k => figure(`${rigKey}.g${k}`)), [rigKey]);
 
   useLayoutEffect(() => {
     const c = clock.current, svg = figRef.current?.querySelector("svg");
@@ -354,14 +358,14 @@ export function RigStudio() {
         <Seg label="Piece" value={spec.kind} options={KINDS.map(k => [k, k])} onPick={setKind} />
         <Seg label="Side" value={spec.side} options={SIDES} onPick={side => setSpec(s => ({ ...s, side, skin: side === "white" ? s.skin : undefined }))} />
         <Seg label="Art" value={art} options={ARTS} onPick={a => setSpec(s => ({ ...s, art: a }))} disabled={a => a === "paint" && !paintReady ? "not built yet" : spec.skin ? "skins draw on the kit" : undefined} />
-        <Seg label="Skin" value={spec.skin ?? ""} options={skins} onPick={id => setSpec(s => ({ ...s, skin: id || undefined }))} disabled={id => id && spec.side === "black" ? "rebels only" : undefined} />
+        <Seg label="Skin" value={spec.skin ?? ""} options={skins} onPick={id => { setSpec(s => ({ ...s, skin: id || undefined })); if (clip.quirk) setClipId("idle"); }} disabled={id => id && spec.side === "black" ? "rebels only" : undefined} />
       </div>
       <div className="rs-main">
         <div className="rs-frame">
           <div className="rs-stage">
-            {onion && GHOSTS.map(k => <div key={k} className="rs-ghost" style={{ opacity: .34 - k * .06 }} ref={d => { ghostRefs.current[k - 1] = d; }}>{figure(`${rigKey}.g${k}`)}</div>)}
-            <div ref={figRef} className="rs-fig" style={{ opacity: bonesOnly ? 0 : 1 }}>{figure(rigKey)}</div>
-            <svg ref={overlayRef} className={`rs-bones ${bones || bonesOnly ? "" : "hide"}`} viewBox="0 0 100 120" aria-label="Bones">
+            {onion && GHOSTS.map(k => <div key={k} className="rs-ghost" style={{ opacity: .34 - k * .06 }} ref={d => { ghostRefs.current[k - 1] = d; }}>{ghosts[k - 1]}</div>)}
+            <div ref={figRef} className="rs-fig" style={{ opacity: bonesOnly ? 0 : 1 }}>{main}</div>
+            <svg ref={overlayRef} className={`rs-bones ${bones || bonesOnly ? "" : "hide"}`} viewBox="0 0 100 120" role="img" aria-label="Bones">
               <BonesLayer skel={skel} hl={hl} labels={labels} />
             </svg>
           </div>
@@ -372,10 +376,10 @@ export function RigStudio() {
               {c.label}{c.quirk && <small> {c.action}</small>}</button>)}
           </div>
           <div className="rs-transport">
-            <button type="button" className="rs-play" onClick={play} aria-pressed={playing}>{playing ? "❚❚ Pause" : "▶ Play"}</button>
+            <button type="button" className="rs-play" onClick={play}>{playing ? "❚❚ Pause" : "▶ Play"}</button>
             <button type="button" onClick={() => seek(clock.current.t - FRAME)} aria-label="Previous frame">‹</button>
             <button type="button" onClick={() => seek(clock.current.t + FRAME)} aria-label="Next frame">›</button>
-            <output aria-label="Time">{Math.round(t)} / {len} ms · f{Math.min(frames, Math.round(t / FRAME))}/{frames}</output>
+            <output>{Math.round(t)} / {len} ms · f{Math.min(frames, Math.round(t / FRAME))}/{frames}</output>
           </div>
           <input className="rs-scrub" type="range" min={0} max={len} step={1} value={Math.round(t)} aria-label="Scrub" onChange={e => seek(+e.target.value)} />
           <Seg label="Speed" value={speed} options={SPEEDS.map(v => [v, `${v}×`])} onPick={setSpeed} />

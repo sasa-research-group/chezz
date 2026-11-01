@@ -21,7 +21,9 @@ svg.rig
     │                       ├ .crown (king)  .door (rook)  .quirk-bit (skins)
     └ .shield
 ```
-FX layers (`.fx-*`, `.rig-shadow`) are opacity-only and sit outside the chain.
+FX layers (`.fx-*`, `.sweat`, mouths, `.rig-shadow`) pop in and out with the
+action; they are not bones and the Rig tab lists them apart. Most sit outside
+`.flip`; `.fx-smear` rides inside `.squash`.
 
 ## Groups
 | Group | Pivot | Moves for |
