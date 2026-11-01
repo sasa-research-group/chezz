@@ -56,9 +56,9 @@ try {
   await page.waitForTimeout(1200);
   await page.screenshot({ path: out });
   console.log(`wrote ${out} (battle ${battle}, ${board.width}×${board.height}, ${width}×${height}${old ? ", old art" : ""})`);
-  // Idle animations rest at their first frame while measuring.
+  // Idle loops start at negative per-piece delays, so cancel them to measure the rest pose.
   const rows = await page.evaluate(() => {
-    for (const a of document.getAnimations()) { a.pause(); a.currentTime = 0; }
+    for (const a of document.getAnimations()) a.cancel();
     const hidden = el => { for (let e = el; e && e.tagName !== "svg"; e = e.parentElement) { const s = getComputedStyle(e); if (s.display === "none" || s.visibility === "hidden" || Number(s.opacity) === 0) return true; } return false; };
     const plane = document.querySelector(".board-plane").getBoundingClientRect().top;
     const field = document.querySelector(".exile-field")?.getBoundingClientRect().top ?? 0;
@@ -68,7 +68,8 @@ try {
       const kind = svg.className.baseVal.match(/rig-(\w+)/)[1], side = svg.classList.contains("rebel") ? "rebel" : "patrol";
       let ink = Infinity;
       for (const el of svg.querySelectorAll(".flip path, .flip circle, .flip ellipse, .flip rect")) {
-        if (hidden(el) || el.closest("clipPath, defs")) continue;
+        // Shading copies and highlights are clipped to their part, which bounding boxes ignore.
+        if (hidden(el) || el.closest("clipPath, defs, [clip-path]")) continue;
         const s = getComputedStyle(el), r = el.getBoundingClientRect();
         if (r.width === 0 && r.height === 0) continue;
         const stroke = s.stroke !== "none" ? parseFloat(s.strokeWidth) * px / 2 : 0;

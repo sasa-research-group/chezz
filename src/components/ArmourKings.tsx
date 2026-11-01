@@ -6,8 +6,8 @@ import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, rect, type Tone } from 
  * drawn only with the shape kit. Same groups as the old king rig, so rig.css
  * drives them unchanged; the crown is its own `.crown` group inside the head,
  * which the checkmate finale throws off. Kings have the widest crown and the
- * broadest build, but the crown tips stop near y 15: on a phone's 4×4 board
- * anything higher pokes above the board's frame from the top row. */
+ * broadest build; the crown tips stop near y 15, an older height cap (the
+ * figure box now allows y 0, docs/art-style.md section 9). */
 
 const Boot = ({ x, tone }: { x: number; tone: Tone }) =>
   <Part d={`M${x - 6} 108 Q${x - 6} 99 ${x} 99 Q${x + 6.5} 99 ${x + 6.5} 108 Z`} tone={tone} shade={false} />;

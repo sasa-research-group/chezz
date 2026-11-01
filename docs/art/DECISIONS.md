@@ -46,7 +46,7 @@ proposing a new look. Generation details for kept art are in `recipe.md`.
   the bishop, rook, pawn and knight. Why not the rim alone: nothing would stop a figure from
   drawing past its viewBox. Together, a figure that passes the test can't cross the frame.
 - Changed: the patrol pawn's pike tip came down 2 units (it reached y −1.3). Every other
-  redrawn piece and both skins were already inside. The old art also pokes less; only the
+  redrawn piece and every skin were already inside. The old art also pokes less; only the
   old patrol queen's crown (y −6) still grazes the rim on a desktop 6×6 board.
 - Cost: the far rim is about 29px on a phone 4×4 board instead of 12px, so the board is a
   little shorter when the height limits it (landscape phones).

@@ -4,9 +4,9 @@ import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, ellipse, rect, type Ton
 /** The queens redrawn in the "armour does the talking" style (docs/art-style.md),
  * drawn only with the shape kit. Same groups and pivots as the old queen rig
  * (the prop pivots at the front hand), so rig.css drives them unchanged,
- * including the promotion morph-in. Queens are the tall pieces, but a crest
- * above y 21 pokes out of a top-row square in battle: crown tips near y 20,
- * a gown flaring to about 44 wide at the hem; everything stays inside x 18–82.
+ * including the promotion morph-in. Queens are tall pieces, drawn to an older
+ * y 21 height cap (the figure box now allows y 0, docs/art-style.md section 9):
+ * crown tips near y 20, a gown flaring to about 44 wide at the hem.
  * The front hand holds the prop, so only the back arm carries an
  * `arm` class (the cheer swings it); the old rig's arm slap has no free arm to
  * move, and the strike is the prop's swing. */

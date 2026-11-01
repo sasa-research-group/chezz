@@ -10,7 +10,7 @@ import { inkBox } from "./ink-bounds";
  * exile.css) is sized so ink down to y 0 on the top row stays on the frame. */
 const BOUNDS = { left: 18, right: 82, top: 0 };
 /** Parts that are hidden at rest: the defend shield, the sweat drop and the strike smear. */
-const AT_REST_HIDDEN = ["shield", "sweat", "bandage", "fx-smear"];
+const AT_REST_HIDDEN = ["shield", "sweat", "fx-smear"];
 
 const KINDS: RigKind[] = ["pawn", "rook", "knight", "bishop", "queen", "king"];
 const CAST = [
@@ -22,7 +22,7 @@ const CAST = [
 ];
 
 describe("redrawn figures stay inside the figure contract", () => {
-  it("covers every piece", () => expect(CAST.length).toBeGreaterThanOrEqual(KINDS.length * 3));
+  it("covers every piece", () => expect(KINDS.filter(k => !hasNewArt(k))).toEqual([]));
   for (const { name, props } of CAST) it(name, () => {
     const ink = inkBox(renderToStaticMarkup(createElement(PieceRig, { ...props, art: "new" })), { within: "flip", skip: AT_REST_HIDDEN });
     expect(ink.top, "topmost ink (a top-row crest would cross the board's frame)").toBeGreaterThanOrEqual(BOUNDS.top);

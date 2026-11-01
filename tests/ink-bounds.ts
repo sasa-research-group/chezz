@@ -29,7 +29,8 @@ const STEPS = 32;
 function pathPoints(d: string): [number, number][] {
   const tokens = d.match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g) ?? [];
   const pts: [number, number][] = [];
-  let i = 0, cmd = "", x = 0, y = 0, sx = 0, sy = 0, cx = 0, cy = 0;
+  // cx, cy: the last control point, for S and T to reflect; only after a curve of the same family.
+  let i = 0, cmd = "", last = "", x = 0, y = 0, sx = 0, sy = 0, cx = 0, cy = 0;
   const num = () => Number(tokens[i++]);
   const bez = (ps: number[][]) => {
     for (let s = 1; s <= STEPS; s++) {
@@ -40,7 +41,9 @@ function pathPoints(d: string): [number, number][] {
     }
   };
   while (i < tokens.length) {
+    last = cmd.toUpperCase();
     if (/[a-zA-Z]/.test(tokens[i])) cmd = tokens[i++];
+    else if (last === "Z") throw new Error(`numbers after Z in ${d}`);
     const rel = cmd === cmd.toLowerCase(), ox = rel ? x : 0, oy = rel ? y : 0;
     switch (cmd.toUpperCase()) {
       case "M": x = ox + num(); y = oy + num(); sx = x; sy = y; pts.push([x, y]); cmd = rel ? "l" : "L"; cx = x; cy = y; break;
@@ -49,12 +52,12 @@ function pathPoints(d: string): [number, number][] {
       case "V": y = oy + num(); pts.push([x, y]); cx = x; cy = y; break;
       case "Z": x = sx; y = sy; cx = x; cy = y; break;
       case "Q": case "T": {
-        const [qx, qy] = cmd.toUpperCase() === "Q" ? [ox + num(), oy + num()] : [2 * x - cx, 2 * y - cy];
+        const [qx, qy] = cmd.toUpperCase() === "Q" ? [ox + num(), oy + num()] : "QT".includes(last) && last ? [2 * x - cx, 2 * y - cy] : [x, y];
         const ex = ox + num(), ey = oy + num();
         bez([[x, y], [qx, qy], [ex, ey]]); cx = qx; cy = qy; x = ex; y = ey; break;
       }
       case "C": case "S": {
-        const [ax, ay] = cmd.toUpperCase() === "C" ? [ox + num(), oy + num()] : [2 * x - cx, 2 * y - cy];
+        const [ax, ay] = cmd.toUpperCase() === "C" ? [ox + num(), oy + num()] : "CS".includes(last) && last ? [2 * x - cx, 2 * y - cy] : [x, y];
         const bx = ox + num(), by = oy + num(), ex = ox + num(), ey = oy + num();
         bez([[x, y], [ax, ay], [bx, by], [ex, ey]]); cx = bx; cy = by; x = ex; y = ey; break;
       }
@@ -95,7 +98,7 @@ function shapePoints(name: string, tag: string): [number, number][] {
     const rx = name === "circle" ? n("r") : n("rx"), ry = name === "circle" ? n("r") : n("ry");
     return Array.from({ length: STEPS * 4 }, (_, k) => [n("cx") + rx * Math.cos((k / (STEPS * 4)) * 2 * Math.PI), n("cy") + ry * Math.sin((k / (STEPS * 4)) * 2 * Math.PI)]);
   }
-  if (name === "rect") return [[n("x"), n("y")], [n("x") + n("width"), n("y") + n("height")]];
+  if (name === "rect") return [[n("x"), n("y")], [n("x") + n("width"), n("y")], [n("x"), n("y") + n("height")], [n("x") + n("width"), n("y") + n("height")]];
   if (name === "line") return [[n("x1"), n("y1")], [n("x2"), n("y2")]];
   return pathPoints(`M${attr(tag, "points")}`);
 }
