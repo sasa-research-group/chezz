@@ -33,12 +33,10 @@ function Eyes({ xs, y, r, cover }: { xs: number[]; y: number; r: number; cover: 
   </>;
 }
 
-/** The wooden hobby horse: a carved head on a stick. The rebel holds it by the
- * neck at `HOBBY_HAND`; the stick runs down between his legs to the ground behind. */
-const HOBBY_HAND = [64.5, 86] as const;
-function HobbyHorse() {
-  return <g className="prop">
-    <Pole d="M24 106 L67 84" tone={T.wood} width={3.6} />
+/** The rebel's carved wooden horse head and neck, its neck ending near (64, 88).
+ * Shared with the empty knight skin, which sets it on a rocking horse. */
+export function RebelHorseHead() {
+  return <>
     <Part d="M64.5 42 L66 32.5 L70 41 Z" tone={T.leather} line="inner" shade={false} />
     <Part d="M59 88 Q57.5 78 58 70 Q57 60 58.5 52 Q59.5 46 62 43 L61.5 33.5 L67.5 40.5 Q73.5 41 77 45.5 L79 52 Q80 59 77.5 62 Q75 64.5 70.5 64 Q68 69 68.5 74 Q69.5 80 70 83 Q70 88 65.5 89 Z" tone={T.wood} highlight="M61.5 66 Q61 58 62.5 52" />
     <Flat d="M61 40 Q63 36 66.5 38.5 Q64.5 42 66.5 46 Q63.5 48 65 53 Q62 55.5 63.5 60.5 Q60.5 63 61.5 68 Q59 71 59.5 76 Q57.5 60 61 40 Z" fill={T.leatherDark.fill} />
@@ -46,6 +44,16 @@ function HobbyHorse() {
     <Flat d="M67 55 L73 52.5 L73.5 55.5 L67.5 58 Z" fill={T.leatherDark.fill} />
     <Dot cx={68} cy={48.5} r={2.3} />
     <Dot cx={78} cy={57} r={1.4} />
+  </>;
+}
+
+/** The wooden hobby horse: a carved head on a stick. The rebel holds it by the
+ * neck at `HOBBY_HAND`; the stick runs down between his legs to the ground behind. */
+const HOBBY_HAND = [64.5, 86] as const;
+function HobbyHorse() {
+  return <g className="prop">
+    <Pole d="M24 106 L67 84" tone={T.wood} width={3.6} />
+    <RebelHorseHead />
   </g>;
 }
 
