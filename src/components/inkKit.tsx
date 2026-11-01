@@ -73,6 +73,12 @@ export const TONES = {
   fur: tone("#efe3c8", "#cdbb98"), // picked: the rebel cloak's fur collar
   moustache: tone("#744924", "#56351a"), // the patrol king's painted moustache, goatee and curls; shade picked
   mask: tone("#8fa0b8", "#64738c"), // picked: the patrol king's sculpted mask, bluer than the rook's helm steel
+  // Queen tones (docs/art/rebel-queen.webp, patrol-queen.webp); wig white from section 7, the rest picked near the crops.
+  smock: tone("#8a6d6c", "#6a5253"), // the rebel queen's mauve-brown shirt
+  armband: tone("#8e4fb5", "#6a3a88"), // her purple accent, brighter than the crop so it pops off the mauve shirt
+  iron: tone("#474a51", "#2f3135"), // the frying pan, near-black so it never merges with her rusty helm
+  wig: tone("#d5e5f9", "#a3b6d3"), // the patrol queen's powdered wig
+  lips: tone("#c8403c", "#962d2a"),
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;

@@ -75,6 +75,8 @@ const NEW_ART: { kind: RigKind; side: RigSide; name: string; ref: string; notes:
   { kind: "bishop", side: "black", name: "Patrol bishop", ref: "patrol-bishop", notes: "Gilded mitre fused to a steel great-helm with gold-rimmed spectacle lenses for eyes, blue vestments with gold trim, white gloves, golden crozier on a steel shaft with a gold knop" },
   { kind: "king", side: "white", name: "Rebel king", ref: "rebel-king", notes: "The deposed old king: three-point gold crown pulled low over a huge wild brown beard, only two dot eyes between them, red cloak with a fur collar, faded blue tunic, chipped sword; the crown flies off in the checkmate finale" },
   { kind: "king", side: "black", name: "Patrol king", ref: "patrol-king", notes: "Jewelled gold crown with ball-tipped points over a sculpted steel mask with closed-eye squint arcs and a painted moustache and goatee (the face limit), brown curls, gold mantle over a blue robe, sword with a curled gold guard" },
+  { kind: "queen", side: "white", name: "Rebel queen", ref: "rebel-queen", notes: "Dented steel kettle helm with a small crown welded on, small stern face, rusty breastplate on straps over a cream apron, purple armband, frying pan" },
+  { kind: "queen", side: "black", name: "Patrol queen", ref: "patrol-queen", notes: "Powdered wig with gold chains and a blue jewel, small gold crown added on top (not in the reference), steel cap, dot eyes with lids and red lips, blue-and-gold gown with a high collar, jewelled sceptre" },
 ];
 function PilotCompare({ kind, side, refName }: { kind: RigKind; side: RigSide; refName: string }) {
   const { hue } = useStudio(), facing = side === "white" ? 1 : -1;
@@ -88,11 +90,10 @@ function PilotCompare({ kind, side, refName }: { kind: RigKind; side: RigSide; r
 }
 function Pilot() {
   const { hue } = useStudio();
-  return <Group id="pilot" title="New art" intro={<>Pieces redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code>, <code>components/ArmourRooks.tsx</code>, <code>components/ArmourKnights.tsx</code>, <code>components/ArmourBishops.tsx</code> and <code>components/ArmourKings.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs king.white,king.black out.png</code> (add the other new pieces to compare).</>}>
+  return <Group id="pilot" title="New art" intro={<>Pieces redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code>, <code>components/ArmourRooks.tsx</code>, <code>components/ArmourKnights.tsx</code>, <code>components/ArmourBishops.tsx</code>, <code>components/ArmourQueens.tsx</code> and <code>components/ArmourKings.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs king.white,king.black out.png</code> (add the other new pieces to compare).</>}>
     {NEW_ART.map(p => <Entry key={p.kind + p.side} name={`${p.name}: old · new · reference`} src={`PieceRig art="old" | "new" · docs/art/${p.ref}.webp`} note={p.notes} full><PilotCompare kind={p.kind} side={p.side} refName={p.ref} /></Entry>)}
     <Entry name="Silhouette at 48px" src="judge check 1: filled solid black" wide>
-      <div className="pilot-row silhouettes">{NEW_ART.map(p => <figure key={p.kind + p.side} style={{ width: 48 }}><PieceRig kind={p.kind} side={p.side} hue={hue} facing={p.side === "white" ? 1 : -1} art="new" seed="sil" /></figure>)}
-        {(["queen"] as const).map(k => <figure key={k} style={{ width: 48 }}><PieceRig kind={k} side="black" hue={hue} facing={-1} seed="sil" /></figure>)}</div>
+      <div className="pilot-row silhouettes">{NEW_ART.map(p => <figure key={p.kind + p.side} style={{ width: 48 }}><PieceRig kind={p.kind} side={p.side} hue={hue} facing={p.side === "white" ? 1 : -1} art="new" seed="sil" /></figure>)}</div>
     </Entry>
     <Entry name="Rook defend: door and portcullis" src="rig.css .door" wide>
       <div className="pilot-row">{(["white", "black"] as const).map(side => <figure key={side} style={{ width: 84 }}><PieceRig kind="rook" side={side} hue={hue} facing={side === "white" ? 1 : -1} art="new" defending seed="door" /></figure>)}</div>

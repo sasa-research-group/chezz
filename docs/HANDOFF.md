@@ -10,10 +10,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** rigs are misfit characters with Pizza Tower animations
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
-  the shape kit `inkKit.tsx` behind `?art=new`: pawns, rooks, knights,
-  bishops, kings (`Armour*.tsx`); rebel rook, patrol knight, patrol bishop
-  miss the judge's pass (DECISIONS.md). No ink above y 15 (board frame).
-  Battle shot: `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
+  the shape kit `inkKit.tsx` behind `?art=new`: every piece (`Armour*.tsx`);
+  rebel rook, patrol knight, bishop and queen short of the judge's pass
+  (DECISIONS.md). No ink above y 15 (board frame). Battle shot:
+  `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
   Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
@@ -25,8 +25,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
   `table.css`). Rules, New run, fast turns, skins, log, export, studio live
   in the ☰ `PauseMenu` (pauses playback). Next: drag-to-defend, art.
-- **Busier enemy** (#9): closes in, pawns race to promote; battles end
-  with a celebration banner.
 - **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
   a queen) with a morph animation; the barracks sells a 3-gold pawn.
 - **Next-square strikes** (#11): sliders strike only from the next square.
