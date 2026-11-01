@@ -1,6 +1,7 @@
 // Screenshots a studio section and the battle with ?art=new, at desktop and phone width.
 //   node tools/art/studio-shots.mjs <outDir> [section-id=pilot]
-// Animations are paused at 300ms; no clock waits. Starts its own Vite server.
+// The page clock is paused before animations are frozen at 300ms, so the studio's
+// looping timers can't remount a rig between the freeze and the shot.
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import { fileURLToPath } from "node:url";
@@ -12,30 +13,34 @@ if (!out) { console.error("usage: node tools/art/studio-shots.mjs <outDir> [sect
 mkdirSync(out, { recursive: true });
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const server = await createServer({ root, logLevel: "error", server: { port: 5391, strictPort: false, host: "127.0.0.1" } });
-await server.listen();
-const base = server.resolvedUrls.local[0];
-const browser = await chromium.launch({ args: ["--disable-audio-output"], executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
 const freeze = page => page.evaluate(() => {
   for (const svg of document.querySelectorAll("svg")) { svg.pauseAnimations(); svg.setCurrentTime(0); }
   document.getAnimations().forEach(a => { a.pause(); a.currentTime = 300; });
 });
+let browser;
 try {
+  await server.listen();
+  const base = server.resolvedUrls.local[0];
+  browser = await chromium.launch({ args: ["--disable-audio-output"], executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
   for (const [w, h] of [[1280, 900], [390, 844]]) {
     const p = await browser.newPage({ viewport: { width: w, height: h } });
-    await p.clock.install();
+    const t0 = Date.now();
+    await p.clock.install({ time: t0 });
     await p.goto(`${base}art.html#${section}`);
     await p.locator(`#${section}`).waitFor();
+    await p.clock.pauseAt(t0 + 60_000);
     await freeze(p);
     await p.locator(`#${section}`).screenshot({ path: `${out}/${section}-${w}.png` });
     await p.goto(`${base}?art=new`);
     await p.getByRole("button", { name: /Start/ }).click();
     await p.locator(".rig").first().waitFor();
+    await p.clock.pauseAt(t0 + 120_000);
     await freeze(p);
     await p.screenshot({ path: `${out}/battle-art-new-${w}.png` });
     await p.close();
   }
   console.log(`wrote ${out}`);
 } finally {
-  await browser.close();
+  await browser?.close();
   await server.close();
 }

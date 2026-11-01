@@ -1,28 +1,29 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Part } from "../src/components/inkKit";
 
-const DIR = join(__dirname, "../src/components");
-/** New art: every component file that draws with the shape kit. */
-const newArt = readdirSync(DIR).filter(f => f.endsWith(".tsx") && f !== "inkKit.tsx")
-  .filter(f => /from "\.\/inkKit"/.test(readFileSync(join(DIR, f), "utf8")));
+const SRC = join(__dirname, "../src");
+const KIT = join(SRC, "components/inkKit.tsx");
+/** New art: every source file that imports the shape kit. */
+const newArt = (readdirSync(SRC, { recursive: true }) as string[]).filter(f => f.endsWith(".tsx")).map(f => join(SRC, f))
+  .filter(f => f !== KIT && /from ["'][^"']*inkKit(\.tsx)?["']/.test(readFileSync(f, "utf8")));
 
 const BANNED: [RegExp, string][] = [
-  [/\bstroke(Width|Linecap|Linejoin)?=/, "stroke attributes (use Part, Pole or Ink)"],
+  [/\bstroke([A-Z]\w*)?=/, "stroke attributes (use Part, Pole or Ink)"],
   [/<(path|circle|rect|ellipse|polygon|polyline|line)\b/, "raw SVG shapes (use Part, Pole, Ink, Dot or Flat)"],
   [/clipPath|<mask|Gradient/, "hand-made clips, masks or gradients"],
-  [/#[0-9a-fA-F]{3,8}\b/, "hex colours (use a TONES entry)"],
-  [/opacity=/, "opacity (flat fills only)"],
+  [/["'`]#[0-9a-fA-F]{3,8}["'`]|\brgba?\(|\bhsla?\(|\bfill=["']|\bfill:\s*["']/, "colour literals (use a TONES entry)"],
+  [/opacity/i, "opacity (flat fills only)"],
 ];
 
 describe("new art draws only with the shape kit", () => {
-  it("finds the new-art files", () => expect(newArt).toContain("ArmourPawns.tsx"));
-  for (const file of newArt) for (const [re, what] of BANNED) it(`${file}: no ${what}`, () => {
-    const hits = readFileSync(join(DIR, file), "utf8").split("\n").map((l, i) => [i + 1, l] as const).filter(([, l]) => re.test(l));
-    expect(hits.map(([n, l]) => `${file}:${n}: ${l.trim().slice(0, 80)}`)).toEqual([]);
+  it("finds the new-art files", () => expect(newArt.map(f => basename(f))).toContain("ArmourPawns.tsx"));
+  for (const file of newArt) for (const [re, what] of BANNED) it(`${basename(file)}: no ${what}`, () => {
+    const hits = readFileSync(file, "utf8").split("\n").map((l, i) => [i + 1, l] as const).filter(([, l]) => re.test(l));
+    expect(hits.map(([n, l]) => `${basename(file)}:${n}: ${l.trim().slice(0, 80)}`)).toEqual([]);
   });
 });
 

@@ -38,9 +38,9 @@ function rebelPawn(): Figure {
     </>,
     armBack: <><Sleeve d="M41 80 Q36 85 36 91" tone={T.shirtGreen} /><Mitt x={36} y={92} tone={T.skin} /></>,
     prop: <g className="prop">
-      <Pole d="M71 105 L72.5 44" tone={T.wood} width={3.4} />
-      <Pole d="M66.5 20 L66.5 37 Q66.5 45 72.5 45 Q78.5 45 78.5 37 L78.5 20 M72.5 45 L72.5 17" tone={T.rustySteel} width={2.6} />
-      <Part d={rect(69, 43.5, 7, 6.5, 1.5)} tone={T.rustySteel} line="inner" shade={false} />
+      <Pole d="M71 105 L72 44" tone={T.wood} width={3.4} />
+      <Pole d="M66 20 L66 37 Q66 45 72 45 Q78 45 78 37 L78 20 M72 45 L72 17" tone={T.rustySteel} width={2.6} />
+      <Part d={rect(68.5, 43.5, 7, 6.5, 1.5)} tone={T.rustySteel} line="inner" shade={false} />
     </g>,
     armFront: <><Sleeve d="M59 80 Q66 83.5 70.5 87" tone={T.shirtGreen} front /><g transform="rotate(25 64.5 83.5)"><Part d={rect(61, 80, 7, 7, 1.2)} tone={T.bandana} line="inner" shade={false} /></g><Mitt x={71.5} y={88} tone={T.skin} /></>,
     head: <>

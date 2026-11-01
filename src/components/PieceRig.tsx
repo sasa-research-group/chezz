@@ -249,6 +249,7 @@ const FIGURES = { king, queen, rook, bishop, knight, pawn };
 /** "old" is the live art; "new" draws the pieces redrawn so far in the docs/art-style.md style. */
 export type ArtStyle = "old" | "new";
 const NEW_FIGURES: Partial<Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue) => Figure>> = { pawn: armourPawn };
+export const hasNewArt = (kind: RigKind) => kind in NEW_FIGURES;
 /** `?art=new` in the page URL previews the redrawn pieces in the game. */
 export const URL_ART: ArtStyle = typeof location !== "undefined" && new URLSearchParams(location.search).get("art") === "new" ? "new" : "old";
 

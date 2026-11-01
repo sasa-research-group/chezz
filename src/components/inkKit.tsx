@@ -1,4 +1,4 @@
-import { useId, type CSSProperties, type ReactNode } from "react";
+import { useId, type CSSProperties } from "react";
 
 /** The shape kit for art in the docs/art-style.md style. New character art draws
  * only with these components and tokens; tests/ink-kit.test.ts enforces it.
@@ -89,4 +89,3 @@ export const ellipse = (cx: number, cy: number, rx: number, ry: number) =>
 export const rect = (x: number, y: number, w: number, h: number, r = 0) =>
   `M${x + r} ${y} H${x + w - r} Q${x + w} ${y} ${x + w} ${y + r} V${y + h - r} Q${x + w} ${y + h} ${x + w - r} ${y + h} H${x + r} Q${x} ${y + h} ${x} ${y + h - r} V${y + r} Q${x} ${y} ${x + r} ${y} Z`;
 
-export type { ReactNode };

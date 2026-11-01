@@ -8,7 +8,8 @@ Reference crops: `docs/art/<id>.webp`. Judge rubric: `JUDGE.md`.
   `Pole` (shafts, tines, trim), `Ink` (brows, squints), `Dot` (eyes), `Flat`
   (an unlined cover). `circle`, `ellipse` and `rect` make path strings.
 - Colours come from `TONES` (fill + shade pairs from `docs/art-style.md` §7).
-  Add a tone there rather than writing a hex in the rig.
+  Add a tone there rather than writing a hex in the rig. (Exception for now:
+  the patrol's alternate red hue reuses `PATROL.red` from `PieceRig.tsx`.)
 - Don't draw shadows: `Part` derives one per part from the light (upper left on
   screen). Turn it off (`shade={false}`) for parts under about 12 units across,
   where the crescent would cover the whole part.
