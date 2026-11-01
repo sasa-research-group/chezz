@@ -1,0 +1,14 @@
+{
+  "id": "sheet-armour-talks",
+  "description": "Chosen style sheet: 18 character tiles in 3 rows of 6. Text to image, no reference images. The committed docs/art/sheet-armour-talks.webp is a 2000px-wide compressed copy of the 2528x1696 PNG this makes.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "sheet",
+      "aspect_ratio": "3:2",
+      "images": [],
+      "prompt": "Character select sheet for a 2D chess game: a grid of 18 head-and-shoulders portrait tiles in 3 rows of 6, each tile with its own flat saturated background colour, small label under each. Direction: ARMOUR DOES THE TALKING. Almost every face is hidden or reduced to two simple black dot eyes peeking through a visor slot, a cross-shaped helmet opening, a hood shadow, a grille or a beard. Personality comes from the silhouette and design of each helmet, hat, armour piece and prop: dents, patches, rivets, plumes, chainmail, straps. Every character is a distinct design, never a palette swap.\n\nROW 1, scrappy rebel exiles (patched, mismatched, earthy, one bright accent each): PAWN dented cooking pot helmet pulled over the eyes with two punched eye holes, pitchfork; KNIGHT tin bucket helm with a crooked eye slot, riding a wooden hobby horse on a stick; BISHOP tall pointed parchment mitre over a shadowed hood with two dot eyes, crook; ROOK stonemason in a little stone castle-tower helmet with a window for eyes, mallet; QUEEN kettle-shaped helm with a small crown welded on, breastplate over an apron, frying pan; KING crown pulled down to the eyes over a huge wild beard, only two dots visible, chipped sword.\n\nROW 2, royal patrol (polished royal-blue armour with gold trim): PAWN crested morion helmet, huge moustache under it, long pike; KNIGHT full plate with a tall blue plume, on a plated hobby horse, lance; BISHOP gilded mitre-shaped great-helm with round spectacle lenses for eyes; ROOK enormous great-helm shaped like a castle keep, halberd; QUEEN tall ornate helm shaped like towering powdered hair, sceptre; KING jewelled crown fused to a smug visor with a waxed moustache sculpted on it.\n\nROW 3, wonky unlockable oddballs (keep each piece's headgear shape): PAWN a grumpy frog in the cooking pot; KNIGHT an empty suit of armour on a rocking horse; BISHOP a goose in a mitre; ROOK a walking haystack with battlements; QUEEN a living melting candle with a crown of flame; KING a sleepy cat in a too-big crown.\n\nSTYLE: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights, chunky big-headed proportions, funny and appealing."
+    }
+  ],
+  "output": "sheet-armour-talks.png"
+}

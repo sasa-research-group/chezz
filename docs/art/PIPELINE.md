@@ -1,6 +1,6 @@
 # Chezz art pipeline: concept, guide, builder, judge
 
-> Status (Nov 2026): plan, partly built. Built so far: style guide (`docs/art-style.md`, `docs/art/`), studio target section. In progress: shape kit, `tools/art/shoot.mjs`, `BRIEF.md`, `JUDGE.md` (pawn pilot). The soundgarden references are to the owner's other project this was modelled on; nothing here depends on it.
+> Status (Nov 2026): plan, partly built. Built so far: style guide (`docs/art-style.md`, `docs/art/`), studio target section, reproducible concept generation (`tools/art/gen.mjs`, `docs/art/recipes/`, `tools/art/crop-sheet.mjs`, `docs/art/GENERATING.md`; the concept stage's `generate_image` calls can use it instead of the personal MCP). In progress: shape kit, `tools/art/shoot.mjs`, `BRIEF.md`, `JUDGE.md` (pawn pilot). The soundgarden references are to the owner's other project this was modelled on; nothing here depends on it.
 
 Four stages, two owner gates. Sized for code-drawn SVG/CSS art: a dozen rigs, a hideout, a board, a HUD.
 

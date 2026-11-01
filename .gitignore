@@ -9,3 +9,6 @@ artifacts/
 
 # workboard data
 .workboard/
+
+# generated art, see docs/art/GENERATING.md
+art-out/

@@ -11,6 +11,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`; reference art and recipe
   in `docs/art/`). Not redrawn yet; next is the builder/judge stage.
+  Regenerate concepts with `tools/art/gen.mjs` (`docs/art/GENERATING.md`).
 - **Studio** (`art.html` → `src/art/`): all art live, mechanics from
   `turns.ts`, style guide (target reference on top, then current swatches). Add new art
   to `Catalog.tsx`.
@@ -41,8 +42,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   nouns and icons; battles are numbered; Rules is a card. Board cues teach
   instead: strike-reach ticks, ✕ chip on unsafe strikes, move/act pips.
   Story unwritten (`Encounter.story` hook). Ask before adding prose.
-- Difficulty needs tuning from Wesley's play; encounter 2 now punishes
-  letting a pawn promote.
+- Difficulty needs tuning from Wesley's play.
 
 ## History (merged PRs)
 - #2 foundation pass; #3 research + lab Duel; #4–#5 simultaneous-engine rule
@@ -52,7 +52,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 
 ## Open items
 - `exile-preview.yml` is redundant now that `main` deploys. Delete it.
-- `prototype/familiar-opening` is unmerged and still on the old engine.
 - The test player (`tests/turns-strategy.ts`) is a two-turn lookahead search, not a person.
 - Enemy intent isn't shown before it acts.
 - App debt: `App.tsx` is dense; intro/promotion/end modals lack Escape and

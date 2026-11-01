@@ -1,0 +1,20 @@
+{
+  "id": "rebel-rook",
+  "description": "Rebel rook: the sheet-1 stonemason redrawn in the armour-talks style, then re-framed as a labelled portrait tile. Edit chain; the second step's source is the first step's output.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "redraw",
+      "images": ["docs/art/sheet1-rebel-rook.webp", "docs/art/sheet-armour-talks.webp"],
+      "prompt": "Redraw this exact character (the huge stonemason rook: little stone castle-tower great-helm with battlements, bare muscular arms, sleeveless patched tunic, giant mallet resting on his shoulder) in the art style of the second image, a character select sheet. Keep his pose, build, helmet shape and mallet. Change the face: the helmet's eye slot now shows only two small black dot eyes in shadow, no visible nose, mouth or skin features; armour does the talking. Style to match the second image exactly: very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, chunky big-headed proportions, patched earthy rebel colours with one bright accent (a red bandana or patch). Head-and-shoulders portrait tile with a flat saturated background colour like the tiles in the second image, and the same tan tile frame. No text or labels."
+    },
+    {
+      "name": "reframe",
+      "aspect_ratio": "4:5",
+      "images": ["$previous", "docs/art/rebel-knight.webp"],
+      "prompt": "Re-frame this exact character as a portrait tile that matches the second image's tile exactly: same tall portrait proportions (about 4:5), same tan tile background behind the character, same thick black tile border, same light blue backdrop peeking around the edges, and a white label box with a black border at the bottom centre reading \"ROOK\" in the same bold black lettering. Keep the character himself identical: castle-tower great-helm, T-shaped eye slot with only two small dot eyes, red bandana, patched brown and green tunic, bare muscular arms, stone mallet over his shoulder. Show him head and shoulders, filling the tile like the character in the second image."
+    }
+  ],
+  "postprocess": { "resize": "406x498", "format": "webp", "quality": 80 },
+  "output": "rebel-rook.webp"
+}

@@ -2,9 +2,11 @@
 
 How `sheet-armour-talks.webp` was made, and how to make new concepts that match it. Style rules: `docs/art-style.md`.
 
+**Source of truth:** the runnable recipes in `docs/art/recipes/*.json` (`sheet-armour-talks.json`, `rebel-rook.json`) hold the exact prompts, model and settings; `docs/art/GENERATING.md` says how to run them. The prompt below is a readable copy; if the two ever differ, the JSON wins. The 18 crops come from `docs/art/crops.json` via `tools/art/crop-sheet.mjs`.
+
 ## Model
 
-- Tool: `image-gen` MCP, `generate_image`
+- Made through a personal `image-gen` MCP server (`generate_image`), which called Replicate's `google/nano-banana-pro`; `tools/art/gen.mjs` makes the same call without it.
 - Model: `replicate/google/nano-banana-pro`
 - Aspect ratio: `3:2`
 - Reference images: none

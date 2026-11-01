@@ -1,0 +1,26 @@
+{
+  "note": "Boxes in pixels of the original 2528x1696 sheet PNG. tools/art/crop-sheet.mjs scales them to the sheet it is given. Recovered by template matching the committed crops against the committed 2000px sheet (mean error under 300/255^2 on every crop); the originals were cut by hand, so a regenerated crop is within a pixel or two of the committed one, not byte-identical.",
+  "referenceWidth": 2528,
+  "format": "webp",
+  "quality": 80,
+  "boxes": {
+    "rebel-pawn": [25, 197, 406, 498],
+    "rebel-knight": [440, 197, 406, 498],
+    "rebel-bishop": [855, 197, 406, 498],
+    "rebel-rook": [1270, 197, 406, 498],
+    "rebel-queen": [1685, 197, 406, 498],
+    "rebel-king": [2100, 197, 406, 498],
+    "patrol-pawn": [25, 693, 406, 494],
+    "patrol-knight": [440, 693, 406, 494],
+    "patrol-bishop": [855, 693, 406, 494],
+    "patrol-rook": [1270, 693, 406, 494],
+    "patrol-queen": [1685, 693, 406, 494],
+    "patrol-king": [2100, 693, 406, 494],
+    "odd-pawn": [25, 1192, 406, 488],
+    "odd-knight": [440, 1192, 406, 488],
+    "odd-bishop": [855, 1192, 406, 488],
+    "odd-rook": [1270, 1192, 406, 488],
+    "odd-queen": [1685, 1192, 406, 488],
+    "odd-king": [2100, 1192, 406, 488]
+  }
+}
