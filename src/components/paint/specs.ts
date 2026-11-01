@@ -27,6 +27,9 @@ export type Painted = {
     /** `anchor` is the grip; `at` defaults to the front fist. */
     prop: Omit<Place, "at"> & { at?: Xy };
     door?: Place;
+    /** The king's crown, painted apart from the head so the checkmate finale can throw it off.
+     * `at` only places it: the finale spins it about its own centre (rig.css). */
+    crown?: Place;
   };
   /** Vector face over the painted head. `glow` draws light eyes for a dark void; `eyes:
    * false` keeps the painted eyes (no blink); `skin` is the lid colour for the squint. */
@@ -102,5 +105,36 @@ export const PAINTED: Record<string, Painted> = {
     armBackOver: true,
     shield: [26, 92],
     mouth: [50, 50, 5],
+  },
+  "rebel-king": {
+    id: "rebel-king",
+    unit: 0.12,
+    zoom: 1.1,
+    parts: {
+      armBack: { anchor: [170, 50], at: [37, 66], scale: 0.75 },
+      body: { anchor: [240, 464], at: [50, 108] },
+      armFront: { anchor: [75, 60], at: [51.5, 66], scale: 0.833, hand: [240, 165] },
+      prop: { anchor: [88, 490] },
+      head: { anchor: [207, 420], at: [52, 80], scale: 0.86 },
+      crown: { anchor: [165, 175], at: [51, 48.5], scale: 1.05 },
+    },
+    face: { x: 51.8, y: 52.8, gap: 4, r: 2.2 },
+    shield: [32, 86],
+    mouth: [50, 62, 5],
+  },
+  "patrol-king": {
+    id: "patrol-king",
+    unit: 0.1,
+    parts: {
+      armBack: { anchor: [95, 40], at: [33, 66], scale: 0.8 },
+      body: { anchor: [240, 526], at: [50, 108] },
+      armFront: { anchor: [90, 70], at: [50.4, 66], scale: 0.8, hand: [360, 205] },
+      prop: { anchor: [114, 575], scale: 0.75 },
+      head: { anchor: [260, 390], at: [52, 66], scale: 0.95 },
+      crown: { anchor: [200, 210], at: [51, 40], scale: 0.95 },
+    },
+    face: { x: 51.5, y: 47, gap: 5.2, r: 2.5, eyes: false },
+    shield: [32, 86],
+    mouth: [50, 62, 5],
   },
 };

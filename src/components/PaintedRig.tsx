@@ -70,7 +70,7 @@ function Face({ spec }: { spec: Painted }) {
 }
 
 export function buildPainted(spec: Painted): Figure {
-  const { armBack, armFront, door } = spec.parts, hand = spec.parts.prop.at ? zoomed(spec, spec.parts.prop.at) : handOf(spec);
+  const { armBack, armFront, door, crown } = spec.parts, hand = spec.parts.prop.at ? zoomed(spec, spec.parts.prop.at) : handOf(spec);
   const back = armBack && <g className="arm arm-back" style={origin(zoomed(spec, armBack.at))}><Img spec={spec} name="armBack" /></g>;
   return {
     body: <><Img spec={spec} name="body" />{spec.armBackOver && back}</>,
@@ -85,6 +85,7 @@ export function buildPainted(spec: Painted): Figure {
       <Img spec={spec} name="head" />
       <Face spec={spec} />
       {door && <g className="door" style={origin(zoomed(spec, door.at))}><Img spec={spec} name="door" /></g>}
+      {crown && <g className="crown"><Img spec={spec} name="crown" /></g>}
     </>,
     mouths: null,
     propOrigin: `${hand[0]}px ${hand[1]}px`,

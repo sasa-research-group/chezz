@@ -65,3 +65,17 @@ and both rooks (Nov 2026). Decision record: `DECISIONS.md`, "painted sprite pilo
 5. Add its entry to `specs.ts`; check `npx vitest run tests/figure-bounds.test.ts`, the
    studio (Catalog → Painted, and Rig → Painted) and
    `node tools/art/shoot.mjs <kind>.<side>.paint out.png`.
+
+## Kings
+
+- The crown is its own part (`crown` in the recipe and `specs.ts`). The parts step paints the
+  head without it (hair on top where the crown sat) and the crown alone in the bottom-middle
+  cell. `PaintedRig.tsx` hangs it in a `.crown` group inside the head, so the checkmate
+  finale throws it off and leaves the bare head.
+- The sword's grip sits so the crossguard shows just above the fist and the pommel just below
+  it; anchoring the grip at the blade's middle hides the guard inside the big painted fist.
+- The patrol king's first parts sheet painted both arms into the body. The recipe now says
+  "NO arms, NO sleeves and NO hands at all"; check the body for stray fists before cutting.
+- The patrol cape hangs behind the robe, so his back arm stays behind the body (no
+  `armBackOver`) and the cape shows on his back side.
+- The studio sheet (`shoot.mjs`) shows a `mate` row for kings, so a judge sees the crown fly.

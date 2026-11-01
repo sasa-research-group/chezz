@@ -508,3 +508,28 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
 - The owner hates textbook LLM prose and cute story lines in the game.
 - The game and studio use labels, numbers and icons.
 - The story ("Escape from Exile", hideout, patrol) stays and is unwritten.
+
+## 2026-11-01: painted kings
+- Both kings painted behind `?art=paint` with the pilot's pipeline (`paint-rebel-king.json`,
+  `paint-patrol-king.json`; `docs/art/PAINTED.md`, "Kings"). The crown is a separate painted
+  part in a `.crown` group, so the checkmate finale still throws it off.
+- Rebel king: crown pulled low over two vector dot eyes, a huge wild brown beard, red ragged
+  cloak with a fur collar, faded blue tunic and gold buckle, a chipped sword. The front fist
+  grips the hilt between the gold guard and pommel (the SVG kings' floating-sword note).
+  `zoom: 1.1`; the head is drawn at 0.86 so the buckle and fur collar show under the beard.
+- Patrol king: jewelled ball-tipped crown, steel mask with painted squint slits, moustache
+  and goatee, brown curls, a gold cape with two round collar clasps over a blue robe, sword
+  with a curled gold guard. Round 1 had only a short mantle; the judge marked likeness 6
+  ("reads as a robed bishop"), so the pose was re-rolled with a cape that hangs to the calves.
+- Declared corrections: five crown points (from the reference) instead of the SVG kit's
+  three; the swords are narrower than the reference so they fit x 18–82.
+- Judge (readability/style/likeness/motion/consistency). Round 1: rebel 7/7/7/8/8, patrol
+  8/8/6/8/8. Round 2 (the sheet gained a `mate` row; patrol cape): rebel 6/8/8/6/8, patrol
+  7/8/8/6/8, motion marked down for the shared finale's choreography. Round 3 (judge told
+  the finale's keyframes are shared and to judge only that parts stay on and the crown
+  leaves whole; rebel head smaller, crown bigger, sword raised to clear the crown): rebel
+  8/8/9/7/9, patrol 7/8/8/8/8, a pass.
+- Still open: in the rebel's attack wind-up the blade hides behind his body; at 48px the
+  patrol mask reads as a slate visor and his sword hugs the robe; the shared mate keyframes
+  flatten the king at 35% before the crown launches (same for every art style).
+- Cost: about $1 on Replicate (seven Nano Banana Pro calls, four BRIA cutouts).

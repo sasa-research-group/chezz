@@ -20,7 +20,7 @@ describe("painted characters", () => {
     it("draws every rig group the animations move", () => {
       const [side, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
       const html = renderToStaticMarkup(createElement(PieceRig, { kind, side: side === "rebel" ? "white" : "black", art: "paint" }));
-      for (const group of ["art-paint", "arm-front", "arm-back", "prop", "head-tilt", "ko-eyes", ...(kind === "rook" ? ["door"] : [])])
+      for (const group of ["art-paint", "arm-front", "arm-back", "prop", "head-tilt", "ko-eyes", ...(kind === "rook" ? ["door"] : []), ...(kind === "king" ? ['class="crown"'] : [])])
         expect(html, group).toContain(group);
       expect(html).toContain("--prop-origin");
     });

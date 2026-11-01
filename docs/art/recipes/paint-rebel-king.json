@@ -1,0 +1,36 @@
+{
+  "id": "paint-rebel-king",
+  "description": "Painted sprite parts for the rebel king, the deposed old king (?art=paint). Same three steps as paint-rebel-pawn.json, plus the crown as its own part so the checkmate finale can throw it off; then tools/art/cut-parts.mjs.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": ["docs/art/rebel-king.webp", "docs/art/sheet-armour-talks.webp", "docs/art/paint/svg-rebel-king.webp"],
+      "prompt": "Full-body game sprite of the rebel KING from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. SUBJECT: the deposed old king, now a scruffy rebel. A gold crown with pointed tips, a red centre gem and two blue gems on its band, pulled low over his brow. Under the crown only a narrow strip of bare skin face with two small black dot eyes, no nose and no mouth showing, then a huge wild bushy brown beard and moustache that covers the whole lower face and spills down over his chest. A red cloak with a ragged hem over both shoulders with a thick cream fur collar, a faded blue tunic, a brown belt with a gold buckle, short brown boots. A chipped steel sword with a narrow straight blade, a gold crossguard and a brown grip, held upright in his right fist on the right side of the figure: the bare skin fist clearly wraps around the grip just under the crossguard, the blade rises straight up above the fist and a round gold pommel shows below the fist. Standing, three-quarter view facing right, feet visible, chunky and big-headed: the head, beard and crown are about half the figure's height. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, earthy colours with the red cloak as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "parts",
+      "aspect_ratio": "16:9",
+      "images": ["$previous"],
+      "prompt": "Cut this exact character into separate parts for a 2D cut-out puppet, like a paper-doll sprite sheet. Keep his exact art style, colours, outline thickness and shading. Draw each part whole and complete, including the bits that are normally hidden behind other parts, and give every part its own very thick black outline all the way round. The parts are separate stickers with wide empty gaps between them, every part at the same scale as in the first image, on a plain flat light grey background (#d8d8d8). The image holds only these parts and nothing else: no other characters, no tiles, no text, no labels, no numbers, no grid lines, no cast shadows.\n\nLayout, exactly:\n- Top row, left: the HEAD WITHOUT THE CROWN: messy brown hair on top of the head where the crown was, a strip of plain blank skin face with NO eyes, no nose and no mouth, and the huge wild bushy brown beard and moustache below it. The head ends at the bottom of the beard, no neck.\n- Top row, middle: the BODY: the red cloak with its thick cream fur collar over both shoulders, the faded blue tunic, brown belt with gold buckle, the legs and brown boots, with no arms and no head; a short skin neck stump at the top.\n- Top row, right: the BACK ARM (his left arm): a red cloak-covered sleeve from the shoulder hanging down to a bare skin fist.\n- Bottom row, left: the FRONT ARM (his right arm): a faded blue sleeve from the shoulder, bent at the elbow, ending in a big closed bare skin fist that points to the right.\n- Bottom row, middle: the CROWN on its own: the gold crown with its pointed tips, red centre gem and two blue gems, front view, whole, no head under it.\n- Right edge, spanning from top to bottom: the SWORD on its own, standing straight up, chipped narrow blade at the top, gold crossguard, brown grip and round gold pommel at the bottom, whole and not held."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": ["$previous"]
+    }
+  ],
+  "output": "paint-rebel-king.png",
+  "partScale": 0.5,
+  "outline": 12,
+  "parts": {
+    "head": [0.15, 0.28],
+    "body": [0.44, 0.4],
+    "armBack": [0.7, 0.3],
+    "armFront": [0.15, 0.78],
+    "crown": [0.45, 0.82],
+    "prop": [0.9, 0.5]
+  }
+}
