@@ -3,6 +3,32 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-01: knights on the shape kit
+- Both knights redrawn behind `?art=new` (`src/components/ArmourKnights.tsx`), with the
+  old knight's group names, so the flip hop, leap and leap-back play unchanged.
+  About as tall as the rooks, medium build; the horse head is the crest, on the facing
+  side and clear of the helm. The judge sheet now has leap and leap-back rows for knights.
+- Rebel knight: rusty bucket helm (rust blotches, a crack) with a T-opening showing skin
+  and two dot eyes, blue neckerchief, leather vest, cream sleeves with a green patch. The
+  hobby horse is the prop: held by the neck at waist height, stick down between his legs
+  to the ground behind, so the strike is a bonk with the horse head. Its head is wood
+  brown with a dark mane and bridle drawn flat on top; a pale or narrow head read as a
+  llama. Declared correction: the reference holds the horse higher, beside his shoulder,
+  where it hid behind the bucket.
+- Patrol knight: rides a grey horse (a steel chanfron and neck plates, blue saddle cloth
+  with gold trim) instead of a hobby horse; closed steel visor, tall blue plume, gold
+  plume holder and gorget. Declared correction: the lance stands upright in his back
+  hand behind him, since every forward position crossed the horse head at rest; the
+  strike swings it over the helm and across the horse.
+- Judge rounds (readability/style/likeness/motion/consistency): rebel 7/8/6/6/8 →
+  7/7/7/7/8 → 7/7/7/8/8 (passed from round 2); patrol 7/7/6/6/7 → 6/7/6/6/7 →
+  5/6/5/6/6. The patrol knight did not pass. Still open: at 48px the horse's lower half
+  (legs, hooves, rider's leg, mitts) is a busy dark cluster and the horse has little
+  visible barrel; the lance is mostly ink at 84px and blinks out mid-swing at 35% of the
+  attack; the plume lobes sit close to the lance tip. A next pass should give the horse
+  a bigger visible body and fewer, larger leg shapes, or show only the horse's front half.
+  Judges also want the rebel's belt and pouch, and the stick behind the near leg.
+
 ## 2026-11-01: rooks on the shape kit
 - Both rooks redrawn behind `?art=new` (`src/components/ArmourRooks.tsx`), in the old
   rook's groups and pivots, including the `.door` that drops over the face on defend

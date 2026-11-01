@@ -10,9 +10,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** rigs are misfit characters with Pizza Tower animations
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
-  the shape kit `inkKit.tsx` behind `?art=new`: pawns (`ArmourPawns.tsx`;
-  saucepan, plain patrol face) and rooks (`ArmourRooks.tsx`, Nov 1; patrol
-  passed the judge, rebel 6 on likeness/motion: DECISIONS.md). Judge loop:
+  the shape kit `inkKit.tsx` behind `?art=new`: pawns (`ArmourPawns.tsx`),
+  rooks (`ArmourRooks.tsx`; rebel short of the judge's pass) and knights
+  (`ArmourKnights.tsx`; patrol short of it): DECISIONS.md. Battle shot:
+  `tools/art/battle-shot.mjs`. Judge loop:
   `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
@@ -51,7 +52,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   #10 promotion; #11 next-square strikes; #12 hideout hub; #13 tap to strike.
 
 ## Open items
-- `exile-preview.yml` is redundant now that `main` deploys. Delete it.
+- Delete the redundant `exile-preview.yml`.
 - The test player (`tests/turns-strategy.ts`) is a two-turn search.
 - Enemy intent isn't shown before it acts.
 - App debt: `App.tsx` is dense; intro/promotion/end modals lack Escape and

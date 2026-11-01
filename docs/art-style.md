@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns and rooks are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
+- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; pawns, rooks and knights are redrawn behind `?art=new`, the rest are not. The reference is the target; the rigs are the current state.
 
 ## 1. Armour does the talking
 
@@ -158,14 +158,14 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | Id | Notes |
 |---|---|
 | `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. In game the pot is an upturned copper saucepan (owner's correction, Nov 1): a shallow pan, slightly flared toward a thin lip, pushed a little toward the front, and a thick handle with a hanging hole sticking out the back nearly level. Angled steeply up, a thin handle read as a feather in a hat. The handle is what makes it a pan rather than a top hat. |
-| `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. |
+| `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. In game the hobby horse is the prop, held by the neck at waist height with the stick down between his legs; he bonks with it. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
 | `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a dark slot, the mallet leans on his front shoulder beside the helm (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
-| `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. |
+| `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. In game: a grey horse with a steel chanfron and neck plates under a blue, gold-trimmed saddle cloth; gold plume holder and gorget; the lance stands upright in his back hand behind him. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. |
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
 | `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. |
@@ -230,6 +230,16 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Glowing dot eyes in a void use a light tone (`parchment`), with light KO crosses and squint chevrons; ink on the void vanishes.
 - A wide helm leaves no room for a prop on the back shoulder: the head hides behind the helm at rest, and the shared attack swing (+65° about the front hand) lifts a back-pointing prop straight up behind the helm. The stonemason's mallet therefore leans on his front shoulder, upright beside the helm, so it shows at rest and swings down in front on the strike.
 - Give a prop's head its own tone, darker than the helm beside it (`darkStone` against `stone`), or the two merge in greyscale and silhouette.
+
+**Learned from the knights** (`src/components/ArmourKnights.tsx`)
+
+- Knights stand about as tall as the rooks (helm or plume top near y 6–20) with a medium build (body about 30 wide).
+- The horse head is the crest: keep it clear of the helm, on the facing side, with a long head, a round jaw and a notch at the throat, an ear standing up, and a neck narrower than the head. A thin wedge pointing up reads as a leaf or a hand.
+- A part under about 14 units wide in a mid or dark tone loses half its width to the cel shadow and reads as a dark sliver. Widen it (the hobby horse head is about 22 wide) rather than lightening it: judges read a pale horse head as a llama.
+- A mane or crest that sits behind another part is hidden by it. Draw it on top of the part it belongs to as a `Flat` with no ink; a jagged inner-lined strip reads as a crack.
+- A `Pole` is its width plus 4.8 units of ink, so a thin strap (bridle, reins) drawn with it lands as a thick black bar. Draw a strap that matters as a `Flat` band about 3 units wide on top of the part.
+- A rider on a full horse: put the rider's lance in the back hand, upright behind him, so at rest it stays clear of the horse head; the shared strike swing (+65° about the hand) brings it over the helm.
+- Only give the `arm-front` class (the cheer raises it) to an arm whose hand holds nothing; a hand gripping the prop would lift off it.
 
 ## 10. Judge checks
 
