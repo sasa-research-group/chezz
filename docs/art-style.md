@@ -181,6 +181,12 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 
 The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48–90px. The sheet is a 400px portrait.
 
+**The figure box**
+
+- At rest every redrawn figure keeps its ink, outline included, inside x 18–82 and at y 0 or below (inside the viewBox top). `tests/figure-bounds.test.ts` measures every piece, both sides, both patrol hues and every skin, and fails past either bound.
+- Height is free up to y 0. The board's far rim (`--rim` in `src/exile.css`, a third of a square deep) is sized so ink at y 0 on the top row still lands on the frame, on every board and screen. Tall crests are the chess read: use the height, don't shorten a crest to fit an older, lower limit.
+- Check a top row with `node tools/art/battle-shot.mjs bishop,rook out.png [--battle 3] [--width 844 --height 390]`; it prints each top-row piece's ink top against its square and the frame edge.
+
 **Keep at game size**
 
 - The headgear silhouette and the chess crest (section 6). It is the main read.
@@ -252,7 +258,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 
 **Learned from the kings** (`src/components/ArmourKings.tsx`)
 
-- On a phone's 4×4 board a piece on the top row may stand only about 15 units above the board's frame (topmost ink no higher than y 15, outline included); the old king's cross, the patrol bishop's mitre and the patrol knight's plume all poke out. The kings' crowns stop there, so the king is the widest piece, not the tallest. Check with `node tools/art/battle-shot.mjs king out.png`, which puts the patrol king on the top row.
+- (Superseded by the figure box above: the board now has a deep far rim, and the limit is y 0.) Before the rim, a top-row piece could only rise to about y 15 on a phone's 4×4 board, so the kings' crowns stop there and the king is the widest piece, not the tallest.
 - Crown points need open gaps: five ball-tipped points on a 40-wide crown fill their gaps with ink at 48px and read as a dark comb. Three bold points (rebel) or three ball-tipped points (patrol) keep daylight between them.
 - Red gems on a crown band sit right over the face and read as glowing red eyes; keep red to one centre gem and use blue for the rest.
 - A beard that fills the chest hides any collar under it. Narrow the beard's lower half so the fur collar shows at the shoulders.
@@ -261,7 +267,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - The crown must be its own `.crown` group inside the head: the checkmate finale throws it off.
 **Learned from the queens** (`src/components/ArmourQueens.tsx`)
 
-- In battle a piece is 0.92 of a square wide and anchored at 64% of its height, so the square's top edge sits at about y 21 in the rig. A crest above y 21 pokes onto the board frame from the top row. Tall pieces get their height from headgear that is wide and stacked, not from a crest that rises past y 21; the queens' crown tips sit near y 18–20.
+- In battle a piece is 0.92 of a square wide and anchored at 64% of its height, so the square's top edge sits at about y 21 in the rig (y 25–30 on screen, after the board's tilt). A crest above it stands on the far rim from the top row, which is fine down to y 0 (the figure box above). The queens were drawn to an older y 21 cap, so their crowns are squat; they may grow.
 - Narrow crown points fill with ink at 48px: the outer stroke and the cel crescent swallow anything under about 8 units wide. Draw a small crown with three fat points, unshaded and traced with the `inner` line.
 - A pan seen face-on reads as a magnifying glass or a lollipop when its inside is lighter than its rim. Draw it near-black, with a darker flat inside, and big (about 25 units across).
 - A wig reads as a wig through a scalloped outline (curl lobes down both sides), wider at the top than the head. Straight gold bands across it read as a turban or a layered cake; drape the chains in arcs.

@@ -17,9 +17,10 @@
 
 /* Field: the board sized to fit on both axes (a size container), with chips floating over it. */
 .exile-field{grid-area:field;position:relative;min-height:0;min-width:0;container-type:size;display:grid;place-items:center;overflow:clip}
-/* --px grows with the field so the tilt's wider near edge stays inside it. */
-.exile-field .board-camera{--pt:26px;--pb:18px;--px:max(6px,3cqw - 6px);--frame:12px;margin:0;max-width:none;padding:var(--pt) var(--px) var(--pb);width:min(100cqw,(100cqh - var(--pt) - var(--pb) - 2 * var(--frame)) * var(--aspect) + 2 * var(--frame) + 2 * var(--px))}
-.exile-field .board-plane{border-width:var(--frame);border-color:#7a5c44;background:#7a5c44;box-shadow:0 8px 0 #3a2b22,0 26px 36px #000a}
+/* --px grows with the field so the tilt's wider near edge stays inside it. The height fit counts the
+   far rim (--rim in exile.css), which grows with the square. */
+.exile-field .board-camera{--pt:26px;--pb:18px;--px:max(6px,3cqw - 6px);--frame:12px;margin:0;max-width:none;padding:var(--pt) var(--px) var(--pb);width:min(100cqw,(100cqh - var(--pt) - var(--pb) - var(--frame)) / (var(--rows) + var(--rim-k)) * var(--cols) + 2 * var(--frame) + 2 * var(--px))}
+.exile-field .board-plane{border-width:var(--frame);border-top-width:var(--rim);border-color:#7a5c44;background:#7a5c44;box-shadow:0 8px 0 #3a2b22,0 26px 36px #000a}
 .turn-ribbon,.exile-field .check-alert,.exile-field .notice{position:absolute;top:2px;left:50%;transform:translateX(-50%) rotate(-2deg);z-index:60;pointer-events:none;white-space:nowrap;margin:0!important}
 .turn-ribbon{background:#2b201b;color:#f6e3b4;border:3px solid #a8865f;border-radius:8px;padding:3px 14px;font-weight:900;letter-spacing:1.5px;font-size:13px}
 .exile-field .check-alert{padding:3px 14px}

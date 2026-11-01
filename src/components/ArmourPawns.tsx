@@ -110,7 +110,7 @@ function patrolPawn(c: Palette, hue: PatrolHue): Figure {
     prop: <g className="prop">
       <Pole d="M63 105 L72.5 17" tone={T.wood} width={3.2} />
       <g transform="rotate(6 72.5 17)">
-        <Part d="M72.5 0 Q78.5 8.5 75.5 17.5 L69.5 17.5 Q66.5 8.5 72.5 0 Z" tone={T.steel} line="inner" highlight="M70.5 12 Q70 8 72 4.5" />
+        <Part d="M72.5 2 Q78.5 9.5 75.5 17.5 L69.5 17.5 Q66.5 9.5 72.5 2 Z" tone={T.steel} line="inner" highlight="M70.5 12 Q70 8.5 72 6" />
         <Part d={rect(69, 16.5, 7, 5, 1.5)} tone={T.gold} line="inner" shade={false} />
       </g>
     </g>,

@@ -58,7 +58,7 @@ export type Cell = { cls?: string; dot?: ReactNode };
 /** A small board built from the game's own board classes (exile.css), tilt and all. */
 export function MiniBoard({ cols, rows, cells = {}, pieces = [], camera = "", style, coords }: { cols: number; rows: number; cells?: Record<string, Cell>; pieces?: Piece[]; camera?: string; style?: CSSProperties; coords?: boolean }) {
   const { spd, hue } = useStudio();
-  return <div className={`board-camera ${camera}`} style={{ "--aspect": cols / rows, ...style } as CSSProperties}>
+  return <div className={`board-camera ${camera}`} style={{ "--cols": cols, "--rows": rows, ...style } as CSSProperties}>
     <div className="board-plane" style={{ aspectRatio: `${cols}/${rows}` }}>
       <div className="exile-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {Array.from({ length: cols * rows }, (_, i) => {

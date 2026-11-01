@@ -28,6 +28,28 @@ proposing a new look. Generation details for kept art are in `recipe.md`.
   duck-like because the top-row limit leaves little height for the neck; the peck is
   buried under the shared squash stretch and hit burst; the wing's cel shadow reads as
   a jagged band.
+## 2026-11-01: a deep far rim, so tall crests can't leave the board
+- Problem: on the top row the patrol bishop's mitre, the patrol rook's halberd and the
+  patrol pawn's pike rose past the board's 12px frame onto the table (up to 11 CSS px on a
+  390×844 phone). Measured in the browser with `battle-shot.mjs` on every board (4×4,
+  6×4, 6×6) at 390×844, 844×390 and 1440×900: the square's top sits at y 25–30 in rig units
+  (the tilt adds 3–8 to the flat y 22), and the old frame's outer edge at y 8–13, so the
+  earlier "y 15" and "y 21" caps were one-screen guesses that a bigger screen broke.
+- Chosen: both. (1) Layout: the board plane's top border is a third of a square deep
+  (`--rim` in `src/exile.css`; the table's height fit in `table.css` counts it), so ink
+  down to y 0 on the top row lands on the frame on every board and screen measured (frame
+  edge at y −4 to −8). It scales with the square, so it holds on any board size. (2)
+  Contract: at rest, every redrawn figure's ink stays at y 0 or below and inside x 18–82,
+  outline included; `tests/figure-bounds.test.ts` computes it from each rendered rig
+  (both sides, both patrol hues, every skin).
+- Why not a lower cap alone: crests are the chess read, and a cap near y 15–21 would shrink
+  the bishop, rook, pawn and knight. Why not the rim alone: nothing would stop a figure from
+  drawing past its viewBox. Together, a figure that passes the test can't cross the frame.
+- Changed: the patrol pawn's pike tip came down 2 units (it reached y −1.3). Every other
+  redrawn piece and both skins were already inside. The old art also pokes less; only the
+  old patrol queen's crown (y −6) still grazes the rim on a desktop 6×6 board.
+- Cost: the far rim is about 29px on a phone 4×4 board instead of 12px, so the board is a
+  little shorter when the height limits it (landscape phones).
 
 ## 2026-11-01: kings on the shape kit
 - Both kings redrawn behind `?art=new` (`src/components/ArmourKings.tsx`) in the old

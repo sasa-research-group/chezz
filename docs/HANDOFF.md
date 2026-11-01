@@ -12,8 +12,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   "armour does the talking" (`docs/art-style.md`, `docs/art/`). Redrawn on
   the shape kit `inkKit.tsx` behind `?art=new`: every piece (`Armour*.tsx`);
   rebel rook, patrol knight, bishop and queen short of the judge's pass
-  (DECISIONS.md). No ink above y 15 (board frame). Battle shot:
-  `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
+  (DECISIONS.md). Ink stays in y 0+, x 18–82
+  (`figure-bounds.test.ts`); the board's deep far rim keeps top-row crests
+  on the frame. Battle shot: `tools/art/battle-shot.mjs`. Judge: `shoot.mjs` + `docs/art/BRIEF.md`.
   Concepts: `tools/art/gen.mjs`.
 - **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from

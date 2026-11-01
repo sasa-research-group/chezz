@@ -22,7 +22,9 @@ Reference crops: `docs/art/<id>.webp`. Judge rubric: `JUDGE.md`.
 
 ## Canvas and build
 - viewBox 100×120, feet at y 108, centreline x 50. Keep the whole figure,
-  prop included, inside x 18–82 (the outline counts).
+  prop included, inside x 18–82 and at y 0 or below (the outline counts).
+  `tests/figure-bounds.test.ts` enforces both. The board's far rim makes room
+  for anything down to y 0 on the top row, so tall crests may use it.
 - Draw facing right: prop in the front hand on the right. The rig mirrors.
 - Fill the `Figure` groups so `rig.css` animates it: `body`, `armBack`,
   `prop` (pivot `propOrigin` at the front hand), `armFront`, `head`
@@ -33,7 +35,9 @@ Reference crops: `docs/art/<id>.webp`. Judge rubric: `JUDGE.md`.
 ## Loop
 1. Draw. Add or update the studio entry (`src/art/Catalog.tsx`).
 2. `node tools/art/shoot.mjs <kind.side,…> <out.png>` and look at it yourself,
-   plus `--scale 3 --crop 192` for close-ups.
+   plus `--scale 3 --crop 192` for close-ups. For a tall crest, also
+   `node tools/art/battle-shot.mjs <kind> <out.png>` (patrol piece on the top
+   row; `--battle 3` or `--width 844 --height 390` for other boards).
 3. Hand the sheet, the reference crops and `JUDGE.md` to a fresh-context judge.
    It never sees code.
 4. Fix the top gap first. Stop when every score is at least 7, or after 3 rounds.

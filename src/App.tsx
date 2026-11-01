@@ -52,7 +52,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
   // Checkmate: zoom in on the fallen king and dim everything else.
   const fallen = stage.mating ? stage.ghosts.find(g => g.id === "king") : undefined;
   const focus: Record<string, string> = fallen ? { "--zx": `${(fallen.x + .5) / e.width * 100}%`, "--zy": `${(fallen.y + .5) / e.height * 100}%` } : {};
-  return <div className={`board-camera ${fallen ? "mate-zoom" : ""}`} style={{ "--aspect": e.width / e.height, ...focus } as CSSProperties}>
+  return <div className={`board-camera ${fallen ? "mate-zoom" : ""}`} style={{ "--cols": e.width, "--rows": e.height, ...focus } as CSSProperties}>
     <div className="board-plane" style={{ aspectRatio: `${e.width}/${e.height}` }}>
       <div className="exile-grid" style={{ gridTemplateColumns: `repeat(${e.width}, 1fr)` }}>
         {Array.from({ length: e.width * e.height }, (_, i) => {

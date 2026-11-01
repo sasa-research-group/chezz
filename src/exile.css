@@ -86,3 +86,9 @@
 .rules-card{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:18px 0 24px;font-size:13px;align-items:center}.rules-card dt{font-weight:800;color:#382f2e}.rules-card dd{margin:0;color:#766a58;display:flex;gap:10px;flex-wrap:wrap}
 @media(max-width:700px){.exile-piece>.action-pips{bottom:-8px}.action-pips i{width:5px;height:5px;border-width:1px}}
 .strike-icon{width:1.3em;height:1.3em;vertical-align:-.3em;margin-right:1px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+/* The board's far rim is deep enough for the tallest crest on the top row. A piece is 0.92 of a square
+   wide and anchored at 64% of its height, so its viewBox top (y 0) stands 0.21 of a square above its
+   square, and the tilt and lift raise it a few px more. --rim covers that, so any figure that keeps its
+   ink inside the viewBox (tests/figure-bounds.test.ts) stays on the frame. Needs --cols on the camera. */
+.board-camera{container-type:inline-size;--rim-k:.33}
+.board-plane{--cell:calc((100cqw - 2 * var(--frame, 9px)) / var(--cols, 4));--rim:calc(var(--rim-k) * var(--cell));border-top-width:var(--rim)}
