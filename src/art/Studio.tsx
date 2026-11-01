@@ -10,7 +10,7 @@ import { Studio as StudioCtx } from "./kit";
 const AREAS = [
   { id: "catalog", label: "Art catalog", toc: [["cast", "Cast × state"], ["cast-pairs", "Pairs"], ["sequences", "Sequences"], ["board", "Board"], ["markers", "Markers"], ["effects", "Effects"], ["banners", "Banners"], ["hub", "Hideout"], ["table", "Table HUD"], ["ui", "UI"], ["icons", "Icons"], ["legacy", "Legacy"]] },
   { id: "mechanics", label: "Mechanics", toc: [["turn", "Turn"], ["pieces", "Pieces"], ["check", "Check"], ["strike", "Tap to strike"], ["knight", "Knight"], ["promotion", "Promotion"], ["enemy", "Enemy"], ["battles", "Battles"], ["hideout", "Hideout"], ["gold", "Gold"], ["run", "Run"]] },
-  { id: "guide", label: "Style guide", toc: [["palette", "Palette"], ["type", "Type"], ["construction", "Construction"], ["sides", "Side markers"], ["timing", "Timing"], ["a11y", "Accessibility"], ["doc-diffs", "vs doc"]] },
+  { id: "guide", label: "Style guide", toc: [["target", "Target style"], ["ref-cast", "Reference cast"], ["rules", "Rules"], ["ref-palette", "Reference palette"], ["palette", "Current palette"], ["type", "Type"], ["construction", "Construction"], ["sides", "Side markers"], ["timing", "Timing"], ["a11y", "Accessibility"], ["doc-diffs", "vs doc"]] },
   { id: "tooling", label: "Tooling", toc: [["made", "How it's made"], ["fonts", "Fonts"], ["not-used", "Not used"], ["adding", "Adding art"]] },
 ] as const;
 type AreaId = typeof AREAS[number]["id"];

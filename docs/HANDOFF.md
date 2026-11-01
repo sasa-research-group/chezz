@@ -7,11 +7,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (2; reach only the next square in the piece's shape, so sliders
   travel first) and defend (1); fixed damage; strikes land in place. The
   simultaneous engine (`exile.ts`) stays for the lab Duel.
-- **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
-  Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`). Wesley calls it
-  placeholder while mechanics settle.
+- **Art:** rigs are misfit characters with Pizza Tower animations
+  (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
+  "armour does the talking" (`docs/art-style.md`; reference art and recipe
+  in `docs/art/`). Not redrawn yet; next is the builder/judge stage.
 - **Studio** (`art.html` → `src/art/`): all art live, mechanics from
-  `turns.ts`, style guide (swatches checked against source). Add new art
+  `turns.ts`, style guide (target reference on top, then current swatches). Add new art
   to `Catalog.tsx`.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
   wooden table, no page scroll. Top bar (`TopBar.tsx`), board sized to the
@@ -42,7 +43,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   Story unwritten (`Encounter.story` hook). Ask before adding prose.
 - Difficulty needs tuning from Wesley's play; encounter 2 now punishes
   letting a pawn promote.
-- Research report: `reports/Simultaneous chess tactics design.md`.
 
 ## History (merged PRs)
 - #2 foundation pass; #3 research + lab Duel; #4–#5 simultaneous-engine rule

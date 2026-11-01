@@ -1,12 +1,15 @@
 # Escape from Exile: art and animation direction
 
-Status (Oct 10 2026): partly superseded. Wesley chose a **cast of misfit
-humans** (one character per piece and side, costumes echoing chess shapes) with
-**Pizza Tower energy** (toon eyes, big mouths, line boil, extreme squash and
-stretch) and a **blue patrol**. That's built in `src/components/PieceRig.tsx`
-and `src/rig.css`; see `art.html`. The references, principles, timings, side
-markers and accessibility rules below still apply; the "Rebel puppets" token
-designs in section 3.3 do not. Wesley expects to rework the look later.
+Status (Oct 31 2026): the look is superseded by **`docs/art-style.md`**
+("armour does the talking", reference art in `docs/art/`). This doc still
+owns the motion principles and timings (section 2), damage and defence
+states (3.4), the animation spec (3.5), accessibility (3.6) and the avoid
+list (4). Section 1 is background reading. Where this doc and
+`docs/art-style.md` disagree on the look, the style guide wins.
+
+The current rigs (`src/components/PieceRig.tsx`, `src/rig.css`, see
+`art.html`) are the Oct 10 cast of misfit humans with Pizza Tower energy and
+a blue patrol. They have not been redrawn to the new guide yet.
 
 Original status: proposal, Oct 10 2026. The retired "Between Worlds" look and its
 doc were removed with the old prototype (see git history). The live cast is
@@ -163,71 +166,12 @@ not measured from the reference games.
 
 ---
 
-## 3. The Chezz style: "Rebel puppets"
+## 3. Look, states and motion
 
-**Identity in one line:** chess *tokens* that sprouted faces and stubby limbs,
-drawn as fat-outlined vector stickers on a parchment board. They are not
-knights in armour, as Castle Crashers is, and not cute animals, as Cult of the
-Lamb is. Each piece's **head is its chess crest**, so the classic Staunton
-silhouette survives from across the room.
-
-### 3.1 Construction (all pieces)
-- **viewBox** `0 0 100 120`, feet on y≈108. It renders at 60–120px.
-- **Proportions:** head-crest to body is about 1.2:1. The body is a short
-  bell-shaped **chess-piece base** (a flared skirt with a collar ring), which
-  doubles as the torso. There are two stubby arms (capsules) and no visible legs.
-  The base hops like a bean.
-- **Outline:** one ink colour (`#382f2e`). Use a **4.5px outer silhouette
-  stroke** and 2.5px for interior lines, with round joins. No interior line may
-  be shorter than ~6 units, because it turns to mush below that. Draw the outer
-  stroke as a separate back layer (stroke at 2× width behind the fills) so the
-  silhouette stays fat even where fills overlap.
-- **Shading:** flat fill plus **one** shadow shape (12–18% darker, a hard edge on
-  the lower-left) plus one specular tick on the head. No gradients and no
-  textures.
-- **Eyes:** two vertical ink ovals (5×8 units) with no irises and a single white
-  highlight dot. Emotion comes from **lid shapes** (a flat top for bored, a slant
-  for angry, a curve-up for happy, Xs for KO) and **brows** (one stroke each).
-  The mouth is a single stroke with an optional open-mouth fill. Pupils stay
-  black at all sizes.
-
-### 3.2 Sides: rebel exiles vs royal patrol
-
-Never let colour carry the side alone. **Three channels:** hue, value pattern
-and shape markers.
-
-| | Rebel exiles (player) | Royal patrol (enemy) |
-|---|---|---|
-| Base hue | Warm **ochre/cream** cloth `#e8c98a`, shade `#c9a467` | Cold **royal blue** `#3f5fa8`, shade `#2f467d` |
-| Trim | Teal sash `#2f7d6d` (matches the existing UI green) | Gold braid `#e2b45d` |
-| Value pattern | Light body, dark trim | Dark body, light trim (reads inverted, even in greyscale) |
-| Shape marker | **Patches**: one stitched square patch on the body, a frayed hem (3 zig-zags), a crest worn slightly **tilted** | **Tabard stripe** down the centre, a crisp scalloped hem, crest worn perfectly **upright**, a tiny plume |
-| Base ring on board | Round shadow | Squared/diamond shadow |
-| HP badge | Cream pill | Navy shield-shaped badge |
-
-Blue against orange/ochre is the pair the Okabe–Ito colour-blind-safe palette
-is built around ([Okabe & Ito, "Color Universal Design"](https://jfly.uni-koeln.de/color/)).
-The current red-vs-cream coats (`#c86d62`) are risky for protanopes, so
-**replace the red coat with blue**. Keep red only for danger: damage numbers
-and attack dots.
-
-**Accents (shared):** gold `#e7ba58` for crowns, coins and the king; damage red
-`#b43a2e`; guard teal `#2f7d6d`; KO grey `#8a8079`.
-
-### 3.3 Silhouette per piece (the head *is* the chess crest)
-
-| Piece | Silhouette rule | Comedic beat |
-|---|---|---|
-| **King** (rebel only, for now) | The tallest head. A crown with a **cross finial bent sideways** and a cape that's too long and drags behind. Stubble dots. | Faded dignity. He gestures grandly before every action, and his crown slips over one eye when hit. |
-| **Queen** | A wide **coronet of 5 balls** on a tall cone head, the widest crest. Hands on hips in idle. | Clearly in charge. She sighs at the king, and her attack is an unbothered backhand slap. |
-| **Rook** | A **square, crenellated head with no neck**, the boxiest shape and the widest base. Tiny arms. | A walking wall, slow and stoic. Defending means a little brick door shutting over his face. |
-| **Bishop** | A **mitre with a diagonal slit** and a teardrop head with a ball on top. Leans diagonally in idle. | Smug and pious. He moves in a sideways skip and blesses things that don't need it. |
-| **Knight** | A **horse head in profile**, the only asymmetric piece, with a mane of 3 spikes and a flaring nostril. Always faces its move direction. | An overexcited horse. It does an L-shaped hop with a mid-air pause and a "neigh" puff. |
-| **Pawn** | The **smallest**: a round ball head on a little collar. A wooden spoon or pitchfork for rebels, a too-big pike for the patrol. | Terrified conscript. Its eyes dart in idle, and when it wins a fight it looks amazed. |
-
-**Silhouette test:** fill every piece solid black at 48px. You should still be
-able to name each one. Heights run king > queen > bishop > knight ≈ rook >
-pawn, and widths run rook > queen > the others.
+The look (construction, sides, silhouettes, palette) moved to
+`docs/art-style.md` on Oct 31 2026. The "Rebel puppets" token designs and
+their colours are retired. Sections 3.4–3.6 below still apply to whatever
+art the game uses.
 
 ### 3.4 Damage and defence states
 - **Wounded (≤50% HP):** one bandage cross plus a droopy lid. **Critical (1 HP):**
@@ -325,10 +269,11 @@ only on hits of 2+ damage and on death.
   readable. The final state must match the full-motion final state exactly; add
   an e2e assertion for that. The current global `animation-duration: .01ms`
   override is a fallback, not the design.
-- **Colour-blind safety:** blue vs ochre hue, inverted value patterns,
-  patch/frayed vs stripe/plume markers, round vs square bases, and pill vs
-  shield HP badges. Check with a deuteranopia/protanopia simulator and a
-  greyscale screenshot.
+- **Colour-blind safety:** never let colour carry the side alone. Pair the
+  blue patrol against earthy rebels with shape markers: patches and wear vs
+  smooth plate and gold trim, round vs diamond ground shadows, and distinct
+  HP badges (current markers: the studio's Side markers table). Check with a
+  deuteranopia/protanopia simulator and a greyscale screenshot.
 - No flashing faster than 3 Hz. Keep hit flashes to one pulse.
 
 ---
@@ -342,8 +287,9 @@ only on hits of 2+ damage and on death.
 - **Mud at small sizes:** gradients, texture, hairline strokes, more than 3
   fills per piece, details smaller than 6 units, dark-on-dark (patrol blue needs
   its light trim), and outlines thinner than 3.5 units at 100 wide.
-- **Over-detail:** fingers, armour plates, belt buckles, multiple props. One prop
-  per piece.
+- **Over-detail at game size:** fingers, rivets, belt buckles, multiple props.
+  One prop per piece. The reference sheet's detail is for concepts only; see
+  `docs/art-style.md` section 9 for what survives at 48–90px.
 - **Animation that hides the board:** long sequences (keep any single beat at
   1s or less at 1x), off-board flight paths, or shake that moves the HUD.
 - **Randomness in rules code:** blink and idle offsets live in presentation

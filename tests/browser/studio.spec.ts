@@ -6,12 +6,16 @@ test("studio: every area renders without errors and fits a phone", async ({ page
   page.on("pageerror", e => errors.push(String(e)));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/art.html");
-  for (const [area, heading] of [["Art catalog", "Cast × state"], ["Mechanics", "Pieces"], ["Style guide", "Palette"], ["Tooling", "Adding new art"]]) {
+  for (const [area, heading] of [["Art catalog", "Cast × state"], ["Mechanics", "Pieces"], ["Style guide", "Target style: armour does the talking"], ["Tooling", "Adding new art"]]) {
     await page.getByRole("navigation", { name: "Studio areas" }).getByRole("link", { name: area }).click();
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     // Named swatches flag hexes that no longer appear in the art sources.
-    if (area === "Style guide") await expect(page.locator(".swatch .missing")).toHaveCount(0);
+    if (area === "Style guide") {
+      await expect(page.locator(".swatch .missing")).toHaveCount(0);
+      await expect(page.locator(".ref-grid img")).toHaveCount(19);
+      await expect(page.getByRole("heading", { name: "Palette: current in-game art" })).toBeVisible();
+    }
   }
   expect(errors).toEqual([]);
 });

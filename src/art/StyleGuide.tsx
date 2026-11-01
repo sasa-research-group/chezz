@@ -9,6 +9,7 @@ import hubTsx from "../components/Hub.tsx?raw";
 import lanternTsx from "../components/table/Lantern.tsx?raw";
 import { KINDS } from "./Catalog";
 import { useStudio } from "./kit";
+import { Reference } from "./Reference";
 
 const SOURCES: [string, string][] = [["exile.css", exileCss], ["rig.css", rigCss], ["hub.css", hubCss], ["table.css", tableCss], ["PieceRig.tsx", rigTsx], ["Hub.tsx", hubTsx], ["Lantern.tsx", lanternTsx]];
 const HEX = /#[0-9a-f]{3,8}\b/gi;
@@ -99,7 +100,10 @@ function Construction() {
 export function StyleGuide() {
   const { hue } = useStudio();
   return <div className="guide">
-    <section className="group" id="palette"><h3>Palette</h3>
+    <Reference />
+
+    <section className="group" id="palette"><h3>Palette: current in-game art</h3>
+      <p className="fine">Hexes the game uses today, read from the source files. They change when the art is redrawn to the target above.</p>
       {PALETTES.map(p => <div key={p.title} className="palette"><h4>{p.title}</h4><div className="swatches">{p.colors.map(([hex, name]) => <Swatch key={name} hex={hex} name={name} />)}</div></div>)}
       <AllColours />
     </section>
