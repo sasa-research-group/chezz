@@ -1,0 +1,92 @@
+/* Rig area of the studio (RigStudio.tsx). No selector here starts with .rig:
+   RigStudio reads `.rig …` rules to find the rig's groups. */
+.rig-studio{position:relative}
+.rig-studio.rs-calm .flip{filter:none!important}
+.rs-offstage{position:absolute;top:0;left:0;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);pointer-events:none}
+.rs-probe{position:fixed;left:0;top:0;width:200px;visibility:hidden;pointer-events:none;z-index:-1}
+.rs-probe *{animation-play-state:paused!important}
+.rs-probe.rest svg,.rs-probe.rest svg *{animation:none!important;transition:none!important}
+
+.rs-picker{display:grid;gap:6px;margin-bottom:14px}
+.rs-seg{display:flex;align-items:center;gap:8px;min-width:0}
+.rs-seg>span{flex:0 0 44px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#766a58;font-weight:800}
+.rs-seg>div{display:flex;flex-wrap:wrap;gap:3px;min-width:0}
+.rig-studio button{border:1px solid #cabc9e;background:#f4ecd6;border-radius:6px;padding:5px 9px;font:700 12px system-ui,sans-serif;color:#66553e;cursor:pointer}
+.rig-studio button[aria-pressed=true]{background:#382f2e;color:#fff7dc;border-color:#382f2e}
+.rig-studio button:disabled{opacity:.4;cursor:not-allowed}
+.rs-seg button{text-transform:capitalize}
+
+.rs-main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+.rs-frame{border:1px solid #cabc9e;border-radius:10px;overflow:hidden;padding:34px 0 14px;background:#e9d6ae;background-image:linear-gradient(#382f2e0d 1px,transparent 1px),linear-gradient(90deg,#382f2e0d 1px,transparent 1px);background-size:24px 24px}
+.rs-stage{position:relative;width:min(360px,78%);margin:0 auto}
+.rs-fig{position:relative}
+.rs-ghost{position:absolute;top:0;left:0;width:100%;filter:grayscale(1)}
+.rs-bones{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.rs-bones.hide{display:none}
+.rs-box{fill:#2f5a8206;stroke:#2f5a82;stroke-width:.35;stroke-dasharray:1.2 1;opacity:.55}
+.rs-box.on{fill:#e7a21f30;stroke:#c98a12;stroke-width:.8;stroke-dasharray:none;opacity:1}
+.rs-link{stroke:#c2493c;stroke-width:.9;stroke-linecap:round}
+.rs-link.off{opacity:.3;stroke-dasharray:1 1}
+.rs-joint{fill:#fffdf4;stroke:#c2493c;stroke-width:.7}
+.rs-joint.on{fill:#e7a21f;stroke:#382f2e}
+.rs-joint.off{fill:none;opacity:.45}
+.rs-label{font:700 2.6px system-ui,sans-serif;fill:#2f3a52;paint-order:stroke;stroke:#fffdf4;stroke-width:.8px;stroke-linejoin:round}
+
+.rs-side{display:grid;gap:10px;min-width:0}
+.rs-clips{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:4px}
+.rs-clips button{padding:6px 4px}
+.rs-clips button.quirk{border-style:dashed;background:#efe2d2}
+.rs-clips small{font-weight:600;opacity:.7}
+.rs-transport{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rs-transport .rs-play{min-width:86px}
+.rs-transport output{font:11px ui-monospace,monospace;color:#66553e;margin-left:auto}
+.rs-scrub{width:100%;margin:0;accent-color:#396c61}
+.rs-toggles{display:flex;flex-wrap:wrap;gap:4px}
+.rs-legend{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:#66553e}
+.rs-legend i{display:inline-block;vertical-align:middle;margin-right:5px}
+.rs-legend .dot{width:8px;height:8px;border-radius:50%;border:2px solid #c2493c;background:#fffdf4}.rs-legend .dot.off{opacity:.45;background:none}
+.rs-legend .bone{width:16px;height:3px;border-radius:2px;background:#c2493c}
+.rs-legend .box{width:12px;height:9px;border:1px dashed #2f5a82}
+
+.rs-parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.rig-studio .rs-part{display:grid;gap:2px;text-align:left;background:#fbf6e8;border-radius:10px;padding:6px;min-width:0}
+.rig-studio .rs-part.on{outline:2px solid #e7a21f;border-color:#e7a21f}
+.rs-part b{font:800 12px ui-monospace,monospace;color:#382f2e;overflow-wrap:anywhere}
+.rs-part small{font-size:10px;font-weight:600;color:#766a58}
+.rs-mini{display:grid;place-items:center;position:relative;height:84px;background:#efe6d0;border-radius:6px;overflow:hidden}
+.rs-mini.empty{font-size:10px;color:#948571;text-align:center;line-height:1.3}
+.rs-part-svg{position:absolute;inset:0;display:block;width:100%!important;height:100%!important;transform:none!important}
+.rs-part-svg,.rs-part-svg *{animation:none!important;transition:none!important}
+.rs-mini-pivot{fill:#c2493c;stroke:#fffdf4;stroke-width:1.5px;vector-effect:non-scaling-stroke}
+
+.rs-table-wrap{overflow-x:auto;border:1px solid #cabc9e;border-radius:10px;background:#fbf6e8}
+.rs-table{border-collapse:collapse;width:100%;font-size:12px}
+.rs-table th,.rs-table td{text-align:left;vertical-align:top;padding:5px 8px;border-bottom:1px solid #e4d9c3}
+.rs-table thead th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#766a58}
+.rs-table tbody th{white-space:nowrap}
+.rs-table code{font-size:11px}.rs-table small{font-size:10px;color:#766a58}
+.rs-table tr.fx{color:#948571}.rs-table tr.on{background:#e7a21f26}
+.rs-table .tag{margin-left:4px}
+.rs-kf,.rs-override{line-height:1.35}
+.rs-override code{color:#9c4640}
+
+.rs-rules{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.rs-rules li{background:#fbf6e8;border:1px solid #cabc9e;border-radius:6px;padding:4px 8px;font-size:12px}
+.rs-rules b{margin-right:6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#766a58}
+.rs-rules code{font-size:11px}
+.rs-contract{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:0}
+.rs-contract>div{display:grid;grid-template-columns:92px minmax(0,1fr);gap:6px;background:#fbf6e8;border:1px solid #e4d9c3;border-radius:6px;padding:5px 8px;font-size:12px}
+.rs-contract dt code{font-size:11px;font-weight:800}
+.rs-contract dd{margin:0}.rs-contract dd small{display:block;font:10px ui-monospace,monospace;color:#766a58}
+
+@media(max-width:800px){
+  .rs-main{grid-template-columns:minmax(0,1fr)}
+  .rs-stage{width:min(360px,80%)}
+}
+@media(max-width:700px){
+  .rs-parts{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .rs-mini{height:72px}
+  .rs-table{font-size:11px}.rs-table th,.rs-table td{padding:4px 5px}
+  .rs-clips{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .rig-studio button{padding:5px 7px}
+}

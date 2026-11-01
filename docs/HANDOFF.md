@@ -20,8 +20,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
   the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with
   `?art=new`. All six drawn; frog and haystack pass (DECISIONS.md).
-- **Studio** (`art.html` → `src/art/`): all art, mechanics, style guide;
-  redrawn pieces in its "New art" section (`Catalog.tsx`).
+- **Studio** (`art.html` → `src/art/`): art, mechanics, style guide. Rig
+  tab: live bones and keyframes per piece; contract in `docs/art/RIG.md`.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
   wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
   `table.css`). Rules, New run, fast turns, skins, log, export, studio live
