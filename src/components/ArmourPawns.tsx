@@ -1,118 +1,102 @@
 import type { Figure, Palette, PatrolHue } from "./PieceRig";
+import { Dot, Flat, Ink, Part, Pole, TONES as T, circle, ellipse, rect, type Tone } from "./inkKit";
 
 /** The pawns redrawn in the "armour does the talking" style (docs/art-style.md,
- * section 9): crest silhouette, dot eyes, one oversized prop, thick ink, flat
- * fill plus one hard shadow. Same groups and pivots as the old rigs, so the
- * keyframes in rig.css drive them unchanged. */
-export const NEW_INK = "#1f1a19";
-const o = { stroke: NEW_INK, strokeWidth: 4.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
-const f = { stroke: NEW_INK, strokeWidth: 2.6, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
+ * section 9), drawn only with the shape kit in inkKit.tsx. Same groups and
+ * pivots as the old rigs, so the keyframes in rig.css drive them unchanged.
+ * Both share one build: head r 14 at y 65, body x 34–66, feet at 108, and the
+ * whole figure stays inside x 18–82. */
 
-const SKIN = "#f0be9a", SKIN_SH = "#d99a74", HIGHLIGHT = "#fffaf0";
-const COPPER = "#a57a52", COPPER_SH = "#7e5b3c", GREEN = "#869043", GREEN_SH = "#646d2f";
-const RED = "#cd2a25", RED_SH = "#94201c", PATCH = "#507b92", LEATHER_DK = "#5f3f2c";
-const WOOD = "#a57952", RUST = "#8a9094";
-const BLUE = "#4b76cf", BLUE_SH = "#314e8f", GOLD = "#f0bf44", STEEL = "#a9c1d6", STEEL_SH = "#68788f";
-const MOUSTACHE = "#744924", GLOVE = "#865637", MAIL = "#4b5263";
+const Boot = ({ x, tone }: { x: number; tone: Tone }) =>
+  <Part d={`M${x - 5.5} 108 Q${x - 5.5} 99 ${x} 99 Q${x + 6} 99 ${x + 6} 108 Z`} tone={tone} shade={false} />;
+const Mitt = ({ x, y, tone }: { x: number; y: number; tone: Tone }) => <Part d={circle(x, y, 5.4)} tone={tone} line="inner" shade={false} />;
+const Sleeve = ({ d, tone, front }: { d: string; tone: Tone; front?: boolean }) =>
+  <Pole className={`arm ${front ? "arm-front" : "arm-back"}`} d={d} tone={tone} width={6.4} />;
 
-/** A pole drawn as an ink stroke under a thinner colour stroke. */
-const Pole = ({ d, ink, fill, color }: { d: string; ink: number; fill: number; color: string }) =>
-  <><path d={d} stroke={NEW_INK} strokeWidth={ink} strokeLinecap="round" strokeLinejoin="round" fill="none" /><path d={d} stroke={color} strokeWidth={fill} strokeLinecap="round" strokeLinejoin="round" fill="none" /></>;
-const Sleeve = ({ d, fill, front }: { d: string; fill: string; front?: boolean }) =>
-  <g className={`arm ${front ? "arm-front" : "arm-back"}`}><Pole d={d} ink={11} fill={6.2} color={fill} /></g>;
-const Mitt = ({ x, y, fill }: { x: number; y: number; fill: string }) => <circle cx={x} cy={y} r="5.2" fill={fill} {...f} strokeWidth="3" />;
-const Boot = ({ x }: { x: number }) => <path d={`M${x - 7} 108 Q${x - 7} 98.5 ${x} 98.5 Q${x + 8} 98.5 ${x + 8} 108 Z`} fill={LEATHER_DK} {...f} strokeWidth="3.2" />;
-
-/** Two dot eyes, the KO crosses for death, and an effort squint that shows where the old rigs yell. */
-function DotEyes({ y, gap, r }: { y: number; gap: number; r: number }) {
+/** Two dot eyes, KO crosses for death, and an effort squint where the old rigs yell. */
+function Eyes({ y, gap, r }: { y: number; gap: number; r: number }) {
   return <g className="face">
-    <g className="eyes">{[-gap, gap].map(x => <g key={x} className="pupil"><circle cx={50 + x} cy={y} r={r} fill={NEW_INK} /></g>)}</g>
-    <g className="ko-eyes" stroke={NEW_INK} strokeWidth="2.6" strokeLinecap="round">{[-gap, gap].map(x => <path key={x} d={`M${47 + x} ${y - 3} L${53 + x} ${y + 3} M${53 + x} ${y - 3} L${47 + x} ${y + 3}`} />)}</g>
+    <g className="eyes">{[-gap, gap].map(x => <g key={x} className="pupil"><Dot cx={50 + x} cy={y} r={r} /></g>)}</g>
+    <g className="ko-eyes">{[-gap, gap].map(x => <Ink key={x} d={`M${47 + x} ${y - 3} L${53 + x} ${y + 3} M${53 + x} ${y - 3} L${47 + x} ${y + 3}`} />)}</g>
   </g>;
 }
 function Squint({ y, gap }: { y: number; gap: number }) {
   return <g className="mouth-yell">
-    {[-gap, gap].map(x => <circle key={x} cx={50 + x} cy={y} r="3.6" fill={SKIN} />)}
-    <path d={`M${46 - gap} ${y - 3} L${51 - gap} ${y} L${46 - gap} ${y + 3} M${54 + gap} ${y - 3} L${49 + gap} ${y} L${54 + gap} ${y + 3}`} fill="none" stroke={NEW_INK} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    {[-gap, gap].map(x => <Flat key={x} d={circle(50 + x, y, 3.8)} fill={T.skin.fill} />)}
+    <Ink d={`M${46 - gap} ${y - 3} L${51 - gap} ${y} L${46 - gap} ${y + 3} M${54 + gap} ${y - 3} L${49 + gap} ${y} L${54 + gap} ${y + 3}`} />
   </g>;
 }
 
 function rebelPawn(): Figure {
   return {
     body: <>
-      <Boot x={43} /><Boot x={57} />
-      <path d="M35 101 L42.5 105.5 L50 101 L57.5 105.5 L65 101 Q67 84 61 76 Q50 71 39 76 Q33 84 35 101 Z" fill={GREEN} {...o} />
-      <path d="M35 101 Q33.5 86 39 77 Q39.5 91 43 104.5 Z" fill={GREEN_SH} />
-      <rect x="51" y="85" width="11" height="10" rx="1.5" fill={PATCH} {...f} transform="rotate(-10 56 90)" />
-      <path d="M39 75 L27 70 L30 80 Z M39 76 L29 85 L38 84 Z" fill={RED} {...f} />
-      <path d="M36.5 73.5 Q50 80 63.5 73.5 L52.5 91 Q50 93.5 47.5 91 Z" fill={RED} {...f} strokeWidth="3" />
-      <path d="M38 75 Q44 78 47.5 79 L48.5 90.5 Q47 90.5 46.5 89 Z" fill={RED_SH} />
+      <Boot x={41.5} tone={T.leatherDark} /><Boot x={58.5} tone={T.leatherDark} />
+      <Part d="M35 100 L42.5 103 L50 100 L57.5 103 L65 100 Q67 84 61 76 Q50 71 39 76 Q33 84 35 100 Z" tone={T.shirtGreen} />
+      <g transform="rotate(-10 56 91)"><Part d={rect(50.5, 86, 11, 10, 1.5)} tone={T.patchBlue} line="inner" shade={false} /></g>
+      <Part d="M39 75 L26.5 70 L29.5 80.5 Z M39 76 L28.5 86 L38.5 84.5 Z" tone={T.bandana} line="inner" shade={false} />
+      <Part d="M36.5 73.5 Q50 80 63.5 73.5 L52.5 91 Q50 93.5 47.5 91 Z" tone={T.bandana} line="inner" />
     </>,
-    armBack: <><Sleeve d="M41 80 Q36 85 36 91" fill={GREEN} /><Mitt x={36} y={92} fill={SKIN} /></>,
+    armBack: <><Sleeve d="M41 80 Q36 85 36 91" tone={T.shirtGreen} /><Mitt x={36} y={92} tone={T.skin} /></>,
     prop: <g className="prop">
-      <Pole d="M61 106 L71 46" ink={6.8} fill={3.2} color={WOOD} />
-      <g transform="rotate(9.5 71 46)">
-        <Pole d="M60 24 L60 38 Q60 47 71 47 Q82 47 82 38 L82 24 M71 47 L71 22" ink={5.8} fill={2.6} color={RUST} />
-        <rect x="67.5" y="45" width="7" height="7" rx="1.5" fill={RUST} {...f} />
-      </g>
+      <Pole d="M71 105 L72.5 44" tone={T.wood} width={3.4} />
+      <Pole d="M66.5 20 L66.5 37 Q66.5 45 72.5 45 Q78.5 45 78.5 37 L78.5 20 M72.5 45 L72.5 17" tone={T.rustySteel} width={2.6} />
+      <Part d={rect(69, 43.5, 7, 6.5, 1.5)} tone={T.rustySteel} line="inner" shade={false} />
     </g>,
-    armFront: <><Sleeve d="M59 80 Q64 83 66 86" fill={GREEN} front /><Mitt x={66.5} y={87} fill={SKIN} /></>,
+    armFront: <><Sleeve d="M59 80 Q66 83.5 70.5 87" tone={T.shirtGreen} front /><g transform="rotate(25 64.5 83.5)"><Part d={rect(61, 80, 7, 7, 1.2)} tone={T.bandana} line="inner" shade={false} /></g><Mitt x={71.5} y={88} tone={T.skin} /></>,
     head: <>
-      <circle cx="50" cy="65" r="13.5" fill={SKIN} {...o} strokeWidth="3.6" />
-      <path d="M37 64 Q38 72 43.5 76.5 Q40.5 70 41 63 Z" fill={SKIN_SH} />
-      <DotEyes y={67} gap={5.2} r={2.6} />
-      <Squint y={67} gap={5.2} />
-      <g transform="rotate(-5 50 54)">
-        <Pole d="M28.5 49 Q21 48.5 21.5 55 Q22.5 60.5 28.5 58.5 M71.5 49 Q79 48.5 78.5 55 Q77.5 60.5 71.5 58.5" ink={6.4} fill={2.8} color={COPPER} />
-        <path d="M26 59 Q25.5 55.5 29 55 L32 40 Q32.5 35.5 37 35.5 L39.5 35.5 L43 39.5 L46 35.5 L63 35.5 Q67.5 35.5 68 40 L71 55 Q74.5 55.5 74 59 Q50 62.5 26 59 Z" fill={COPPER} {...o} />
-        <path d="M26 59 Q25.5 55.5 29 55 L32 40 Q32.5 35.5 37 35.5 L39.5 35.5 Q36.5 46 37.5 60.5 Q31 60 26 59 Z" fill={COPPER_SH} />
-        <path d="M58 39.5 Q63 40.5 64 47" fill="none" stroke={HIGHLIGHT} strokeWidth="2.8" strokeLinecap="round" />
+      <Part d={circle(50, 65, 14)} tone={T.skin} />
+      <Eyes y={67.5} gap={5.2} r={2.7} />
+      <Squint y={67.5} gap={5.2} />
+      <g transform="rotate(-4 50 50)">
+        {["M33 47 Q27.5 47 27.5 51 Q27.5 55 33 55", "M67 47 Q72.5 47 72.5 51 Q72.5 55 67 55"].map(d => <Pole key={d} d={d} tone={T.copper} width={2.4} />)}
+        <Part d="M34 54 L33.5 35.5 Q33.5 28 41 28 L59 28 Q66.5 28 66.5 35.5 L66 54 Z" tone={T.copper} highlight="M38.5 48 L38.5 36" />
+        <Ink d="M56 33 Q60 36.5 58.5 42" weight="inner" />
+        <Part d={rect(31.5, 52, 37, 8, 4)} tone={T.copper} />
       </g>
     </>,
     mouths: null,
-    propOrigin: "66px 87px", shield: [38, 90], mouth: [50, 70, 5],
+    propOrigin: "71.5px 88px", shield: [38, 90], mouth: [50, 70, 5],
   };
 }
 
+/** A solid rounded shoulder cap with a gold edge. */
+const Pauldron = ({ x, tone }: { x: number; tone: Tone }) => <>
+  <Part d={`M${x - 10.5} 88 Q${x - 11.5} 74 ${x} 74 Q${x + 11.5} 74 ${x + 10.5} 88 Q${x} 92 ${x - 10.5} 88 Z`} tone={tone} highlight={`M${x - 6.5} 83 Q${x - 6} 79 ${x - 2.5} 78`} />
+  <Pole d={`M${x - 9} 88.2 Q${x} 91.6 ${x + 9} 88.2`} tone={T.gold} width={3} />
+</>;
+
 function patrolPawn(c: Palette, hue: PatrolHue): Figure {
-  const [tunic, tunicSh] = hue === "blue" ? [BLUE, BLUE_SH] : [c.main, c.mainSh];
+  const tunic: Tone = hue === "blue" ? T.royalBlue : { fill: c.main, shade: c.mainSh };
   return {
     body: <>
-      <Boot x={42} /><Boot x={58} />
-      <path d="M33 102 Q31 84 38 75 Q50 70 62 75 Q69 84 67 102 Q50 107 33 102 Z" fill={tunic} {...o} />
-      <path d="M33 102 Q31.5 86 38 76 Q39 91 42 104.5 Q37 104 33 102 Z" fill={tunicSh} />
-      <path d="M35 99 Q50 104 65 99" fill="none" stroke={GOLD} strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M38 75.5 Q50 81 62 75.5" fill="none" stroke={NEW_INK} strokeWidth="7.5" strokeLinecap="round" />
-      <path d="M38 75.5 Q50 81 62 75.5" fill="none" stroke={GOLD} strokeWidth="3.6" strokeLinecap="round" />
+      <Boot x={41.5} tone={T.leatherDark} /><Boot x={58.5} tone={T.leatherDark} />
+      <Part d="M34 102 Q32 84 38 75 Q50 70 62 75 Q68 84 66 101 Q50 104 34 101 Z" tone={tunic} />
+      <Pole d="M36 97.5 Q50 101.5 64 97.5" tone={T.gold} width={3.4} />
+      <Pole d="M39 76 Q50 81 61 76" tone={T.gold} width={3.4} />
+      <Pauldron x={33} tone={tunic} />
     </>,
-    armBack: <><Sleeve d="M39 80 Q34 86 35 92" fill={MAIL} /><path d="M27 83 Q26 70 38 70 Q46 72 45 83 Q36 88 27 83 Z" fill={tunic} {...f} strokeWidth="3.4" /><path d="M28.5 82 Q36 86.5 43.5 82" fill="none" stroke={GOLD} strokeWidth="3.2" strokeLinecap="round" /><Mitt x={35} y={93} fill={GLOVE} /></>,
+    armBack: <><Sleeve d="M36 82 Q33 88 34 93" tone={T.mail} /><Mitt x={34} y={94} tone={T.leather} /></>,
     prop: <g className="prop">
-      <Pole d="M62 106 L73.5 18" ink={6.2} fill={3} color={WOOD} />
-      <g transform="rotate(7 73.5 18)">
-        <path d="M73.5 -1 Q80.5 8 76 18 L71 18 Q66.5 8 73.5 -1 Z" fill={STEEL} {...f} strokeWidth="3" />
-        <path d="M73.5 -1 Q68 8 71 18 L73.5 18 Z" fill={STEEL_SH} />
-        <rect x="70" y="17" width="7" height="5" rx="1.5" fill={GOLD} {...f} />
+      <Pole d="M63 105 L72.5 17" tone={T.wood} width={3.2} />
+      <g transform="rotate(6 72.5 17)">
+        <Part d="M72.5 0 Q78.5 8.5 75.5 17.5 L69.5 17.5 Q66.5 8.5 72.5 0 Z" tone={T.steel} line="inner" highlight="M70.5 12 Q70 8 72 4.5" />
+        <Part d={rect(69, 16.5, 7, 5, 1.5)} tone={T.gold} line="inner" shade={false} />
       </g>
     </g>,
-    armFront: <><Sleeve d="M60 80 Q65 83 67 86" fill={MAIL} front /><path d="M55 83 Q54 70 63 70 Q74 70 73 83 Q64 88 55 83 Z" fill={tunic} {...f} strokeWidth="3.4" /><path d="M56.5 82 Q64 86.5 71.5 82" fill="none" stroke={GOLD} strokeWidth="3.2" strokeLinecap="round" /><Mitt x={67.5} y={87} fill={GLOVE} /></>,
+    armFront: <><Sleeve d="M67 89 Q67.5 92 66.5 95" tone={T.mail} front /><Pauldron x={67} tone={tunic} /><Mitt x={66} y={96} tone={T.leather} /></>,
     head: <>
-      <circle cx="50" cy="66" r="14" fill={SKIN} {...o} strokeWidth="3.6" />
-      <path d="M37 66 Q38 75 45 79 Q41 72 41.5 64 Z" fill={SKIN_SH} />
-      <path d="M42.5 62.3 L47.5 63.8 M57.5 62.3 L52.5 63.8" stroke={NEW_INK} strokeWidth="2.8" strokeLinecap="round" />
-      <DotEyes y={66.8} gap={4.8} r={2.3} />
-      <Squint y={66.8} gap={4.8} />
-      <path d="M50 72 Q44.5 70 40 72.5 Q35 75 31.5 71 Q31 79 40 79 Q46.5 79 50 75.5 Q53.5 79 60 79 Q69 79 68.5 71 Q65 75 60 72.5 Q55.5 70 50 72 Z" fill={MOUSTACHE} {...f} strokeWidth="2.6" />
-      <ellipse cx="50.5" cy="71" rx="3.2" ry="2.8" fill={SKIN} {...f} strokeWidth="2.2" />
-      <path d="M40 37 Q39 20 50 18 Q61 20 60 37 Z" fill={STEEL} {...o} />
-      <path d="M40 37 Q39 20 50 18 Q45 25 46 37 Z" fill={STEEL_SH} />
-      <path d="M28 54 Q27 34 50 34 Q73 34 72 54 Z" fill={STEEL} {...o} />
-      <path d="M28 54 Q27.5 36 43 34.5 Q35 43 37 54 Z" fill={STEEL_SH} />
-      <path d="M22 40 Q28 51 40 52 L60 52 Q72 51 78 40 Q82 54 70 58.5 Q50 63 30 58.5 Q18 54 22 40 Z" fill={STEEL} {...o} />
-      <path d="M23.5 50 Q34 59 50 59.5 Q66 59 76.5 50 Q74 57 68 58.5 Q50 62 32 58.5 Q26 56.5 23.5 50 Z" fill={STEEL_SH} />
-      <path d="M58 38 Q64 39.5 66 46" fill="none" stroke={HIGHLIGHT} strokeWidth="2.8" strokeLinecap="round" />
+      <Part d={circle(50, 65.5, 14)} tone={T.skin} />
+      <Ink d="M42.5 61.5 L47.5 63.2 M57.5 61.5 L52.5 63.2" />
+      <Eyes y={66.5} gap={4.8} r={2.4} />
+      <Squint y={66.5} gap={4.8} />
+      <Part d="M50 72 Q44.5 70 40 72.5 Q35 75 31.5 71 Q31 79 40 79 Q46.5 79 50 75.5 Q53.5 79 60 79 Q69 79 68.5 71 Q65 75 60 72.5 Q55.5 70 50 72 Z" tone={T.moustache} line="inner" />
+      <Part d={ellipse(50.5, 71, 3.2, 2.8)} tone={T.skin} line="inner" shade={false} />
+      <Part d="M45 38 Q45 25 50 22.5 Q55 25 55 38 Z" tone={T.steel} />
+      <Part d="M31.5 55 Q30.5 35 50 34.5 Q69.5 35 68.5 55 Z" tone={T.steel} highlight="M38 45 Q39.5 40.5 43.5 38.5" />
+      <Part d="M26.5 59.5 Q27 51.5 35 51.5 L65 51.5 Q73 51.5 73.5 59.5 Q72.5 62.5 68 61 Q50 57.5 32 61 Q27.5 62.5 26.5 59.5 Z" tone={T.steel} />
     </>,
     mouths: null,
-    propOrigin: "67px 87px", shield: [36, 90], mouth: [50, 70, 5],
+    propOrigin: "66px 96px", shield: [36, 90], mouth: [50, 70, 5],
   };
 }
 

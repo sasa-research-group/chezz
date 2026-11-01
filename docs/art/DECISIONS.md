@@ -3,6 +3,21 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-10-31: pawn redraw on the shape kit
+- Patrol pawn helmet: the guide's morion (tall comb, upswept pointed brim) read as a
+  sombrero or cowboy hat at 48px in two judge rounds. Replaced in game by a compact
+  steel kettle helm with a short downturned brim and a small comb. The reference
+  crop is unchanged; this is a declared correction.
+- Rebel pawn pot: a deep straight-sided pot with a rim band and two small loops just
+  above the rim. Tried and dropped: a tapering pot (reads as a felt hat), round
+  handles up the sides (mouse ears), flat handles at mid-height (a hat brim). The
+  judge still reads the pot as hat-like at times; still open.
+- Judge rounds: rebel 6/7/4/7/7 → 7/7/6/8/8 → 6/7/5/6/7, patrol 8/8/7/6/7 → 8/8/7/8/8
+  → 8/8/7/8/8 (readability/style/likeness/motion/consistency). The kept build is
+  round 2's pot plus a darker copper shade and an elbow patch.
+- Both pawns fit inside x 18–82 and share one build (head r 14, body x 34–66).
+- Light from the upper left on screen for every rig, derived by the kit.
+
 ## 2026-10-31: in-game art stays hand-written SVG
 - Pawn pilot (SVG rigs behind `?art=new`): "looks really good", but shading
   spilled past parts into the outline, and there were general inconsistencies.

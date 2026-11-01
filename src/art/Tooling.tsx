@@ -10,6 +10,8 @@ const MADE: [string, string, string][] = [
   ["Hideout map", "CSS grid + container-query signs", "src/hub.css"],
   ["Icons", "Unicode glyphs + one inline SVG shield", "App.tsx · Hub.tsx · BoardArt.tsx"],
   ["Favicon", "Static SVG", "public/favicon.svg"],
+  ["Redrawn pieces (armour style)", "Shape kit: Part = fill, derived cel shadow and highlight clipped to the part, outline last; tokens for ink, weights, tones", "src/components/inkKit.tsx · ArmourPawns.tsx"],
+  ["Judge sheet", "Playwright shoots art.html?sheet=… with every animation frozen at set fractions", "tools/art/shoot.mjs · src/art/Sheet.tsx"],
   ["Legacy pieces", "SVG, lab Duel only", "src/components/PieceArt.tsx"],
 ];
 const FONTS: [string, string, string, string][] = [
@@ -20,7 +22,7 @@ const FONTS: [string, string, string, string][] = [
 ];
 const NOT_USED = ["Raster images or sprite sheets", "Image editors or exported assets", "Animation libraries (no GSAP, Lottie, Spine)", "Canvas or WebGL", "Third-party art or icon packs"];
 const ADD = [
-  "Draw in code: SVG in a component, viewBox 0 0 100 120 for characters, ink #382f2e outlines (3.5 / 2.2)",
+  "Characters: draw with the shape kit (src/components/inkKit.tsx) per docs/art/BRIEF.md; viewBox 0 0 100 120",
   "Use palette constants from PieceRig.tsx or the hexes listed in the style guide",
   "Animate with CSS keyframes keyed off a class; multiply durations by var(--spd,1)",
   "Add the duration to RIG_MS when the game must wait for it",

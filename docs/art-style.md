@@ -68,7 +68,7 @@ Every piece must read as its chess piece by silhouette at board size (48px).
 
 | Piece | Crest on the sheet | Must keep |
 |---|---|---|
-| Pawn | Pot or morion on a small round head | Smallest and roundest; short prop |
+| Pawn | Pot or morion on a small round head (in game: a kettle helm with a comb, see `patrol-pawn`) | Smallest and roundest; short prop |
 | Knight | A horse: wooden hobby horse, a ridden horse in steel barding, a carved wooden horse | A horse head in profile |
 | Bishop | Tall pointed mitre (parchment, gilded, on a goose) | The mitre's point and centre cleft |
 | Rook | Battlements on top: tower helm, keep-shaped great-helm, haystack | Square top with crenels |
@@ -155,14 +155,14 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`.
 
 | Id | Notes |
 |---|---|
-| `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. |
+| `rebel-pawn` | Dented copper pot over the brow, two dot eyes, no mouth; red bandana; patched green shirt; pitchfork. In game the pot has straight sides, a rim band and two small loop handles low on its sides, just above the rim; handles higher up read as mouse ears. |
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
 | `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. |
-| `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. |
+| `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. |
 | `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. |
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. |
@@ -185,7 +185,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Faces at the sheet's budget: no face or two dot eyes for most characters.
 - Hands become simple mitts; finger creases drop.
 - One prop per character, oversized so it reads.
-- Thick ink outline. Use the rig's 3.5-unit outer stroke or thicker; relative to the figure it is heavier than on the sheet, on purpose.
+- Thick ink outline: `WEIGHT.outer` (4.5 units) from the shape kit, `inner` 2.8 for parts over parts, `face` 2.6 for brows and squints. Relative to the figure it is heavier than on the sheet, on purpose.
 - Flat fill plus one hard shadow shape per part, and one white highlight tick on metal.
 - Faction colour: rebels earthy with one dominant accent; patrol royal blue with gold edging; oddballs in their own creature colours.
 - One rebel signature mark: a single patch, or a dent in the helm.
@@ -202,7 +202,17 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Current rigs use big white toon eyes and mouths. Under this guide most faces go: replace with visors, slots, hoods and dot eyes.
 - Current rebel colours (teal, gold, brown) become earthy materials with one accent per character.
 - Patrol royal blue and gold already match; keep the scheme, adjust hexes to section 7.
-- Ink is near-black on the sheet; the rig ink is `#382f2e`. Decide when redrawing; the rig's warmer ink is close enough at game size.
+- Ink: redrawn art uses `#1f1a19` (`INK` in `src/components/inkKit.tsx`), near the sheet's black; old rigs keep `#382f2e` until redrawn.
+
+**Learned from the pawn pilot** (drawn with `src/components/inkKit.tsx`, checklist `docs/art/BRIEF.md`)
+
+- Light comes from the upper left on screen for every rig. The kit derives each part's cel shadow (a crescent on the lower right, shifted 5.5 × 4 units) and mirrors it with the rig's facing, so hand-drawn shadow shapes are gone. About 2.2 units of the shift hides under the outline.
+- Shadows and highlights are clipped to their part and the outline is painted on top, so shading can't spill into a border.
+- Parts under about 12 units across (mitts, boots, patches, nose) go unshaded: the crescent would swallow them.
+- At the head scale (head r 14) dot eyes need r 2.4–2.7 and face strokes 2.6; thinner vanishes at 48px.
+- Keep the figure inside x 18–82, prop and outline included; wider figures crowd the square.
+- Pauldrons need their own outer outline, highlight and a gold edge, and must sit below the head (y 74+), or they read only as gold lines.
+- A shape that narrows toward the top (crown) plus any brim reads as a hat. Pots need straight or widening sides.
 
 ## 10. Judge checks
 

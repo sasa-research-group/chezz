@@ -61,7 +61,7 @@ function CastMatrix({ rows = ALL_ROWS, label = "Cast by state" }: { rows?: CastR
 const PILOT_SIZES: [number, string][] = [[48, "48px · smallest board"], [84, "84px · phone 4×4 board"], [192, "192px · 4×"]];
 const PILOT_PAWNS: { side: RigSide; name: string; ref: string; notes: string }[] = [
   { side: "white", name: "Rebel pawn", ref: "rebel-pawn", notes: "Copper pot, two dot eyes, red bandana, pitchfork" },
-  { side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel morion with comb, brows, moustache, pike, royal-blue tunic" },
+  { side: "black", name: "Patrol pawn", ref: "patrol-pawn", notes: "Steel kettle helm with a small comb, brows, moustache, gold-edged pauldrons, pike" },
 ];
 function PilotCompare({ side, refName }: { side: RigSide; refName: string }) {
   const { hue } = useStudio(), facing = side === "white" ? 1 : -1;
@@ -75,7 +75,7 @@ function PilotCompare({ side, refName }: { side: RigSide; refName: string }) {
 }
 function Pilot() {
   const { hue } = useStudio();
-  return <Group id="pilot" title="Pilot: pawns" intro={<>Both pawns redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code>.</>}>
+  return <Group id="pilot" title="Pilot: pawns" intro={<>Both pawns redrawn in the target style (<code>docs/art-style.md</code> §9) behind a switch: the game keeps the old art unless the URL has <code>?art=new</code>. Drawings: <code>components/ArmourPawns.tsx</code>, drawn only with the shape kit <code>components/inkKit.tsx</code>. Judge sheet: <code>node tools/art/shoot.mjs pawn.white,pawn.black out.png</code>.</>}>
     {PILOT_PAWNS.map(p => <Entry key={p.side} name={`${p.name}: old · new · reference`} src={`PieceRig art="old" | "new" · docs/art/${p.ref}.webp`} note={p.notes} full><PilotCompare side={p.side} refName={p.ref} /></Entry>)}
     <Entry name="Silhouette at 48px" src="judge check 1: filled solid black" wide>
       <div className="pilot-row silhouettes">{PILOT_PAWNS.map(p => <figure key={p.side} style={{ width: 48 }}><PieceRig kind="pawn" side={p.side} hue={hue} facing={p.side === "white" ? 1 : -1} art="new" seed="sil" /></figure>)}

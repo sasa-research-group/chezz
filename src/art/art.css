@@ -95,3 +95,14 @@
 .pilot-row figure img{width:100%;height:auto;border-radius:4px;display:block}
 .pilot-row figcaption{font-size:10px;color:#766a58}
 .silhouettes{padding:8px;background:#e9d6ae;border-radius:6px}.silhouettes .rig{filter:brightness(0)}
+/* Judge sheet (Sheet.tsx, tools/art/shoot.mjs) */
+#sheet{background:#fbf6e8;padding:16px;width:max-content;font:13px system-ui,sans-serif;color:#382f2e}
+#sheet h2{font-size:15px;margin:12px 0 6px}
+.sheet-row{display:flex;align-items:flex-end;gap:10px;margin-bottom:6px}
+.sheet-row>b{width:72px;align-self:center}
+.sheet-frames .sheet-cell{padding:40px 30px 4px;overflow:hidden}
+.sheet-cell{margin:0;padding:4px;background:#e9d6ae;border-radius:6px;text-align:center}
+.sheet-cell figcaption{font-size:11px;margin-top:2px}
+.sheet-sil .rig{filter:brightness(0)}
+.sheet-grey .rig{filter:grayscale(1)}
+.sheet-cast .sheet-cell{background:#c6b393}
