@@ -601,3 +601,24 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
   forward, and a darker horse. The rebel's neckerchief is still small, and the reference's
   hip satchel is missing. Cost: about $1.30 for both (four pose-and-parts runs, one
   parts-only re-roll).
+
+## 2026-11-01: painted rooks re-rolled
+- Both painted rooks re-rolled with the kings' lessons (`docs/art/PAINTED.md`, "Rooks
+  (re-roll)") to fix the pilot's gaps: no fist gripped the sledge or halberd, the halberd
+  merged into the helm at 48px, the stonemason's bandana hid under his crossed arm, and the
+  painted interiors blurred at 48px.
+- Stonemason: sledge upright in his front fist (the fist visibly wraps the handle), compact
+  stone head beside the battlements, back arm hanging, bandana showing between the arms. His
+  sledge strike is restored as `rig-sledge-paint` (shorter choke-up than the drawn rig's).
+- Patrol rook: halberd upright in the gauntlet fist, a small crescent blade facing away from
+  the helm with background between them; flat plate, no chainmail.
+- Declared corrections for the judge: the sledge is held upright, not over the shoulder; the
+  sledge head and halberd blade are narrower than the reference so the figure fits x 18–82.
+- Judge (readability/style/likeness/motion/consistency). Round 1: rebel 7/8/7/8/8, patrol
+  8/8/8/7/8, a pass. Round 2 (front arm moved out so the bandana shows, helm moved left so the
+  sledge head clears it): rebel 8/8/7/8/8, patrol 7/8/7/8/8, a pass.
+- Still open: the halberd is thin and short at 48px (spear tip level with the helm top, a
+  1px shaft); the stonemason's vest reads as a brown apron with one patch and the bandana as
+  a band rather than a big kerchief; the vest outline behind his arms is lumpy; the patrol
+  halberd hides behind the body in the shared strike's wind-up.
+- Cost: about $0.58 on Replicate (four Nano Banana Pro calls, two BRIA cutouts).
