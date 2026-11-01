@@ -10,11 +10,11 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** rigs are misfit characters with Pizza Tower animations
   (`PieceRig.tsx`, `rig.css`), placeholder. Target style chosen Oct 31:
   "armour does the talking" (`docs/art-style.md`; reference art and recipe
-  in `docs/art/`). Not redrawn yet; next is the builder/judge stage.
+  in `docs/art/`). Pawn pilot (`?art=new`): shape kit `inkKit.tsx`, judge
+  loop `tools/art/shoot.mjs` + `docs/art/BRIEF.md`. Rebel pot reads hat-like.
   Regenerate concepts with `tools/art/gen.mjs` (`docs/art/GENERATING.md`).
 - **Studio** (`art.html` → `src/art/`): all art live, mechanics from
-  `turns.ts`, style guide (target reference on top, then current swatches). Add new art
-  to `Catalog.tsx`.
+  `turns.ts`, style guide. Add new art to `Catalog.tsx`.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
   wooden table, no page scroll. Top bar (`TopBar.tsx`), board sized to the
   field on both axes at 8° tilt, HUD strip (rails in landscape) with
