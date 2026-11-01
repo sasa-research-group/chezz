@@ -197,3 +197,6 @@
 .rig.rig-pawn.rebel.quirk-croak.act-idle .squash{animation:none}
 .rig.quirk-croak.act-idle .quirk-bit{animation:rig-croak 2.6s var(--ease-soft) var(--seed) infinite}
 @keyframes rig-croak{0%,50%,100%{transform:scale(1)}66%{transform:scale(1.75,2.05)}76%{transform:scale(1.55,1.75)}}
+/* Empty knight: the empty helm bobs above its hollow collar with nothing holding it up. */
+.rig.quirk-hover.act-idle .head{animation:rig-hover 2.2s var(--ease-soft) var(--seed) infinite}
+@keyframes rig-hover{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}

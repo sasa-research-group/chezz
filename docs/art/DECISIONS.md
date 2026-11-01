@@ -119,6 +119,27 @@ proposing a new look. Generation details for kept art are in `recipe.md`.
   round-1 judge wanted dot-eye-only faces; the guide allows both queens' faces, so later
   judges were told the guide's budget.
 
+## 2026-11-01: the empty knight skin
+- Third skin in the unlock order (`src/components/skins/emptyKnight.tsx`). Declared
+  corrections against `odd-knight.webp`: rebel colours (rusty iron, wood, red rag and
+  rein as the one accent) instead of the reference's patrol blue, which was drift;
+  the rebel bucket helm, empty, instead of no head; rockers under the horse; no prop.
+- The emptiness: a void T with no eyes, a helm floating clear of the collar (it bobs
+  in idle), a dark neck hole, and a gap between vambrace and gauntlet.
+- What failed at 48px: the outline is 4.5 units, so any part under about 10 units
+  thick is all ink. A 5-unit rocker, a thin gorget ring and small pauldrons all came out
+  black. A narrow torso under wide pauldrons read as mushrooms; a narrow cuirass read
+  as a bucket or a can. The rider's leg and a second vambrace turned the middle into
+  "a stack of grey boxes", so both were dropped.
+- Judge rounds (readability/style/likeness/motion/consistency): 5/7/4/7/7 → 5/6/5/7/6
+  → 5/7/5/8/7. It did not pass. Still open: at 48px it reads as three stacked blocks
+  (helm, round cuirass, rocker), with no knight notch, because the horse head is behind
+  the torso; the round cuirass reads as a pot or kettle; the neck hole is mostly hidden
+  by the pauldrons' outlines; the red band reads as a lid stripe, not a tied rag. The
+  judges disagreed on the leg: round 2 wanted the leg plates gone, round 3 wanted one
+  greave back. A next pass should put the horse head in front of the torso's right edge,
+  with the ear above the helm line, and make the cuirass taper to the waist.
+
 ## 2026-11-01: knights on the shape kit
 - Both knights redrawn behind `?art=new` (`src/components/ArmourKnights.tsx`), with the
   old knight's group names, so the flip hop, leap and leap-back play unchanged.

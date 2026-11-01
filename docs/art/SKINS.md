@@ -62,7 +62,7 @@ redrawn on the kit first.
 | Piece | Skin | Crest | Status |
 |---|---|---|---|
 | Pawn | Frog in the saucepan (`odd-pawn`) | Rebel saucepan | Drawn: `frog-pot` |
-| Knight | Empty suit of armour on a rocking horse (`odd-knight`) | Horse head | Planned. Reference is in patrol blue (drift); use rebel or neutral steel |
+| Knight | Empty suit of armour on a rocking horse (`odd-knight`) | Rebel carved horse head | Drawn: `empty-knight` (third unlock; did not pass the judge yet). Rebel rusty iron, not the reference's patrol blue |
 | Bishop | Goose in a mitre (`odd-bishop`) | Rebel mitre | Planned |
 | Rook | Walking haystack with battlements (`odd-rook`) | Rebel stone battlements | Drawn: `haystack` |
 | Queen | Melting candle with a crown of flame (`odd-queen`) | Flame points as a crown | Planned. Reference has one flame; add points |
@@ -95,6 +95,21 @@ are a few short inner strokes under the crest, mid-body and over the hem, on top
 of the kit's shading. A straw mitten holds a two-tined hayfork; the back arm would
 hide behind the mound, so the skin draws none. Tones: `hay` (sampled from
 `odd-rook.webp`) and `straw` for the mitten.
+
+## The empty knight
+
+`src/components/skins/emptyKnight.tsx`, third in the unlock order. An empty suit
+of rusty iron on a rocking horse. The horse is the rebel knight's carved head
+(`RebelHorseHead`, shared with `ArmourKnights.tsx`), scaled 1.25× in the body slot
+(so its outlines are 1.25× the kit weights, the one exception in the cast),
+on a wooden barrel and a thick rocker. The head slot is the rebel bucket helm,
+tilted, with a red rag tied round it and a plain void T: no eyes. The pupils are
+void on the void, so blink, hit and death keep their groups. Death shows a dust
+puff in the T, and the yell shows rattle ticks over the helm. The cuirass has a dark
+neck hole, two round pauldrons, and one forearm whose vambrace is open at the wrist;
+the gauntlet sits a gap away on the red rein. It has no prop and no back arm, so the
+attack is the body's lunge, which rocks the horse. Idle quirk `quirk-hover`: the
+helm bobs over the collar.
 
 ## Later
 
