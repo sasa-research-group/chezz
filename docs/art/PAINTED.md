@@ -101,7 +101,7 @@ optional recipe `fuzz` (background-fill tolerance, default 14) for parts with ga
 ## Queens (Nov 2026)
 
 - Recipes `paint-rebel-queen.json` and `paint-patrol-queen.json`, pose renders
-  `paint/svg-*-queen.webp`. The pose prompt asks for the fist "clearly wrapped round" the handle
+  `paint/svg-*-queen.webp`. The pose prompt asks for the fist gripping the handle
   or rod and a narrow prop (pan no wider than the brim, orb no wider than the face).
 - No door, so the parts layout has an empty bottom-middle cell. The patrol queen's first parts
   sheet came back in a different layout; read the blob centres off the sheet before cutting.
@@ -109,11 +109,23 @@ optional recipe `fuzz` (background-fill tolerance, default 14) for parts with ga
   65°. On a painted rig the prop rides in that arm, so the two cancel and the pan just rises.
   `rig.css` skips the slap on `art-paint` queens, and the rebel queen's pan has its own strike
   (`propClass: "pan"`, `rig-pan`). Under the shared -55° wind-up the pan hid behind her wide
-  brim, so `rig-pan` cocks it back only 14° and lifts it.
+  brim; see `rig-pan` below.
 - The patrol wig: asked for "about 1.3 times as tall as wide" with ridged rolls. The head part
-  (wig, crown, cap and face) comes out about 1.55:1, so it reads tall at 48px. The collar stays
-  tan lace from the pose: asking the parts step for a white collar didn't change it, because
-  the parts copy the pose.
+  (wig, crown, cap and face) comes out about 1.7:1, so it reads tall at 48px.
+- Colours and props are fixed in the pose step, not the parts step: the parts copy the pose, so
+  asking the parts for a white collar left it tan. The second roll re-ran the pose with a white
+  fan collar, a skirt that says "NO vertical stripes, NO centre panel" (a softer "blue skirt"
+  still gave a gold stripe), a five-point crown, ONE armband on the back arm only, a crown as
+  wide as the helm's dome, and a fist with the handle "passing right through" it.
+- The arms are cut unrotated (no `rotate`): the parts step paints the front forearm level with
+  the fist upright, so a vertical handle or rod runs through the fist. The fist image draws
+  over the prop, with the handle showing above and below it.
+- Placing the vector eyes: measure the eyes against the face box in the pose (fractions of its
+  width and height), then apply those fractions to the blank face in the head part. The parts
+  step redraws the face narrower, so nose-to-mouth distances from the pose put the eyes off.
+  Check the eyes in a 4× crop of the 192px render.
+- `rig-pan` lifts the pan 14 rig units beside the helm (rotating only -12°, so it stays clear of the
+  brim) and swings 72°; past about 80° it points down once the body's lean is added.
 
 ## Knights (Nov 2026)
 

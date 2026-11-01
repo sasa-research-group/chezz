@@ -622,3 +622,23 @@ Done on an early "chunky" lineup (big heads, flat colour, thick outline).
   a band rather than a big kerchief; the vest outline behind his arms is lumpy; the patrol
   halberd hides behind the body in the shared strike's wind-up.
 - Cost: about $0.58 on Replicate (four Nano Banana Pro calls, two BRIA cutouts).
+
+## 2026-11-01: painted queens, second roll
+- Both queens re-rolled from the pose step (`PAINTED.md`, "Queens"). Patrol: a white fan collar
+  with a gold rim, a solid blue skirt with no centre panel, a five-point crown about half the
+  wig's width. Rebel: one purple armband on the back arm only, a crown as wide as the helm's
+  dome, and the pan handle passing through her fist. Arms are now cut unrotated, so the handle
+  and rod run up through the fist.
+- Faces: the vector eyes are re-read off the new heads and land on the painted faces at 192px
+  and 48px. The rebel queen gets vector angry brows, as in her reference.
+- `rig-pan` now lifts the pan 14 rig units beside the helm for the wind-up and swings it 72°. The slap
+  stays skipped on painted queens, and the morph-in plays.
+- Judge (readability/style/likeness/motion/consistency). Round 1: rebel 8/7/8/6/8 (the pan
+  barely cocked back), patrol 7/7/8/8/8. Round 2, with the bigger pan lift: rebel 8/8/7/8/8,
+  patrol 8/8/8/7/7. That is a pass, so the loop stopped.
+- Still open: judges want the rebel crown in dull pewter so gold stays the king's (the reference
+  crown is pale), and her pan bigger. On the patrol queen, they want smaller eyes, no lips, and
+  a sceptre wind-up that cocks back rather than pokes. They flagged her ground shadow as a
+  slanted wedge, but that shadow is the same as before this change.
+- Cost: about $0.87 (one rebel run, two patrol runs; the first patrol roll kept a gold skirt
+  stripe).
