@@ -18,6 +18,7 @@ describe("skin registry", () => {
       const html = rig({ kind: skin.kind, side: "white", skin: skin.id });
       for (const c of SLOTS) expect(hasClass(html, c), c).toBe(true);
       if (skin.kind === "rook") expect(hasClass(html, "door"), "door").toBe(true);
+      if (skin.kind === "king") expect(hasClass(html, "crown"), "crown").toBe(true);
       const eyes = html.slice(html.search(/class="eyes"/), html.search(/class="ko-eyes"/));
       expect(eyes.includes('class="pupil"'), "pupils sit inside .eyes").toBe(true);
       expect(hasClass(html, `skin-${skin.id}`)).toBe(true);

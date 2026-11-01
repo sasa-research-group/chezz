@@ -82,6 +82,16 @@ export const TONES = {
   // Goose bishop, sampled from docs/art/odd-bishop.webp (docs/art-style.md section 7).
   goose: tone("#edf1f9", "#b0b7cd"),
   beak: tone("#fe8a34", "#c9621a"), // shade picked
+  // Oddball skins: the empty knight's armour, the candle queen and the cat king.
+  armourIron: tone("#a3a8ab", "#7a8084"), // picked: the empty knight's suit, a step lighter than rustySteel so the void T and collar read as holes
+  wax: tone("#f7e4b5", "#d9b77c"), // candle wax, section 7; shade darker than the sheet's #e0c290, which barely showed
+  waxLight: tone("#fff4d6", "#f7e4b5"), // picked: the drips over the candle's top, a step lighter than the wax
+  flame: tone("#ee7424", "#c95a17"), // picked: redder than section 7's #f9aa1f, which merged with the wax at 48px
+  flameCore: tone("#f9c43a", "#f9aa1f"), // picked: the flame's hot centre
+  cat: tone("#f19d43", "#b7631e"), // cat orange and shadow, section 7
+  catStripe: tone("#b9541a", "#933f12"), // picked: the tabby stripes, darker than the cat's shade so they read at 48px
+  catPale: tone("#fbe3c2", "#e7c49a"), // picked: muzzle, chest and paws
+  velvet: tone("#a8304a", "#7a2034"), // picked: the crown's velvet cap, lighter than section 7's #9d2143 so the gold points part from it at 48px
 } as const;
 
 const clipId = (raw: string) => `ink${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;
