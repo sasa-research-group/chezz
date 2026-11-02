@@ -32,7 +32,7 @@ preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
 Someone else must be able to clone this repo and generate the same art, so what
 the art depends on is committed here, not in agent memory or a scratch folder:
 - Style: `docs/art-style.md`, reference images in `docs/art/`.
-- How to generate: `docs/art/PAINTED.md`, `docs/art/GENERATING.md`, recipes in
+- How to generate: `docs/art/PAINTED.md`, `docs/art/recipe.md`, recipes in
   `docs/art/recipes/`, scripts in `tools/art/`.
 - Owner decisions on the look: `docs/art/DECISIONS.md`.
 - A prompt or rule that produced art the owner kept goes into these files in the
