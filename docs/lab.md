@@ -1,5 +1,8 @@
 # Chezz Lab
 
+> Status: built for the simultaneous-orders design the game dropped on Oct 10.
+> Nothing in the live game uses it. Kept for reference; a deletion candidate.
+
 Small rule experiments, separate from the game. Play at `lab.html` next to the
 game (locally: http://127.0.0.1:5173/lab.html). The plan behind them is the
 experiment ladder in `reports/Simultaneous chess tactics design.md`.
@@ -65,7 +68,7 @@ The "Show the math" panel shows the full HP grid for the current rules.
 
 ### What to try
 
-1. Play about 5 duels under the current game rules (Free hits, Guard "As in
+1. Play about 5 duels under the old simultaneous rules (Free hits, Guard "As in
    game", gate 3). Then play about 5 under Full block. Compare your ratings.
 2. Turn the gate off and see whether duels feel solved.
 3. Turn your Sidestep off. Does being cornered change how you play?

@@ -10,5 +10,5 @@ artifacts/
 # workboard data
 .workboard/
 
-# generated art, see docs/art/GENERATING.md
+# generated art, see docs/art/PAINTED.md
 art-out/

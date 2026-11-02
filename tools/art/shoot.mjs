@@ -1,4 +1,4 @@
-// Renders the judge sheet for one or more rigs into one PNG.
+// Renders a close-up sheet of one or more pieces into one PNG, for looking at new art.
 //   node tools/art/shoot.mjs <rigs> <out.png> [--scale 1] [--crop 192]
 // <rigs> is a comma list of kind.side[.<skin id>], for example
 // pawn.white,pawn.black or pawn.white,pawn.white.frog-pot.

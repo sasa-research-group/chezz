@@ -1,7 +1,12 @@
 # Art decisions
 
 What the owner picked or rejected, newest first, with their reasons. Read before
-proposing a new look. Generation details for kept art are in `recipe.md`.
+proposing a new look. Generation details for kept art are in `recipe.md` and `PAINTED.md`.
+
+History, not process. Entries before "painted sprites become whole images" (Nov 1)
+describe retired approaches: the SVG shape kit, cut-out parts, `?art=` flags and
+judge rounds. Their look choices (saucepan, faces, crests) still hold; their
+pipelines, file names and pass scores do not. Docs they cite may be gone.
 
 ## 2026-11-02: the six skins painted; the SVG kit removed
 - Why: the owner called the SVG skins outdated and asked for them painted like the cast. Then:

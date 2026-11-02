@@ -8,8 +8,8 @@
 // (the step before it) for the colour, since the background remover returns a smaller image.
 // Then it erodes the alpha by a pixel to drop the grey fringe, drops specks under 0.2% of the
 // image, trims to the ink, scales to the recipe's `sprite.height` (default 480 px), and grows
-// the outer outline by `sprite.outline` px in ink (default 12), because at 48px a painted
-// outline is a third of the drawn rigs'. Writes art-out/<id>/sprite.webp.
+// the outer outline by `sprite.outline` px in ink (default 12), because at 48px the painted
+// outline alone is too thin to read. Writes art-out/<id>/sprite.webp.
 // --install copies it to src/assets/sprites/<character>.webp, where <character> is the id
 // without its "paint-" prefix, and records its pixel size in src/assets/sprites/sizes.json.
 // Needs ImageMagick (`magick`).

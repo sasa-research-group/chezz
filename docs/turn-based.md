@@ -1,8 +1,7 @@
 # Escape from Exile: turn-based rules
 
-The live game (`src/game/turns.ts`). It replaced the simultaneous-orders slice
-on Oct 10 at Wesley's request. That slice's rules are kept in
-`docs/exile-run.md` and `src/game/exile.ts`; the lab's Duel still uses them.
+The live game's rules (`src/game/turns.ts`). Expect them to change: the
+energy system is under review.
 
 ## Turns and energy
 - You act, then the enemy acts. Each side spends its own energy pool, which
@@ -111,11 +110,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   - Training grounds (upgrades), the armory (gear), the merchant
     (consumables) and the Grandmaster's Guild: locked (🔒) placeholders.
   - Next battle: march into it.
-- HP carries over; fallen allies stay gone; king death ends the run. The order pool, combat modes, pawn ambushes and cleanup
-  strikes from the simultaneous slice are gone.
+- HP carries over; fallen allies stay gone; king death ends the run.
 
 ## Known gaps
-- Encounters are the old ones and need tuning from playtests. With
-  next-square strikes, encounter 2 is a real puzzle: a greedy player loses it
-  to a pawn that promotes, so the test player looks two turns ahead.
+- Encounters need tuning from playtests. Encounter 2 punishes a greedy
+  player (a pawn promotes), so the test player looks two turns ahead.
 - Enemy intent isn't shown; you see the enemy act after your turn.

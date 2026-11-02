@@ -1,13 +1,12 @@
 # Chezz — Escape from Exile
 
-A browser tactics game with chess pieces. An exiled king fights through three
-small boards, recruits followers at the rebel hideout, and keeps every wound and loss.
-You act, then the enemy acts; each turn you spend 4 energy to move pieces in
-their chess shapes and to strike or defend.
+An early prototype: a browser tactics game with chess pieces. An exiled king
+fights through small boards, recruits followers at the rebel hideout between
+battles, and keeps every wound and loss. You act, then the enemy acts. Rules:
+[docs/turn-based.md](docs/turn-based.md).
 
-Play at **[sasa-research-group.github.io/chezz](https://sasa-research-group.github.io/chezz/)**.
-Every push to `main` deploys there after CI passes. The repository moved from
-`mracette/chezz`, and GitHub does not redirect Pages sites after a transfer.
+Play at **[sasa-research-group.github.io/chezz](https://sasa-research-group.github.io/chezz/)**
+(deployed from `main`).
 
 ## Commands
 
@@ -15,39 +14,23 @@ Use Node **24**.
 
 ```sh
 npm ci
-npm run dev        # local game at http://127.0.0.1:5173
-npm test           # rules tests (vitest)
+npm run dev        # game at http://127.0.0.1:5173, studio at /art.html
+npm test           # vitest
 npm run build      # tsc -b + production build
-npm run test:e2e   # Playwright browser suite (tests/browser/exile.spec.ts)
+npm run test:e2e   # Playwright (PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome to reuse a browser)
 ```
 
-If Chromium is already installed (for example in a cloud container), point
-Playwright at it instead of downloading a browser:
+## Where things are
 
-```sh
-PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
-```
+- **src/App.tsx**: screens, turn controls, enemy-turn playback, autosave.
+- **src/game/turns.ts**: the rules, pure and deterministic.
+- **src/game/levels/levels.json**: the battles, as data ([docs/levels.md](docs/levels.md)).
+- **src/components/PieceRig.tsx**, **SpriteRig.tsx**, **src/sprite.css**: the
+  cast, one painted sprite per piece and skin, animated whole
+  ([docs/art/PAINTED.md](docs/art/PAINTED.md), [docs/art-style.md](docs/art-style.md)).
+- **art.html → src/art/**: the studio: Cast, Stage, Levels (edit and playtest
+  battles), Style guide, Mechanics.
+- **lab.html → src/lab/**: an old rule experiment from the dropped
+  simultaneous-orders design ([docs/lab.md](docs/lab.md)).
 
-## Live code
-
-- **src/main.tsx → src/App.tsx**: screens, turn controls, enemy-turn playback and autosave.
-- **src/game/turns.ts**: pure, deterministic turn-based rules (energy, moves,
-  strikes, defend, enemy turn, camp, save validation).
-- **src/game/exile.ts**: the previous simultaneous-orders engine, still used
-  by the lab Duel.
-- **src/components/PieceRig.tsx**, **SpriteRig.tsx** and **src/sprite.css**: the
-  cast, one painted sprite per piece and side, animated whole (idle, move,
-  attack, defend, hit, death and more), skins included; `rig.css` holds the
-  shared effects. They are the only art.
-- **art.html → src/art/**: the studio. The cast sheet, a stage that plays any
-  piece's animations at slow speeds, the style guide and the implemented
-  mechanics (computed from `turns.ts`). Linked from the ☰ menu.
-- **src/exile.css**: the CSS-tilted parchment board and screens.
-- **tests/turns.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
-
-Rules are in [docs/turn-based.md](docs/turn-based.md); the earlier simultaneous slice is in [docs/exile-run.md](docs/exile-run.md).
-Rule experiments live on the lab page (`lab.html`, [docs/lab.md](docs/lab.md)).
-Working notes are in [CLAUDE.md](CLAUDE.md) and [docs/HANDOFF.md](docs/HANDOFF.md).
-
-The earlier "Between Worlds" prototype (Three.js board, shops, gambits) was
-removed in October 2026; it lives on in git history.
+Working notes: [CLAUDE.md](CLAUDE.md), [docs/HANDOFF.md](docs/HANDOFF.md).

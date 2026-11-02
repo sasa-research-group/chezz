@@ -16,9 +16,7 @@ reference oddballs: `docs/art/odd-*.webp`. Style rules: `docs/art-style.md`
   new run overwrites. Clearing site data loses them.
 - Skins are cosmetic. They never change stats or rules; `turns.ts` knows
   nothing about them.
-- Every skin is a painted sprite like the rest of the cast (Nov 2 2026). The
-  SVG shape-kit skins were deleted with the kit; they are in git history before
-  the commit "Remove the SVG shape kit".
+- Every skin is a painted sprite like the rest of the cast.
 - The picker is in the ☰ menu and on the Victory screen; the studio shows the
   skins on the Cast sheet and in the Stage's Piece list. The hideout's army
   portraits and the top bar's king portrait don't show skins yet.
@@ -42,8 +40,7 @@ reference oddballs: `docs/art/odd-*.webp`. Style rules: `docs/art-style.md`
 ## Painting a skin
 
 Each pose prompt gets up to four images: the oddball reference, the style sheet,
-a pose reference (`docs/art/paint/svg-skin-<id>.webp`, renders of the old SVG
-skins, kept for re-rolls) and the rebel piece's own painted sprite, so the crest
+a pose reference (`docs/art/paint/svg-skin-<id>.webp`, pose only) and the rebel piece's own painted sprite, so the crest
 matches the base piece exactly. The empty knight skips the pose reference (its
 old drawing split the horse head from the barrel; the text alone gave a cleaner
 rocking horse). The candle skips the base sprite (the rebel queen's helm and pan
@@ -54,8 +51,8 @@ sentence from the prompt.
 2. Copy a `paint-skin-*.json` recipe and change SUBJECT and EYES.
 3. `node tools/art/gen.mjs <recipe>` (about $0.15), look at the pose at full
    size and at 48px, then `node tools/art/sprite.mjs <recipe> --install`.
-4. Judge sheet: `node tools/art/shoot.mjs pawn.white,pawn.white.<id> out.png`;
-   battle: `node tools/art/battle-shot.mjs pawn out.png --skins <id>`.
+4. Look at it beside its piece: `node tools/art/shoot.mjs pawn.white,pawn.white.<id> out.png`;
+   on the board: `node tools/art/battle-shot.mjs pawn out.png --skins <id>`.
 
 ## The six
 
@@ -79,8 +76,6 @@ Whole-sprite keyframes in `src/sprite.css` ("Skins"):
 - Frog: the idle breathing becomes a slow wide croak puff every 2.6 s.
 - Empty knight: the idle rocks ±3° on the rocker.
 - Goose: the strike is a peck, a coil back then a 26° dip beak first.
-- Dropped with the parts: the haystack's plank door on defend, blinks, yells and
-  the death head pop.
 - The cat's crown can't fly off a single image: checkmate uses the shared crown
   particle (`CrownFx`) like every king, and the painted crown stays on.
 

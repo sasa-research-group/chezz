@@ -4,9 +4,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 
 - Reference: `docs/art/sheet-armour-talks.webp` (18 characters), one crop per character in `docs/art/`.
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
-- Recipe for new concepts: `docs/art/recipe.md`.
-- Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the game draws every piece and skin as one painted sprite in this style (`docs/art/PAINTED.md`); it is the only art. The SVG shape kit was removed in Nov 2026, so the "Learned from" notes in section 9 that name kit files (`inkKit.tsx`, `Armour*.tsx`) are history; the files are in git before the commit "Remove the SVG shape kit".
+- Recipe for new concepts: `docs/art/recipe.md`. In-game sprites: `docs/art/PAINTED.md`.
 
 ## 1. Armour does the talking
 
@@ -38,7 +36,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Chunky and big-headed. Head plus headgear is about half the visible figure in the portraits.
 - Headgear is often as tall as the head or taller (mitres, tower helms, the patrol queen's wig).
 - Hands are big chunky fists with finger creases, gauntlets or gloves, gripping the prop (mitts at game size, section 9). Shoulders and torsos are blocky.
-- The sheet shows head and shoulders only. Full-body proportions are set in the game rig (viewBox 100×120, feet at y=108).
+- The sheet shows head and shoulders only. Full-body sprites fit the figure box (section 9).
 
 ## 4. Every character is a distinct design
 
@@ -59,7 +57,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel wear: patches with visible stitches, frayed hems, rust, dents.
 - Patrol finish: smooth plates, gold edging, white highlight ticks, no damage.
 - Oddballs keep the piece's crest: pot, horse, mitre, battlements, flame, crown.
-- Known drift: the odd knight came out in patrol-blue plate. Oddballs should not use patrol blue; regenerate or recolour it.
+- Oddballs never use patrol blue.
 - Weak faction reads: the patrol knight has almost no gold (blue plate, blue lance, grey horse) and the patrol rook's only gold is the visor cross. Add gold edging when drawing them. The two blue-plate knights are the easiest pair to confuse.
 
 ## 6. The chess-crest rule
@@ -161,14 +159,14 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `rebel-knight` | Rusty bucket helm with a T-shaped opening showing dot eyes; blue neckerchief; leather vest, patched sleeve; wooden hobby horse. In game the hobby horse is the prop, held by the neck at waist height with the stick down between his legs; he bonks with it. |
 | `rebel-bishop` | Tall parchment mitre over a black hood void with two glowing yellow eyes; grey ragged robe with a yellow patch; gnarled crook. In game: a wide straight-sided mitre with a small back horn, a hood and robe much lighter than the sheet (or hood, void and robe merge at 48px), round glowing dot eyes, a mid-grey ragged cowl. |
 | `sheet2-rebel-rook` | Sheet 2 original, superseded: stone tower helm with a riveted grille, glowing embers behind bars; orange scarf; faded blue tunic; mallet. |
-| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a T opening, the sledge stands on his front shoulder with its head above the right merlon (not across the back of his neck: it hid behind the helm), and he defends by dropping a plank door over his face. |
+| `rebel-rook` | Stonemason in a castle-tower great-helm with a T-slot showing only two dot eyes in a black void, bare muscular arms, patched brown-and-green tunic, red bandana (his accent), big stone mallet over his shoulder. Redrawn in this style from the owner's sheet-1 pick; source crop `sheet1-rebel-rook.webp`. In game: a stone tower helm with an overhanging battlement band (wider than the tower), the eyes glow cream in a T opening, the sledge stands on his front shoulder with its head above the right merlon (not across the back of his neck: it hid behind the helm). |
 | `rebel-queen` | Dented kettle helm with a small crown welded on; small stern face; rusty breastplate on straps over a cream apron; purple armband; grey gauntlet; frying pan. In game: a kettle helm whose brim droops at both ends, a squat three-point gold crown tilted on top, a big near-black pan held up beside the helm, and the purple armband on a back arm that hangs out past the body so it shows. |
 | `rebel-king` | Gold crown low on the brow; huge brown beard, two dot eyes; crimson robe with fur trim; chipped sword. In game: a three-point crown (five points close up at 48px) with a red centre gem, a beard lighter than the sheet's, narrowing below the chin so the fur collar shows at the shoulders; a red cloak over a faded blue tunic; a chipped blade with a gold guard above the fist. |
 | `patrol-pawn` | Crested plain-steel morion with rivets; dot eyes under heavy brows, nose, big moustache; blue pauldrons with gold edging; leather gloves; long pike. In game the morion becomes a compact steel kettle helm with a short downturned brim and a small comb: the morion's upswept brim points read as a sombrero at 48px. In game he has no moustache or nose (owner's correction, Nov 1: "too knightly"): a plain common guard's face, dot eyes and brows; the patrol king keeps the only moustache. |
-| `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. In game: a grey horse head with a steel chanfron on a plain steel-barded barrel with two chunky legs; pale steel helm, compact blue plume, gold plume holder and gorget; the lance stands upright in his back hand at the horse's flank and couches across his waist on the strike. |
+| `patrol-knight` | Full blue plate, closed visor, tall blue plume; rides a horse in steel barding; long blue lance; almost no gold. In game: a grey horse head with a steel chanfron on a plain steel-barded barrel with two chunky legs; pale steel helm, compact blue plume, gold plume holder and gorget; the lance stands upright in his back hand at the horse's flank. |
 | `patrol-bishop` | Gilded mitre fused to a steel great-helm with round spectacle lenses, no face; blue vestment with gold embroidery; white glove; gold crozier. In game: the mitre is wider than the helm, lenses are pale glass in gold rims, a blue cape with a thick gold edge, a crozier curl ending in a gold ball on a steel shaft. |
-| `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
-| `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. In game (declared correction): a small gold crown sits on the wig so the queen crest reads at 48px. The wig is scalloped and wider at the top than her head but kept low enough for the square (top near y 25); one draped gold chain with a blue jewel; a steel cap with a central point; a high gold-rimmed collar and puffed sleeves; the sceptre leans out so its orb clears the wig. |
+| `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade. |
+| `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. In game (declared correction): a small gold crown sits on the wig so the queen crest reads at 48px. The wig is scalloped and wider at the top than her head; one draped gold chain with a blue jewel; a steel cap with a central point; a high gold-rimmed collar and puffed sleeves; the sceptre leans out so its orb clears the wig. |
 | `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. In game: three ball-tipped crown points and one blue centre gem; a steel-blue mask with two closed-eye squint arcs (gold eye paint and brows smeared at 48px); a short scalloped gold mantle over the blue robe, gold orphrey and hem; a sword with a curled gold guard. |
 | `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game: the painted skin `frog-pot` (`docs/art/SKINS.md`). |
 | `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. In game: the painted skin `empty-knight` (`docs/art/SKINS.md`). |
@@ -179,127 +177,69 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 
 ## 9. Moving to the game
 
-The game draws characters as painted sprites in a 100×120 viewBox, shown at about 48–90px. The sheet is a 400px portrait.
+The game draws each character as one painted sprite (`docs/art/PAINTED.md`) in a
+100×120 viewBox, shown at about 48–90px. The sheet is a 400px portrait.
 
 **The figure box**
 
-- At rest every redrawn figure keeps its ink, outline included, inside x 18–82 and at y 0 or below (inside the viewBox top). `tests/figure-bounds.test.ts` measures every piece, both sides, and every skin, and fails past either bound.
-- Height is free up to y 0. The board's far rim (`--rim` in `src/exile.css`, a third of a square deep) is sized so ink at y 0 on the top row still lands on the frame, on every board and screen. Tall crests are the chess read: use the height, don't shorten a crest to fit an older, lower limit.
-- Check a top row with `node tools/art/battle-shot.mjs bishop,rook out.png [--battle 3] [--width 844 --height 390]`; it prints each top-row piece's ink top against its square and the frame edge.
+- At rest every sprite keeps its ink, outline included, inside x 18–82 and at y 0 or
+  below, feet on y 108. `tests/figure-bounds.test.ts` checks every piece and skin.
+- Height is free up to y 0: the board's far rim (`--rim` in `src/exile.css`) catches a
+  tall crest on the top row. Tall crests are the chess read; use the height.
+- Check a top row with `node tools/art/battle-shot.mjs bishop,rook out.png [--battle 3]
+  [--width 844 --height 390]`.
 
 **Keep at game size**
 
-- The headgear silhouette and the chess crest (section 6). It is the main read.
-- Faces at the sheet's budget: no face or two dot eyes for most characters.
-- Hands become simple mitts; finger creases drop.
-- One prop per character, oversized so it reads.
-- Thick ink outline: about 1.2 units at game size, added by `tools/art/sprite.mjs` (12 px at 480 px tall) round the painted outline; inner lines are whatever the painting has. Relative to the figure it is heavier than on the sheet, on purpose.
-- Flat fill plus one hard shadow shape per part, and one white highlight tick on metal.
-- Faction colour: rebels earthy with one dominant accent; patrol royal blue with gold edging; oddballs in their own creature colours.
-- One rebel signature mark: a single patch, or a dent in the helm.
+- The headgear silhouette and the chess crest (section 6).
+- Faces at the budget: no face or two dot eyes for most characters.
+- Simple mitts; one oversized prop.
+- A thick outer outline (`tools/art/sprite.mjs` adds 12 px at 480 px tall, in
+  `#1f1a19`). `#382f2e` (`INK` in `PieceRig.tsx`) is for shadows, effects and UI.
+- Flat fill, one hard shadow, a white highlight tick on metal.
+- Faction colour and one rebel signature mark (a patch or a dent).
 
-**Drop or simplify**
+**Drop**: rivets, brick lines, hay strands, rust blotches, embroidery, chain links,
+fur texture, secondary straps and buckles, the portrait tile and labels.
 
-- Rivets, brick lines, hay strands, rust blotches, embroidery, chain links, fur texture.
-- Secondary straps, belts and buckles.
-- Interior lines shorter than about 6 units.
-- The portrait tile, ground and labels.
+**Shape lessons that still hold** (learned drawing the retired SVG art; they apply to
+what a prompt asks for)
 
-**Changes from the current rigs**
+- A saucepan reads as a pan only with a long, thick, nearly level handle out the back;
+  a straight pot with a lip reads as a top hat.
+- Prop tines merge at 48px: ask for one solid head or widely spaced prongs.
+- A horse head reads through its jaw, throat notch and a dark mane; a chanfron covering
+  it turns it into a grey wedge. Narrow pale heads read as llamas.
+- A mitre carries the bishop only when it is at least as wide as the head, with straight
+  sides tapering in the top third; a narrow one reads as a flame or a cowl.
+- A dark hood around a black void needs a mid tone, and the robe lighter still.
+- Crown points need daylight between them: three bold points beat five thin ones. Keep
+  red to one centre gem; red gems over the face read as eyes.
+- A wig reads through a scalloped outline wider at the top than the head; straight bands
+  read as a turban.
+- A pan seen face-on reads as a lollipop if its inside is lighter than its rim: keep it
+  near-black.
+- A narrowing shape with a brim reads as a hat; pots need straight or widening sides.
+- An accent on a back arm hides behind the body unless the arm swings out.
 
-- Current rigs use big white toon eyes and mouths. Under this guide most faces go: replace with visors, slots, hoods and dot eyes.
-- Current rebel colours (teal, gold, brown) become earthy materials with one accent per character.
-- Patrol royal blue and gold already match; keep the scheme, adjust hexes to section 7.
-- Ink: the sprites' added outline is `#1f1a19` (`tools/art/sprite.mjs`), near the sheet's black; `#382f2e` (`INK` in `PieceRig.tsx`) is for shadows, effects and UI.
+## 10. Motion
 
-**Learned from the pawn pilot** (SVG kit, removed; in git history before `2990253`)
+- Animation only presents what the rules decided. Every duration scales with `--spd`;
+  skip and reduced motion reach the same final frame.
+- Keep any single beat at 1 s or less at 1×, and the board readable during it.
+- Strong poses held briefly beat subtle in-betweens at this size.
+- No flashing faster than 3 Hz. Defeat is slapstick (flop, pop, puff), never gore.
+- Never let colour carry the side alone: the ground marker (ellipse under rebels,
+  diamond under the patrol) and the faction materials carry it too.
 
-- Light comes from the upper left on screen for every rig. The kit derives each part's cel shadow (a crescent on the lower right, shifted 5.5 × 4 units) and mirrors it with the rig's facing, so hand-drawn shadow shapes are gone. About 2.2 units of the shift hides under the outline.
-- Shadows and highlights are clipped to their part and the outline is painted on top, so shading can't spill into a border.
-- Parts under about 12 units across (mitts, boots, patches, nose) go unshaded: the crescent would swallow them.
-- At the head scale (head r 14) dot eyes need r 2.4–2.7 and face strokes 2.6; thinner vanishes at 48px.
-- Keep the figure inside x 18–82, prop and outline included; wider figures crowd the square.
-- Pauldrons need their own outer outline, highlight and a gold edge, and must sit below the head (y 74+), or they read only as gold lines.
-- A shape that narrows toward the top (crown) plus any brim reads as a hat. Pots need straight or widening sides.
-- Even a straight pot with a lip reads as a top hat. A long side handle with a round end and a hanging hole is what sells a saucepan; inside x 18–82 it has to start inside the pan and run nearly level out the back; thick, not thin.
-- A creature wearing the pawn's pan: lift the pan onto the creature's own features (the frog's eye domes) so they bulge out under it; a pan sitting on a flat head hides them.
-- Inner lines (`WEIGHT.inner` 2.8) come out about 1.3px at 48px and blur away; a seam, dent or crack that matters to the read must be a shape or a colour change, not only an inner line. Inner lines are for 84px and up.
-- Every gap counts the outline: the outer stroke eats 2.25 units from each side, so a gap between two outlined shapes needs at least 7.5 units of geometry to show 3 units of daylight. Parts under about 6 units turn into ink.
-- Prop tines and prongs merge at 48px: a pole is its width plus 4.8 units of ink, so the pitchfork's three tines read as one grey block. Draw a multi-prong head as one solid shape, or space the poles by at least their inked width plus 3.
-- The ground shadow differs by faction on purpose (`PieceRig.tsx`): an ellipse under rebels and a diamond under the patrol. It is the game's side marker, drawn by the rig, not the figure; tell the judge.
+## 11. What to look for
 
-**Learned from the rooks** (SVG kit, removed; in git history before `2990253`)
+Not a gate; what to check by eye on a new sprite.
 
-- Rooks are the big pieces, like the old rig: helm top at y 12, body about 44 wide (pawns 32), still inside x 18–82.
-- Battlements: three merlons with two crenels 8 wide and 8 deep across a 36-wide top (merlons about 6.7). Narrower crenels close up under the outline at 48px.
-- A dark eye slot needs stone around it: keep at least 5 units between the slot and the helm's edge, or the outline and the slot's line swallow the helm.
-- Glowing dot eyes in a void use a light tone (`parchment`), with light KO crosses and squint chevrons; ink on the void vanishes.
-- A wide helm leaves no room for a prop on the back shoulder: the head hides behind the helm at rest, and the shared attack swing lifts a back-pointing prop straight up behind the helm. The stonemason's sledge therefore stands on his front shoulder, its head above the right merlon, with its own strike.
-- Give a prop's head its own tone, darker than the helm beside it (`darkStone` against `stone`), or the two merge in greyscale and silhouette.
-- A long upright prop beside a crest can't swing back: any backward rotation sweeps its head behind the crest. Let the body's lean be the wind-up, and on the strike slide the prop through the fist (rotate, then translate along the shaft) so the head lands low in front, a short reach (`rig-sledge`).
-- A face opening needs stone around it: a T opening plus framing plates on a 28-wide helm left only outline and void. Keep the T to about 17 × 9 plus a 6-wide stem.
-
-**Learned from the knights** (SVG kit, removed; in git history before `2990253`)
-
-- Knights stand about as tall as the rooks (helm or plume top near y 6–20) with a medium build (body about 30 wide).
-- The horse head is the crest: keep it clear of the helm, on the facing side, with a long head, a round jaw and a notch at the throat, an ear standing up, and a neck narrower than the head. A thin wedge pointing up reads as a leaf or a hand.
-- A part under about 14 units wide in a mid or dark tone loses half its width to the cel shadow and reads as a dark sliver. Widen it (the hobby horse head is about 22 wide) rather than lightening it: judges read a pale horse head as a llama.
-- A mane or crest that sits behind another part is hidden by it. Draw it on top of the part it belongs to as a `Flat` with no ink; a jagged inner-lined strip reads as a crack.
-- A `Pole` is its width plus 4.8 units of ink, so a thin strap (bridle, reins) drawn with it lands as a thick black bar. Draw a strap that matters as a `Flat` band about 3 units wide on top of the part.
-- A rider on a full horse: put the rider's lance in the back hand, upright behind him, so at rest it stays clear of the horse head. The shared strike swing (+65° about the hand) passes it behind the pauldron and helm, where it vanishes; the patrol knight uses its own `rig-lance` that couches it low across his waist.
-- Only give the `arm-front` class (the cheer raises it) to an arm whose hand holds nothing; a hand gripping the prop would lift off it.
-- A horse head reads as a horse through its jaw, throat notch and a dark mane strip; a chanfron covering most of the head turns it into a grey wedge. Give the horse one coat colour, body and head.
-
-**Learned from the bishops** (SVG kit, removed; in git history before `2990253`)
-
-- A mitre carries the bishop only when it is at least as wide as the head under it, with straight sides that taper in the top third. A narrow pointed mitre reads as a candle flame or a cowl's point at 48px.
-- A dark hood around a black void needs a mid tone (about `#7a7068`), and the robe below it lighter still; the sheet's near-black hood merged hood, void and robe into one mass.
-- Glowing eyes in a void stay round dots (r 2.8). Half-lidded half-moons read as sleepy and merge into one dash at 48px; put attitude in the pose instead.
-- Lenses on a helm: one gold ring per lens as a `Pole` circle (both in one path, so they fuse at the bridge), pale glass inside. The glass must be paler than the steel around it.
-- A hand that sits at the height of a gold trim line makes the sleeve read as part of the trim; move the hand clear of it.
-- A shepherd's crook beside a tall mitre: the hook must clear the mitre's shoulder by the outline on both sides, so the shaft runs near x 78 and the curl turns back toward the head. That leaves the hook's opening only 2–3 units inside x 82. The patrol crozier clears his wider mitre with a smaller curl and his head 3 units back.
-- A cope reads as a cope when it is narrow at the shoulders and flares to the hem; gold on the capelet and on the mitre merges into one gold mass, so keep the capelet blue with a gold edge.
-
-**Learned from the kings** (SVG kit, removed; in git history before `2990253`)
-
-- (Superseded by the figure box above: the board now has a deep far rim, and the limit is y 0.) Before the rim, a top-row piece could only rise to about y 15 on a phone's 4×4 board, so the kings' crowns stop there and the king is the widest piece, not the tallest.
-- Crown points need open gaps: five ball-tipped points on a 40-wide crown fill their gaps with ink at 48px and read as a dark comb. Three bold points (rebel) or three ball-tipped points (patrol) keep daylight between them.
-- Red gems on a crown band sit right over the face and read as glowing red eyes; keep red to one centre gem and use blue for the rest.
-- A beard that fills the chest hides any collar under it. Narrow the beard's lower half so the fur collar shows at the shoulders.
-- A crossguard under about 7 units tall is all ink, and a sleeve drawn over the prop hides it: put the guard above the sleeve's ink, a hand's height over the fist, with an inner line.
-- The head pops loose in the shared death animation. A figure without a beard over the chest needs a neck block in the body under the head, so no background shows between head and shoulders.
-- The crown must be its own `.crown` group inside the head: the checkmate finale throws it off.
-**Learned from the queens** (SVG kit, removed; in git history before `2990253`)
-
-- In battle a piece is 0.92 of a square wide and anchored at 64% of its height, so the square's top edge sits at about y 21 in the rig (y 25–30 on screen, after the board's tilt). A crest above it stands on the far rim from the top row, which is fine down to y 0 (the figure box above). The queens were drawn to an older y 21 cap, so their crowns are squat; they may grow.
-- Narrow crown points fill with ink at 48px: the outer stroke and the cel crescent swallow anything under about 8 units wide. Draw a small crown with three fat points, unshaded and traced with the `inner` line.
-- A pan seen face-on reads as a magnifying glass or a lollipop when its inside is lighter than its rim. Draw it near-black, with a darker flat inside, and big (about 25 units across).
-- A wig reads as a wig through a scalloped outline (curl lobes down both sides), wider at the top than the head. Straight gold bands across it read as a turban or a layered cake; drape the chains in arcs.
-- An accent on a back arm is hidden by the body unless that arm swings out past the body's edge; the rebel queen's armband arm hangs out to x 21.
-- A pale tall wig: stacked rolls with a cone top read as a mitre, straight swags read as a striped drum. A teardrop with one drooping swag and the crown lifted clear on top reads best so far, though at 48px it is still a wide oval (open).
-- A small orb or ball (under about 12 across) goes unshaded, and no band pole through it: a pole's ink sides fill it.
-
-## 10. Judge checks
-
-A concept or a rig passes only if all of these hold.
-
-| # | Check | How to test |
-|---|---|---|
-| 1 | Chess read | Fill the figure solid black at 48px; a viewer names the piece. |
-| 2 | Face budget | Humans: no face, dot eyes, or a small dot-eye face; never more than the patrol queen or patrol king. Creatures: no more than the frog or cat. |
-| 3 | Distinct design | Rebel vs patrol versions of a piece differ in headgear, prop and build, not just colour. Oddballs may share a crest; the creature must differ. |
-| 4 | Faction read | Greyscale: rebels show patches or wear; patrol shows smooth plate with light trim; oddballs are a creature or object. In colour: patrol is royal blue with gold edging; rebels have one dominant accent. |
-| 5 | Outline | Thick, even, near-black outer outline on the whole silhouette. |
-| 6 | Fill | Flat fills, one hard shadow per form, white highlights; no gradients, no soft shading. |
-| 7 | Proportions | Head plus headgear about half the figure; chunky build; big hands. |
-| 8 | Prop | Humans and armour: one readable prop or mount that fits the character. Oddballs: the crest is enough. |
-| 9 | Palette | Main fills within the section 7 families for the faction. |
-| 10 | Game size | At 48px nothing turns to mush: no detail smaller than about 6 viewBox units. |
-| 11 | No text | No labels, captions or titles inside the art. |
-
-**Painted sprites** (the game's art, `docs/art/PAINTED.md`)
-
-- The same rules hold, but each piece is one whole image painted by Nano Banana Pro from the reference crop, the sheet and the SVG pose. There are no parts and no rig: the eyes are painted in, and animations move the whole sprite (`src/sprite.css`).
-- Ask for small, level dot eyes in the right place, a natural arm pose with the weapon gripped in the fist, a clean silhouette and a very thick outer outline. Re-roll any sprite whose arms, anatomy or eyes look wrong.
-- The generated outline is about 0.4 units at game size, a third of `WEIGHT.outer`. `tools/art/sprite.mjs` thickens the outer outline by 12 px at 480 px tall (about 1.2 units in game), so the silhouette reads at 48px; inner lines and painted texture still soften there.
-- A sprite is scaled to fit x 18–82 with its feet on y 108, so wide props (the pan handle, the hobby horse) make the whole figure smaller.
+1. Chess read: filled black at 48px, the piece is nameable.
+2. Face budget (section 1).
+3. Rebel and patrol versions differ in headgear, prop and build, not just colour.
+4. Faction read in greyscale: wear and patches vs smooth plate and trim.
+5. Thick even outline; flat fills; one hard shadow; no gradients.
+6. Chunky: head plus headgear about half the figure.
+7. Palette within section 7; no text in the art.

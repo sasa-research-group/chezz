@@ -5,7 +5,7 @@
 // --from N re-runs from step N, reusing step N-1's image from an earlier run.
 //
 // Needs Node 18+, REPLICATE_API_TOKEN, and ImageMagick (`magick`) only when a
-// recipe has a postprocess. See docs/art/GENERATING.md.
+// recipe has a postprocess. See docs/art/PAINTED.md.
 // A step may name its own `model`; with `imageField` it sends its one image under that
 // input name and no prompt (background removal models take `image`).
 import { spawnSync } from 'node:child_process'

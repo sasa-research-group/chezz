@@ -1,100 +1,104 @@
 # Painted sprites
 
-The game's art: one image-generated sprite per piece, eyes painted in. No parts and no
-rig: every animation moves the whole sprite and adds effects. All twelve pieces and the six
-skins (`SKINS.md`) are painted (Nov 2026), and they are the only art: the SVG shape kit,
-`?art=new` and the red patrol hue were removed. Decision record:
-`DECISIONS.md`, "painted sprites become whole images" (the owner's verdict on the cut-out rigs),
-"studio rebuilt around the painted sprites" (they become the default)
-and the earlier per-pair entries, whose looks still hold.
+The game's art: one generated image per piece and per skin, moved whole. No parts, no
+bones: every animation moves the whole sprite and adds effects. Look rules:
+`docs/art-style.md`. Skins: `SKINS.md`. Concept sheet and new-concept prompts: `recipe.md`.
 
-## How it works
+## Setup
 
-1. **Recipe** (`docs/art/recipes/paint-<side>-<kind>.json`, run by `tools/art/gen.mjs`): two
-   Replicate calls.
-   - `pose`: Nano Banana Pro paints one full-body, right-facing game sprite from the reference
-     crop, the style sheet and a render of the old SVG rig (`paint/svg-<id>.webp`, for pose and
-     proportions only; kept for re-rolls, though the kit that drew them is gone).
-   - `cutout`: `bria/remove-background` makes it transparent (it returns 1024 px; the next step
-     only uses its alpha).
-2. **Trim** (`node tools/art/sprite.mjs <recipe> --install`): takes the colour from the pose and
-   the alpha from the cutout, erodes a pixel of grey fringe, drops specks, trims to the ink,
-   scales to `sprite.height` (480 px), thickens the outer outline by `sprite.outline` (12 px) in
-   ink and writes `src/assets/sprites/<side>-<kind>.webp` plus its size in `sizes.json`. A skin's
-   recipe is `paint-skin-<id>.json` and installs `skin-<id>.webp`.
-3. **Draw** (`src/components/SpriteRig.tsx`): `spriteBox` fits the image into the figure box
-   (x 18–82, feet on y 108, at most `HEIGHT[kind]` tall) and `PieceRig` draws it inside
-   `.flip › .hop › .squash`. The patrol faces left by the `.flip` mirror. The side markers
-   (rebel ground ellipse, patrol diamond), shield, HP badges and board cues are unchanged.
-4. **Animate** (`src/sprite.css`, loaded after `rig.css`, which holds the pivots, shared
-   effects and the knight's flips): whole-figure keyframes on `.hop` and
-   `.squash`, plus effects (`.fx-lines`, `.fx-burst`, `.fx-stars`, `.fx-dust`, `.fx-smoke`, and
-   two sprite-only ones: `.fx-pop`, the hit and promotion sparkle, and `.fx-crown`, the king's
-   crown particle). Durations match `RIG_MS` and scale with `--spd`.
+- Node 18+, ImageMagick (`magick` on PATH).
+- A Replicate API token: `export REPLICATE_API_TOKEN=r8_...`. Never commit it.
+- Cost: about $0.15 per character (one Nano Banana Pro call, one BRIA cutout).
 
-## In the studio (`art.html`)
+## Make or re-roll a character
 
-- **Cast** (landing): every sprite as a still image (`SpriteStill` in `src/art/kit.tsx`, the
-  game's placement with no animation), grouped Friendly, Enemy and Skins.
-- **Stage** (`#stage/<side>-<kind>`, `#stage/skin-<id>` for a skin): one live `PieceRig`, a button per action below, wounded
-  and guarding toggles, facing, board or large size, and 1×, 0.5×, 0.25×, 0.1× speeds that set
-  the game's `--spd` (1, 2, 4, 10) and stretch the take's timers to match.
+1. Copy a recipe in `docs/art/recipes/paint-*.json` and change the SUBJECT and `EYES:`
+   text in the `pose` step. Keep the shared `POSE`/`SILHOUETTE`/`STYLE` blocks.
+2. `node tools/art/gen.mjs <recipe>` (`--dry-run` prints the requests; `--from 2` redoes
+   only the cutout). Output goes to `art-out/<id>/` (gitignored).
+3. Look at `art-out/<id>/step-1-pose.png` at full size and at 48px. Re-roll wrong arms,
+   anatomy, a missing crest or missing eyes.
+4. `node tools/art/sprite.mjs <recipe> --install` writes `src/assets/sprites/<id>.webp`
+   and its size in `sizes.json`.
+5. Look at it in the studio (`art.html`: Cast, then the Stage at 0.25×). For a close
+   look or a tall crest: `node tools/art/shoot.mjs <kind.side[.skin]> out.png`
+   (`--scale 2 --crop 192` for close-ups) and `node tools/art/battle-shot.mjs <kind> out.png`.
+6. Commit the recipe with the sprite. If the owner chose something, add a line to
+   `DECISIONS.md`.
 
-## Actions
+`npm test` checks every recipe parses, names files that exist, and every sprite stays
+in the figure box.
 
-| Action | Whole-sprite motion | Effects |
-|---|---|---|
-| idle | breathing squash and stretch with a 1-unit bob | — |
-| wounded / guarding | reddish tint and a tremble / braced a little lower | shield |
-| move | crouch, hop arc with stretch, squash on landing (knights hop higher) | motion lines, dust |
-| attack | lean back, fast stretched lunge 26 units forward, snap back | burst and stars at the front edge, speed lines |
-| defend | brace squash | flash, shield pops in (rooks too) |
-| hit | white flash, knocked back and shaken, settles | damage pop |
-| death | flash, hop, tips over about the body's middle, lies flat at 0.6 inside the square, fades | smoke, dust, stars |
-| cheer | two jumps | sparkles twice |
-| morph-out / in | trembles, squashes to nothing / pops back from nothing | sparkle / smoke |
-| leap / leap-back | the shared front flip and backflip (`rig.css`) | lines / dust |
-| mate | staggers, hops, tumbles and lands flat | a gold crown particle flies off and lands beside him |
+## Recipes
 
-Reduced motion: `rig.css` switches the moves off (the hit flash and the death fade stay);
-checkmate still jumps to its final frame (king flat, crown on the ground), so skip and reduced
-motion end the same way.
+JSON: `steps` (each with `prompt`, `images`, optional `model`, `aspect_ratio`, `input`),
+optional `postprocess`, `output`, and for paint recipes a `sprite` block (`height` 480,
+`outline` 12) read by `sprite.mjs`. In `images` the first entry is the source, the rest
+references; `"$previous"` is the previous step's output. Paths are relative to the repo.
+
+A paint recipe has two steps:
+- `pose`: Nano Banana Pro paints one full-body, right-facing sprite from the reference
+  crop (`docs/art/<id>.webp`), the style sheet, an optional pose reference
+  (`docs/art/paint/svg-<id>.webp`, renders of the retired SVG art, pose only) and, for a
+  skin, the rebel piece's own sprite so the crest matches.
+- `cutout`: `bria/remove-background` (`"imageField": "image"`, no prompt).
+
+`sprite.mjs` takes colour from the pose and alpha from the cutout, erodes a pixel of
+fringe, drops specks, trims to the ink, scales to 480 px and thickens the outer outline
+by 12 px (about 1.2 units in game).
+
+Image models are not deterministic and Nano Banana Pro takes no seed: the committed
+webp files are the canonical art; a re-run gives a similar character.
 
 ## Prompts that work
 
-- Keep the SUBJECT text of each recipe: it carries the owner's decisions (saucepan pawn,
-  moustache-free patrol pawn, stonemason with the sledge in his fist and the bandana showing,
-  kettle-helm patrol guard, hobby-horse knight, patrol knight on a dark horse with a domed armet
-  and a lance, hooded glowing-eyed bishop, spectacled patrol bishop, rebel queen with one
-  armband, gold crown and frying pan, beehive patrol queen with a white fan collar and blue
-  skirt, bearded rebel king, masked patrol king with a gold cape).
-- Every pose prompt adds an `EYES:` sentence for that character (dot eyes in the face, glints in
-  helm slits, dots behind the patrol bishop's lenses) and a shared `POSE`/`SILHOUETTE` block:
-  natural arms, nothing backwards, the weapon gripped in the fist, a clean chunky silhouette and
-  an outer outline twice the inner lines.
-- The patrol bishop's first roll left the lenses blank; "he is NOT blank-eyed: a solid black dot
-  eye … in the middle of EACH lens" fixed it.
-- A patrol knight roll that asked for "two white dot eyes in the slit" lost the fist on the
-  lance (both fists on the saddle, lance floating upside down). Check every fist holds its prop.
+- Keep each recipe's SUBJECT text: it carries the owner's decisions.
+- Add an `EYES:` sentence per character (dot eyes, glints in helm slits, dots behind
+  lenses). "he is NOT blank-eyed: a solid black dot eye … in the middle of EACH lens"
+  fixed the patrol bishop.
+- Check every fist holds its prop: one patrol knight roll lost the lance grip.
 
-## Add or re-roll a character
+## Drawing and animation
 
-1. A pose reference is optional: reuse the existing `docs/art/paint/svg-<id>.webp`, or for a
-   new character drop that image and its "Use the third image only for the pose" sentence.
-2. Copy a paint recipe and change the SUBJECT and EYES text in `pose`.
-3. `node tools/art/gen.mjs <recipe>` (about $0.15: one Nano Banana Pro call, one BRIA call).
-4. Look at `art-out/<id>/step-1-pose.png` at full size; re-roll anything with wrong arms,
-   anatomy or eyes.
-5. `node tools/art/sprite.mjs <recipe> --install`, then check `npx vitest run
-   tests/figure-bounds.test.ts tests/sprites.test.ts`, the studio (Cast, then every button on the
-   Stage at 0.25×) and `node tools/art/shoot.mjs <kind>.<side> out.png`.
+- `SpriteRig.tsx`: `spriteBox` fits the image into the figure box (x 18–82, feet on
+  y 108, at most `HEIGHT[kind]` tall, `SKIN_HEIGHT` for a short skin). Wide props make
+  the whole figure smaller.
+- `PieceRig.tsx` draws `<svg class="rig rig-<kind> rebel|patrol [skin-<id>] act-<action>"
+  viewBox="0 0 100 120">`:
+  ```
+  svg.rig
+  ├ ground: .rig-shadow (ellipse rebel, diamond patrol), .fx-dust, .fx-lines
+  ├ .flip › .hop › .squash › image.sprite + .shield
+  ├ .fx-side › .fx-burst, .fx-stars, .fx-crown (king)
+  └ .fx-pop, .fx-smoke
+  ```
+  `.flip` mirrors the patrol to face left; `.hop` carries jumps, the hit flash and knight
+  flips; `.squash` carries squash, lean, lunge, knockback, fall and morph.
+- `src/rig.css`: pivots, shield, shared effects, knight flips, reduced motion.
+  `src/sprite.css` (loaded after): whole-sprite keyframes per action and skin quirks.
+- One-shot lengths at 1× are `RIG_MS` in `PieceRig.tsx`; every duration is
+  `calc(<ms> * var(--spd,1))`. The game sets `--spd` to 1, 0.3 (fast) or 0.1 (reduced
+  motion); the stage's slow modes use 2, 4 and 10.
+- Sequences live in `App.tsx`: promotion is morph-out then morph-in; a knight strike is
+  leap, attack, leap-back; checkmate plays `mate`.
+
+| Action | Motion | Effects |
+|---|---|---|
+| idle | breathing squash with a small bob | — |
+| wounded / guarding | reddish tint and tremble / braced lower | shield |
+| move | crouch, hop arc, squash on landing | lines, dust |
+| attack | lean back, lunge 26 units, snap back | burst, stars, lines |
+| defend | brace squash | flash, shield |
+| hit | white flash, knockback, settle | damage pop |
+| death | flash, hop, tips over, lies flat, fades | smoke, dust, stars |
+| cheer | two jumps | sparkles |
+| morph-out / in | shrink to nothing / pop back | sparkle / smoke |
+| leap / leap-back | front flip and backflip | lines / dust |
+| mate | staggers, tumbles, lands flat | crown particle flies off |
 
 ## Limits
 
-- Not deterministic: a re-run gives a similar character, sometimes with a new flaw.
-- The sprite is one piece, so nothing moves on its own: no blink, no prop swing, no crown that
-  leaves the head (the mate crown is a separate particle; the painted crown stays on).
-- Patrol only in royal blue. The old red patrol hue was a kit-only option nothing used; it was
-  dropped with the kit rather than faked with a CSS hue shift (which would also turn the gold
-  trim and skin tones).
-- At 48px painted interiors (chainmail, fur, scrollwork, rust speckle) soften.
+- One image, so nothing moves on its own: no blink, no prop swing; the mate crown is a
+  separate particle.
+- Patrol is royal blue only.
+- At 48px painted interiors (chainmail, fur, rust speckle) soften.
