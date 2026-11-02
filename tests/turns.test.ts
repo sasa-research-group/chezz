@@ -397,8 +397,13 @@ describe("turn-based rules", () => {
     expect(won.gold).toBe(g.gold + 5);
   });
   it("uses the level's own enemy energy in a playtest", () => {
-    const level: Encounter = { reward: 0, enemyEnergy: 1, width: 4, height: 4, walls: [], spawns: [["rook", 3, 0, 5]], starts: [{ x: 0, y: 3 }] };
-    expect(endTurn(playtest(level, ["king"], 0)).spent).toBeLessThanOrEqual(1);
+    // Two pawns that would both march with a bigger pool; a pool of 1 moves only one.
+    const level: Encounter = { reward: 0, enemyEnergy: 1, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1]], starts: [{ x: 1, y: 5 }] };
+    const roomy = endTurn(playtest({ ...level, enemyEnergy: 4 }, ["king"], 0));
+    expect(roomy.steps.length).toBeGreaterThan(1);
+    const tight = endTurn(playtest(level, ["king"], 0));
+    expect(tight.spent).toBe(1);
+    expect(tight.steps).toHaveLength(1);
   });
   it("never restores a playtest as a saved run", () => {
     const level: Encounter = { ...ENCOUNTERS[0] };

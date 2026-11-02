@@ -63,12 +63,32 @@ export function levelIssues(l: Level): Issue[] {
   if (!l.starts.length) out.push({ field: "starts", message: "Needs a king start" });
   // A recruited pawn has to be able to march up and promote from any start square.
   for (const s of l.starts) if (inside(s) && l.walls.some(w => w.x === s.x && w.y < s.y)) out.push({ field: "starts", message: "Wall ahead of start", at: s });
+  // Every enemy must be reachable from the king's start, or the battle can never end.
+  if (l.starts.length && inside(l.starts[0]) && !walls.has(key(l.starts[0]))) {
+    const reach = new Set([key(l.starts[0])]), queue = [l.starts[0]];
+    while (queue.length) {
+      const p = queue.pop()!;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        const q = { x: p.x + dx, y: p.y + dy };
+        if (inside(q) && !walls.has(key(q)) && !reach.has(key(q))) { reach.add(key(q)); queue.push(q); }
+      }
+    }
+    for (const [kind, x, y] of l.spawns) if (inside({ x, y }) && !walls.has(key({ x, y })) && !reach.has(key({ x, y }))) out.push({ field: "spawns", message: `Enemy ${kind} cut off`, at: { x, y } });
+  }
   if (l.testArmy) {
     const kings = l.testArmy.filter(k => k === "king").length;
     if (l.testArmy[0] !== "king" || kings !== 1) out.push({ field: "testArmy", message: "Army needs one king, first" });
     if (l.testArmy.length > l.starts.length) out.push({ field: "testArmy", message: `Army ${l.testArmy.length} > ${l.starts.length} starts` });
   }
   return out;
+}
+
+/** Each level's issues, plus the run's: survivors carry over, so a level can't have fewer starts than the one before. */
+export function listIssues(levels: Level[]): Issue[][] {
+  return levels.map((l, i) => {
+    const own = levelIssues(l), prev = levels[i - 1];
+    return prev && l.starts.length < prev.starts.length ? [...own, { field: "starts" as const, message: `Fewer starts than battle ${i} (${prev.starts.length})` }] : own;
+  });
 }
 
 /** Parses and checks a whole levels file. Nothing is accepted unless every level is clean. */
@@ -80,10 +100,11 @@ export function parseLevels(raw: unknown): { ok: true; file: LevelsFile } | { ok
   const errors: string[] = [];
   const parsed = levels.map((v, i) => {
     const l = shapeOf(v, i);
-    if (typeof l === "string") { errors.push(l); return null; }
-    for (const issue of levelIssues(l)) errors.push(`Level ${i + 1}: ${issue.message}${issue.at ? ` (${issue.at.x},${issue.at.y})` : ""}`);
+    if (typeof l === "string") errors.push(l);
     return l;
   });
+  if (errors.length) return { ok: false, errors };
+  listIssues(parsed as Level[]).forEach((issues, i) => issues.forEach(issue => errors.push(`Level ${i + 1}: ${issue.message}${issue.at ? ` (${issue.at.x},${issue.at.y})` : ""}`)));
   return errors.length ? { ok: false, errors } : { ok: true, file: { version: 1, levels: parsed as Level[] } };
 }
 

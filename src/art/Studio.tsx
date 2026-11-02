@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Cast } from "./Cast";
 import { Levels } from "./Levels";
+import { ENCOUNTERS } from "../game/turns";
 import { Mechanics } from "./Mechanics";
 import { Stage, isSprite, type SpriteId } from "./Stage";
 import { StyleGuide } from "./StyleGuide";
@@ -14,7 +15,7 @@ const AREAS = [
 ] as const;
 type AreaId = typeof AREAS[number]["id"];
 const areaOf = (hash: string): AreaId => hash.startsWith("#stage") ? "stage" : hash.startsWith("#levels") ? "levels" : AREAS.find(a => hash === `#${a.id}` || a.toc.some(([id]) => hash === `#${id}`))?.id ?? "cast";
-const levelOf = (hash: string) => hash.startsWith("#levels/") ? Math.max(0, (parseInt(hash.split("/")[1]) || 1) - 1) : 0;
+const levelOf = (hash: string) => hash.startsWith("#levels/") ? Math.min(ENCOUNTERS.length - 1, Math.max(0, (parseInt(hash.split("/")[1]) || 1) - 1)) : 0;
 const pieceOf = (hash: string): SpriteId | undefined => { const id = hash.split("/")[1]; return id && isSprite(id) ? id : undefined; };
 
 export default function Studio() {

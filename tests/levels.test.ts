@@ -40,6 +40,8 @@ describe("levels data", () => {
     expect(messages({ testArmy: ["rook"] })).toContain("Army needs one king, first");
     expect(messages({ testArmy: ["king", "rook", "pawn"] })).toContain("Army 3 > 2 starts");
     expect(messages({ enemyEnergy: -1 })).toContain("Enemy energy 0–12");
+    expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 2 })).filter(w => w.x !== 1 && w.x !== 2), spawns: [["pawn", 0, 0, 1]], starts: [{ x: 1, y: 3 }] })).toEqual([]);
+    expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 1 })), spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }] })).toContainEqual({ field: "spawns", message: "Enemy pawn cut off", at: { x: 1, y: 0 } });
   });
   it("rejects files with the wrong shape or any broken level", () => {
     expect(parseLevels({ version: 1, levels: [base] })).toEqual({ ok: true, file: { version: 1, levels: [base] } });
@@ -49,6 +51,8 @@ describe("levels data", () => {
     expect(parseLevels({ version: 1, levels: [{ ...base, spawns: [["dragon", 1, 0, 1]] }] }).ok).toBe(false);
     expect(parseLevels({ version: 1, levels: [{ ...base, width: "4" }] }).ok).toBe(false);
     expect(parseLevels({ version: 1, levels: [base, { ...base, spawns: [] }] })).toEqual({ ok: false, errors: ["Level 2: Needs an enemy"] });
+    // Survivors carry over, so a later level needs at least as many starts.
+    expect(parseLevels({ version: 1, levels: [base, { ...base, starts: [{ x: 1, y: 3 }] }] })).toEqual({ ok: false, errors: ["Level 2: Fewer starts than battle 1 (2)"] });
   });
   it("gives a playtest the king plus the best recruit each hideout's gold affords", () => {
     expect(typicalArmy(ENCOUNTERS, 0)).toEqual(["king"]);
@@ -78,6 +82,7 @@ describe("level designer save endpoint", () => {
     const file = scratch();
     const r = await send(file, request(JSON.stringify({ version: 1, levels: [base] })));
     expect(r).toEqual({ status: 200, body: { ok: true, changed: true, levels: 1 } });
+    expect((await send(file, request(JSON.stringify({ version: 1, levels: [base] }), { [LEVELS_HEADER]: "save", "content-type": "application/json", host: "127.0.0.1:5173", origin: "http://127.0.0.1:5173", "sec-fetch-site": "same-origin" }))).body.changed).toBe(false);
     expect(readFileSync(file, "utf8")).toBe(formatLevels([base]));
   });
   it("refuses broken levels and leaves the file alone", async () => {
@@ -93,6 +98,9 @@ describe("level designer save endpoint", () => {
     expect((await send(file, request(body, { "content-type": "application/json" }))).status).toBe(403);
     expect((await send(file, request(body, { [LEVELS_HEADER]: "save", "content-type": "text/plain" }))).status).toBe(403);
     expect((await send(file, request(body, undefined, "GET"))).status).toBe(405);
+    const studio = { [LEVELS_HEADER]: "save", "content-type": "application/json", host: "127.0.0.1:5173" };
+    expect((await send(file, request(body, { ...studio, origin: "http://localhost:3000" }))).status).toBe(403);
+    expect((await send(file, request(body, { ...studio, "sec-fetch-site": "same-site" }))).status).toBe(403);
     expect(readFileSync(file, "utf8")).toBe("old");
     expect(levelsPlugin(file).apply).toBe("serve");
   });

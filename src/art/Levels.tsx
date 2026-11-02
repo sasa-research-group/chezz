@@ -2,7 +2,7 @@ import { Suspense, lazy, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { ENCOUNTERS, HP } from "../game/turns";
 import type { Kind, Pos } from "../game/turns";
-import { KINDS, MAX_ENEMY_ENERGY, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, levelIssues, testArmyOf, typicalArmy } from "../game/levels";
+import { KINDS, MAX_ENEMY_ENERGY, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, listIssues, testArmyOf, typicalArmy } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
 
@@ -20,6 +20,13 @@ const copy = (l: Level): Level => JSON.parse(JSON.stringify(l));
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n) || 0));
 const without = (l: Level, p: Pos): Level => ({ ...l, walls: l.walls.filter(w => !same(w, p)), spawns: l.spawns.filter(([, x, y]) => !same({ x, y }, p)), starts: l.starts.filter(s => !same(s, p)) });
 const levelName = (l: Level, i: number) => l.name || `Battle ${i + 1}`;
+/** Shrinking the board drops whatever falls outside it. */
+const resize = (l: Level, width: number, height: number): Level => {
+  const fits = (p: Pos) => p.x < width && p.y < height;
+  return { ...l, width, height, walls: l.walls.filter(fits), spawns: l.spawns.filter(([, x, y]) => fits({ x, y })), starts: l.starts.filter(fits) };
+};
+/** Unsaved edits outlive a trip to another studio tab (the tab unmounts); a reload drops them. */
+let draft: Level[] | null = null;
 
 function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (n: number) => void }) {
   return <label className="level-num"><span>{label}</span>
@@ -63,7 +70,8 @@ function LevelBoard({ level, army, issues, onSquare }: { level: Level; army: Kin
 /** Studio level designer: pick a level on the left, paint it on the board, set its numbers on the right,
  * play it on its own, and save the whole list back to `src/game/levels/levels.json`. */
 export function Levels({ index, onPick }: { index: number; onPick: (i: number) => void }) {
-  const [levels, setLevels] = useState<Level[]>(() => ENCOUNTERS.map(copy));
+  const [levels, setLevelsState] = useState<Level[]>(() => draft ?? ENCOUNTERS.map(copy));
+  const setLevels = (next: Level[] | ((ls: Level[]) => Level[])) => setLevelsState(ls => (draft = typeof next === "function" ? next(ls) : next));
   const [saved, setSaved] = useState(() => formatLevels(ENCOUNTERS));
   const [tool, setTool] = useState<Tool>("wall");
   const [enemy, setEnemy] = useState<Kind>("pawn");
@@ -71,7 +79,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   const [playing, setPlaying] = useState<number | null>(null);
   const sel = Math.min(Math.max(0, index), levels.length - 1);
   const level = levels[sel];
-  const issues = useMemo(() => levels.map(levelIssues), [levels]);
+  const issues = useMemo(() => listIssues(levels), [levels]);
   const army = testArmyOf(levels, sel);
   const text = formatLevels(levels);
   const dirty = text !== saved;
@@ -150,8 +158,8 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
     <section className="level-controls" aria-label="Level settings">
       <label className="stage-field"><span>Name</span><input value={level.name ?? ""} placeholder={`Battle ${sel + 1}`} maxLength={40} onChange={e => edit(l => { const { name: _, ...rest } = l; return e.target.value ? { ...rest, name: e.target.value } : rest; })} /></label>
       <div className="level-nums">
-        <NumberField label="Width" value={level.width} min={MIN_SIDE} max={MAX_SIDE} onChange={n => edit(l => ({ ...l, width: clamp(n, 1, 9) }))} />
-        <NumberField label="Height" value={level.height} min={MIN_SIDE} max={MAX_SIDE} onChange={n => edit(l => ({ ...l, height: clamp(n, 1, 9) }))} />
+        <NumberField label="Width" value={level.width} min={MIN_SIDE} max={MAX_SIDE} onChange={n => edit(l => resize(l, clamp(n, 1, 9), l.height))} />
+        <NumberField label="Height" value={level.height} min={MIN_SIDE} max={MAX_SIDE} onChange={n => edit(l => resize(l, l.width, clamp(n, 1, 9)))} />
         <NumberField label="Reward ✦" value={level.reward} min={0} max={MAX_REWARD} onChange={n => edit(l => ({ ...l, reward: clamp(n, -1, MAX_REWARD + 1) }))} />
         <NumberField label="Enemy ⚡" value={level.enemyEnergy} min={0} max={MAX_ENEMY_ENERGY} onChange={n => edit(l => ({ ...l, enemyEnergy: clamp(n, -1, MAX_ENEMY_ENERGY + 1) }))} />
       </div>

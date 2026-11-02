@@ -17,7 +17,10 @@
   start on a wall; no two things on one square; enemy HP 1–max for its kind; at
   least one enemy and one start; no wall ahead of a start (a recruited pawn
   must be able to march up and promote); reward 0–99; enemy energy 0–12; a test
-  army has one king, first, and no more pieces than starts.
+  army has one king, first, and no more pieces than starts; every enemy reachable
+  from the king start (king steps around walls); and no level with fewer starts
+  than the one before (survivors carry over). Shrinking the board in the editor
+  drops what falls outside it.
 
 ## Studio: Levels tab (`art.html#levels/N`)
 - Left: the list. Select, Add, Duplicate, ↑/↓, Delete. A red count marks a
@@ -30,7 +33,7 @@
   order, and the test army.
 - Save writes every level through a dev-only Vite endpoint
   (`vite.levels.ts`, `POST /__studio/levels`, `apply: "serve"`). It needs the
-  `x-chezz-studio: save` header and JSON, re-checks with `parseLevels`, and
+  `x-chezz-studio: save` header, JSON and a same-origin request, re-checks with `parseLevels`, and
   writes atomically; an unchanged file isn't touched. On a static build the
   button is "Download JSON". Save is off while any level has problems.
 

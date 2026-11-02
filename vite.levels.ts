@@ -16,6 +16,10 @@ export function levelsHandler(file: string, load: () => Promise<Checks>) {
     const reply = (status: number, body: object) => { res.statusCode = status; res.setHeader("content-type", "application/json"); res.end(JSON.stringify(body)); };
     if (req.method !== "POST") return reply(405, { errors: ["POST only"] });
     if (req.headers[LEVELS_HEADER] !== "save" || !String(req.headers["content-type"]).startsWith("application/json")) return reply(403, { errors: ["Not a studio save"] });
+    // Only the studio page on this same dev server may save: not another local site, not another machine.
+    const origin = req.headers.origin, site = req.headers["sec-fetch-site"];
+    if ((origin && origin.replace(/^https?:\/\//, "") !== req.headers.host) || (site && site !== "same-origin")) return reply(403, { errors: ["Not a studio save"] });
+    if (Number(req.headers["content-length"]) > MAX_BYTES) return reply(413, { errors: ["Too large"] });
     let size = 0;
     const chunks: Buffer[] = [];
     for await (const chunk of req) {
@@ -31,7 +35,9 @@ export function levelsHandler(file: string, load: () => Promise<Checks>) {
     const text = formatLevels(parsed.file.levels as never[]);
     const before = await readFile(file, "utf8").catch(() => "");
     // An unchanged file isn't touched, so saving twice doesn't reload every open page.
-    if (text !== before) { await writeFile(`${file}.tmp`, text); await rename(`${file}.tmp`, file); }
+    try {
+      if (text !== before) { await writeFile(`${file}.tmp`, text); await rename(`${file}.tmp`, file); }
+    } catch (e) { return reply(500, { errors: [`Write failed: ${(e as Error).message}`] }); }
     reply(200, { ok: true, changed: text !== before, levels: parsed.file.levels.length });
   };
 }
