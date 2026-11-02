@@ -2,8 +2,8 @@ import type { PatrolHue, RigKind } from "./PieceRig";
 import SIZES from "../assets/sprites/sizes.json";
 
 /** Painted sprites (the game's art): one whole image per character, eyes painted in
- * (src/assets/sprites/<side>-<kind>.webp, made by docs/art/recipes/paint-*.json and
- * tools/art/sprite.mjs). No parts and no rig: PieceRig draws the image inside its root
+ * (src/assets/sprites/<side>-<kind>.webp, and skin-<skin id>.webp for a painted skin, made by
+ * docs/art/recipes/paint-*.json and tools/art/sprite.mjs). No parts and no rig: PieceRig draws the image inside its root
  * groups (.flip › .hop › .squash), so every animation moves the whole figure. */
 
 const URLS = import.meta.glob<string>("../assets/sprites/*.webp", { eager: true, import: "default" });
@@ -15,14 +15,20 @@ const LEFT = 18.5, RIGHT = 81.5, FEET = 108;
 
 export type SpriteBox = { href: string; x: number; y: number; w: number; h: number };
 const key = (kind: RigKind, rebel: boolean) => `${rebel ? "rebel" : "patrol"}-${kind}`;
-export const SPRITE_IDS = Object.keys(SIZE);
+const SKIN = "skin-";
+/** The twelve base pieces (`rebel-king`, `patrol-pawn`, …). */
+export const SPRITE_IDS = Object.keys(SIZE).filter(id => !id.startsWith(SKIN));
+/** Skin ids that have a painted sprite (`skin-<id>.webp`); any other skin draws on the SVG shape kit. */
+export const PAINTED_SKINS = Object.keys(SIZE).filter(id => id.startsWith(SKIN)).map(id => id.slice(SKIN.length));
 
 /** Painted in the patrol's royal blue only; the red hue keeps the drawn rig. */
 export const hasSprite = (kind: RigKind, rebel: boolean, hue: PatrolHue = "blue") => key(kind, rebel) in SIZE && (rebel || hue === "blue");
+export const hasSkinSprite = (skin: string | undefined) => !!skin && `${SKIN}${skin}` in SIZE;
 
-/** Where the sprite lands in viewBox units: feet on the ground line, centred, inside x 18–82 and y ≥ 0. */
-export function spriteBox(kind: RigKind, rebel: boolean): SpriteBox | undefined {
-  const id = key(kind, rebel), size = SIZE[id], href = URLS[`../assets/sprites/${id}.webp`];
+/** Where the sprite lands in viewBox units: feet on the ground line, centred, inside x 18–82 and y ≥ 0.
+ * A painted `skin` takes the place of the rebel's own sprite. */
+export function spriteBox(kind: RigKind, rebel: boolean, skin?: string): SpriteBox | undefined {
+  const id = skin ? `${SKIN}${skin}` : key(kind, rebel), size = SIZE[id], href = URLS[`../assets/sprites/${id}.webp`];
   if (!size || !href) return undefined;
   const [pw, ph] = size, k = Math.min(HEIGHT[kind] / ph, (RIGHT - LEFT) / pw), w = pw * k, h = ph * k;
   return { href, x: 50 - w / 2, y: FEET - h, w, h };

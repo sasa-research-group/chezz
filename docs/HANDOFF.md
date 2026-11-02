@@ -9,12 +9,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   simultaneous engine (`exile.ts`) stays for the lab Duel.
 - **Art:** painted sprites are the default (`docs/art/PAINTED.md`): one
   generated image per piece, moved whole (`SpriteRig.tsx`, `sprite.css`);
-  style "armour does the talking" (`docs/art-style.md`). Skins and the red
-  patrol fall back to the SVG shape kit (`Armour*.tsx`); `?art=new` shows
+  style "armour does the talking" (`docs/art-style.md`). The red patrol
+  falls back to the SVG shape kit (`Armour*.tsx`); `?art=new` shows
   the kit everywhere. Old cartoon rigs deleted. Tools: `shoot.mjs`,
-  `battle-shot.mjs`, `gen.mjs`, `sprite.mjs`.
+  `battle-shot.mjs` (`--skins`), `gen.mjs`, `sprite.mjs`.
 - **Skins** (`docs/art/SKINS.md`): winning a run unlocks the next rebel skin
-  (`meta.ts`); wear it from ☰ or Victory. Not painted yet (kit art).
+  (`meta.ts`); wear it from ☰ or Victory. All six painted (`skin-<id>.webp`).
 - **Studio** (`art.html` → `src/art/`): Cast (stills, landing), Stage (one
   piece, a button per action, 1×–0.1×), Style guide, Mechanics. Contract:
   `docs/art/RIG.md`.

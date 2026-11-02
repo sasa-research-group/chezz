@@ -1,11 +1,12 @@
 // Screenshots a battle with the listed pieces added to the board, and measures
 // how far each top-row piece's ink rises above its square and the board's frame.
-//   node tools/art/battle-shot.mjs <kinds> <out.png> [--width 390] [--height 844] [--battle 1] [--art paint|new]
+//   node tools/art/battle-shot.mjs <kinds> <out.png> [--width 390] [--height 844] [--battle 1] [--art paint|new]  [--skins ids]
 // <kinds> is a comma list such as knight or knight,rook: each adds one rebel
 // (bottom rows) and one patrol piece (top row first) on free squares.
 // --battle 1 (the default) is a fresh run of battle 1 with its own enemies. Any other battle
 // number starts that battle's board with only your king and the listed pieces, so the top row
 // is free for them. --art paint (the default, the game's art) or new (?art=new, the SVG shape kit).
+// --skins frog-pot,cat-king unlocks and wears those skins (the meta save).
 // The run save is seeded once per page. Starts its own Vite server. PLAYWRIGHT_CHROMIUM_PATH
 // picks a browser binary.
 import { createServer } from "vite";
@@ -17,8 +18,9 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); return i < 0 ? fallback : args.splice(i, 2)[1]; };
 const width = Number(opt("width", 390)), height = Number(opt("height", 844)), battle = Number(opt("battle", 1));
 const art = opt("art", "paint");
+const skins = opt("skins", "").split(",").filter(Boolean);
 const [kinds, out] = args;
-if (!kinds || !out?.endsWith(".png") || !(width > 0) || !(height > 0) || !Number.isInteger(battle) || !["new", "paint"].includes(art)) { console.error("usage: node tools/art/battle-shot.mjs knight out.png [--width 390] [--height 844] [--battle 1] [--art paint|new]"); process.exit(1); }
+if (!kinds || !out?.endsWith(".png") || !(width > 0) || !(height > 0) || !Number.isInteger(battle) || !["new", "paint"].includes(art)) { console.error("usage: node tools/art/battle-shot.mjs knight out.png [--width 390] [--height 844] [--battle 1] [--art paint|new] [--skins frog-pot,cat-king]"); process.exit(1); }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const server = await createServer({ root, logLevel: "error", server: { port: 5392, strictPort: false, host: "127.0.0.1" } });
@@ -46,7 +48,10 @@ try {
   }
   browser = await chromium.launch({ args: ["--disable-audio-output"], executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 3 });
-  await page.addInitScript(r => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", r); } }, JSON.stringify(run));
+  const { SKINS } = await server.ssrLoadModule("/src/components/skins/index.ts");
+  const worn = skins.map(id => SKINS.find(s => s.id === id) ?? (() => { throw new Error(`unknown skin ${id}`); })());
+  const meta = { version: 1, unlocked: skins, equipped: Object.fromEntries(worn.map(s => [s.kind, s.id])) };
+  await page.addInitScript(([r, m]) => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", r); localStorage.setItem("chezz.meta.v1", m); } }, [JSON.stringify(run), JSON.stringify(meta)]);
   await page.goto(`${server.resolvedUrls.local[0]}${art === "new" ? "?art=new" : ""}`);
   await page.locator(".piece-layer svg.rig").first().waitFor();
   // The seeded pieces only show if the game accepted the save; otherwise it opens a fresh run.

@@ -423,7 +423,7 @@ test("the game draws painted sprites by default", async ({ page }) => {
   await expect(page.locator(".piece-layer svg.rig.art-sprite")).toHaveCount(0);
 });
 
-test("wear an unlocked skin from the pause menu; it draws on the shape kit beside the painted cast", async ({ page }) => {
+test("wear an unlocked skin from the pause menu; it draws as its painted sprite, and on the kit with ?art=new", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [...start.units, { id: "p1", side: "white" as const, kind: "pawn" as const, x: 0, y: 3, hp: 1 }] };
   await page.addInitScript(([run, meta]) => {
@@ -441,7 +441,9 @@ test("wear an unlocked skin from the pause menu; it draws on the shape kit besid
   await expect(pick).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Escape");
   await expect(frogs).toHaveCount(1);
-  await expect(page.locator(".piece-layer svg.rig.art-sprite")).toHaveCount(3);
+  await expect(frogs.and(page.locator(".art-sprite"))).toHaveCount(1);
+  await expect(page.locator(".piece-layer svg.rig.art-sprite")).toHaveCount(4);
   await page.goto("/?art=new");
   await expect(frogs).toHaveCount(1);
+  await expect(frogs.and(page.locator(".art-new"))).toHaveCount(1);
 });

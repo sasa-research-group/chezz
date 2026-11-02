@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the game draws every piece as one painted sprite in this style (`docs/art/PAINTED.md`). Skins and the red patrol still use the SVG shape kit (`?art=new` shows the whole cast in it).
+- Status: the game draws every piece and skin as one painted sprite in this style (`docs/art/PAINTED.md`). The red patrol still uses the SVG shape kit (`?art=new` shows the whole cast in it).
 
 ## 1. Armour does the talking
 

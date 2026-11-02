@@ -1,0 +1,30 @@
+{
+  "id": "paint-skin-empty-knight",
+  "description": "Painted sprite for the empty-knight skin (rebel knight): one whole image, face painted in. Step 1 paints a full-body game pose from the oddball reference crop, the style sheet and the rebel sprite's crest; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/skin-empty-knight.webp.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": [
+        "docs/art/odd-knight.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "src/assets/sprites/rebel-knight.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the oddball KNIGHT from the first image, painted in the art style of the second image (a character select sheet). The third image is the plain rebel knight in the finished game style: copy its headgear crest exactly, but not its body. SUBJECT: an empty suit of rusty rebel iron armour riding a wooden rocking horse, playing the rebel knight. The armour is dull rusty grey iron with brown rust blotches and dents, the same rusty iron as the bucket helm in the third image, NOT blue. A rusty bucket helm, tilted a little, FLOATS clearly above the suit with a wide gap of plain background between the helm's bottom edge and the collar, about as tall as the helm's eye slot, with nothing holding it up: nobody is in the suit. The helm's T-shaped opening is completely black and empty inside. A red rag is tied round the helm's foot with one end flying. Below the gap the open collar of the cuirass shows a big dark hollow oval neck opening seen from slightly above, with a pale iron rim, so it is obvious the armour is empty. A rusty cuirass, big round pauldrons, armoured arms with an iron gauntlet holding a red rein. The suit sits astride a carved wooden rocking horse facing right: a big carved brown wooden horse head in profile with a painted dark eye, a carved mane and a red bridle, on a thick wooden neck, a round wooden barrel body, a short tail tuft, and a curved wooden rocker under it touching the ground. The horse head stands in front of the rider at the right side, its ears level with the helm. Three-quarter view facing right, chunky, the rocker visible at the bottom. FACE: the suit has NO face and NO eyes: the helm's T opening is solid black and empty, with no eyes, glints or face inside. The wooden horse head has one painted dark eye. POSE: a natural, anatomically correct pose for this creature or object; nothing is backwards, reversed or twisted, and any held prop is gripped firmly, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, rusty grey iron and brown wood with the red rag as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-skin-empty-knight.png",
+  "sprite": {
+    "height": 480,
+    "outline": 12
+  }
+}

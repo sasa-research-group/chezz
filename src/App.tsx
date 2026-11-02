@@ -192,7 +192,6 @@ export default function App() {
   // A won run unlocks the next skin; creditWin ignores a victory it has already counted (a reload, say).
   useEffect(() => { if (run.phase === "victory") setMeta(m => creditWin(m, run, SKINS).meta); }, [run]);
   useEffect(() => { if (!saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
-  // Skins have no painted sprites yet, so a worn skin draws on the SVG shape kit among the painted cast.
   const skinOf = (kind: Kind) => meta.equipped[kind];
   const skinPicker = <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} />;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

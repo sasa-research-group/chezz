@@ -1,0 +1,31 @@
+{
+  "id": "paint-skin-goose-mitre",
+  "description": "Painted sprite for the goose-mitre skin (rebel bishop): one whole image, face painted in. Step 1 paints a full-body game pose from the oddball reference crop, the style sheet, the SVG skin's pose and the rebel sprite's crest; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/skin-goose-mitre.webp.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": [
+        "docs/art/odd-bishop.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-skin-goose-mitre.webp",
+        "src/assets/sprites/rebel-bishop.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the oddball BISHOP from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. The fourth image is the plain rebel bishop in the finished game style: copy its headgear crest exactly, but not its body. SUBJECT: a smug white goose playing the rebel bishop. On its head the rebel bishop's tall pointed parchment mitre from the fourth image: a BIG tall cream parchment mitre, about a third of the whole figure's height and wider than the goose's head, with a clear centre cleft at its pointed top, a darker parchment cel shadow on its right half, a pale band at the brim and one small yellow square patch stitched on its front (the rebel bishop's yellow patch), tipped back a little on the head. A white goose head under it with a big orange beak raised smugly, a short thick white S-curved neck, a plump round white body with a folded wing showing two scalloped feather edges, a short pointed tail at the back, and two orange webbed feet on the ground. Standing, side view facing right, feet visible, chunky: the mitre is tall, the head and mitre together about half the figure's height. EYES: one black dot eye in profile on the side of the goose head, with one low smug angry brow stroke over it, clearly visible. POSE: a natural, anatomically correct pose for this creature or object; nothing is backwards, reversed or twisted, and any held prop is gripped firmly, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, white and cream with the orange beak and feet as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-skin-goose-mitre.png",
+  "sprite": {
+    "height": 480,
+    "outline": 12
+  }
+}

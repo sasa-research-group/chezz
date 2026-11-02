@@ -1,5 +1,6 @@
 import type { RigSide } from "../components/PieceRig";
 import { SKINS } from "../components/skins";
+import { hasSkinSprite } from "../components/SpriteRig";
 import { KINDS, SpriteStill } from "./kit";
 import { art } from "./Reference";
 
@@ -19,10 +20,14 @@ export function Cast() {
     </section>)}
     <section className="cast-group" aria-labelledby="cast-skins">
       <h3 id="cast-skins">Skins</h3>
-      <div className="cast-grid">{SKINS.map(s => <div key={s.id} className="cast-tile unpainted" data-skin={s.id}>
-        {s.ref && <img src={art(s.ref)} alt="" width={406} height={498} loading="lazy" />}
-        <span>{s.name}</span><small>Not painted yet</small>
-      </div>)}</div>
+      <div className="cast-grid">{SKINS.map(s => hasSkinSprite(s.id)
+        ? <a key={s.id} className="cast-tile rebel" href={`#stage/skin-${s.id}`} data-sprite={`skin-${s.id}`} data-skin={s.id}>
+          <SpriteStill kind={s.kind} side="white" skin={s.id} /><span>{s.name}</span>
+        </a>
+        : <div key={s.id} className="cast-tile unpainted" data-skin={s.id}>
+          {s.ref && <img src={art(s.ref)} alt="" width={406} height={498} loading="lazy" />}
+          <span>{s.name}</span><small>Not painted yet</small>
+        </div>)}</div>
     </section>
   </div>;
 }

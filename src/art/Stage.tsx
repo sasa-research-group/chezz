@@ -2,11 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { PieceRig, RIG_MS } from "../components/PieceRig";
 import type { RigAction, RigKind, RigSide } from "../components/PieceRig";
+import { SKINS, skinById } from "../components/skins";
+import { hasSkinSprite } from "../components/SpriteRig";
 import { KINDS } from "./kit";
 
-export type SpriteId = `${"rebel" | "patrol"}-${RigKind}`;
-export const SPRITES: SpriteId[] = (["rebel", "patrol"] as const).flatMap(f => KINDS.map(k => `${f}-${k}` as SpriteId));
+/** A base piece (`rebel-king`) or a painted skin (`skin-frog-pot`). */
+export type SpriteId = `${"rebel" | "patrol"}-${RigKind}` | `skin-${string}`;
+const PAINTED = SKINS.filter(s => hasSkinSprite(s.id));
+export const SPRITES: SpriteId[] = [
+  ...(["rebel", "patrol"] as const).flatMap(f => KINDS.map(k => `${f}-${k}` as SpriteId)),
+  ...PAINTED.map(s => `skin-${s.id}` as SpriteId),
+];
 export const isSprite = (id: string): id is SpriteId => (SPRITES as string[]).includes(id);
+function parse(id: SpriteId): { kind: RigKind; side: RigSide; skin?: string } {
+  const skin = id.startsWith("skin-") ? skinById(id.slice(5)) : undefined;
+  if (skin) return { kind: skin.kind, side: "white", skin: skin.id };
+  const [faction, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
+  return { kind, side: faction === "rebel" ? "white" : "black" };
+}
 
 /** Each button's take: actions and their start times in ms at 1×, timed as App.tsx plays them. */
 type Take = { id: string; label: string; steps: [RigAction, number][]; only?: RigKind };
@@ -35,8 +48,7 @@ function Segmented<T extends string | number>({ label, value, options, onPick, n
 }
 
 export function Stage({ id, onPick }: { id: SpriteId; onPick: (id: SpriteId) => void }) {
-  const [faction, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
-  const side: RigSide = faction === "rebel" ? "white" : "black";
+  const { kind, side, skin } = parse(id);
   const [anim, setAnim] = useState<{ action: RigAction; key: number; take: string }>({ action: "idle", key: 0, take: "idle" });
   const [speed, setSpeed] = useState(1);
   const [facing, setFacing] = useState<1 | -1>(side === "white" ? 1 : -1);
@@ -67,7 +79,7 @@ export function Stage({ id, onPick }: { id: SpriteId; onPick: (id: SpriteId) => 
     <div className={`stage-canvas ${large ? "large" : "board"}`} style={{ "--spd": spd } as CSSProperties} data-take={anim.take}>
       <div className="stage-board" aria-hidden="true">{Array.from({ length: 25 }, (_, i) => <i key={i} className={(i % 5 + Math.floor(i / 5)) % 2 ? "grass" : "sand"} />)}</div>
       <div className="stage-piece">
-        <PieceRig key={anim.key} kind={kind} side={side} action={anim.action} facing={facing} wounded={wounded} defending={guarding || anim.action === "defend"} seed="stage" art="paint" />
+        <PieceRig key={anim.key} kind={kind} side={side} action={anim.action} facing={facing} wounded={wounded} defending={guarding || anim.action === "defend"} seed="stage" art="paint" skin={skin} />
       </div>
     </div>
     <div className="stage-controls">
@@ -76,6 +88,9 @@ export function Stage({ id, onPick }: { id: SpriteId; onPick: (id: SpriteId) => 
           {(["rebel", "patrol"] as const).map(f => <optgroup key={f} label={f === "rebel" ? "Friendly" : "Enemy"}>
             {KINDS.map(k => <option key={k} value={`${f}-${k}`}>{f === "rebel" ? "Rebel" : "Patrol"} {k}</option>)}
           </optgroup>)}
+          {PAINTED.length > 0 && <optgroup label="Skins">
+            {PAINTED.map(s => <option key={s.id} value={`skin-${s.id}`}>{s.name} ({s.kind})</option>)}
+          </optgroup>}
         </select>
       </label>
       <div className="stage-field"><span>Animation</span><div className="takes" role="group" aria-label="Animation">

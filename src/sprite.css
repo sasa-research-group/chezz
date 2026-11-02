@@ -112,6 +112,26 @@
   78%{transform:translate(49px,120px) rotate(350deg)}
   88%,100%{transform:translate(52px,140px) rotate(360deg)}}
 
+/* Painted skins: the kit's part quirks, redone as whole-sprite keyframes. The haystack, candle and
+   cat have none; the cat's checkmate uses the shared crown particle above. */
+/* Frog: a slow croak, a wide puff that holds and settles, in place of the breathing. */
+.rig.art-sprite.skin-frog-pot.act-idle{animation:sprite-croak 2.6s var(--ease-soft) var(--seed) infinite}
+@keyframes sprite-croak{0%,50%,100%{transform:none}64%{transform:scale(1.08,.93)}74%{transform:scale(1.06,.95)}84%{transform:scale(.98,1.02)}}
+/* Empty knight: the rocking horse rocks on its rocker. */
+.rig.art-sprite.skin-empty-knight.act-idle{animation:sprite-rock 2.2s var(--ease-soft) var(--seed) infinite;transform-origin:50% 90%}
+@keyframes sprite-rock{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+/* Goose: the strike is a peck, a coil back then a deep forward dip beak first. */
+.rig.art-sprite.skin-goose-mitre.act-attack .squash{animation-name:sprite-peck}
+@keyframes sprite-peck{
+  0%{transform:none}
+  26%{transform:translateX(-6px) rotate(-14deg) scale(.95,1.05)}
+  34%{transform:translateX(-7px) rotate(-16deg)}
+  42%{transform:translateX(18px) rotate(26deg) scale(1.12,.9)}
+  58%{transform:translateX(17px) rotate(22deg)}
+  74%{transform:translateX(-2px) rotate(-4deg)}
+  88%{transform:translateX(1px) rotate(1deg)}
+  100%{transform:none}}
+
 /* Reduced motion: rig.css turns the moves off; checkmate still lands on its final frame, so
    skip and reduced motion end the same way. */
 @media(prefers-reduced-motion:reduce){

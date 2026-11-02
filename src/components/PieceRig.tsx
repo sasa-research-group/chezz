@@ -7,12 +7,13 @@ import { armourBishop } from "./ArmourBishops";
 import { armourKing } from "./ArmourKings";
 import { armourQueen } from "./ArmourQueens";
 import { skinById, type Skin } from "./skins";
-import { CrownFx, SpriteImage, hasSprite, spriteBox } from "./SpriteRig";
+import { CrownFx, SpriteImage, hasSkinSprite, hasSprite, spriteBox } from "./SpriteRig";
 
 /** A cast of misfits. Each chess piece is a distinct character whose costume
  * echoes its chess shape; rebels (white) are patched exiles, the patrol
  * (black) are prim royal guards. Each is one painted sprite (SpriteRig.tsx) moved whole by
- * src/sprite.css; skins and the red patrol fall back to the SVG shape kit (Armour*.tsx), whose
+ * src/sprite.css, painted skins included; unpainted skins and the red patrol fall back to the SVG
+ * shape kit (Armour*.tsx), whose
  * groups (.flip > .hop > .squash > body/arms/prop/head) src/rig.css animates. */
 export type RigKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type RigSide = "white" | "black";
@@ -34,8 +35,9 @@ const f = { stroke: INK, strokeWidth: 2.2, strokeLinejoin: "round" as const, str
 /** One shape-kit build (Armour*.tsx); skins dress it. `mouths` is an optional overlay drawn in the head. */
 export type Figure = { back?: ReactNode; body: ReactNode; armBack?: ReactNode; prop?: ReactNode; armFront: ReactNode; armFrontOverHead?: boolean; head: ReactNode; mouths?: ReactNode; propOrigin: string; shield: [number, number]; mouth: [number, number, number] };
 
-/** "paint" (the game's art) draws one whole painted sprite (SpriteRig.tsx) where a piece has
- * one and the SVG shape kit elsewhere (skins, the red patrol); "new" draws only the shape kit. */
+/** "paint" (the game's art) draws one whole painted sprite (SpriteRig.tsx) where a piece or skin
+ * has one and the SVG shape kit elsewhere (the red patrol, unpainted skins); "new" draws only the
+ * shape kit. */
 export type ArtStyle = "new" | "paint";
 const NEW_FIGURES: Record<RigKind, (rebel: boolean, c: Palette, hue: PatrolHue, look?: Partial<BodyLook>) => Figure> = { pawn: armourPawn, rook: armourRook, knight: armourKnight, bishop: armourBishop, queen: armourQueen, king: armourKing };
 /** A skin dresses a piece's shape-kit build: new head, and optionally new body, back,
@@ -61,13 +63,16 @@ function Shield({ rebel, c, at: [x, y] }: { rebel: boolean; c: Palette; at: [num
 }
 
 let rigCount = 0;
-/** `skin` is a skin id from components/skins; it applies to rebels of the skin's kind, whatever `art` says. */
+/** `skin` is a skin id from components/skins; it applies to rebels of the skin's kind: its painted
+ * sprite when it has one and `art` is "paint", the shape kit otherwise. */
 export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, hue = "blue", seed = 0, wounded = false, art = URL_ART, skin: skinId }: {
   kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; hue?: PatrolHue; seed?: number | string; wounded?: boolean; art?: ArtStyle; skin?: string;
 }) {
   const rebel = side === "white", c = rebel ? REBEL : PATROL[hue];
   const found = skinById(skinId), skin = found && rebel && found.kind === kind ? found : undefined;
-  const sprite = art === "paint" && !skin && hasSprite(kind, rebel, hue) ? spriteBox(kind, rebel) : undefined;
+  const sprite = art !== "paint" ? undefined
+    : skin ? (hasSkinSprite(skin.id) ? spriteBox(kind, rebel, skin.id) : undefined)
+    : hasSprite(kind, rebel, hue) ? spriteBox(kind, rebel) : undefined;
   const built = NEW_FIGURES[kind](rebel, c, hue, skin?.look);
   const fig = skin ? dress(built, skin) : built;
   const [boil] = useState(() => `boil-${++rigCount}`);
@@ -86,7 +91,7 @@ export function PieceRig({ kind, side, action = "idle", defending = false, facin
     <g className="fx-stars" fill={GOLD} stroke={INK} strokeWidth="1.5">{[[86, 36], [94, 56], [78, 24]].map(([x, y], i) => <path key={i} d={`M${x} ${y - 6} L${x + 2} ${y - 2} L${x + 6} ${y} L${x + 2} ${y + 2} L${x} ${y + 6} L${x - 2} ${y + 2} L${x - 6} ${y} L${x - 2} ${y - 2} Z`} />)}</g>
   </>;
   const smoke = <g className="fx-smoke" fill="#cfc6b8" stroke={INK} strokeWidth="1.5">{[[38, 84], [56, 76], [66, 92], [44, 98], [52, 88]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="9" />)}</g>;
-  if (sprite) return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} art-sprite ${states}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
+  if (sprite) return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} art-sprite ${skin ? `skin-${skin.id}` : ""} ${states}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
     {ground}
     <g className="flip"><g className="hop"><g className="squash">
       <SpriteImage box={sprite} />

@@ -1,9 +1,9 @@
 # Painted sprites
 
 The game's art: one image-generated sprite per piece, eyes painted in. No parts and no
-rig: every animation moves the whole sprite and adds effects. All twelve pieces are painted
-(Nov 2026); skins and the red patrol fall back to the SVG shape kit, and `?art=new` shows the
-whole game in the kit. Decision record:
+rig: every animation moves the whole sprite and adds effects. All twelve pieces and the six
+skins are painted (Nov 2026; skins in `SKINS.md`, "Painted skins"); the red patrol falls back
+to the SVG shape kit, and `?art=new` shows the whole game in the kit. Decision record:
 `DECISIONS.md`, "painted sprites become whole images" (the owner's verdict on the cut-out rigs),
 "studio rebuilt around the painted sprites" (they become the default)
 and the earlier per-pair entries, whose looks still hold.
@@ -20,7 +20,8 @@ and the earlier per-pair entries, whose looks still hold.
 2. **Trim** (`node tools/art/sprite.mjs <recipe> --install`): takes the colour from the pose and
    the alpha from the cutout, erodes a pixel of grey fringe, drops specks, trims to the ink,
    scales to `sprite.height` (480 px), thickens the outer outline by `sprite.outline` (12 px) in
-   ink and writes `src/assets/sprites/<side>-<kind>.webp` plus its size in `sizes.json`.
+   ink and writes `src/assets/sprites/<side>-<kind>.webp` plus its size in `sizes.json`. A skin's
+   recipe is `paint-skin-<id>.json` and installs `skin-<id>.webp`.
 3. **Draw** (`src/components/SpriteRig.tsx`): `spriteBox` fits the image into the figure box
    (x 18–82, feet on y 108, at most `HEIGHT[kind]` tall) and `PieceRig` draws it inside
    `.flip › .hop › .squash`. The patrol faces left by the `.flip` mirror. The side markers
@@ -33,8 +34,9 @@ and the earlier per-pair entries, whose looks still hold.
 ## In the studio (`art.html`)
 
 - **Cast** (landing): every sprite as a still image (`SpriteStill` in `src/art/kit.tsx`, the
-  game's placement with no animation), grouped Friendly, Enemy and Skins (not painted yet).
-- **Stage** (`#stage/<side>-<kind>`): one live `PieceRig`, a button per action below, wounded
+  game's placement with no animation), grouped Friendly, Enemy and Skins (a skin with no
+  sprite shows its reference as "Not painted yet").
+- **Stage** (`#stage/<side>-<kind>`, `#stage/skin-<id>` for a skin): one live `PieceRig`, a button per action below, wounded
   and guarding toggles, facing, board or large size, and 1×, 0.5×, 0.25×, 0.1× speeds that set
   the game's `--spd` (1, 2, 4, 10) and stretch the take's timers to match.
 

@@ -7,8 +7,8 @@ export const KINDS: RigKind[] = ["king", "queen", "rook", "bishop", "knight", "p
 
 /** A painted sprite as one still image, placed and sized exactly as the game draws it (feet on
  * y 108, patrol mirrored), with its side's ground marker. No animation, so it costs nothing to show. */
-export function SpriteStill({ kind, side, className = "" }: { kind: RigKind; side: RigSide; className?: string }) {
-  const rebel = side === "white", box = spriteBox(kind, rebel);
+export function SpriteStill({ kind, side, skin, className = "" }: { kind: RigKind; side: RigSide; skin?: string; className?: string }) {
+  const rebel = side === "white", box = spriteBox(kind, rebel, skin);
   return <svg className={`sprite-still ${className}`} viewBox="0 0 100 120" aria-hidden="true">
     {rebel ? <ellipse cx="50" cy="108" rx="28" ry="6" fill={INK} opacity=".22" /> : <path d="M22 108 L50 102 L78 108 L50 114 Z" fill={INK} opacity=".22" />}
     {box && <image href={box.href} x={box.x} y={box.y} width={box.w} height={box.h} preserveAspectRatio="none" transform={rebel ? undefined : "matrix(-1 0 0 1 100 0)"} />}

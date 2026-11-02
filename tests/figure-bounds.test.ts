@@ -2,8 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PieceRig, type PatrolHue, type RigKind } from "../src/components/PieceRig";
-import { SKINS } from "../src/components/skins";
-import { SPRITE_IDS } from "../src/components/SpriteRig";
+import { SKINS, skinById } from "../src/components/skins";
+import { PAINTED_SKINS, SPRITE_IDS } from "../src/components/SpriteRig";
 import { inkBox } from "./ink-bounds";
 
 /** The figure contract (docs/art-style.md section 9): at rest, every shape-kit figure keeps its ink,
@@ -37,6 +37,16 @@ describe("painted sprites stay inside the figure contract", () => {
   for (const id of SPRITE_IDS) it(id, () => {
     const [side, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
     const html = renderToStaticMarkup(createElement(PieceRig, { kind, side: side === "rebel" ? "white" : "black", art: "paint" }));
+    expect(html.match(/<image/g), "draws one whole sprite, not the fallback").toHaveLength(1);
+    const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
+    expect(ink.top, "topmost ink").toBeGreaterThanOrEqual(BOUNDS.top);
+    expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);
+    expect(ink.right, "rightmost ink").toBeLessThanOrEqual(BOUNDS.right);
+    expect(ink.bottom, "feet on the ground line").toBeCloseTo(108, -0.5);
+  });
+  for (const id of PAINTED_SKINS) it(`skin ${id}`, () => {
+    const skin = skinById(id)!;
+    const html = renderToStaticMarkup(createElement(PieceRig, { kind: skin.kind, side: "white", skin: id, art: "paint" }));
     expect(html.match(/<image/g), "draws one whole sprite, not the fallback").toHaveLength(1);
     const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
     expect(ink.top, "topmost ink").toBeGreaterThanOrEqual(BOUNDS.top);

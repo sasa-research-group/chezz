@@ -16,17 +16,58 @@ reference oddballs: `docs/art/odd-*.webp`. Style rules: `docs/art-style.md`
   new run overwrites. Clearing site data loses them.
 - Skins are cosmetic. They never change stats or rules; `turns.ts` knows
   nothing about them.
-- Skins are drawn on the shape kit (`src/components/inkKit.tsx`) and have no
-  painted sprites yet, so a worn skin draws in the SVG kit among the painted
-  cast. The picker is in the ☰ menu and on the Victory screen. The studio's
-  cast sheet lists them as "not painted yet". The hideout's army portraits
+- All six skins are painted sprites (Nov 2 2026, "Painted skins" below), drawn
+  like the rest of the cast. The shape-kit drawings (`src/components/skins/`)
+  stay as the fallback for an unpainted skin and for `?art=new`. The picker is
+  in the ☰ menu and on the Victory screen; the studio shows painted skins on
+  the Cast sheet and in the Stage's Piece list. The hideout's army portraits
   don't show skins yet.
 - Two tabs open at once can overwrite each other's unlocks (each writes its whole
   copy). Fine for the prototype.
 
-## How a skin plugs into the rig
+## Painted skins
 
-A rig takes `skin="<id>"`. `PieceRig` builds the piece's shape-kit figure
+One image per skin, made like the base sprites (`docs/art/PAINTED.md`):
+recipe `docs/art/recipes/paint-skin-<id>.json`, sprite
+`src/assets/sprites/skin-<id>.webp`. `PieceRig` draws it in place of the rebel's
+own sprite when `art` is "paint" and the skin has a sprite (`hasSkinSprite`);
+otherwise it dresses the shape kit as below. The svg keeps the `skin-<id>` class.
+
+Each pose prompt gets four images: the oddball reference, the style sheet, the
+SVG skin's pose (`docs/art/paint/svg-skin-<id>.webp`, rendered with
+`shoot.mjs <kind>.white.<id>.new --crop 192 --scale 2` and cropped to 400×440)
+and the rebel piece's own painted sprite, so the crest matches the base piece
+exactly. The empty knight skips the SVG pose: its kit drawing splits the horse
+head from the barrel, and the text alone gave a cleaner rocking horse. The
+candle skips the base sprite (the rebel queen's helm and pan are no help).
+
+Looks kept from the kit drawings and the owner's notes:
+- Frog: grumpy green frog, heavy-lidded yellow eyes, red cord under the jaw,
+  rebel copper saucepan with its handle out the back, cattail in the fist.
+- Haystack: golden bell of hay under grey stone battlements, two tall black
+  eye holes, boots under the hem, straw mitten on a two-tined hayfork.
+- Empty knight: rusty rebel iron suit, black empty T in a bucket helm with a red
+  rag, no face, riding a wooden rocking horse on its rocker.
+- Goose: white goose in the parchment mitre, one dot eye under a smug brow,
+  orange beak and feet, walking right.
+- Candle queen: cream candle with fat drips, a crown of three flame points,
+  two dot eyes and a melted frown, a purple ribbon, copper bowl.
+- Cat king: orange tabby sitting up, closed-eye arcs and a smile, the rebel
+  king's gem crown far too big and crooked.
+
+Quirks, redone as whole-sprite keyframes in `src/sprite.css` ("Painted skins"):
+- Frog croak: the idle breathing becomes a slow wide puff every 2.6 s.
+- Empty knight hover becomes a rock: the whole sprite rocks ±3° on its rocker.
+- Goose peck: the strike coils back then dips forward 26° beak first, in place
+  of the shared lunge.
+- Dropped: the haystack's plank door, the candle and the cat had no quirks; the
+  kit's blink, yell and head pop can't play on one image.
+- The cat king's crown can't fly off a single image: checkmate uses the shared
+  crown particle (`CrownFx`) like every painted king, and the painted crown stays on.
+
+## How a skin plugs into the shape kit
+
+A rig takes `skin="<id>"`. With `art="new"`, or for a skin with no painted sprite, `PieceRig` builds the piece's shape-kit figure
 (`NEW_FIGURES`, so the piece must already be redrawn on the kit), then:
 
 | Slot | What the skin gives | Rule |
@@ -53,7 +94,12 @@ The skin only applies to a rebel of its own `kind`; anything else ignores it.
 3. Add any new colours to `TONES` and any quirk CSS to `rig.css`.
 4. Check it: `npm test` (`tests/skins.test.ts` checks every registered skin
    keeps the animated groups), then the judge sheet:
-   `node tools/art/shoot.mjs pawn.white,pawn.white.<id> out.png`.
+   `node tools/art/shoot.mjs pawn.white,pawn.white.<id>.new out.png`.
+5. Paint it: render its pose reference, copy a `paint-skin-*.json` recipe and
+   change SUBJECT and EYES, then `node tools/art/gen.mjs` and
+   `node tools/art/sprite.mjs <recipe> --install` (writes `skin-<id>.webp`).
+   Judge sheet: `node tools/art/shoot.mjs pawn.white.paint,pawn.white.<id> out.png`
+   (a skin id alone shows its painted sprite once it has one).
 
 ## Planned skins
 

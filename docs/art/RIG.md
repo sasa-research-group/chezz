@@ -39,8 +39,8 @@ Effects (`.fx-*`) are not bones; they pop in and out with the action.
   strike is leap, attack at `RIG_MS.leap`, leap-back 380 ms later; checkmate
   plays `mate`.
 
-## Shape kit (skins only)
-Skins and the red patrol have no painted sprite and draw on the SVG shape kit
+## Shape kit (fallback)
+The red patrol, unpainted skins and `?art=new` draw on the SVG shape kit
 (`Armour*.tsx`, `src/components/skins/`), class `art-new`, animated by
 `src/rig.css`. Their figures fill these groups inside `.squash`: back
 (`.cape`), `.arm-back`, body, `.prop` (pivot `propOrigin`, the front hand),

@@ -13,8 +13,9 @@ test("studio: the cast sheet lands as still images and opens a sprite on the sta
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/art.html");
   for (const group of ["Friendly", "Enemy", "Skins"]) await expect(page.getByRole("heading", { name: group, exact: true })).toBeVisible();
-  await expect(page.locator(".cast-tile[data-sprite] image")).toHaveCount(12);
-  await expect(page.locator(".cast-tile.unpainted", { hasText: "Not painted yet" })).toHaveCount(6);
+  await expect(page.locator(".cast-tile[data-sprite] image")).toHaveCount(18);
+  await expect(page.locator(".cast-tile[data-skin] image")).toHaveCount(6);
+  await expect(page.locator(".cast-tile.unpainted")).toHaveCount(0);
   // The landing sheet stays cheap: no animated figures at all.
   expect(await page.locator("svg.rig").count()).toBe(0);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
@@ -26,6 +27,11 @@ test("studio: the cast sheet lands as still images and opens a sprite on the sta
   await expect(page.locator("svg.rig")).toHaveCount(1);
   await expect(page.locator(".stage-piece .rig.art-sprite.rig-knight.patrol")).toBeVisible();
   expect(await scrollWidth(page)).toBeLessThanOrEqual(390);
+
+  await page.getByRole("combobox", { name: "Piece" }).selectOption("skin-cat-king");
+  await expect(page).toHaveURL(/#stage\/skin-cat-king$/);
+  await expect(page.locator(".stage-piece .rig.art-sprite.rig-king.skin-cat-king")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Animation" }).getByRole("button", { name: "Checkmate" })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

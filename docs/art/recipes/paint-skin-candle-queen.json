@@ -1,0 +1,30 @@
+{
+  "id": "paint-skin-candle-queen",
+  "description": "Painted sprite for the candle-queen skin (rebel queen): one whole image, face painted in. Step 1 paints a full-body game pose from the oddball reference crop, the style sheet, the SVG skin's pose; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/skin-candle-queen.webp.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": [
+        "docs/art/odd-queen.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-skin-candle-queen.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the oddball QUEEN from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. SUBJECT: a melting wax candle playing the rebel queen. A short thick cream wax candle with fat drips running down from its lighter top and bulging past its sides, its foot slumping into a puddle of wax in a round copper candle bowl with a curled handle on the left side. On top, on a short dark wick, a flame shaped like a crown: three bright orange-yellow flame points side by side, the middle one tallest, with a yellow core, like a crown of fire. A purple ribbon tied round the middle of the candle with a knot and two short tails on the right side. No arms and no legs. Three-quarter view facing right, the bowl sitting on the ground, chunky: the flame crown is big and bright. FACE: two black dot eyes painted on the wax of the candle's upper front, side by side, level, a little toward the right, clearly visible, with a small melted wavy frown under them. POSE: a natural, anatomically correct pose for this creature or object; nothing is backwards, reversed or twisted, and any held prop is gripped firmly, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, cream wax and copper with the orange flame crown and the purple ribbon as accents. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-skin-candle-queen.png",
+  "sprite": {
+    "height": 480,
+    "outline": 12
+  }
+}

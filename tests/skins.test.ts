@@ -13,8 +13,8 @@ const hasClass = (html: string, c: string) => new RegExp(`class="(?:[^"]* )?${c}
 describe("skin registry", () => {
   it("has unique ids", () => expect(new Set(SKINS.map(s => s.id)).size).toBe(SKINS.length));
   for (const skin of SKINS) describe(skin.id, () => {
-    it("keeps every animated group", () => {
-      const html = rig({ kind: skin.kind, side: "white", skin: skin.id });
+    it("keeps every animated group on the shape kit", () => {
+      const html = rig({ kind: skin.kind, side: "white", art: "new", skin: skin.id });
       for (const c of SLOTS) expect(hasClass(html, c), c).toBe(true);
       if (skin.kind === "rook") expect(hasClass(html, "door"), "door").toBe(true);
       if (skin.kind === "king") expect(hasClass(html, "crown"), "crown").toBe(true);

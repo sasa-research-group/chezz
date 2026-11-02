@@ -1,0 +1,31 @@
+{
+  "id": "paint-skin-cat-king",
+  "description": "Painted sprite for the cat-king skin (rebel king): one whole image, face painted in. Step 1 paints a full-body game pose from the oddball reference crop, the style sheet, the SVG skin's pose and the rebel sprite's crest; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/skin-cat-king.webp.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": [
+        "docs/art/odd-king.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-skin-cat-king.webp",
+        "src/assets/sprites/rebel-king.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the oddball KING from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. The fourth image is the plain rebel king in the finished game style: copy its headgear crest exactly, but not its body. SUBJECT: a sleepy chubby orange tabby cat playing the rebel king. On its head the rebel king's gold crown from the fourth image, but far too big for the cat: a wide gold crown with three bold pointed tips, a red centre gem and two blue gems on its band, over a red velvet cap, slipping down crooked over one side of the head and squashing one ear sideways. An orange tabby head with chunky darker orange stripes, a pink nose and four whiskers. A round sitting cat body with a pale cream chest, two front paws together in front, chunky dark orange stripes on the back, and a fluffy striped tail wrapped round the front with its tip curling up. Sitting up, three-quarter view facing right, chunky and big-headed: the head and crown are about half the figure's height. EYES: two closed sleepy eyes drawn as curved black arcs on the cat's face, side by side, level, clearly visible, a tiny contented smile under the nose. POSE: a natural, anatomically correct pose for this creature or object; nothing is backwards, reversed or twisted, and any held prop is gripped firmly, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, orange tabby with the gold crown and its red gem as the one bright accent. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-skin-cat-king.png",
+  "sprite": {
+    "height": 480,
+    "outline": 12
+  }
+}

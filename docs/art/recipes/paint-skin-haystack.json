@@ -1,0 +1,31 @@
+{
+  "id": "paint-skin-haystack",
+  "description": "Painted sprite for the haystack skin (rebel rook): one whole image, face painted in. Step 1 paints a full-body game pose from the oddball reference crop, the style sheet, the SVG skin's pose and the rebel sprite's crest; step 2 removes the background. Then tools/art/sprite.mjs trims it, thickens the outer outline and writes src/assets/sprites/skin-haystack.webp.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "pose",
+      "aspect_ratio": "3:4",
+      "images": [
+        "docs/art/odd-rook.webp",
+        "docs/art/sheet-armour-talks.webp",
+        "docs/art/paint/svg-skin-haystack.webp",
+        "src/assets/sprites/rebel-rook.webp"
+      ],
+      "prompt": "Full-body game sprite, painted as one single whole image, of the oddball ROOK from the first image, painted in the art style of the second image (a character select sheet). Use the third image only for the full-body pose and chunky proportions, not for its style. The fourth image is the plain rebel rook in the finished game style: copy its headgear crest exactly, but not its body. SUBJECT: a walking haystack playing the rebel rook. On top, the rebel rook's grey stone battlements from the fourth image: a square stone tower top with three square crenels and stone block lines, sitting on the hay like a crown. Below it one big golden bell-shaped mound of shaggy hay, about as wide as the battlements where they meet and flaring a little toward a tufted ragged hem, with a few tufts poking out of its sides and a few hay strands drawn as short inner strokes. Two short dark brown boots peek out under the hem. A straw mitten pokes out of the right side of the hay and grips a two-tined wooden hayfork with two long grey steel tines, held upright on the right side of the figure. Standing, three-quarter view facing right, feet visible, chunky: the battlements and the top of the mound are about half the figure. EYES: two tall black oval eye holes in the hay just under the battlements, side by side, level, a little toward the right side of the mound, clearly visible. No mouth. POSE: a natural, anatomically correct pose for this creature or object; nothing is backwards, reversed or twisted, and any held prop is gripped firmly, never floating. SILHOUETTE: one clean, readable silhouette with simple chunky shapes and few interior lines, nothing thin dangling off it. A VERY thick black outer outline runs all the way round the whole silhouette, about twice as thick as the inner lines, so the figure reads clearly at 48 pixels tall. STYLE to match the second image exactly: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlights on metal, golden straw and grey stone, no other bright colours. One character only, centred, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-skin-haystack.png",
+  "sprite": {
+    "height": 480,
+    "outline": 12
+  }
+}

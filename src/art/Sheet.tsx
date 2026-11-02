@@ -1,10 +1,10 @@
 import { PieceRig, RIG_MS, type ArtStyle, type RigAction, type RigKind, type RigSide } from "../components/PieceRig";
 import { skinById } from "../components/skins";
-import { hasSprite } from "../components/SpriteRig";
+import { hasSkinSprite, hasSprite } from "../components/SpriteRig";
 
 /** The judge sheet: `art.html?sheet=pawn.white,pawn.black` (the SVG shape kit; append
  * `.paint` for the painted sprites, or a skin id such as
- * `.frog-pot` for a skin).
+ * `.frog-pot` for a skin: its painted sprite if it has one, `.frog-pot.new` for its kit drawing).
  * tools/art/shoot.mjs opens it, freezes every animation at the `data-frac` of
  * its cell and saves one PNG. */
 
@@ -21,14 +21,15 @@ const FRACS = [0, .2, .35, .5, .65, .85];
 
 export function parseSheet(q: string): Spec[] {
   return q.split(",").map(s => s.split(".")).filter(([k, s]) => KINDS.includes(k as RigKind) && (s === "white" || s === "black"))
-    .map(([kind, side, extra]) => {
-      const skin = skinById(extra);
-      return { kind: kind as RigKind, side: side as RigSide, art: extra === "paint" && hasSprite(kind as RigKind, side === "white") ? "paint" : "new", skin: skin?.kind === kind && side === "white" ? skin.id : undefined };
+    .map(([kind, side, extra, kit]) => {
+      const found = skinById(extra), skin = found?.kind === kind && side === "white" ? found.id : undefined;
+      const painted = skin ? kit !== "new" && hasSkinSprite(skin) : extra === "paint" && hasSprite(kind as RigKind, side === "white");
+      return { kind: kind as RigKind, side: side as RigSide, art: painted ? "paint" : "new", skin };
     });
 }
 
 const facing = (side: RigSide) => side === "white" ? 1 : -1;
-const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : s.art === "paint" ? " (painted sprite)" : ""}`;
+const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : ""}${s.art === "paint" ? " (painted sprite)" : ""}`;
 
 function Rig({ spec, px, action = "idle", frac = .25, wounded, defending, label }: { spec: Spec; px: number; action?: RigAction; frac?: number; wounded?: boolean; defending?: boolean; label?: string }) {
   return <figure className="sheet-cell" data-frac={frac} data-ms={RIG_MS[action] || 1000} data-px={px}>
