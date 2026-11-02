@@ -9,13 +9,13 @@ import type { Encounter, Kind, Pos, Recruit } from "./turns";
 export type Level = Encounter & { name?: string; testArmy?: Kind[] };
 export type LevelsFile = { version: 1; levels: Level[] };
 /** One problem with a level, tied to the control (and square) it concerns. */
-export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "enemyEnergy" | "testArmy" | "name"; message: string; at?: Pos };
+export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos };
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
 /** Board sides: square names run a–h, so 8 is the widest a board can be. */
 export const MIN_SIDE = 2, MAX_SIDE = 8;
-export const MAX_ENEMY_ENERGY = 12, MAX_REWARD = 99;
-const KEYS = ["name", "reward", "enemyEnergy", "width", "height", "walls", "spawns", "starts", "testArmy", "story"] as const;
+export const MAX_REWARD = 99;
+const KEYS = ["name", "reward", "width", "height", "walls", "spawns", "starts", "testArmy", "story"] as const;
 
 const int = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 const isPos = (v: unknown): v is Pos => !!v && typeof v === "object" && !Array.isArray(v) && int((v as Pos).x, -99, 99) && int((v as Pos).y, -99, 99) && Object.keys(v).length === 2;
@@ -29,7 +29,7 @@ function shapeOf(v: unknown, i: number): Level | string {
   const l = v as Record<string, unknown>;
   const extra = Object.keys(l).find(k => !(KEYS as readonly string[]).includes(k));
   if (extra) return `${where}: unknown field ${extra}`;
-  for (const k of ["reward", "enemyEnergy", "width", "height"] as const) if (!int(l[k], -999, 999)) return `${where}: ${k} must be a whole number`;
+  for (const k of ["reward", "width", "height"] as const) if (!int(l[k], -999, 999)) return `${where}: ${k} must be a whole number`;
   for (const k of ["walls", "starts"] as const) if (!Array.isArray(l[k]) || !(l[k] as unknown[]).every(isPos)) return `${where}: ${k} must be a list of {x, y}`;
   if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && s.length === 4 && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y, hp]`;
   if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isKind))) return `${where}: testArmy must be a list of piece kinds`;
@@ -42,7 +42,6 @@ export function levelIssues(l: Level): Issue[] {
   const out: Issue[] = [];
   if (!int(l.width, MIN_SIDE, MAX_SIDE) || !int(l.height, MIN_SIDE, MAX_SIDE)) out.push({ field: "size", message: `Size ${MIN_SIDE}–${MAX_SIDE}` });
   if (!int(l.reward, 0, MAX_REWARD)) out.push({ field: "reward", message: `Reward 0–${MAX_REWARD}` });
-  if (!int(l.enemyEnergy, 0, MAX_ENEMY_ENERGY)) out.push({ field: "enemyEnergy", message: `Enemy energy 0–${MAX_ENEMY_ENERGY}` });
   const inside = (p: Pos) => p.x >= 0 && p.y >= 0 && p.x < l.width && p.y < l.height;
   const walls = new Set(l.walls.map(key));
   const seen = new Map<string, string>();

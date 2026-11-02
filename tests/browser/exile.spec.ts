@@ -12,9 +12,9 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
   await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
   await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
   await page.getByRole("button", { name: /^b1 white king/ }).click();
-  await expect(page.getByRole("button", { name: /^b2 empty, move for 1/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^b2 empty, move here/ })).toBeVisible();
   await page.getByRole("button", { name: /^b2 empty/ }).click();
-  await expect.poll(async () => (await saved(page)).energy).toBe(3);
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "king")?.y).toBe(2);
   await page.screenshot({ path: "test-results/exile-board.png", fullPage: true });
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
@@ -48,24 +48,23 @@ test("tap an enemy to walk up and strike it when there's one way in", async ({ p
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a1 white rook/ }).click();
-  // Enemies you can strike are marked on the board: a sword badge with the cost on each.
-  await expect(page.locator(".strike-badge")).toHaveText(["4"]);
-  await page.getByRole("button", { name: /^a4 black pawn, 1 HP, strike for 4/ }).click();
+  // Enemies you can strike are marked on the board with a sword badge.
+  await expect(page.locator(".strike-badge")).toHaveCount(1);
+  await page.getByRole("button", { name: /^a4 black pawn, 1 HP, strike \(walks up first\)/ }).click();
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
   const now = await saved(page);
-  expect(now.units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 1 });
-  expect(now.energy).toBe(0);
+  expect(now.units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 1, acted: true });
 });
 
-test("a knight flips over to strike for 2 and lands back home", async ({ page }) => {
+test("a knight flips over to strike and lands back home", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "knight" as const, x: 0, y: 3, hp: 3 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 1, y: 1, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a1 white knight/ }).click();
-  await page.getByRole("button", { name: /^b3 black pawn, 1 HP, strike for 2/ }).click();
+  await page.getByRole("button", { name: /^b3 black pawn, 1 HP, strike/ }).click();
   await expect(page.locator(".exile-piece.lunging")).toHaveCount(1);
-  await expect.poll(async () => (await saved(page)).energy).toBe(2);
+  await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
   // The stunt ends with the knight home and the fallen pawn gone from the board.
   await expect(page.locator(".exile-piece.lunging")).toHaveCount(0);
   await expect(page.locator(".exile-piece.ghost")).toHaveCount(0);
@@ -88,7 +87,7 @@ test("with several squares to strike from, you pick one", async ({ page }) => {
   // Tapping an empty square that isn't a pick cancels; it doesn't move the king.
   await page.getByRole("button", { name: /^d1 empty/ }).click();
   await expect(picks).toHaveCount(0);
-  expect((await saved(page)).energy).toBe(4);
+  expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: king.x, y: king.y });
   await cell(page, now, target).click();
   await picks.first().click();
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-1")).toBe(false);
@@ -96,7 +95,7 @@ test("with several squares to strike from, you pick one", async ({ page }) => {
 
 test("check locks End turn until the king is safe", async ({ page }) => {
   const start = newRun();
-  // Battle 2's patrol has 3 energy: its rook can step next to the 3-HP king and strike for 3.
+  // The rook can step next to the 3-HP king and strike for 3.
   const g = { ...start, encounter: 1, units: [{ ...start.units[0], hp: 3 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
@@ -112,8 +111,8 @@ test("check locks End turn until the king is safe", async ({ page }) => {
 
 test("checkmate plays a finale before the defeat screen", async ({ page }) => {
   const start = newRun();
-  // Out of energy, still in check: the turn may end, and the rook lands the killing blow.
-  const g = { ...start, encounter: 1, energy: 0, units: [{ ...start.units[0], hp: 3 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
+  // The king has already acted and is still in check: the turn may end, and the rook lands the killing blow.
+  const g = { ...start, encounter: 1, units: [{ ...start.units[0], hp: 3, moved: true, acted: true }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
   await expect(page.getByRole("alert")).toContainText("No way out");
@@ -148,8 +147,8 @@ test("a king felled by a counter on your own turn still gets the finale", async 
 
 test("moves that would put your own king in check are blocked", async ({ page }) => {
   const start = newRun();
-  // On b2 the rook could reach the 3-HP king and finish him, so b2 is off limits.
-  const g = { ...start, encounter: 1, units: [{ ...start.units[0], hp: 3 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 0, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 5, y: 0, hp: 1 }] };
+  // On b2 the pawn could step to c3 and finish the 1-HP king, so b2 is off limits.
+  const g = { ...start, units: [{ ...start.units[0], hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 0, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^b1 white king/ }).click();
@@ -157,20 +156,20 @@ test("moves that would put your own king in check are blocked", async ({ page })
   await page.getByRole("button", { name: /^b2 empty, blocked: would put your king in check/ }).click();
   expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: 1, y: 3 });
   // A safe square still works.
-  await page.getByRole("button", { name: /^a1 empty, move for 1/ }).click();
+  await page.getByRole("button", { name: /^a1 empty, move here/ }).click();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "king")?.x).toBe(0);
 });
 
 test("a walk-up strike may step into danger when the blow removes it", async ({ page }) => {
   const start = newRun();
-  // b3 sits next to the rook: on its own that's check for a 1-HP king, but striking from there kills the rook.
-  const g = { ...start, units: [{ ...start.units[0], x: 0, y: 0, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 2, y: 1, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 3, hp: 1 }] };
+  // b3 sits in front of the pawn: on its own that's check for a 1-HP king, but striking from there kills the pawn.
+  const g = { ...start, units: [{ ...start.units[0], x: 0, y: 0, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 0, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 3, hp: 1 }] };
   await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a4 white king/ }).click();
   await expect(page.getByRole("button", { name: /^b3 empty, blocked/ })).toBeVisible();
-  await page.getByRole("button", { name: /^c3 black rook/ }).click();
-  await page.getByRole("button", { name: /^b3 .*walk here and strike the rook/ }).click();
+  await page.getByRole("button", { name: /^c4 black pawn/ }).click();
+  await page.getByRole("button", { name: /^b3 .*walk here and strike the pawn/ }).click();
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
   expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: 1, y: 1 });
 });
@@ -183,7 +182,7 @@ test("in check, an offered walk-up strike lands in full", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("alert")).toHaveText("Check");
   await page.getByRole("button", { name: /^b2 white rook/ }).click();
-  await page.getByRole("button", { name: /^c4 black rook.*strike for/ }).click();
+  await page.getByRole("button", { name: /^c4 black rook.*strike/ }).click();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "enemy-1-0")?.hp ?? 0).toBeLessThan(5);
   await expect(page.getByRole("status")).toHaveCount(0);
 });
@@ -243,7 +242,7 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
     expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(664);
   }
   await page.getByRole("button", { name: /^Defend/ }).click();
-  await expect.poll(async () => (await saved(page)).energy).toBe(3);
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "king")?.defending).toBe(true);
   // A defending piece is marked: a shield chip and "defending" in its label.
   await expect(page.locator(".guard-badge")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^b1 white king, 5 HP, defending/ })).toBeVisible();
@@ -279,7 +278,7 @@ for (const size of SIZES) {
     await page.goto("/");
     await page.getByRole("button", { name: /^c1 white king/ }).click();
     expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
-    for (const name of ["Menu", "End turn", "Defend, 1 energy"]) await inView(page, name);
+    for (const name of ["Menu", "End turn", "Defend"]) await inView(page, name);
     await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
     await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
     await page.reload();

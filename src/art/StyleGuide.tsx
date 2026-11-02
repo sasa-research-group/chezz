@@ -6,11 +6,10 @@ import spriteCss from "../sprite.css?raw";
 import hubCss from "../hub.css?raw";
 import tableCss from "../table.css?raw";
 import hubTsx from "../components/Hub.tsx?raw";
-import lanternTsx from "../components/table/Lantern.tsx?raw";
 import { KINDS, SpriteStill } from "./kit";
 import { Reference } from "./Reference";
 
-const SOURCES: [string, string][] = [["exile.css", exileCss], ["hub.css", hubCss], ["table.css", tableCss], ["Hub.tsx", hubTsx], ["Lantern.tsx", lanternTsx]];
+const SOURCES: [string, string][] = [["exile.css", exileCss], ["hub.css", hubCss], ["table.css", tableCss], ["Hub.tsx", hubTsx]];
 const where = (hex: string) => SOURCES.map(([f, src]) => [f, src.toLowerCase().split(hex.toLowerCase()).length - 1] as const).filter(([, n]) => n > 0);
 
 function Swatch({ hex, name }: { hex: string; name: string }) {
@@ -20,7 +19,7 @@ function Swatch({ hex, name }: { hex: string; name: string }) {
 }
 const PALETTES: { title: string; colors: [string, string][] }[] = [
   { title: "Ink and paper", colors: [[INK, "Ink"], ["#f3ead7", "Parchment page"], ["#fbf6e8", "Panel"], ["#cabc9e", "Rule / border"], ["#766a58", "Muted text"]] },
-  { title: "Table", colors: [["#8a6a50", "Table light"], ["#5a4434", "Table mid"], ["#3a2b22", "Table edge"], ["#2b201b", "Plaque"], ["#a8865f", "Brass rim"], ["#f6e3b4", "Plaque text"], ["#7a5c44", "Board frame (game)"], ["#e2a92a", "Bell brass"], ["#cfe2f3", "Shield token"], ["#ffb21f", "Lantern flame"]] },
+  { title: "Table", colors: [["#8a6a50", "Table light"], ["#5a4434", "Table mid"], ["#3a2b22", "Table edge"], ["#2b201b", "Plaque"], ["#a8865f", "Brass rim"], ["#f6e3b4", "Plaque text"], ["#7a5c44", "Board frame (game)"], ["#e2a92a", "Bell brass"], ["#cfe2f3", "Shield token"]] },
   { title: "Board", colors: [["#e9d6ae", "Sand square"], ["#9aaf87", "Grass square"], ["#695c51", "Wall"], ["#675448", "Frame"], ["#483b34", "Frame shadow"], ["#e7b66d", "Impact"]] },
   { title: "Signals", colors: [["#396c61", "Action teal"], ["#2d6755", "Move dot"], ["#c2493c", "Strike"], ["#a3271c", "Check"], ["#355f88", "Guard ring"], ["#2f5a82", "Guard chip"], ["#8d2c27", "Damage"], ["#fcf5de", "HP badge rebel"], ["#764950", "HP badge patrol"], ["#437d72", "Focus ring"]] },
   { title: "Banners", colors: [["#ffd34d", "Battle won"], ["#7fd38c", "Victory"], ["#4b3f3a", "Defeat"], ["#a3271c", "Checkmate"]] },
@@ -31,7 +30,7 @@ const TYPE: [string, string, string, string][] = [
   ["Display", "Georgia, serif", "clamp(29px,3vw,43px) · -1.5px", "Screen titles, banners, card titles"],
   ["Body", "DM Sans 400", "12–13px · 1.5", "Panels, captions"],
   ["Kicker", "DM Sans 800 · caps", "10px · +1.6px", "Section labels"],
-  ["Numbers", "DM Sans 900", "13–22px", "HP badges, damage, strike costs"],
+  ["Numbers", "DM Sans 900", "13–22px", "HP badges, damage"],
 ];
 const FONTS: [string, string, string][] = [
   ["DM Sans Regular", "public/fonts/font-5.ttf", "SIL OFL 1.1"],

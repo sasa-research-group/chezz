@@ -2,7 +2,7 @@ import { Suspense, lazy, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { ENCOUNTERS, HP } from "../game/turns";
 import type { Kind, Pos } from "../game/turns";
-import { KINDS, MAX_ENEMY_ENERGY, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, listIssues, testArmyOf, typicalArmy } from "../game/levels";
+import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, listIssues, testArmyOf, typicalArmy } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
 
@@ -12,7 +12,7 @@ const LEVELS_ENDPOINT = "/__studio/levels";
 type Tool = "wall" | "enemy" | "start" | "erase";
 const TOOLS: [Tool, string][] = [["wall", "Wall"], ["enemy", "Enemy"], ["start", "Start"], ["erase", "Erase"]];
 const ARMY_KINDS = KINDS.filter(k => k !== "king");
-const BLANK: Level = { reward: 0, enemyEnergy: 2, width: 6, height: 6, walls: [], spawns: [["pawn", 2, 1, 1]], starts: [{ x: 2, y: 5 }] };
+const BLANK: Level = { reward: 0, width: 6, height: 6, walls: [], spawns: [["pawn", 2, 1, 1]], starts: [{ x: 2, y: 5 }] };
 
 const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 const sq = (l: Level, p: Pos) => `${"abcdefgh"[p.x] ?? "?"}${l.height - p.y}`;
@@ -161,7 +161,6 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
         <NumberField label="Width" value={level.width} min={MIN_SIDE} max={MAX_SIDE} onChange={n => edit(l => resize(l, clamp(n, 1, 9), l.height))} />
         <NumberField label="Height" value={level.height} min={MIN_SIDE} max={MAX_SIDE} onChange={n => edit(l => resize(l, l.width, clamp(n, 1, 9)))} />
         <NumberField label="Reward ✦" value={level.reward} min={0} max={MAX_REWARD} onChange={n => edit(l => ({ ...l, reward: clamp(n, -1, MAX_REWARD + 1) }))} />
-        <NumberField label="Enemy ⚡" value={level.enemyEnergy} min={0} max={MAX_ENEMY_ENERGY} onChange={n => edit(l => ({ ...l, enemyEnergy: clamp(n, -1, MAX_ENEMY_ENERGY + 1) }))} />
       </div>
 
       <div className="stage-field"><span>Enemies</span>

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST, approaches, canEscape, exposesKing, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
+import { COST, DAMAGE, ENCOUNTERS, HP, approaches, canEscape, exposesKing, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, PromoteTo, Run, Side, Unit } from "../game/turns";
 import { Entry, Group, KINDS, MiniBoard, SpriteStill } from "./kit";
 import type { Cell, Piece } from "./kit";
@@ -10,7 +10,7 @@ import type { Cell, Piece } from "./kit";
 const board = (units: Unit[]): Run => ({ ...newRun(), units });
 const unit = (id: string, kind: Kind, side: Side, x: number, y: number, hp = HP[kind]): Unit => ({ id, kind, side, x, y, hp });
 const pc = (u: Unit): Piece => ({ kind: u.kind, side: u.side, x: u.x, y: u.y, hp: u.hp, max: HP[u.kind] });
-const dot = (label: ReactNode, cls = "") => <span className={`target-dot ${cls}`}><b className="cost-label">{label}</b></span>;
+const dot = (label?: ReactNode, cls = "") => <span className={`target-dot ${cls}`}>{label !== undefined && <b className="cost-label">{label}</b>}</span>;
 const key = (p: { x: number; y: number }) => `${p.x},${p.y}`;
 const REACH: Record<Kind, string> = { king: "8 neighbours", queen: "8 neighbours", rook: "4 straight neighbours", bishop: "4 diagonal neighbours", knight: "L-jump", pawn: "2 diagonals forward" };
 
@@ -18,10 +18,10 @@ function Shape({ kind, side = "white" }: { kind: Kind; side?: Side }) {
   const at = { x: 1, y: side === "white" ? 2 : 1 }, u = unit("u", kind, side, at.x, at.y), run = board([u]);
   const cells: Record<string, Cell> = {};
   for (let i = 0; i < 16; i++) { const p = { x: i % 4, y: Math.floor(i / 4) }; if (reaches(run, u, u, p)) cells[key(p)] = { cls: "strikeable" }; }
-  for (const t of moveTargets(run, u)) cells[key(t)] = { ...cells[key(t)], dot: dot(t.cost) };
+  for (const t of moveTargets(run, u)) cells[key(t)] = { ...cells[key(t)], dot: dot() };
   return <MiniBoard cols={4} rows={4} cells={cells} pieces={[{ kind, side, x: u.x, y: u.y }]} />;
 }
-const moveCost = (kind: Kind) => { const u = unit("u", kind, "white", 1, 2); const c = moveTargets(board([u]), u).map(t => t.cost); return kind === "knight" ? `${Math.min(...c)} per jump` : kind === "king" || kind === "pawn" ? `${Math.min(...c)} (1 square)` : `1 per square, up to ${Math.max(...c)} here`; };
+const MOVE: Record<Kind, string> = { king: "1 square, any way", queen: "slides any way", rook: "slides straight", bishop: "slides diagonally", knight: "L-jump (leaps)", pawn: "1 square forward" };
 
 function Check() {
   const king = unit("king", "king", "white", 1, 2, 1), pawn = unit("e", "pawn", "black", 2, 1), run = board([king, pawn]);
@@ -33,15 +33,15 @@ function Check() {
 }
 function NoMoveIntoCheck() {
   const king = unit("king", "king", "white", 1, 3, 1), pawn = unit("e", "pawn", "black", 2, 1), run = board([king, pawn]);
-  const cells = Object.fromEntries(moveTargets(run, king).map(t => [key(t), { dot: exposesKing(run, "king", t) ? dot("✕", "unsafe-dot") : dot(t.cost) }]));
+  const cells = Object.fromEntries(moveTargets(run, king).map(t => [key(t), { dot: exposesKing(run, "king", t) ? dot("✕", "unsafe-dot") : dot() }]));
   return <MiniBoard cols={4} rows={4} cells={cells} pieces={[{ ...pc(king), cls: "selected" }, pc(pawn)]} />;
 }
 function TapToStrike() {
   const king = unit("king", "king", "white", 3, 3), q = unit("q", "queen", "white", 0, 2), e = unit("e", "rook", "black", 2, 1), run = board([king, q, e]);
   const ways = approaches(run, "q", "e");
-  const cells: Record<string, Cell> = { [key(e)]: { cls: "aimed" }, ...Object.fromEntries(ways.map(t => [key(t), { dot: dot(<><StrikeIcon />{t.cost}</>, "approach-dot") }])) };
-  return <><MiniBoard cols={4} rows={4} cells={cells} pieces={[pc(king), { ...pc(q), cls: "selected" }, { ...pc(e), cls: "targetable", extra: ways.length ? <span className="strike-badge">⚔ {Math.min(...ways.map(t => t.cost))}</span> : undefined }]} />
-    <p className="fine">approaches(): {ways.length} square{ways.length === 1 ? "" : "s"} · cost = move + {STRIKE_COST}</p></>;
+  const cells: Record<string, Cell> = { [key(e)]: { cls: "aimed" }, ...Object.fromEntries(ways.map(t => [key(t), { dot: dot(<StrikeIcon />, "approach-dot") }])) };
+  return <><MiniBoard cols={4} rows={4} cells={cells} pieces={[pc(king), { ...pc(q), cls: "selected" }, { ...pc(e), cls: "targetable", extra: ways.length ? <span className="strike-badge"><StrikeIcon /></span> : undefined }]} />
+    <p className="fine">approaches(): {ways.length} square{ways.length === 1 ? "" : "s"}</p></>;
 }
 function Encounter({ i }: { i: number }) {
   const e = ENCOUNTERS[i];
@@ -50,10 +50,10 @@ function Encounter({ i }: { i: number }) {
 }
 
 const ENEMY: [string, string][] = [
-  ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king − 8×counter − 60 if the counter kills it − cost. Never for 0 damage.`],
+  ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king − 8×counter − 60 if the counter kills it. Never for 0 damage.`],
   ["Pawn to far row", "30 (then promotes to queen)"],
-  ["Step into strike range", `20 − move cost, only if ${STRIKE_COST} energy is left to strike`],
-  ["Close in", "5 × squares gained − cost, toward the king (weighted) or the nearest piece; pawns with targets ahead march (1)"],
+  ["Step into strike range", "20 − squares travelled ÷ 10, only if it hasn't struck or defended"],
+  ["Close in", "5 × squares gained − squares travelled ÷ 10, toward the king (weighted) or the nearest piece; pawns with targets ahead march (1)"],
   ["Brace (defend)", "0.4, only if threatened and the −1 saves it, or it can counter"],
   ["Wait", "Nothing scores above 0"],
 ];
@@ -71,25 +71,22 @@ const RECRUITS = (["pawn", "bishop", "rook"] as const);
 
 export function Mechanics() {
   const start = newRun();
-  const knightJump = Math.min(...moveTargets(board([unit("k", "knight", "white", 1, 2)]), unit("k", "knight", "white", 1, 2)).map(t => t.cost));
   let gold = start.gold;
   return <div className="mechanics">
     <Group id="turn" title="Turn">
       <table className="spec"><tbody>
         <tr><th>Order</th><td>You, then the enemy</td></tr>
-        <tr><th>Your energy</th><td>{ENERGY} per turn, refills</td></tr>
-        <tr><th>Enemy energy</th><td>{ENCOUNTERS.map((e, i) => `battle ${i + 1}: ${e.enemyEnergy}`).join(" · ")}</td></tr>
-        <tr><th>Per piece</th><td>1 move, then strike or defend</td></tr>
-        <tr><th>Move</th><td>1 per square · knight {knightJump} per jump · slides stop at pieces and walls</td></tr>
-        <tr><th>Strike</th><td>{STRIKE_COST} · next square in the piece's shape · striker stays put</td></tr>
-        <tr><th>Defend</th><td>1 · −1 damage per hit until your next turn · counters any attacker it can reach</td></tr>
+        <tr><th>Per piece</th><td>Every piece, every turn: 1 move, then strike or defend</td></tr>
+        <tr><th>Move</th><td>Its chess shape, any distance · slides stop at pieces and walls · knights leap</td></tr>
+        <tr><th>Strike</th><td>Next square in the piece's shape · striker stays put</td></tr>
+        <tr><th>Defend</th><td>Instead of a strike · −1 damage per hit until your next turn · counters any attacker it can reach</td></tr>
       </tbody></table>
     </Group>
 
     <Group id="pieces" title="Pieces">
       <table className="spec wide-table"><thead><tr><th>Piece</th><th>HP</th><th>Damage</th><th>vs defender</th><th>Move</th><th>Strike reach</th></tr></thead>
-        <tbody>{KINDS.map(k => <tr key={k}><th>{k}</th><td>{HP[k]}</td><td>{DAMAGE[k]}</td><td>{Math.max(0, DAMAGE[k] - 1)}</td><td>{moveCost(k)}</td><td>{REACH[k]}</td></tr>)}</tbody></table>
-      {KINDS.map(k => <Entry key={k} name={k} src="moveTargets() · reaches()" note="dots: move cost · red: strike reach" wide><Shape kind={k} /></Entry>)}
+        <tbody>{KINDS.map(k => <tr key={k}><th>{k}</th><td>{HP[k]}</td><td>{DAMAGE[k]}</td><td>{Math.max(0, DAMAGE[k] - 1)}</td><td>{MOVE[k]}</td><td>{REACH[k]}</td></tr>)}</tbody></table>
+      {KINDS.map(k => <Entry key={k} name={k} src="moveTargets() · reaches()" note="dots: moves · red: strike reach" wide><Shape kind={k} /></Entry>)}
       <Entry name="pawn (patrol)" src="moveTargets() · reaches()" note="patrol pawns go down" wide><Shape kind="pawn" side="black" /></Entry>
     </Group>
 
@@ -107,7 +104,7 @@ export function Mechanics() {
     <Group id="strike" title="Tap to strike">
       <Entry name="Walk up, then strike" src="approaches() · walkAndStrike()" wide><TapToStrike /></Entry>
       <table className="spec"><tbody>
-        <tr><th>In reach</th><td>Strike in place, {STRIKE_COST}</td></tr>
+        <tr><th>In reach</th><td>Strike in place</td></tr>
         <tr><th>One way in</th><td>Walks and strikes automatically</td></tr>
         <tr><th>Several ways</th><td>Pick the square (sword dots)</td></tr>
         <tr><th>Judged as</th><td>One action: walk may pass danger if the king is safe after the blow</td></tr>
@@ -116,8 +113,8 @@ export function Mechanics() {
 
     <Group id="knight" title="Knight leap">
       <table className="spec"><tbody>
-        <tr><th>Jump</th><td>{knightJump}</td></tr><tr><th>Strike</th><td>{STRIKE_COST} (L-jump away, from its own square)</td></tr>
-        <tr><th>Jump + strike</th><td>{knightJump + STRIKE_COST} of {ENERGY}</td></tr><tr><th>Animation</th><td>Front-flip to the target, backflip home (presentation only)</td></tr>
+        <tr><th>Move</th><td>L-jump, over anything</td></tr><tr><th>Strike</th><td>L-jump away, from its own square</td></tr>
+        <tr><th>Jump + strike</th><td>Both in one turn</td></tr><tr><th>Animation</th><td>Front-flip to the target, backflip home (presentation only)</td></tr>
       </tbody></table>
     </Group>
 
@@ -134,11 +131,11 @@ export function Mechanics() {
 
     <Group id="enemy" title="Enemy turn">
       <table className="spec"><thead><tr><th>Action</th><th>Score</th></tr></thead><tbody>{ENEMY.map(([a, b]) => <tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>
-      <p className="fine">enemyTurn(): best score first, repeat until the pool is spent. Deterministic; computed in full before playback.</p>
+      <p className="fine">enemyTurn(): best score first across every piece, repeat until nothing scores above 0 (each piece moves once and strikes or defends once). Deterministic; computed in full before playback.</p>
     </Group>
 
     <Group id="battles" title="Battles">
-      {ENCOUNTERS.map((e, i) => <Entry key={i} name={`Battle ${i + 1}`} src="src/game/levels/levels.json" note={`${e.width}×${e.height} · enemy energy ${e.enemyEnergy} · reward ${e.reward} gold · ${e.starts.length} start square${e.starts.length > 1 ? "s" : ""}`} wide><Encounter i={i} /></Entry>)}
+      {ENCOUNTERS.map((e, i) => <Entry key={i} name={`Battle ${i + 1}`} src="src/game/levels/levels.json" note={`${e.width}×${e.height} · reward ${e.reward} gold · ${e.starts.length} start square${e.starts.length > 1 ? "s" : ""}`} wide><Encounter i={i} /></Entry>)}
     </Group>
 
     <Group id="hideout" title="Hideout">

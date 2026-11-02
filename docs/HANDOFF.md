@@ -2,8 +2,9 @@
 
 ## State
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
-- **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). Energy
-  may be dropped soon.
+- **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). No
+  energy: every piece on both sides moves once (sliding any distance) and
+  strikes or defends once per turn. Balance now comes from levels and stats.
 - **Levels:** data in `src/game/levels/levels.json` (`docs/levels.md`). The
   studio's Levels tab edits them, saves under `npm run dev`, and playtests one
   level in the real game with a test army and no saves touched.
@@ -22,7 +23,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   hub (`Hub.tsx`) with barracks and locked placeholders.
 - **No narrator text:** on screen only numbers, nouns and icons. Story
   unwritten (`Encounter.story` hook). Ask before adding prose.
-- Difficulty needs tuning from Wesley's play.
+- Difficulty needs retuning since energy went (Nov 2): every enemy acts each
+  turn, and your sliders cross the board.
 
 ## Open items
 - The test player (`tests/turns-strategy.ts`) is a two-turn search.

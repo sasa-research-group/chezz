@@ -4,19 +4,19 @@
 - The battles live in `src/game/levels/levels.json` (`{ version: 1, levels: [...] }`).
   `turns.ts` reads them as `ENCOUNTERS`; each has the `Encounter` shape:
   `width`, `height` (2–8), `walls`, `spawns` (`[kind, x, y, hp]`), `starts`
-  (your army fills them in order, king first), `reward`, `enemyEnergy`, and an
+  (your army fills them in order, king first), `reward`, and an
   optional `story` the designer keeps but doesn't show.
 - Designer-only fields, ignored by the game: `name` (list label) and
   `testArmy` (see below).
 - `src/game/levels.ts` checks a level (`levelIssues`), a whole file
   (`parseLevels`, which also rejects unknown fields and wrong types) and
   writes the file (`formatLevels`: one field per line, short lists inline).
-  `tests/levels.test.ts` pins the shipped file: it must parse cleanly and
-  round-trip byte for byte.
+  `tests/levels.test.ts` checks the shipped file parses cleanly and
+  round-trips byte for byte; it doesn't pin the battles' contents.
 - Rules a level must meet: board 2–8 a side; nothing off the board; no enemy or
   start on a wall; no two things on one square; enemy HP 1–max for its kind; at
   least one enemy and one start; no wall ahead of a start (a recruited pawn
-  must be able to march up and promote); reward 0–99; enemy energy 0–12; a test
+  must be able to march up and promote); reward 0–99; a test
   army has one king, first, and no more pieces than starts; every enemy reachable
   from the king start (king steps around walls); and no level with fewer starts
   than the one before (survivors carry over). Shrinking the board in the editor
@@ -29,7 +29,7 @@
   Wall, Enemy (pick the piece), Start, Erase. One thing per square: painting
   replaces what was there; clicking the same thing again removes it. Problems
   show under the board and ring their square in red.
-- Right: name, width, height, reward, enemy energy, each enemy's HP, the start
+- Right: name, width, height, reward, each enemy's HP, the start
   order, and the test army.
 - Save writes every level through a dev-only Vite endpoint
   (`vite.levels.ts`, `POST /__studio/levels`, `apply: "serve"`). It needs the

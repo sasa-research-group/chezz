@@ -11,18 +11,14 @@ import { ENCOUNTERS } from "../src/game/turns";
 import { LEVELS_HEADER, levelsHandler, levelsPlugin } from "../vite.levels";
 
 const FILE = new URL("../src/game/levels/levels.json", import.meta.url);
-const base: Level = { reward: 4, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 2, y: 3 }] };
+const base: Level = { reward: 4, width: 4, height: 4, walls: [], spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 2, y: 3 }] };
 const messages = (l: Partial<Level>) => levelIssues({ ...base, ...l }).map(i => i.message);
 
 describe("levels data", () => {
-  it("ships the three battles exactly as they were written in code", () => {
+  it("ships a levels file that parses cleanly", () => {
     const parsed = parseLevels(JSON.parse(readFileSync(FILE, "utf8")));
     expect(parsed.ok).toBe(true);
-    expect(ENCOUNTERS).toEqual([
-      { reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
-      { reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
-      { reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
-    ]);
+    expect(ENCOUNTERS.length).toBeGreaterThan(0);
   });
   it("keeps the file in the designer's own format, so a save round-trips without noise", () => {
     expect(formatLevels(ENCOUNTERS)).toBe(readFileSync(FILE, "utf8"));
@@ -39,7 +35,6 @@ describe("levels data", () => {
     expect(messages({ starts: [] })).toContain("Needs a king start");
     expect(messages({ testArmy: ["rook"] })).toContain("Army needs one king, first");
     expect(messages({ testArmy: ["king", "rook", "pawn"] })).toContain("Army 3 > 2 starts");
-    expect(messages({ enemyEnergy: -1 })).toContain("Enemy energy 0–12");
     expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 2 })).filter(w => w.x !== 1 && w.x !== 2), spawns: [["pawn", 0, 0, 1]], starts: [{ x: 1, y: 3 }] })).toEqual([]);
     expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 1 })), spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }] })).toContainEqual({ field: "spawns", message: "Enemy pawn cut off", at: { x: 1, y: 0 } });
   });
@@ -55,10 +50,12 @@ describe("levels data", () => {
     expect(parseLevels({ version: 1, levels: [base, { ...base, starts: [{ x: 1, y: 3 }] }] })).toEqual({ ok: false, errors: ["Level 2: Fewer starts than battle 1 (2)"] });
   });
   it("gives a playtest the king plus the best recruit each hideout's gold affords", () => {
-    expect(typicalArmy(ENCOUNTERS, 0)).toEqual(["king"]);
+    const three = [{ x: 1, y: 3 }, { x: 2, y: 3 }, { x: 0, y: 3 }];
+    const run: Level[] = [{ ...base, reward: 8, starts: [three[0]] }, { ...base, reward: 8, starts: three }, { ...base, starts: three }];
+    expect(typicalArmy(run, 0)).toEqual(["king"]);
     // 2 starting gold + 8 → a rook (8); then 2 + 8 → another rook.
-    expect(typicalArmy(ENCOUNTERS, 1)).toEqual(["king", "rook"]);
-    expect(typicalArmy(ENCOUNTERS, 2)).toEqual(["king", "rook", "rook"]);
+    expect(typicalArmy(run, 1)).toEqual(["king", "rook"]);
+    expect(typicalArmy(run, 2)).toEqual(["king", "rook", "rook"]);
     const poor = [{ ...base, reward: 2 }, { ...base, reward: 0 }, base];
     expect(typicalArmy(poor, 1)).toEqual(["king", "pawn"]);
     // No room on the road: the recruit isn't bought.

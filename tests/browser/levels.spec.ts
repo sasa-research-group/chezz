@@ -38,7 +38,7 @@ test("level designer: edit a level, see problems inline, and playtest it without
   await expect(playtest.locator(".exile-piece.black")).toHaveCount(3);
   await expect(playtest.getByRole("dialog", { name: "New run" })).toHaveCount(0);
   await playtest.getByRole("button", { name: /^b1 white king/ }).click();
-  await playtest.getByRole("button", { name: /^b2 empty, move for 1/ }).click();
+  await playtest.getByRole("button", { name: /^b2 empty, move here/ }).click();
   await expect(playtest.getByRole("button", { name: /^b2 white king/ })).toBeVisible();
   await playtest.getByRole("button", { name: "End turn" }).click();
   await expect(playtest.getByRole("button", { name: "End turn" })).toBeEnabled();
