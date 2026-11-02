@@ -1,46 +1,36 @@
 # Art builder brief
 
-Checklist for drawing or redrawing a character rig. Rules: `docs/art-style.md`.
-Reference crops: `docs/art/<id>.webp`. Judge rubric: `JUDGE.md`.
+Checklist for painting or re-rolling a character sprite. Rules: `docs/art-style.md`.
+Reference crops: `docs/art/<id>.webp`. Pipeline: `docs/art/PAINTED.md`. Judge rubric:
+`JUDGE.md`. (The old SVG shape kit this brief once covered was removed in Nov 2026;
+it is in git history before the commit "Remove the SVG shape kit".)
 
-## Draw with the kit
-- Draw only with `src/components/inkKit.tsx`: `Part` (a filled shape),
-  `Pole` (shafts, tines, trim), `Ink` (brows, squints), `Dot` (eyes), `Flat`
-  (an unlined cover). `circle`, `ellipse` and `rect` make path strings.
-- Colours come from `TONES` (fill + shade pairs from `docs/art-style.md` §7).
-  Add a tone there rather than writing a hex in the rig. (Exception for now:
-  the patrol's alternate red hue reuses `PATROL.red` from `PieceRig.tsx`.)
-- Don't draw shadows: `Part` derives one per part from the light (upper left on
-  screen). Turn it off (`shade={false}`) for parts under about 12 units across,
-  where the crescent would cover the whole part.
-- Highlights: a short tick on the part's upper-left (`highlight="M… "`), on metal
-  and glass only. The kit clips it and mirrors it when the rig faces left.
-- `line="outer"` for parts that form the silhouette, `"inner"` for parts drawn
-  over another part (bandana, patch, belly), `"none"` rarely.
-- `tests/ink-kit.test.ts` fails on any raw SVG shape, stroke, hex, clip or
-  opacity in a file that imports the kit.
+## Paint
+- One recipe per character (`docs/art/recipes/paint-*.json`): the reference crop,
+  the style sheet, an optional pose reference and, for a skin, the rebel piece's
+  own sprite for its crest.
+- Keep the SUBJECT text's owner decisions; add an `EYES:` (or `FACE:`) sentence and
+  the shared `POSE`/`SILHOUETTE`/`STYLE` blocks.
+- Facing right, feet visible, chunky, a very thick outer outline, one character on
+  flat light grey.
 
-## Canvas and build
-- viewBox 100×120, feet at y 108, centreline x 50. Keep the whole figure,
-  prop included, inside x 18–82 and at y 0 or below (the outline counts).
-  `tests/figure-bounds.test.ts` enforces both. The board's far rim makes room
-  for anything down to y 0 on the top row, so tall crests may use it.
-- Draw facing right: prop in the front hand on the right. The rig mirrors.
-- Fill the `Figure` groups so `rig.css` animates it: `body`, `armBack`,
-  `prop` (pivot `propOrigin` at the front hand), `armFront`, `head`
-  (with `.face > .eyes > .pupil`, `.ko-eyes`, and a `.mouth-yell` squint).
-  Groups and pivots: `docs/art/RIG.md`.
-- Minimum sizes at 48px (0.48px per unit): parts at least 6 units, dot eyes
-  r 2.4+, face lines `WEIGHT.face`, gaps between parts at least 3 units.
+## Canvas
+- viewBox 100×120, feet at y 108, centreline x 50; `spriteBox` fits the sprite
+  inside x 18–82 at most `HEIGHT[kind]` tall (`SpriteRig.tsx`).
+  `tests/figure-bounds.test.ts` enforces it. Wide props make the whole figure smaller.
+- Animations move the whole sprite (`docs/art/RIG.md`); nothing moves a part.
 
 ## Loop
-1. Draw.
-2. `node tools/art/shoot.mjs <kind.side,…> <out.png>` and look at it yourself,
-   plus `--scale 3 --crop 192` for close-ups. For a tall crest, also
+1. `node tools/art/gen.mjs <recipe>`; look at `art-out/<id>/step-1-pose.png` at full
+   size and at 48px. Re-roll wrong anatomy, a missing crest, or missing eyes.
+2. `node tools/art/sprite.mjs <recipe> --install`.
+3. `node tools/art/shoot.mjs <kind.side[.skin],…> <out.png>` and look at it yourself,
+   plus `--scale 2 --crop 192` for close-ups. For a tall crest, also
    `node tools/art/battle-shot.mjs <kind> <out.png>` (patrol piece on the top
    row; `--battle 3` or `--width 844 --height 390` for other boards).
-3. Hand the sheet, the reference crops and `JUDGE.md` to a fresh-context judge.
+4. Hand the sheet, the reference crops and `JUDGE.md` to a fresh-context judge.
    It never sees code.
-4. Fix the top gap first. Stop when every score is at least 7, or after 3 rounds.
-5. Record decisions in `docs/art/DECISIONS.md`; style lessons in `docs/art-style.md`.
-6. Batch checks at the end: `npm test`, `npx tsc -b`, `npm run build`, `npm run test:e2e`.
+5. Fix the top gap first. Stop when every score is at least 7, or after the
+   rounds you were given.
+6. Record decisions in `docs/art/DECISIONS.md`; style lessons in `docs/art-style.md`.
+7. Batch checks at the end: `npm test`, `npx tsc -b`, `npm run build`, `npm run test:e2e`.

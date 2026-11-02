@@ -2,8 +2,8 @@
 
 The game's art: one image-generated sprite per piece, eyes painted in. No parts and no
 rig: every animation moves the whole sprite and adds effects. All twelve pieces and the six
-skins are painted (Nov 2026; skins in `SKINS.md`, "Painted skins"); the red patrol falls back
-to the SVG shape kit, and `?art=new` shows the whole game in the kit. Decision record:
+skins (`SKINS.md`) are painted (Nov 2026), and they are the only art: the SVG shape kit,
+`?art=new` and the red patrol hue were removed. Decision record:
 `DECISIONS.md`, "painted sprites become whole images" (the owner's verdict on the cut-out rigs),
 "studio rebuilt around the painted sprites" (they become the default)
 and the earlier per-pair entries, whose looks still hold.
@@ -13,8 +13,8 @@ and the earlier per-pair entries, whose looks still hold.
 1. **Recipe** (`docs/art/recipes/paint-<side>-<kind>.json`, run by `tools/art/gen.mjs`): two
    Replicate calls.
    - `pose`: Nano Banana Pro paints one full-body, right-facing game sprite from the reference
-     crop, the style sheet and a render of the SVG rig (`paint/svg-<id>.webp`, for pose and
-     proportions only).
+     crop, the style sheet and a render of the old SVG rig (`paint/svg-<id>.webp`, for pose and
+     proportions only; kept for re-rolls, though the kit that drew them is gone).
    - `cutout`: `bria/remove-background` makes it transparent (it returns 1024 px; the next step
      only uses its alpha).
 2. **Trim** (`node tools/art/sprite.mjs <recipe> --install`): takes the colour from the pose and
@@ -26,7 +26,8 @@ and the earlier per-pair entries, whose looks still hold.
    (x 18–82, feet on y 108, at most `HEIGHT[kind]` tall) and `PieceRig` draws it inside
    `.flip › .hop › .squash`. The patrol faces left by the `.flip` mirror. The side markers
    (rebel ground ellipse, patrol diamond), shield, HP badges and board cues are unchanged.
-4. **Animate** (`src/sprite.css`, loaded after `rig.css`): whole-figure keyframes on `.hop` and
+4. **Animate** (`src/sprite.css`, loaded after `rig.css`, which holds the pivots, shared
+   effects and the knight's flips): whole-figure keyframes on `.hop` and
    `.squash`, plus effects (`.fx-lines`, `.fx-burst`, `.fx-stars`, `.fx-dust`, `.fx-smoke`, and
    two sprite-only ones: `.fx-pop`, the hit and promotion sparkle, and `.fx-crown`, the king's
    crown particle). Durations match `RIG_MS` and scale with `--spd`.
@@ -34,8 +35,7 @@ and the earlier per-pair entries, whose looks still hold.
 ## In the studio (`art.html`)
 
 - **Cast** (landing): every sprite as a still image (`SpriteStill` in `src/art/kit.tsx`, the
-  game's placement with no animation), grouped Friendly, Enemy and Skins (a skin with no
-  sprite shows its reference as "Not painted yet").
+  game's placement with no animation), grouped Friendly, Enemy and Skins.
 - **Stage** (`#stage/<side>-<kind>`, `#stage/skin-<id>` for a skin): one live `PieceRig`, a button per action below, wounded
   and guarding toggles, facing, board or large size, and 1×, 0.5×, 0.25×, 0.1× speeds that set
   the game's `--spd` (1, 2, 4, 10) and stretch the take's timers to match.
@@ -79,20 +79,22 @@ motion end the same way.
 
 ## Add or re-roll a character
 
-1. Render its SVG rig facing right: `node tools/art/shoot.mjs <kind>.<side> out.png --crop 192 --scale 2`,
-   flop it for the patrol, crop the caption, save as `docs/art/paint/svg-<id>.webp`.
+1. A pose reference is optional: reuse the existing `docs/art/paint/svg-<id>.webp`, or for a
+   new character drop that image and its "Use the third image only for the pose" sentence.
 2. Copy a paint recipe and change the SUBJECT and EYES text in `pose`.
 3. `node tools/art/gen.mjs <recipe>` (about $0.15: one Nano Banana Pro call, one BRIA call).
 4. Look at `art-out/<id>/step-1-pose.png` at full size; re-roll anything with wrong arms,
    anatomy or eyes.
 5. `node tools/art/sprite.mjs <recipe> --install`, then check `npx vitest run
    tests/figure-bounds.test.ts tests/sprites.test.ts`, the studio (Cast, then every button on the
-   Stage at 0.25×) and `node tools/art/shoot.mjs <kind>.<side>.paint out.png`.
+   Stage at 0.25×) and `node tools/art/shoot.mjs <kind>.<side> out.png`.
 
 ## Limits
 
 - Not deterministic: a re-run gives a similar character, sometimes with a new flaw.
 - The sprite is one piece, so nothing moves on its own: no blink, no prop swing, no crown that
   leaves the head (the mate crown is a separate particle; the painted crown stays on).
-- Patrol only in royal blue; the red hue falls back to the SVG kit.
-- At 48px painted interiors (chainmail, fur, scrollwork) soften where the kit's flat shapes stay crisp.
+- Patrol only in royal blue. The old red patrol hue was a kit-only option nothing used; it was
+  dropped with the kit rather than faked with a CSS hue shift (which would also turn the gold
+  trim and skin tones).
+- At 48px painted interiors (chainmail, fur, scrollwork, rust speckle) soften.

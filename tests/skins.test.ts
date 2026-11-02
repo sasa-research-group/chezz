@@ -1,35 +1,30 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PieceRig } from "../src/components/PieceRig";
 import { SKINS } from "../src/components/skins";
+import { PAINTED_SKINS } from "../src/components/SpriteRig";
 
-/** Each render numbers its line-boil filter; drop the number so renders compare. */
-const rig = (props: Parameters<typeof PieceRig>[0]) => renderToStaticMarkup(createElement(PieceRig, props)).replace(/boil-\d+/g, "boil");
-/** Groups rig.css animates that the skin's own head must draw; a skin that drops one breaks an action. */
-const SLOTS = ["eyes", "pupil", "ko-eyes", "mouth-yell"];
-const hasClass = (html: string, c: string) => new RegExp(`class="(?:[^"]* )?${c}(?: [^"]*)?"`).test(html);
+const rig = (props: Parameters<typeof PieceRig>[0]) => renderToStaticMarkup(createElement(PieceRig, props));
+const href = (html: string) => html.match(/<image[^>]*href="([^"]*)"/)?.[1];
 
 describe("skin registry", () => {
   it("has unique ids", () => expect(new Set(SKINS.map(s => s.id)).size).toBe(SKINS.length));
+  it("paints every skin, and nothing else", () => expect([...PAINTED_SKINS].sort()).toEqual(SKINS.map(s => s.id).sort()));
   for (const skin of SKINS) describe(skin.id, () => {
-    it("keeps every animated group on the shape kit", () => {
-      const html = rig({ kind: skin.kind, side: "white", art: "new", skin: skin.id });
-      for (const c of SLOTS) expect(hasClass(html, c), c).toBe(true);
-      if (skin.kind === "rook") expect(hasClass(html, "door"), "door").toBe(true);
-      if (skin.kind === "king") expect(hasClass(html, "crown"), "crown").toBe(true);
-      const eyes = html.slice(html.search(/class="eyes"/), html.search(/class="ko-eyes"/));
-      expect(eyes.includes('class="pupil"'), "pupils sit inside .eyes").toBe(true);
-      expect(hasClass(html, `skin-${skin.id}`)).toBe(true);
-      if (skin.quirk) expect(hasClass(html, skin.quirk)).toBe(true);
-    });
-    it("changes the art, and only for the rebel version of its own piece", () => {
-      const base = rig({ kind: skin.kind, side: "white", art: "new", seed: 1 });
-      expect(rig({ kind: skin.kind, side: "white", art: "new", seed: 1, skin: skin.id })).not.toBe(base);
-      const patrol = rig({ kind: skin.kind, side: "black", art: "new", seed: 1 });
-      expect(rig({ kind: skin.kind, side: "black", art: "new", seed: 1, skin: skin.id })).toBe(patrol);
+    it("names a reference crop that exists", () => expect(existsSync(join(process.cwd(), `docs/art/${skin.ref}.webp`))).toBe(true));
+    it("replaces the sprite, and only for the rebel version of its own piece", () => {
+      const worn = rig({ kind: skin.kind, side: "white", seed: 1, skin: skin.id });
+      expect(worn).toContain(`skin-${skin.id}`);
+      expect(href(worn)).not.toBe(href(rig({ kind: skin.kind, side: "white", seed: 1 })));
+      expect(rig({ kind: skin.kind, side: "black", seed: 1, skin: skin.id })).toBe(rig({ kind: skin.kind, side: "black", seed: 1 }));
       const other = skin.kind === "king" ? "queen" : "king";
       expect(rig({ kind: other, side: "white", seed: 1, skin: skin.id })).toBe(rig({ kind: other, side: "white", seed: 1 }));
     });
+  });
+  it("gives a king skin the checkmate crown particle", () => {
+    for (const s of SKINS.filter(s => s.kind === "king")) expect(rig({ kind: "king", side: "white", skin: s.id })).toContain("fx-crown");
   });
 });

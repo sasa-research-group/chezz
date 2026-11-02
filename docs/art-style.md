@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the game draws every piece and skin as one painted sprite in this style (`docs/art/PAINTED.md`). The red patrol still uses the SVG shape kit (`?art=new` shows the whole cast in it).
+- Status: the game draws every piece and skin as one painted sprite in this style (`docs/art/PAINTED.md`); it is the only art. The SVG shape kit was removed in Nov 2026, so the "Learned from" notes in section 9 that name kit files (`inkKit.tsx`, `Armour*.tsx`) are history; the files are in git before the commit "Remove the SVG shape kit".
 
 ## 1. Armour does the talking
 
@@ -170,20 +170,20 @@ Values are cluster means and small-patch medians from `2-armour-talks.png`; the 
 | `patrol-rook` | Great-helm shaped like a castle keep, gold cross over the eye slit; massive blue pauldrons; halberd. The bulkiest figure. In game: a straight-sided steel keep with battlements cut into its top (no overhang, unlike the rebel tower), a gold cross visor with two dark slits, gold-rimmed pauldrons, belt and breastplate ridge; a solid halberd blade; defends with a portcullis. |
 | `patrol-queen` | Towering powdered wig wrapped in gold chains and blue jewels; small steel cap; dot eyes with lid strokes, brows, red lips (face limit); blue gown with gold; sceptre; no crown. In game (declared correction): a small gold crown sits on the wig so the queen crest reads at 48px. The wig is scalloped and wider at the top than her head but kept low enough for the square (top near y 25); one draped gold chain with a blue jewel; a steel cap with a central point; a high gold-rimmed collar and puffed sleeves; the sceptre leans out so its orb clears the wig. |
 | `patrol-king` | Gold crown on brown curly hair over a smug blue-grey sculpted mask with a painted moustache and goatee (face limit); gold cape over a blue robe; sword. In game: three ball-tipped crown points and one blue centre gem; a steel-blue mask with two closed-eye squint arcs (gold eye paint and brows smeared at 48px); a short scalloped gold mantle over the blue robe, gold orphrey and hem; a sword with a curled gold guard. |
-| `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game (skin `frog-pot`): a wide flat head, wider than the rebel saucepan, with two eye domes tucked under its rim; a short frowning mouth over a pale throat; squat body on two plain leg ovals with a pale belly, round mitts; a red cord knotted under the jaw; a cattail on a wood stalk. |
-| `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. In game (skin `empty-knight`): a floating, empty rebel bucket helm with a void T and a red rag knotted round its foot, over a pale collar ring round a black hole; a tapering iron cuirass on a barrel and rocker; the rebel's carved horse head at its own size on a long neck in front of the cuirass, ear above the helm; a gauntlet on a red rein. |
-| `odd-bishop` | White goose in a parchment mitre, one angry brow, orange beak. In game (skin `goose-mitre`): the rebel bishop's mitre, dropped so its peak stays under y 15, on a head tipped back 9° with a raised orange beak, one dot eye and one low brow; an S-curved neck into a low round body with a scalloped wing and orange webbed feet; no prop, it pecks. |
-| `odd-rook` | Walking haystack with battlements, two black oval eyes. In game (skin `haystack`): one hay mound with bulging shoulders and tufted sides under the rebel rook's stone battlements, two tall oval eyes, dark boots under the hem, a two-tined hayfork in a straw mitten. |
-| `odd-queen` | Melting candle in a holder, one flame, no face. Prompt asked for a crown of flame; add flame points. In game (skin `candle-queen`): three flame points (middle tallest) on a dark wick; a cream column with a drippy cap and a foot slumping into a copper bowl; a purple ribbon knotted on the right; two dot eyes and a melted frown. |
-| `odd-king` | Sleepy orange tabby curled under a too-big jewelled crown with red velvet. In game (skin `cat-king`): sits up; a three-point gold crown over red velvet, tilted 15° and squashing one ear out sideways; closed-eye arcs, nose and whiskers; a pale chest, chunky stripes, the tail wrapped round the front paws. |
+| `odd-pawn` | Grumpy frog under the copper pot, heavy-lidded yellow eyes, red cord chin strap. In game: the painted skin `frog-pot` (`docs/art/SKINS.md`). |
+| `odd-knight` | Empty plate suit, no head, on a carved wooden horse (no rockers visible). Rendered in patrol blue (drift); use rebel or neutral steel. In game: the painted skin `empty-knight` (`docs/art/SKINS.md`). |
+| `odd-bishop` | White goose in a parchment mitre, one angry brow, orange beak. In game: the painted skin `goose-mitre` (`docs/art/SKINS.md`). |
+| `odd-rook` | Walking haystack with battlements, two black oval eyes. In game: the painted skin `haystack` (`docs/art/SKINS.md`). |
+| `odd-queen` | Melting candle in a holder, one flame, no face. Prompt asked for a crown of flame; add flame points. In game: the painted skin `candle-queen` (`docs/art/SKINS.md`). |
+| `odd-king` | Sleepy orange tabby curled under a too-big jewelled crown with red velvet. In game: the painted skin `cat-king` (`docs/art/SKINS.md`). |
 
 ## 9. Moving to the game
 
-The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48–90px. The sheet is a 400px portrait.
+The game draws characters as painted sprites in a 100×120 viewBox, shown at about 48–90px. The sheet is a 400px portrait.
 
 **The figure box**
 
-- At rest every redrawn figure keeps its ink, outline included, inside x 18–82 and at y 0 or below (inside the viewBox top). `tests/figure-bounds.test.ts` measures every piece, both sides, both patrol hues and every skin, and fails past either bound.
+- At rest every redrawn figure keeps its ink, outline included, inside x 18–82 and at y 0 or below (inside the viewBox top). `tests/figure-bounds.test.ts` measures every piece, both sides, and every skin, and fails past either bound.
 - Height is free up to y 0. The board's far rim (`--rim` in `src/exile.css`, a third of a square deep) is sized so ink at y 0 on the top row still lands on the frame, on every board and screen. Tall crests are the chess read: use the height, don't shorten a crest to fit an older, lower limit.
 - Check a top row with `node tools/art/battle-shot.mjs bishop,rook out.png [--battle 3] [--width 844 --height 390]`; it prints each top-row piece's ink top against its square and the frame edge.
 
@@ -193,7 +193,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Faces at the sheet's budget: no face or two dot eyes for most characters.
 - Hands become simple mitts; finger creases drop.
 - One prop per character, oversized so it reads.
-- Thick ink outline: `WEIGHT.outer` (4.5 units) from the shape kit, `inner` 2.8 for parts over parts, `face` 2.6 for brows and squints. Relative to the figure it is heavier than on the sheet, on purpose.
+- Thick ink outline: about 1.2 units at game size, added by `tools/art/sprite.mjs` (12 px at 480 px tall) round the painted outline; inner lines are whatever the painting has. Relative to the figure it is heavier than on the sheet, on purpose.
 - Flat fill plus one hard shadow shape per part, and one white highlight tick on metal.
 - Faction colour: rebels earthy with one dominant accent; patrol royal blue with gold edging; oddballs in their own creature colours.
 - One rebel signature mark: a single patch, or a dent in the helm.
@@ -210,7 +210,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Current rigs use big white toon eyes and mouths. Under this guide most faces go: replace with visors, slots, hoods and dot eyes.
 - Current rebel colours (teal, gold, brown) become earthy materials with one accent per character.
 - Patrol royal blue and gold already match; keep the scheme, adjust hexes to section 7.
-- Ink: redrawn art uses `#1f1a19` (`INK` in `src/components/inkKit.tsx`), near the sheet's black; `#382f2e` is left only for shadows, effects and UI.
+- Ink: the sprites' added outline is `#1f1a19` (`tools/art/sprite.mjs`), near the sheet's black; `#382f2e` (`INK` in `PieceRig.tsx`) is for shadows, effects and UI.
 
 **Learned from the pawn pilot** (drawn with `src/components/inkKit.tsx`, checklist `docs/art/BRIEF.md`)
 

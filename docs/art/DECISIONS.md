@@ -3,6 +3,41 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-02: the six skins painted; the SVG kit removed
+- Why: the owner called the SVG skins outdated and asked for them painted like the cast. Then:
+  "I don't understand why the skins need [?art=new]. You should be able to refactor anything
+  you want." So the painted sprites became the only art: the shape kit (`inkKit.tsx`,
+  `Armour*.tsx`, the kit skins), `?art=new`, the unused red patrol hue and the lab's old
+  `PieceArt.tsx` were deleted. Git history keeps them, before "Remove the SVG shape kit".
+- Red patrol hue: dropped rather than faked with a CSS hue shift, which would also turn the gold
+  trim and skin tones; nothing in the game used it.
+- Painted (`SKINS.md`, recipes `paint-skin-<id>.json`): frog in the rebel saucepan with a
+  cattail; haystack under stone battlements with a two-tined hayfork; empty suit of rusty rebel
+  iron, helm floating over a hollow collar, no face, on a wooden rocking horse; goose in a big
+  parchment mitre; melting candle with a crown of three flame points; sleepy orange tabby sitting
+  up in a crown far too big. Each prompt also gets the rebel piece's own sprite, so the crest
+  matches it.
+- Declared corrections: rebel iron, not patrol blue (knight); three flame points (candle); the
+  cat sits up; the cattail and hayfork are additions; the goose has no crook.
+- Quirks as whole-sprite keyframes: frog croak puff, rocking-horse rock, goose peck. Dropped:
+  the haystack's door, blinks, yells, the head pop. The cat's checkmate uses the shared crown
+  particle; its painted crown stays on.
+- Judge (readability/style/likeness/motion/consistency). Round 1: frog 8/8/9/8/8, haystack
+  7/7/8/8/8, empty knight 7/8/6/8/8 (the helm sat on the collar, so it read as an ordinary
+  knight), goose 8/7/7/8/7 (small mitre), candle 7/7/8/8/8, cat 8/8/8/8/7. The knight was
+  re-rolled with the helm floating clear over a hollow neck, the goose with a mitre a third of
+  its height and a yellow patch. Round 2: frog 8/7/9/8/8, haystack 8/8/8/8/6, empty knight
+  7/6/8/7/6, goose 9/8/9/8/8, candle 8/8/8/8/7, cat 8/8/9/8/6. Not a full pass: consistency 6
+  for three of them, and the knight's style 6.
+- After round 2, unjudged: the cat stands at most 90 units tall (`SKIN_HEIGHT`), not 102,
+  since the judge found it 1.3× the king's mass with its crown above every other rig.
+- Still open, per round 2: the empty knight's fine rust speckle and grained wood turn to noise
+  at 48px and its outline reads softer than the cast's (a re-roll with flat steel and two or
+  three big rust blotches is the next try); the haystack is the smallest silhouette in the
+  line-up, held down by the width cap (its battlements sit 15% under the rebel rook's helm);
+  the candle keeps a melted mouth beyond the two-dot face budget. Cost: about $1.20 (eight
+  pose-and-cutout runs).
+
 ## 2026-11-02: studio rebuilt around the painted sprites; painted is the game's default
 - Owner: "The studio is plagued with tons of old, outdated code and artwork. I'd like to fully
   go with the fully painted single-piece sprites that we have … Let's get rid of the whole art

@@ -23,9 +23,6 @@ body{background:#f3ead7}
 .cast-tile.patrol{background:#9aaf87}
 .cast-tile .sprite-still{max-width:150px}
 a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;box-shadow:0 3px 0 #382f2e22}
-.cast-tile.unpainted{background:#fbf6e8;border:2px dashed #cabc9e;text-transform:none}
-.cast-tile.unpainted img{width:100%;max-width:120px;height:auto;border-radius:6px;filter:grayscale(1);opacity:.45}
-.cast-tile.unpainted small{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#a3271c}
 
 /* Stage: one animated piece on a board square. */
 .stage-area{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start;margin-top:12px}

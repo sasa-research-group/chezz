@@ -37,8 +37,8 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
   by the lab Duel.
 - **src/components/PieceRig.tsx**, **SpriteRig.tsx** and **src/sprite.css**: the
   cast, one painted sprite per piece and side, animated whole (idle, move,
-  attack, defend, hit, death and more). Skins use the SVG shape kit
-  (`rig.css`).
+  attack, defend, hit, death and more), skins included; `rig.css` holds the
+  shared effects. They are the only art.
 - **art.html → src/art/**: the studio. The cast sheet, a stage that plays any
   piece's animations at slow speeds, the style guide and the implemented
   mechanics (computed from `turns.ts`). Linked from the ☰ menu.

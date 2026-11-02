@@ -1,55 +1,34 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PieceRig, type PatrolHue, type RigKind } from "../src/components/PieceRig";
-import { SKINS, skinById } from "../src/components/skins";
-import { PAINTED_SKINS, SPRITE_IDS } from "../src/components/SpriteRig";
+import { PieceRig, type RigKind } from "../src/components/PieceRig";
+import { SKINS } from "../src/components/skins";
+import { SPRITE_IDS } from "../src/components/SpriteRig";
 import { inkBox } from "./ink-bounds";
 
-/** The figure contract (docs/art-style.md section 9): at rest, every shape-kit figure keeps its ink,
- * outline included, inside x 18–82 and below the viewBox top. The board's far rim (`--rim` in
- * exile.css) is sized so ink down to y 0 on the top row stays on the frame. */
+/** The figure contract (docs/art-style.md section 9): at rest, every sprite keeps its ink,
+ * outline included, inside x 18–82 and below the viewBox top, feet on y 108. The board's far rim
+ * (`--rim` in exile.css) is sized so ink down to y 0 on the top row stays on the frame.
+ * Sprites are trimmed to their ink, so a sprite's box is its ink. */
 const BOUNDS = { left: 18, right: 82, top: 0 };
-/** Parts that are hidden at rest: the defend shield, the sweat drop and the strike smear. */
-const AT_REST_HIDDEN = ["shield", "sweat", "fx-smear"];
+/** Hidden at rest: the defend shield. */
+const AT_REST_HIDDEN = ["shield"];
 
-const KINDS: RigKind[] = ["pawn", "rook", "knight", "bishop", "queen", "king"];
 const CAST = [
-  ...KINDS.flatMap(kind => [
-    { name: `rebel ${kind}`, props: { kind, side: "white" as const } },
-    ...(["blue", "red"] as PatrolHue[]).map(hue => ({ name: `patrol ${kind} (${hue})`, props: { kind, side: "black" as const, hue } })),
-  ]),
-  ...SKINS.map(s => ({ name: `${s.id} skin`, props: { kind: s.kind, side: "white" as const, skin: s.id } })),
+  ...SPRITE_IDS.map(id => {
+    const [side, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
+    return { name: id, props: { kind, side: side === "rebel" ? "white" as const : "black" as const } };
+  }),
+  ...SKINS.map(s => ({ name: `skin ${s.id}`, props: { kind: s.kind, side: "white" as const, skin: s.id } })),
 ];
 
-describe("shape-kit figures stay inside the figure contract", () => {
-  for (const { name, props } of CAST) it(name, () => {
-    const ink = inkBox(renderToStaticMarkup(createElement(PieceRig, { ...props, art: "new" })), { within: "flip", skip: AT_REST_HIDDEN });
-    expect(ink.top, "topmost ink (a top-row crest would cross the board's frame)").toBeGreaterThanOrEqual(BOUNDS.top);
-    expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);
-    expect(ink.right, "rightmost ink").toBeLessThanOrEqual(BOUNDS.right);
-  });
-});
-
-/** Painted sprites: one image per piece, trimmed to its ink, so its box is its ink. */
 describe("painted sprites stay inside the figure contract", () => {
   it("covers every piece on both sides", () => expect(SPRITE_IDS.length).toBe(12));
-  for (const id of SPRITE_IDS) it(id, () => {
-    const [side, kind] = id.split("-") as ["rebel" | "patrol", RigKind];
-    const html = renderToStaticMarkup(createElement(PieceRig, { kind, side: side === "rebel" ? "white" : "black", art: "paint" }));
-    expect(html.match(/<image/g), "draws one whole sprite, not the fallback").toHaveLength(1);
+  for (const { name, props } of CAST) it(name, () => {
+    const html = renderToStaticMarkup(createElement(PieceRig, props));
+    expect(html.match(/<image/g), "draws one whole sprite").toHaveLength(1);
     const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
-    expect(ink.top, "topmost ink").toBeGreaterThanOrEqual(BOUNDS.top);
-    expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);
-    expect(ink.right, "rightmost ink").toBeLessThanOrEqual(BOUNDS.right);
-    expect(ink.bottom, "feet on the ground line").toBeCloseTo(108, -0.5);
-  });
-  for (const id of PAINTED_SKINS) it(`skin ${id}`, () => {
-    const skin = skinById(id)!;
-    const html = renderToStaticMarkup(createElement(PieceRig, { kind: skin.kind, side: "white", skin: id, art: "paint" }));
-    expect(html.match(/<image/g), "draws one whole sprite, not the fallback").toHaveLength(1);
-    const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
-    expect(ink.top, "topmost ink").toBeGreaterThanOrEqual(BOUNDS.top);
+    expect(ink.top, "topmost ink (a top-row crest would cross the board's frame)").toBeGreaterThanOrEqual(BOUNDS.top);
     expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);
     expect(ink.right, "rightmost ink").toBeLessThanOrEqual(BOUNDS.right);
     expect(ink.bottom, "feet on the ground line").toBeCloseTo(108, -0.5);

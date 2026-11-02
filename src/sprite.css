@@ -2,36 +2,34 @@
    every action moves the whole figure (.hop, .squash) plus effects; nothing moves a part.
    Loaded after rig.css: equal-specificity rules here win on source order. Durations match
    RIG_MS and scale with --spd. Pivots: the feet (50, 108) unless a rule says otherwise. */
-.rig.art-sprite .fx-pop,.rig.art-sprite .fx-crown{opacity:0}
-.rig.art-sprite .fx-pop,.rig.art-sprite .fx-crown-spin{transform-box:fill-box;transform-origin:center}
-.rig.art-sprite.rig-rook .shield{display:inline}
+.rig .fx-pop,.rig .fx-crown{opacity:0}
+.rig .fx-pop,.rig .fx-crown-spin{transform-box:fill-box;transform-origin:center}
 
 /* Idle: a gentle breathing squash and stretch with a small bob. */
-.rig.art-sprite.act-idle{animation:sprite-breathe 1.8s var(--ease-soft) var(--seed) infinite;transform-origin:50% 90%}
-.rig.art-sprite.rig-pawn.act-idle .squash{animation:none}
+.rig.act-idle{animation:sprite-breathe 1.8s var(--ease-soft) var(--seed) infinite;transform-origin:50% 90%}
 @keyframes sprite-breathe{0%,100%{transform:scale(1,1) translateY(0)}45%{transform:scale(1.035,.965) translateY(0)}75%{transform:scale(.985,1.02) translateY(-1px)}}
 /* Wounded: a reddish tint and a tremble. Guarding: braced a little lower behind the shield. */
-.rig.art-sprite.is-wounded .sprite{filter:sepia(.4) saturate(1.5) hue-rotate(-28deg) brightness(.95)}
-.rig.art-sprite.is-wounded.act-idle .squash{animation:sprite-tremble .36s steps(3) var(--seed) infinite}
+.rig.is-wounded .sprite{filter:sepia(.4) saturate(1.5) hue-rotate(-28deg) brightness(.95)}
+.rig.is-wounded.act-idle .squash{animation:sprite-tremble .36s steps(3) var(--seed) infinite}
 @keyframes sprite-tremble{0%{transform:translateX(-.7px)}33%{transform:translateX(.7px) rotate(.6deg)}66%{transform:translateX(0) rotate(-.6deg)}}
-.rig.art-sprite.is-defending.act-idle .hop{transform:scale(1.04,.95)}
+.rig.is-defending.act-idle .hop{transform:scale(1.04,.95)}
 
 /* Move: crouch, hop arc with stretch, squash on landing, motion lines and dust. */
-.rig.art-sprite.act-move .hop{animation:sprite-hop calc(.38s * var(--spd,1)) linear both}
-.rig.art-sprite.act-move .squash{animation:sprite-hop-squash calc(.38s * var(--spd,1)) linear both}
+.rig.act-move .hop{animation:sprite-hop calc(.38s * var(--spd,1)) linear both}
+.rig.act-move .squash{animation:sprite-hop-squash calc(.38s * var(--spd,1)) linear both}
 /* Knights hop higher and longer; their flips are kept for the strike's leap and leap-back. */
-.rig.art-sprite.rig-knight.act-move .hop{animation:sprite-hop-high calc(.48s * var(--spd,1)) linear both;transform-origin:50px 108px}
-.rig.art-sprite.rig-knight.act-move .squash{animation-duration:calc(.48s * var(--spd,1))}
+.rig.rig-knight.act-move .hop{animation:sprite-hop-high calc(.48s * var(--spd,1)) linear both;transform-origin:50px 108px}
+.rig.rig-knight.act-move .squash{animation-duration:calc(.48s * var(--spd,1))}
 @keyframes sprite-hop-high{0%,20%{transform:translateY(0)}45%{transform:translateY(-30px) rotate(-6deg)}60%{transform:translateY(-31px) rotate(4deg)}82%,100%{transform:translateY(0)}}
 @keyframes sprite-hop{0%,20%{transform:translateY(0)}48%{transform:translateY(-24px)}58%{transform:translateY(-25px)}80%,100%{transform:translateY(0)}}
 @keyframes sprite-hop-squash{0%{transform:none}20%{transform:scale(1.22,.78)}40%{transform:scale(.86,1.18)}62%{transform:scale(.94,1.08)}80%{transform:scale(1.28,.72)}90%{transform:scale(.96,1.05)}100%{transform:none}}
 
 /* Attack: lean back (anticipation), a fast stretched lunge toward the target, impact stars and
    a burst at the front edge, then snap back. */
-.rig.art-sprite.act-attack .squash{animation:sprite-lunge calc(.56s * var(--spd,1)) linear both}
-.rig.art-sprite.act-attack .fx-lines{animation:sprite-lunge-lines calc(.56s * var(--spd,1)) linear both}
-.rig.art-sprite.act-attack .fx-burst{animation:rig-burst calc(.56s * var(--spd,1)) ease-out both}
-.rig.art-sprite.act-attack .fx-stars{animation:rig-stars calc(.56s * var(--spd,1)) ease-out both}
+.rig.act-attack .squash{animation:sprite-lunge calc(.56s * var(--spd,1)) linear both}
+.rig.act-attack .fx-lines{animation:sprite-lunge-lines calc(.56s * var(--spd,1)) linear both}
+.rig.act-attack .fx-burst{animation:rig-burst calc(.56s * var(--spd,1)) ease-out both}
+.rig.act-attack .fx-stars{animation:rig-stars calc(.56s * var(--spd,1)) ease-out both}
 @keyframes sprite-lunge{
   0%{transform:none}
   26%{transform:translateX(-8px) rotate(-12deg) scale(.94,1.06)}
@@ -44,15 +42,15 @@
 @keyframes sprite-lunge-lines{0%,34%{opacity:0;translate:0 0}40%{opacity:1;translate:calc(10px * var(--face,1)) 0}60%{opacity:.7;translate:calc(4px * var(--face,1)) 0}72%,100%{opacity:0;translate:calc(-6px * var(--face,1)) 0}}
 
 /* Defend: a brace squash, a flash, and the shield (rook: a shield too) pops in. */
-.rig.art-sprite.act-defend .squash{animation:sprite-brace calc(.34s * var(--spd,1)) var(--ease-back) both}
-.rig.art-sprite.act-defend .hop{animation:sprite-guard-flash calc(.34s * var(--spd,1)) linear both}
+.rig.act-defend .squash{animation:sprite-brace calc(.34s * var(--spd,1)) var(--ease-back) both}
+.rig.act-defend .hop{animation:sprite-guard-flash calc(.34s * var(--spd,1)) linear both}
 @keyframes sprite-brace{0%{transform:none}35%{transform:scale(1.2,.8)}65%{transform:scale(.97,1.04)}100%{transform:scale(1.04,.95)}}
 /* Warm and short, so a block never reads as the white hit flash. */
 @keyframes sprite-guard-flash{0%{filter:none}20%{filter:brightness(1.25) saturate(1.3)}40%,100%{filter:none}}
 
 /* Hit: white flash (rig-flash on .hop), knocked back and shaken, then settles; a damage pop. */
-.rig.art-sprite.act-hit .squash{animation:sprite-knock calc(.42s * var(--spd,1)) linear both}
-.rig.art-sprite.act-hit .fx-pop{animation:sprite-pop calc(.42s * var(--spd,1)) ease-out both}
+.rig.act-hit .squash{animation:sprite-knock calc(.42s * var(--spd,1)) linear both}
+.rig.act-hit .fx-pop{animation:sprite-pop calc(.42s * var(--spd,1)) ease-out both}
 @keyframes sprite-knock{
   0%{transform:none}
   10%{transform:translateX(-13px) rotate(-14deg) scale(1.14,.86)}
@@ -65,9 +63,9 @@
 
 /* Death: flash, hop up, tip over and bounce flat (about the body's middle, so he lies inside
    the square), fade, puff of smoke and dust. */
-.rig.art-sprite.act-death .hop{animation:rig-flash calc(.9s * var(--spd,1)) linear both}
-.rig.art-sprite.act-death .squash{animation:sprite-fall calc(.9s * var(--spd,1)) linear both;transform-origin:50px 64px}
-.rig.art-sprite.act-death .fx-dust{animation:rig-dust calc(.9s * var(--spd,1)) ease-out both}
+.rig.act-death .hop{animation:rig-flash calc(.9s * var(--spd,1)) linear both}
+.rig.act-death .squash{animation:sprite-fall calc(.9s * var(--spd,1)) linear both;transform-origin:50px 64px}
+.rig.act-death .fx-dust{animation:rig-dust calc(.9s * var(--spd,1)) ease-out both}
 @keyframes sprite-fall{
   0%{transform:none}
   10%{transform:scale(1.2,.82)}
@@ -77,22 +75,22 @@
   72%,100%{transform:translateY(30px) rotate(90deg) scale(.6)}}
 
 /* Cheer: two jumps with sparkles. */
-.rig.art-sprite.act-cheer .hop{animation:rig-cheer-hop calc(.7s * var(--spd,1)) var(--ease-soft) 2 both}
-.rig.art-sprite.act-cheer .squash{animation:sprite-hop-squash calc(.7s * var(--spd,1)) linear 2 both}
-.rig.art-sprite.act-cheer .fx-stars{animation:rig-stars calc(.7s * var(--spd,1)) ease-out 2 both}
+.rig.act-cheer .hop{animation:rig-cheer-hop calc(.7s * var(--spd,1)) var(--ease-soft) 2 both}
+.rig.act-cheer .squash{animation:sprite-hop-squash calc(.7s * var(--spd,1)) linear 2 both}
+.rig.act-cheer .fx-stars{animation:rig-stars calc(.7s * var(--spd,1)) ease-out 2 both}
 
 /* Promotion: tremble and squash down to a sparkle, then the new piece pops back out. */
-.rig.art-sprite.act-morph-out .squash{animation:sprite-morph-out calc(.65s * var(--spd,1)) var(--ease-in) both}
-.rig.art-sprite.act-morph-out .fx-pop{animation:sprite-sparkle calc(.65s * var(--spd,1)) ease-out both}
-.rig.art-sprite.act-morph-in .squash{animation:sprite-morph-in calc(.75s * var(--spd,1)) var(--ease-back) both}
+.rig.act-morph-out .squash{animation:sprite-morph-out calc(.65s * var(--spd,1)) var(--ease-in) both}
+.rig.act-morph-out .fx-pop{animation:sprite-sparkle calc(.65s * var(--spd,1)) ease-out both}
+.rig.act-morph-in .squash{animation:sprite-morph-in calc(.75s * var(--spd,1)) var(--ease-back) both}
 @keyframes sprite-morph-out{0%{transform:none}20%{transform:translateX(-2px) scale(1.04,.96)}30%{transform:translateX(2px) scale(.97,1.03)}50%{transform:scale(1.25,.78)}100%{transform:scale(0,0)}}
 @keyframes sprite-sparkle{0%,60%{opacity:0;transform:scale(.2) rotate(0)}85%{opacity:1;transform:scale(1.1) rotate(45deg)}100%{opacity:1;transform:scale(.8) rotate(90deg)}}
 @keyframes sprite-morph-in{0%{transform:scale(0,0)}50%{transform:scale(1.3,.78)}72%{transform:scale(.9,1.12)}100%{transform:none}}
 
 /* Checkmate: the king staggers, a gold crown flies off as he hops and tumbles, and he lands flat. */
-.rig.art-sprite.act-mate .squash{animation:sprite-mate calc(2.6s * var(--spd,1)) linear both;transform-origin:50px 64px}
-.rig.art-sprite.act-mate .fx-crown{animation:sprite-crown-show calc(2.6s * var(--spd,1)) steps(1) both}
-.rig.art-sprite.act-mate .fx-crown-spin{animation:sprite-crown-off calc(2.6s * var(--spd,1)) cubic-bezier(.3,.1,.5,1) both}
+.rig.act-mate .squash{animation:sprite-mate calc(2.6s * var(--spd,1)) linear both;transform-origin:50px 64px}
+.rig.act-mate .fx-crown{animation:sprite-crown-show calc(2.6s * var(--spd,1)) steps(1) both}
+.rig.act-mate .fx-crown-spin{animation:sprite-crown-off calc(2.6s * var(--spd,1)) cubic-bezier(.3,.1,.5,1) both}
 @keyframes sprite-mate{
   0%{transform:none}
   8%{transform:translateX(-5px) rotate(-10deg) scale(1.04,.96)}
@@ -112,16 +110,16 @@
   78%{transform:translate(49px,120px) rotate(350deg)}
   88%,100%{transform:translate(52px,140px) rotate(360deg)}}
 
-/* Painted skins: the kit's part quirks, redone as whole-sprite keyframes. The haystack, candle and
+/* Skins: whole-sprite quirks keyed by the skin-<id> class. The haystack, candle and
    cat have none; the cat's checkmate uses the shared crown particle above. */
 /* Frog: a slow croak, a wide puff that holds and settles, in place of the breathing. */
-.rig.art-sprite.skin-frog-pot.act-idle{animation:sprite-croak 2.6s var(--ease-soft) var(--seed) infinite}
+.rig.skin-frog-pot.act-idle{animation:sprite-croak 2.6s var(--ease-soft) var(--seed) infinite}
 @keyframes sprite-croak{0%,50%,100%{transform:none}64%{transform:scale(1.08,.93)}74%{transform:scale(1.06,.95)}84%{transform:scale(.98,1.02)}}
 /* Empty knight: the rocking horse rocks on its rocker. */
-.rig.art-sprite.skin-empty-knight.act-idle{animation:sprite-rock 2.2s var(--ease-soft) var(--seed) infinite;transform-origin:50% 90%}
+.rig.skin-empty-knight.act-idle{animation:sprite-rock 2.2s var(--ease-soft) var(--seed) infinite;transform-origin:50% 90%}
 @keyframes sprite-rock{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
 /* Goose: the strike is a peck, a coil back then a deep forward dip beak first. */
-.rig.art-sprite.skin-goose-mitre.act-attack .squash{animation-name:sprite-peck}
+.rig.skin-goose-mitre.act-attack .squash{animation-name:sprite-peck}
 @keyframes sprite-peck{
   0%{transform:none}
   26%{transform:translateX(-6px) rotate(-14deg) scale(.95,1.05)}
@@ -135,8 +133,8 @@
 /* Reduced motion: rig.css turns the moves off; checkmate still lands on its final frame, so
    skip and reduced motion end the same way. */
 @media(prefers-reduced-motion:reduce){
-  .rig.art-sprite.is-wounded.act-idle .squash,.rig.art-sprite .fx-pop{animation:none!important}
-  .rig.art-sprite.act-mate .squash{animation:sprite-mate .01ms linear both!important;transform-origin:50px 64px}
-  .rig.art-sprite.act-mate .fx-crown{animation:sprite-crown-show .01ms steps(1) both!important}
-  .rig.art-sprite.act-mate .fx-crown-spin{animation:sprite-crown-off .01ms linear both!important}
+  .rig.is-wounded.act-idle .squash,.rig .fx-pop{animation:none!important}
+  .rig.act-mate .squash{animation:sprite-mate .01ms linear both!important;transform-origin:50px 64px}
+  .rig.act-mate .fx-crown{animation:sprite-crown-show .01ms steps(1) both!important}
+  .rig.act-mate .fx-crown-spin{animation:sprite-crown-off .01ms linear both!important}
 }

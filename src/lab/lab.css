@@ -4,7 +4,7 @@
 .lab-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:32px;align-items:start}
 .lab-arena{background:#e6ddc2;border:1px solid #cabc9e;border-radius:16px;padding:22px}
 .duelists{display:grid;grid-template-columns:1fr 1fr;gap:16px;background:#e9d6ae;border:8px solid #675448;border-radius:6px;padding:20px 10px;box-shadow:0 6px 0 #483b34}
-.duelist{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}.duelist-art{width:90px}.duelist.black .duelist-art{transform:scaleX(-1)}.duelist.hit .duelist-art{animation:piece-hit .35s ease-out}.duelist strong{font-size:12px;letter-spacing:1px;text-transform:uppercase}
+.duelist{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}.duelist-art{width:90px}.duelist.hit .duelist-art{animation:piece-hit .35s ease-out}.duelist strong{font-size:12px;letter-spacing:1px;text-transform:uppercase}
 .duel-hp{font-size:16px;color:#b8473c;font-weight:800;letter-spacing:1px}.duel-hp em{color:#382f2e33;font-style:normal}.duel-gate{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#766a58}.duel-gate i{width:14px;height:8px;border:2px solid #396c61;border-radius:3px}.duel-gate i.done{background:#396c61}
 .duel-pick{font-size:11px;font-weight:800;background:#fbf6e8;border:2px solid #382f2e;border-radius:8px;padding:3px 9px}
 .duel-caption{min-height:64px;padding:16px 4px 6px;text-align:center;font-size:13px;line-height:1.5;color:#4b3f3a}

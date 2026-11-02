@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { PieceArt } from "../components/PieceArt";
+import { PieceRig } from "../components/PieceRig";
 import { MAX_HP, defaultSettings, options, resolve, solveDuel, stateKey } from "./duel";
 import type { Choice, Guard, Rule, Settings, Solution, State, Turn } from "./duel";
 
@@ -101,7 +101,7 @@ export default function Lab() {
       <section className="lab-arena" aria-label="Duel">
         <div className="duelists">
           {([0, 1] as const).map(side => <div key={side} className={`duelist ${side ? "black" : "white"}${last && last.damage[side] > 0 ? " hit" : ""}`}>
-            <div className="duelist-art"><PieceArt kind="king" side={side ? "black" : "white"} /></div>
+            <div className="duelist-art"><PieceRig kind="king" side={side ? "black" : "white"} facing={side ? -1 : 1} seed={side} /></div>
             <strong>{side ? "Enemy" : "You"}</strong>
             <span className="duel-hp" aria-label={`${side ? "Enemy" : "Your"} HP ${state.hp[side]}`}>{"♥".repeat(state.hp[side])}<em>{"♥".repeat(Math.max(0, settings.hp[side] - state.hp[side]))}</em> {state.hp[side]}</span>
             {settings.goal > 0 && <span className="duel-gate" aria-label={`${side ? "Enemy" : "Your"} gate progress ${state.progress[side]} of ${settings.goal}`}>{Array.from({ length: settings.goal }, (_, i) => <i key={i} className={i < state.progress[side] ? "done" : ""} />)} gate</span>}

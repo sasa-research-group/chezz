@@ -25,12 +25,12 @@ test("studio: the cast sheet lands as still images and opens a sprite on the sta
   await expect(page).toHaveURL(/#stage\/patrol-knight$/);
   await expect(page.getByRole("combobox", { name: "Piece" })).toHaveValue("patrol-knight");
   await expect(page.locator("svg.rig")).toHaveCount(1);
-  await expect(page.locator(".stage-piece .rig.art-sprite.rig-knight.patrol")).toBeVisible();
+  await expect(page.locator(".stage-piece .rig.rig-knight.patrol")).toBeVisible();
   expect(await scrollWidth(page)).toBeLessThanOrEqual(390);
 
   await page.getByRole("combobox", { name: "Piece" }).selectOption("skin-cat-king");
   await expect(page).toHaveURL(/#stage\/skin-cat-king$/);
-  await expect(page.locator(".stage-piece .rig.art-sprite.rig-king.skin-cat-king")).toBeVisible();
+  await expect(page.locator(".stage-piece .rig.rig-king.skin-cat-king")).toBeVisible();
   await expect(page.getByRole("group", { name: "Animation" }).getByRole("button", { name: "Checkmate" })).toBeVisible();
   expect(errors).toEqual([]);
 });

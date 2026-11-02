@@ -1,6 +1,6 @@
 # Chezz art pipeline: concept, guide, builder, judge
 
-> Status (Nov 2026): plan, partly built. Built so far: style guide (`docs/art-style.md`, `docs/art/`), studio target section, reproducible concept generation (`tools/art/gen.mjs`, `docs/art/recipes/`, `tools/art/crop-sheet.mjs`, `docs/art/GENERATING.md`; the concept stage's `generate_image` calls can use it instead of the personal MCP). From the pawn pilot: the shape kit (`src/components/inkKit.tsx`: ink, weights, tones, light) and its lint (`tests/ink-kit.test.ts`), the judge sheet (`tools/art/shoot.mjs`, `art.html?sheet=…` in `src/art/Sheet.tsx`), studio shots (`tools/art/studio-shots.mjs`), `docs/art/BRIEF.md` and `docs/art/JUDGE.md`. They live in `docs/art/` and `src/components/`, not the `art/` and `src/style/` paths below. Painted sprites (Nov 2026): one image-generated sprite per piece, now the game's art, `docs/art/PAINTED.md`; the studio is rebuilt around them. Not built: concept folders, policy.json, verdicts, the Pipeline studio area, the art-run skill. The soundgarden references are to the owner's other project this was modelled on; nothing here depends on it.
+> Status (Nov 2026): plan, partly built. Built so far: style guide (`docs/art-style.md`, `docs/art/`), studio target section, reproducible concept generation (`tools/art/gen.mjs`, `docs/art/recipes/`, `tools/art/crop-sheet.mjs`, `docs/art/GENERATING.md`; the concept stage's `generate_image` calls can use it instead of the personal MCP). From the pawn pilot: the judge sheet (`tools/art/shoot.mjs`, `art.html?sheet=…` in `src/art/Sheet.tsx`), studio shots (`tools/art/studio-shots.mjs`), `docs/art/BRIEF.md` and `docs/art/JUDGE.md`. They live in `docs/art/` and `src/components/`, not the `art/` and `src/style/` paths below. Painted sprites (Nov 2026): one image-generated sprite per piece and skin, the game's only art, `docs/art/PAINTED.md`; the studio is rebuilt around them. The SVG shape kit (`inkKit.tsx`, `Armour*.tsx`) that the pilot built was removed then; this plan still describes code-drawn rigs in places. Not built: concept folders, policy.json, verdicts, the Pipeline studio area, the art-run skill. The soundgarden references are to the owner's other project this was modelled on; nothing here depends on it.
 
 Four stages, two owner gates. Sized for code-drawn SVG/CSS art: a dozen rigs, a hideout, a board, a HUD.
 
@@ -94,7 +94,7 @@ Lint and shot checks gate before the judge is called. The judge receives the `ju
 **Input**: `art/BRIEF.md` filled by the lead:
 - `brief.md`, `pick.png`, states strip, declared `corrections` (deliberate departures from the concept, each feature + change + reason, so the judge doesn't mark them down)
 - tokens and rules (paths, not pasted)
-- kit to reuse: `src/components/inkKit.tsx` (Part, Pole, Ink, tones), the `Armour*.tsx` builds, `.flip > .hop > .squash` layering, `SpriteStill` in `src/art/kit.tsx`
+- kit to reuse: the painted sprites and their recipes, `.flip > .hop > .squash` layering, `SpriteStill` in `src/art/kit.tsx`
 - owned files, branch name `claude/art-<id>`, policy lines (floors, round limit)
 - the judge's gaps from the last round, if any
 

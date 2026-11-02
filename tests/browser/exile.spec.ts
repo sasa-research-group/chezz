@@ -413,17 +413,13 @@ test("complete the exile run through browser controls", async ({ page }) => {
   expect((await meta()).unlocked).toEqual(["frog-pot"]);
 });
 
-test("the game draws painted sprites by default", async ({ page }) => {
+test("the game draws every piece as one painted sprite", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
-  await expect(page.locator(".piece-layer svg.rig.art-sprite")).toHaveCount(3);
-  // ?art=new is the escape hatch back to the SVG shape kit.
-  await page.goto("/?art=new");
-  await expect(page.locator(".piece-layer svg.rig.art-new")).toHaveCount(3);
-  await expect(page.locator(".piece-layer svg.rig.art-sprite")).toHaveCount(0);
+  await expect(page.locator(".piece-layer svg.rig image.sprite")).toHaveCount(3);
 });
 
-test("wear an unlocked skin from the pause menu; it draws as its painted sprite, and on the kit with ?art=new", async ({ page }) => {
+test("wear an unlocked skin from the pause menu; it draws as its painted sprite", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [...start.units, { id: "p1", side: "white" as const, kind: "pawn" as const, x: 0, y: 3, hp: 1 }] };
   await page.addInitScript(([run, meta]) => {
@@ -440,10 +436,6 @@ test("wear an unlocked skin from the pause menu; it draws as its painted sprite,
   await pick.click();
   await expect(pick).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Escape");
-  await expect(frogs).toHaveCount(1);
-  await expect(frogs.and(page.locator(".art-sprite"))).toHaveCount(1);
-  await expect(page.locator(".piece-layer svg.rig.art-sprite")).toHaveCount(4);
-  await page.goto("/?art=new");
-  await expect(frogs).toHaveCount(1);
-  await expect(frogs.and(page.locator(".art-new"))).toHaveCount(1);
+  await expect(frogs.locator("image.sprite")).toHaveAttribute("href", /skin-frog-pot/);
+  await expect(page.locator(".piece-layer svg.rig image.sprite")).toHaveCount(4);
 });
