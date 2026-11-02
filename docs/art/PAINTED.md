@@ -1,9 +1,11 @@
 # Painted sprites
 
-One image-generated sprite per piece, eyes painted in, behind `?art=paint`. No parts and no
+The game's art: one image-generated sprite per piece, eyes painted in. No parts and no
 rig: every animation moves the whole sprite and adds effects. All twelve pieces are painted
-(Nov 2026); skins and the red patrol fall back to the SVG kit (`?art=new`). Decision record:
-`DECISIONS.md`, "painted sprites become whole images" (the owner's verdict on the cut-out rigs)
+(Nov 2026); skins and the red patrol fall back to the SVG shape kit, and `?art=new` shows the
+whole game in the kit. Decision record:
+`DECISIONS.md`, "painted sprites become whole images" (the owner's verdict on the cut-out rigs),
+"studio rebuilt around the painted sprites" (they become the default)
 and the earlier per-pair entries, whose looks still hold.
 
 ## How it works
@@ -27,6 +29,14 @@ and the earlier per-pair entries, whose looks still hold.
    `.squash`, plus effects (`.fx-lines`, `.fx-burst`, `.fx-stars`, `.fx-dust`, `.fx-smoke`, and
    two sprite-only ones: `.fx-pop`, the hit and promotion sparkle, and `.fx-crown`, the king's
    crown particle). Durations match `RIG_MS` and scale with `--spd`.
+
+## In the studio (`art.html`)
+
+- **Cast** (landing): every sprite as a still image (`SpriteStill` in `src/art/kit.tsx`, the
+  game's placement with no animation), grouped Friendly, Enemy and Skins (not painted yet).
+- **Stage** (`#stage/<side>-<kind>`): one live `PieceRig`, a button per action below, wounded
+  and guarding toggles, facing, board or large size, and 1×, 0.5×, 0.25×, 0.1× speeds that set
+  the game's `--spd` (1, 2, 4, 10) and stretch the take's timers to match.
 
 ## Actions
 
@@ -74,8 +84,8 @@ motion end the same way.
 4. Look at `art-out/<id>/step-1-pose.png` at full size; re-roll anything with wrong arms,
    anatomy or eyes.
 5. `node tools/art/sprite.mjs <recipe> --install`, then check `npx vitest run
-   tests/figure-bounds.test.ts tests/sprites.test.ts`, the studio (Catalog → Sprites, Rig →
-   Sprite) and `node tools/art/shoot.mjs <kind>.<side>.paint out.png`.
+   tests/figure-bounds.test.ts tests/sprites.test.ts`, the studio (Cast, then every button on the
+   Stage at 0.25×) and `node tools/art/shoot.mjs <kind>.<side>.paint out.png`.
 
 ## Limits
 

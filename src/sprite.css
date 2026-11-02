@@ -1,4 +1,4 @@
-/* Painted sprites (?art=paint, src/components/SpriteRig.tsx): one whole image per piece, so
+/* Painted sprites (the game's art, src/components/SpriteRig.tsx): one whole image per piece, so
    every action moves the whole figure (.hop, .squash) plus effects; nothing moves a part.
    Loaded after rig.css: equal-specificity rules here win on source order. Durations match
    RIG_MS and scale with --spd. Pivots: the feet (50, 108) unless a rule says otherwise. */

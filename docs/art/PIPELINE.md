@@ -1,6 +1,6 @@
 # Chezz art pipeline: concept, guide, builder, judge
 
-> Status (Nov 2026): plan, partly built. Built so far: style guide (`docs/art-style.md`, `docs/art/`), studio target section, reproducible concept generation (`tools/art/gen.mjs`, `docs/art/recipes/`, `tools/art/crop-sheet.mjs`, `docs/art/GENERATING.md`; the concept stage's `generate_image` calls can use it instead of the personal MCP). From the pawn pilot: the shape kit (`src/components/inkKit.tsx`: ink, weights, tones, light) and its lint (`tests/ink-kit.test.ts`), the judge sheet (`tools/art/shoot.mjs`, `art.html?sheet=…` in `src/art/Sheet.tsx`), studio shots (`tools/art/studio-shots.mjs`), `docs/art/BRIEF.md` and `docs/art/JUDGE.md`. They live in `docs/art/` and `src/components/`, not the `art/` and `src/style/` paths below. Painted sprites (Nov 2026): one image-generated sprite per piece, `docs/art/PAINTED.md`. Not built: concept folders, policy.json, verdicts, the Pipeline studio area, the art-run skill. The soundgarden references are to the owner's other project this was modelled on; nothing here depends on it.
+> Status (Nov 2026): plan, partly built. Built so far: style guide (`docs/art-style.md`, `docs/art/`), studio target section, reproducible concept generation (`tools/art/gen.mjs`, `docs/art/recipes/`, `tools/art/crop-sheet.mjs`, `docs/art/GENERATING.md`; the concept stage's `generate_image` calls can use it instead of the personal MCP). From the pawn pilot: the shape kit (`src/components/inkKit.tsx`: ink, weights, tones, light) and its lint (`tests/ink-kit.test.ts`), the judge sheet (`tools/art/shoot.mjs`, `art.html?sheet=…` in `src/art/Sheet.tsx`), studio shots (`tools/art/studio-shots.mjs`), `docs/art/BRIEF.md` and `docs/art/JUDGE.md`. They live in `docs/art/` and `src/components/`, not the `art/` and `src/style/` paths below. Painted sprites (Nov 2026): one image-generated sprite per piece, now the game's art, `docs/art/PAINTED.md`; the studio is rebuilt around them. Not built: concept folders, policy.json, verdicts, the Pipeline studio area, the art-run skill. The soundgarden references are to the owner's other project this was modelled on; nothing here depends on it.
 
 Four stages, two owner gates. Sized for code-drawn SVG/CSS art: a dozen rigs, a hideout, a board, a HUD.
 
@@ -47,10 +47,12 @@ Concept PNGs load in the studio through `import.meta.glob`. They ship with `art.
 
 ## In the studio (`art.html`)
 
-- **New area: Pipeline.** One card per asset: status chip (`concept` · `awaiting pick` · `building` · `judging` · `awaiting owner` · `approved`), the brief, the options grid with the pick outlined, the latest sheet and scores, round history.
-- **Catalog.** An entry with an approved concept gets a concept thumbnail beside the live art. Every entry gets a stable `id` (`data-asset`), which the shooter targets.
-- **Style guide.** Rendered from `tokens.ts` and `rules.ts`, not hand-kept tables. Each rule shows its check tag. The "vs doc" list stays; the studio wins conflicts with `docs/art-direction-exile.md`.
-- **Solo mode.** `art.html?solo=<id>&state=<s>` renders one entry on the game backdrop at a given px size, with animations paused. Only the shooter uses it.
+Built (Nov 2026, rebuilt around the painted sprites): **Cast** (every sprite as a still, plus unpainted skins), **Stage** (one piece, one button per animation, slow modes on the game's `--spd`), **Style guide**, **Mechanics**. The old catalog, cast × state matrices and Rig tab are gone (`DECISIONS.md`, "studio rebuilt around the painted sprites").
+
+Planned, not built:
+- **Pipeline area.** One card per asset: status chip (`concept` · `awaiting pick` · `building` · `judging` · `awaiting owner` · `approved`), the brief, the options grid with the pick outlined, the latest sheet and scores, round history.
+- **Style guide.** Rendered from `tokens.ts` and `rules.ts`, not hand-kept tables. Each rule shows its check tag. The studio wins conflicts with `docs/art-direction-exile.md`.
+- **Solo mode.** The stage (`art.html#stage/<side>-<kind>`) already shows one piece; the shooter would need a paused-frame mode.
 
 ## 1. Concept
 
@@ -92,7 +94,7 @@ Lint and shot checks gate before the judge is called. The judge receives the `ju
 **Input**: `art/BRIEF.md` filled by the lead:
 - `brief.md`, `pick.png`, states strip, declared `corrections` (deliberate departures from the concept, each feature + change + reason, so the judge doesn't mark them down)
 - tokens and rules (paths, not pasted)
-- rig kit to reuse: `Eyes`, `Arm`, `Hand`, `Boots`, `Patch`, stroke presets `o`/`f`, pivots, `.flip > .hop > .squash` layering, `LoopRig`/`usePhase` in `src/art/kit.tsx`
+- kit to reuse: `src/components/inkKit.tsx` (Part, Pole, Ink, tones), the `Armour*.tsx` builds, `.flip > .hop > .squash` layering, `SpriteStill` in `src/art/kit.tsx`
 - owned files, branch name `claude/art-<id>`, policy lines (floors, round limit)
 - the judge's gaps from the last round, if any
 

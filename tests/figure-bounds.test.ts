@@ -1,12 +1,12 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PieceRig, hasNewArt, type PatrolHue, type RigKind } from "../src/components/PieceRig";
+import { PieceRig, type PatrolHue, type RigKind } from "../src/components/PieceRig";
 import { SKINS } from "../src/components/skins";
 import { SPRITE_IDS } from "../src/components/SpriteRig";
 import { inkBox } from "./ink-bounds";
 
-/** The figure contract (docs/art-style.md section 9): at rest, every redrawn figure keeps its ink,
+/** The figure contract (docs/art-style.md section 9): at rest, every shape-kit figure keeps its ink,
  * outline included, inside x 18–82 and below the viewBox top. The board's far rim (`--rim` in
  * exile.css) is sized so ink down to y 0 on the top row stays on the frame. */
 const BOUNDS = { left: 18, right: 82, top: 0 };
@@ -15,15 +15,14 @@ const AT_REST_HIDDEN = ["shield", "sweat", "fx-smear"];
 
 const KINDS: RigKind[] = ["pawn", "rook", "knight", "bishop", "queen", "king"];
 const CAST = [
-  ...KINDS.filter(hasNewArt).flatMap(kind => [
+  ...KINDS.flatMap(kind => [
     { name: `rebel ${kind}`, props: { kind, side: "white" as const } },
     ...(["blue", "red"] as PatrolHue[]).map(hue => ({ name: `patrol ${kind} (${hue})`, props: { kind, side: "black" as const, hue } })),
   ]),
   ...SKINS.map(s => ({ name: `${s.id} skin`, props: { kind: s.kind, side: "white" as const, skin: s.id } })),
 ];
 
-describe("redrawn figures stay inside the figure contract", () => {
-  it("covers every piece", () => expect(KINDS.filter(k => !hasNewArt(k))).toEqual([]));
+describe("shape-kit figures stay inside the figure contract", () => {
   for (const { name, props } of CAST) it(name, () => {
     const ink = inkBox(renderToStaticMarkup(createElement(PieceRig, { ...props, art: "new" })), { within: "flip", skip: AT_REST_HIDDEN });
     expect(ink.top, "topmost ink (a top-row crest would cross the board's frame)").toBeGreaterThanOrEqual(BOUNDS.top);
@@ -32,7 +31,7 @@ describe("redrawn figures stay inside the figure contract", () => {
   });
 });
 
-/** Painted sprites (`?art=paint`): one image per piece, trimmed to its ink, so its box is its ink. */
+/** Painted sprites: one image per piece, trimmed to its ink, so its box is its ink. */
 describe("painted sprites stay inside the figure contract", () => {
   it("covers every piece on both sides", () => expect(SPRITE_IDS.length).toBe(12));
   for (const id of SPRITE_IDS) it(id, () => {

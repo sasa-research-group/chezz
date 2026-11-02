@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
-import { PieceRig } from "../components/PieceRig";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST, approaches, canEscape, exposesKing, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, PromoteTo, Run, Side, Unit } from "../game/turns";
-import { KINDS, KnightStrike } from "./Catalog";
-import { Entry, Group, MiniBoard, useStudio } from "./kit";
+import { Entry, Group, KINDS, MiniBoard, SpriteStill } from "./kit";
 import type { Cell, Piece } from "./kit";
 
 /** Every diagram here is computed by turns.ts on battle 1's open 4×4 board, so it follows the rules when they change. */
@@ -72,7 +70,6 @@ const PROMOTE: PromoteTo[] = ["queen", "rook", "bishop", "knight"];
 const RECRUITS = (["pawn", "bishop", "rook"] as const);
 
 export function Mechanics() {
-  const { hue } = useStudio();
   const start = newRun();
   const knightJump = Math.min(...moveTargets(board([unit("k", "knight", "white", 1, 2)]), unit("k", "knight", "white", 1, 2)).map(t => t.cost));
   let gold = start.gold;
@@ -118,7 +115,6 @@ export function Mechanics() {
     </Group>
 
     <Group id="knight" title="Knight leap">
-      <Entry name="Jump + strike" src="App.tsx perform() stage.lunge" wide><KnightStrike /></Entry>
       <table className="spec"><tbody>
         <tr><th>Jump</th><td>{knightJump}</td></tr><tr><th>Strike</th><td>{STRIKE_COST} (L-jump away, from its own square)</td></tr>
         <tr><th>Jump + strike</th><td>{knightJump + STRIKE_COST} of {ENERGY}</td></tr><tr><th>Animation</th><td>Front-flip to the target, backflip home (presentation only)</td></tr>
@@ -127,9 +123,9 @@ export function Mechanics() {
 
     <Group id="promotion" title="Promotion">
       <Entry name="Rebel pawn → your pick" src="promote()" wide>
-        <div className="promo-row">{PROMOTE.map(k => <div key={k}><PieceRig kind={k} side="white" /><small>{k} · {HP[k]} HP · {DAMAGE[k]} dmg</small></div>)}</div>
+        <div className="promo-row">{PROMOTE.map(k => <div key={k}><SpriteStill kind={k} side="white" /><small>{k} · {HP[k]} HP · {DAMAGE[k]} dmg</small></div>)}</div>
       </Entry>
-      <Entry name="Patrol pawn → queen" src="enemyTurn()" wide><div className="promo-row"><div><PieceRig kind="queen" side="black" hue={hue} facing={-1} /><small>queen · {HP.queen} HP</small></div></div></Entry>
+      <Entry name="Patrol pawn → queen" src="enemyTurn()" wide><div className="promo-row"><div><SpriteStill kind="queen" side="black" /><small>queen · {HP.queen} HP</small></div></div></Entry>
       <table className="spec"><tbody>
         <tr><th>Trigger</th><td>Pawn moves onto the far row</td></tr><tr><th>HP</th><td>Full HP of the new piece</td></tr>
         <tr><th>Your pawn</th><td>Play pauses for the picker; can still strike or defend</td></tr>
@@ -149,7 +145,7 @@ export function Mechanics() {
       <table className="spec"><thead><tr><th>Building</th><th>Offers</th></tr></thead><tbody>
         {PLACES.map(p => <tr key={p.id}><th>{p.name}</th><td>{p.id === "barracks" ? `Recruit pawn ${COST.pawn} · bishop ${COST.bishop} · rook ${COST.rook} · heal king +2 (max ${HP.king}) ${COST.heal}` : p.id === "road" ? "Next battle" : <span className="tag">placeholder</span>}</td></tr>)}
       </tbody></table>
-      {RECRUITS.map(k => <Entry key={k} name={`Recruit ${k}`} src="buy() · COST" note={`${COST[k]} gold · ${HP[k]} HP · ${DAMAGE[k]} dmg`}><div className="promo-row"><div><PieceRig kind={k} side="white" /></div></div></Entry>)}
+      {RECRUITS.map(k => <Entry key={k} name={`Recruit ${k}`} src="buy() · COST" note={`${COST[k]} gold · ${HP[k]} HP · ${DAMAGE[k]} dmg`}><div className="promo-row"><div><SpriteStill kind={k} side="white" /></div></div></Entry>)}
       <table className="spec"><tbody>
         <tr><th>Limit</th><td>Army + recruits ≤ next battle's start squares ({ENCOUNTERS.slice(1).map(e => e.starts.length).join(", ")})</td></tr>
         <tr><th>Buys</th><td>As many as gold and room allow</td></tr>

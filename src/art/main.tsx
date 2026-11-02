@@ -5,7 +5,6 @@ import { Sheet, parseSheet } from "./Sheet";
 import "../exile.css";
 import "../rig.css";
 import "../sprite.css";
-import "../table.css";
 import "./art.css";
 const sheet = new URLSearchParams(location.search).get("sheet");
 ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode>{sheet ? <Sheet specs={parseSheet(sheet)} /> : <Studio />}</React.StrictMode>);

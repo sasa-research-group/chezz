@@ -1,6 +1,6 @@
 // Renders the judge sheet for one or more rigs into one PNG.
 //   node tools/art/shoot.mjs <rigs> <out.png> [--scale 1] [--crop 192]
-// <rigs> is a comma list of kind.side[.old|.<skin id>], for example
+// <rigs> is a comma list of kind.side[.paint|.<skin id>] (plain is the SVG shape kit), for example
 // pawn.white,pawn.black or pawn.white,pawn.white.frog-pot.
 // The sheet (src/art/Sheet.tsx) shows each rig at 48px, 84px and 192px, a black
 // silhouette, greyscale, idle/wounded/guarding, six frames of every action, and

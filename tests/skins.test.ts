@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PieceRig, hasNewArt } from "../src/components/PieceRig";
+import { PieceRig } from "../src/components/PieceRig";
 import { SKINS } from "../src/components/skins";
 
 /** Each render numbers its line-boil filter; drop the number so renders compare. */
@@ -13,7 +13,6 @@ const hasClass = (html: string, c: string) => new RegExp(`class="(?:[^"]* )?${c}
 describe("skin registry", () => {
   it("has unique ids", () => expect(new Set(SKINS.map(s => s.id)).size).toBe(SKINS.length));
   for (const skin of SKINS) describe(skin.id, () => {
-    it("dresses a piece that has a shape-kit build", () => expect(hasNewArt(skin.kind)).toBe(true));
     it("keeps every animated group", () => {
       const html = rig({ kind: skin.kind, side: "white", skin: skin.id });
       for (const c of SLOTS) expect(hasClass(html, c), c).toBe(true);

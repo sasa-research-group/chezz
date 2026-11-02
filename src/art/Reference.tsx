@@ -27,7 +27,6 @@ const REF_PALETTE: { title: string; colors: [string, string][] }[] = [
 export function Reference() {
   return <>
     <section className="group" id="target"><h3>Target style: armour does the talking</h3>
-      <p className="ref-status"><b>Target, not current.</b> This reference is what the art is moving to. The rigs in the catalog and the swatches under “Current in-game art” are the game today; only the pawns, rooks, knights and bishops are redrawn so far, behind <code>?art=new</code> (“New art” in the catalog).</p>
       <figure className="ref-sheet"><img src={art("sheet-armour-talks")} alt="Reference character sheet: 18 portraits, rebels, royal patrol and oddballs" width={2000} height={1342} />
         <figcaption>Chosen Oct 31 2026. Rules: <code>docs/art-style.md</code> · recipe: <code>docs/art/recipe.md</code></figcaption></figure>
     </section>
@@ -46,7 +45,7 @@ export function Reference() {
     </section>
 
     <section className="group" id="ref-palette"><h3>Reference palette</h3>
-      <p className="fine">Sampled from the sheet. Target values; not yet used in game code.</p>
+      <p className="fine">Sampled from the sheet.</p>
       {REF_PALETTE.map(p => <div key={p.title} className="palette"><h4>{p.title}</h4><div className="swatches">{p.colors.map(([hex, name]) =>
         <div key={name} className="swatch"><i style={{ background: hex }} /><b>{name}</b><code>{hex}</code><small>sampled</small></div>)}</div></div>)}
     </section>

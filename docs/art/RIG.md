@@ -1,62 +1,49 @@
-# Rig contract
+# Animation contract
 
-What any art style (old cartoon, SVG kit, painted sprites) must provide so every
-animation in `src/rig.css` plays. See it live: studio → **Rig** (`art.html#rig`):
-bones, cut-out parts, keyframes per group, all read from the DOM and CSS.
+What a piece must provide so every action plays. The game draws painted sprites
+(`docs/art/PAINTED.md`): one whole image per piece, moved whole. Try any action
+on the studio stage (`art.html#stage/<side>-<kind>`, e.g. `#stage/rebel-king`).
 
 ## Canvas
-- `<svg class="rig …" viewBox="0 0 100 120">`, feet at **50, 108**, centreline x 50.
-- Draw facing right; `.flip` mirrors for the patrol.
-- Pivots are viewBox units (`transform-origin: 50px 108px`) unless the group
-  uses `transform-box: fill-box`, where the pivot is relative to its own box.
-
-## Nesting
-```
-svg.rig
-└ .flip › .hop › .squash
-    ├ back (.cape)        ├ .arm-back     ├ body (no class)
-    ├ .prop               ├ .arm-front
-    ├ .head-tilt › .head › .face › .eyes › .pupil ×2
-    │                       ├ .ko-eyes  .mouth-yell  .mouth-ouch  .sweat
-    │                       ├ .crown (king)  .door (rook)  .quirk-bit (skins)
-    └ .shield
-```
-FX layers (`.fx-*`, `.sweat`, mouths, `.rig-shadow`) pop in and out with the
-action; they are not bones and the Rig tab lists them apart. Most sit outside
-`.flip`; `.fx-smear` rides inside `.squash`.
+- `<svg class="rig art-sprite rig-<kind> rebel|patrol act-<action>" viewBox="0 0 100 120">`.
+- Feet on y 108, centred on x 50, ink inside x 18–82 and below y 0
+  (`tests/figure-bounds.test.ts`).
+- Painted facing right; `.flip` mirrors by `--face` (the patrol faces left).
 
 ## Groups
+```
+svg.rig.art-sprite
+├ ground: .rig-shadow (ellipse rebel, diamond patrol), .fx-dust, .fx-lines
+├ .flip › .hop › .squash › image.sprite + .shield
+├ .fx-side › .fx-burst, .fx-stars, .fx-crown (king)
+└ .fx-pop, .fx-smoke
+```
 | Group | Pivot | Moves for |
 |---|---|---|
-| `svg.rig` | 50% 90% of its box (idle) | idle breathe |
+| `svg.rig` | 50% 90% of its box | idle breathe |
 | `.flip` | 50, 108 | facing mirror; death fade |
-| `.hop` | 50, 108 (50, 64 on knight flips) | jump height; flash on hit; knight flips |
-| `.squash` | 50, 108 | the body: squash, lean, lunge, knockback, flop, morph |
-| `.arm-back` | 40, 70 (cheer) | arms up on cheer |
-| `.arm-front` | 60, 70 (cheer); 57, 50 (queen slap) | arms up on cheer; queen's slap |
-| `.prop` | `propOrigin`: the front hand, per piece | weapon swing (sledge, lance per piece) |
-| `.head-tilt` | 50, 74 | head pops on death |
-| `.head` | 50, 74 (goose peck 55, 76) | skin quirks: hover, peck |
-| `.eyes` | fill-box centre | blink, bulge, hide on mate |
-| `.pupil` | fill-box centre | dart, shrink |
-| `.crown` | fill-box centre | flies off on checkmate |
-| `.door` | 50, 22 | rook's guard door drops in |
-| `.shield` | `shield` point, per piece | pops in while guarding |
-| `.quirk-bit` | fill-box 50% 0 | skin extra: croak sac, mitre |
+| `.hop` | 50, 108 (50, 64 on knight flips) | jump height, hit flash, knight flips |
+| `.squash` | 50, 108 (50, 64 on death and mate) | squash, lean, lunge, knockback, fall, morph |
+| `.shield` | beside the body, rides `.squash` | pops in while guarding |
 
-The body itself has no class: it is whatever `.squash` holds that isn't
-another group. Group names are classes; the studio and CSS find them by name.
+Effects (`.fx-*`) are not bones; they pop in and out with the action.
 
-## Painted sprites
-- Sprites have no parts: one image (`.sprite`) inside `.flip › .hop › .squash`,
-  plus `.shield`. The groups below `.squash` (arms, prop, head, eyes, crown,
-  door) don't exist, so only the root groups move (`src/sprite.css`).
-- They carry `art-sprite` instead of `art-new`, so kit and part rules never
-  apply. Built: `SpriteRig.tsx` (`docs/art/PAINTED.md`).
-- In the Rig tab (Art → Sprite) the bones are the root pivots; the shield joint
-  rides in `.squash`, so it shows the body's lean, lunge and fall.
+## Actions and timing
+- Class `act-<action>` on the svg; states `is-wounded`, `is-defending`.
+- One-shot lengths at 1×: `RIG_MS` in `PieceRig.tsx`; keyframes in
+  `src/sprite.css` use the same values.
+- Every duration is `calc(<ms> * var(--spd,1))`. The game sets `--spd` on the
+  board: 1, 0.3 fast, 0.1 reduced motion. The stage's slow modes set it to
+  1, 2, 4 and 10.
+- Sequences live in `App.tsx`: promotion is morph-out then morph-in; a knight
+  strike is leap, attack at `RIG_MS.leap`, leap-back 380 ms later; checkmate
+  plays `mate`.
 
-## Gaps the Rig tab shows today (SVG kit)
-- No `.arm-front`: rebel rook, rebel knight, both queens, both kings. Their
-  arms don't rise on cheer and the queen's slap has nothing to move.
-- No `.arm-back`: rebel rook, patrol knight.
+## Shape kit (skins only)
+Skins and the red patrol have no painted sprite and draw on the SVG shape kit
+(`Armour*.tsx`, `src/components/skins/`), class `art-new`, animated by
+`src/rig.css`. Their figures fill these groups inside `.squash`: back
+(`.cape`), `.arm-back`, body, `.prop` (pivot `propOrigin`, the front hand),
+`.arm-front`, `.head-tilt › .head › .face › .eyes › .pupil` plus `.ko-eyes`
+and `.mouth-yell`, `.crown` (king), `.door` (rook), `.quirk-bit` (skin extra).
+`tests/skins.test.ts` checks every skin keeps them.

@@ -7,22 +7,17 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (2; reach only the next square in the piece's shape, so sliders
   travel first) and defend (1); fixed damage; strikes land in place. The
   simultaneous engine (`exile.ts`) stays for the lab Duel.
-- **Art:** live rigs are placeholder misfits (`PieceRig.tsx`, `rig.css`).
-  Target style (Oct 31): "armour does the talking" (`docs/art-style.md`,
-  `docs/art/`). Redrawn on the shape kit `inkKit.tsx` behind `?art=new`
-  (`Armour*.tsx`); all pass the judge but the patrol queen. Figure box y 0+,
-  x 18–82 (`figure-bounds.test.ts`). Tools: `battle-shot.mjs`, `shoot.mjs`
-  (judge, `docs/art/BRIEF.md`), `gen.mjs` (concepts).
-- **Painted sprites** (`docs/art/PAINTED.md`): one generated image per piece,
-  eyes painted in, behind `?art=paint` (`SpriteRig.tsx`, `src/sprite.css`).
-  No rig: animations move the whole sprite plus effects.
-  All twelve pass the judge.
-- **Skins** (`claude/skins`, `docs/art/SKINS.md`): winning a run unlocks
-  the next rebel skin (`src/game/meta.ts`, key `chezz.meta.v1`); wear it from
-  the ☰ menu or the Victory screen. Drawn on the kit, so in battle only with
-  `?art=new`. All six drawn; frog and haystack pass (DECISIONS.md).
-- **Studio** (`art.html` → `src/art/`): art, mechanics, style guide. Rig
-  tab: live bones and keyframes per piece; contract in `docs/art/RIG.md`.
+- **Art:** painted sprites are the default (`docs/art/PAINTED.md`): one
+  generated image per piece, moved whole (`SpriteRig.tsx`, `sprite.css`);
+  style "armour does the talking" (`docs/art-style.md`). Skins and the red
+  patrol fall back to the SVG shape kit (`Armour*.tsx`); `?art=new` shows
+  the kit everywhere. Old cartoon rigs deleted. Tools: `shoot.mjs`,
+  `battle-shot.mjs`, `gen.mjs`, `sprite.mjs`.
+- **Skins** (`docs/art/SKINS.md`): winning a run unlocks the next rebel skin
+  (`meta.ts`); wear it from ☰ or Victory. Not painted yet (kit art).
+- **Studio** (`art.html` → `src/art/`): Cast (stills, landing), Stage (one
+  piece, a button per action, 1×–0.1×), Style guide, Mechanics. Contract:
+  `docs/art/RIG.md`.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
   wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
   `table.css`). Rules, New run, fast turns, skins, log, export, studio live

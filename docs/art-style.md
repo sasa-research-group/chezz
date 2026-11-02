@@ -6,7 +6,7 @@ Target look for all character art. Chosen by the owner on Oct 31 2026 from five 
 - Rebel rook: the stonemason (`docs/art/rebel-rook.webp`), redrawn in this style from the owner's pick on sheet 1. It replaces the sheet-2 rook (kept as `sheet2-rebel-rook.webp`); the full sheet image still shows the old one.
 - Recipe for new concepts: `docs/art/recipe.md`.
 - Motion, timing and accessibility: `docs/art-direction-exile.md` sections 2 and 3.4–3.6.
-- Status: the in-game rigs (`PieceRig.tsx`) predate this guide; every piece is redrawn behind `?art=new`. The reference is the target; the rigs are the current state.
+- Status: the game draws every piece as one painted sprite in this style (`docs/art/PAINTED.md`). Skins and the red patrol still use the SVG shape kit (`?art=new` shows the whole cast in it).
 
 ## 1. Armour does the talking
 
@@ -210,7 +210,7 @@ The game draws characters as SVG rigs in a 100×120 viewBox, shown at about 48�
 - Current rigs use big white toon eyes and mouths. Under this guide most faces go: replace with visors, slots, hoods and dot eyes.
 - Current rebel colours (teal, gold, brown) become earthy materials with one accent per character.
 - Patrol royal blue and gold already match; keep the scheme, adjust hexes to section 7.
-- Ink: redrawn art uses `#1f1a19` (`INK` in `src/components/inkKit.tsx`), near the sheet's black; old rigs keep `#382f2e` until redrawn.
+- Ink: redrawn art uses `#1f1a19` (`INK` in `src/components/inkKit.tsx`), near the sheet's black; `#382f2e` is left only for shadows, effects and UI.
 
 **Learned from the pawn pilot** (drawn with `src/components/inkKit.tsx`, checklist `docs/art/BRIEF.md`)
 
@@ -297,7 +297,7 @@ A concept or a rig passes only if all of these hold.
 | 10 | Game size | At 48px nothing turns to mush: no detail smaller than about 6 viewBox units. |
 | 11 | No text | No labels, captions or titles inside the art. |
 
-**Painted sprites** (`?art=paint`, `docs/art/PAINTED.md`)
+**Painted sprites** (the game's art, `docs/art/PAINTED.md`)
 
 - The same rules hold, but each piece is one whole image painted by Nano Banana Pro from the reference crop, the sheet and the SVG pose. There are no parts and no rig: the eyes are painted in, and animations move the whole sprite (`src/sprite.css`).
 - Ask for small, level dot eyes in the right place, a natural arm pose with the weapon gripped in the fist, a clean silhouette and a very thick outer outline. Re-roll any sprite whose arms, anatomy or eyes look wrong.

@@ -35,12 +35,13 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome npm run test:e2e
   strikes, defend, enemy turn, camp, save validation).
 - **src/game/exile.ts**: the previous simultaneous-orders engine, still used
   by the lab Duel.
-- **src/components/PieceRig.tsx** and **src/rig.css**: the cast (one character
-  per piece and side) with idle, move, attack, defend, hit and death
-  animations.
-- **art.html → src/art/**: the studio. Every piece of game art rendered live,
-  the implemented mechanics (computed from `turns.ts`), the style guide and
-  the art tooling. Linked from the game footer.
+- **src/components/PieceRig.tsx**, **SpriteRig.tsx** and **src/sprite.css**: the
+  cast, one painted sprite per piece and side, animated whole (idle, move,
+  attack, defend, hit, death and more). Skins use the SVG shape kit
+  (`rig.css`).
+- **art.html → src/art/**: the studio. The cast sheet, a stage that plays any
+  piece's animations at slow speeds, the style guide and the implemented
+  mechanics (computed from `turns.ts`). Linked from the ☰ menu.
 - **src/exile.css**: the CSS-tilted parchment board and screens.
 - **tests/turns.test.ts**: rules tests; **tests/browser/exile.spec.ts**: e2e.
 

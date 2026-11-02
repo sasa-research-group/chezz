@@ -3,6 +3,28 @@
 What the owner picked or rejected, newest first, with their reasons. Read before
 proposing a new look. Generation details for kept art are in `recipe.md`.
 
+## 2026-11-02: studio rebuilt around the painted sprites; painted is the game's default
+- Owner: "The studio is plagued with tons of old, outdated code and artwork. I'd like to fully
+  go with the fully painted single-piece sprites that we have … Let's get rid of the whole art
+  catalog comparison between old and new. I hate the table that shows all the animations.
+  Instead, we should just have one canvas that's got a dropdown for all the pieces and then
+  buttons that control the animation … you hit the button and it does the animation, but with
+  slow modes. Get rid of everything that has to do with parts, including the rig, since we're
+  not doing that anymore. I'd like one sheet at the beginning that just has the static image of
+  each character in sort of a grid, grouped by whether they're friendly, enemy, or extra skins …
+  I like the style guide and how we have the reference stuff."
+- The studio is now Cast (still images, landing), Stage (one animated piece, a button per
+  action, 1×/0.5×/0.25×/0.1× on the game's `--spd`), Style guide (target, reference cast,
+  rules, reference palette, UI palette, construction for sprites) and Mechanics (still sprites).
+- Removed: the old-vs-new catalog, cast × state matrices, sequences, the "New art" pilot, the
+  Rig tab and its model, the legacy-art and "current in-game art" palette sections, Tooling.
+- Painted sprites are the game's default. The old cartoon rigs (`?art=old`) are deleted;
+  `?art=new` stays as the SVG shape-kit escape hatch, since skins and the red patrol need the
+  kit anyway. Worn skins now show in the default game, drawn in the kit.
+- Why: the old default studio tab mounted about 99,000 DOM nodes, 1,231 animated figures and
+  4,497 CSS animations and took about 19 s to settle. The cast sheet now mounts 122 nodes and
+  no animations.
+
 ## 2026-11-01: painted sprites become whole images
 - Owner's verdict on the cut-out painted rigs: "all of your arms are backwards. The eyes look
   positioned incorrectly." And the new direction: "have the painted reference be all one piece

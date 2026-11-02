@@ -11,7 +11,7 @@
 .rig .door{opacity:0;transform-origin:50px 22px;transform:scaleY(0);transition:transform .2s var(--ease-back),opacity .1s}
 .rig.rig-rook .shield{display:none}
 .rig.rig-rook.is-defending .door{opacity:1;transform:scaleY(1)}
-.rig .ko-eyes,.rig .fx-dust,.rig .fx-smear,.rig .fx-stars,.rig .fx-smoke,.rig .mouth-yell,.rig .mouth-ouch,.rig .sweat,.rig .fx-lines,.rig .fx-burst{opacity:0}
+.rig .ko-eyes,.rig .fx-dust,.rig .fx-smear,.rig .fx-stars,.rig .fx-smoke,.rig .mouth-yell,.rig .sweat,.rig .fx-lines,.rig .fx-burst{opacity:0}
 .rig .fx-lines{transform:scaleX(var(--face,1));transform-origin:50px 108px}
 .rig .fx-burst{transform-box:fill-box;transform-origin:center}
 .rig .fx-side{transform:scaleX(var(--face,1));transform-origin:50px 108px}
@@ -84,7 +84,6 @@
 
 /* Defend: crouch and brace; the shield (or the rook's door) pops in. */
 .rig.act-defend .squash{animation:rig-brace calc(.34s * var(--spd,1)) var(--ease-back) both}
-.rig.is-defending .mouth-ouch{opacity:1}
 .rig.act-defend .sweat{animation:rig-drip calc(.6s * var(--spd,1)) ease-in calc(.1s * var(--spd,1)) both}
 @keyframes rig-brace{0%{transform:none}30%{transform:scale(1.25,.76)}60%{transform:scale(.95,1.06)}100%{transform:scale(1.04,.96)}}
 
@@ -93,7 +92,6 @@
 .rig.act-hit .hop{animation:rig-flash calc(.42s * var(--spd,1)) linear both}
 .rig.act-hit .eyes{animation:rig-bulge calc(.42s * var(--spd,1)) var(--ease-back) both}
 .rig.act-hit .pupil{animation:rig-shrink calc(.42s * var(--spd,1)) steps(1) both}
-.rig.act-hit .mouth-ouch{animation:rig-show-mid calc(.42s * var(--spd,1)) steps(1) both}
 .rig.act-hit .sweat{animation:rig-drip calc(.42s * var(--spd,1)) ease-in both}
 @keyframes rig-bulge{0%{transform:scale(1)}20%{transform:scale(1.45)}100%{transform:scale(1)}}
 @keyframes rig-shrink{0%,70%{transform:scale(.45)}71%,100%{transform:scale(1)}}
@@ -103,7 +101,7 @@
 @keyframes rig-show{0%,60%{opacity:1}61%,100%{opacity:0}}
 
 /* Death: X eyes, crest pops, flop over with a bounce, puff of smoke. */
-.rig.act-death .ko-eyes,.rig.act-death .mouth-ouch{opacity:1}
+.rig.act-death .ko-eyes{opacity:1}
 .rig.act-death .eyes{opacity:0}
 .rig.act-death .head-tilt{animation:rig-pop calc(.9s * var(--spd,1)) var(--ease-in) both}
 .rig.act-death .squash{animation:rig-flop calc(.9s * var(--spd,1)) linear both}
@@ -166,7 +164,6 @@
 .rig.act-mate .crown{animation:rig-crown-off calc(2.6s * var(--spd,1)) cubic-bezier(.3,.1,.5,1) both}
 .rig.act-mate .ko-eyes{animation:rig-show-late calc(2.6s * var(--spd,1)) steps(1) both}
 .rig.act-mate .eyes{animation:rig-hide-late calc(2.6s * var(--spd,1)) steps(1) both}
-.rig.act-mate .mouth-ouch{opacity:1}
 .rig.act-mate .fx-stars{animation:rig-stars calc(.7s * var(--spd,1)) ease-out calc(1.5s * var(--spd,1)) 3 both}
 .rig.act-mate .fx-smoke{animation:rig-smoke calc(.9s * var(--spd,1)) ease-out calc(1.7s * var(--spd,1)) both}
 @keyframes rig-mate{

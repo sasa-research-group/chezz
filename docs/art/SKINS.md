@@ -16,10 +16,11 @@ reference oddballs: `docs/art/odd-*.webp`. Style rules: `docs/art-style.md`
   new run overwrites. Clearing site data loses them.
 - Skins are cosmetic. They never change stats or rules; `turns.ts` knows
   nothing about them.
-- Skins are drawn on the shape kit (`src/components/inkKit.tsx`), so in battle
-  they show only with `?art=new`, and the picker (☰ menu and Victory screen)
-  appears only there too. Wins still unlock skins without it. The studio always
-  shows them. The hideout's army portraits don't show skins yet.
+- Skins are drawn on the shape kit (`src/components/inkKit.tsx`) and have no
+  painted sprites yet, so a worn skin draws in the SVG kit among the painted
+  cast. The picker is in the ☰ menu and on the Victory screen. The studio's
+  cast sheet lists them as "not painted yet". The hideout's army portraits
+  don't show skins yet.
 - Two tabs open at once can overwrite each other's unlocks (each writes its whole
   copy). Fine for the prototype.
 
@@ -51,8 +52,7 @@ The skin only applies to a rebel of its own `kind`; anything else ignores it.
    The order is the unlock order.
 3. Add any new colours to `TONES` and any quirk CSS to `rig.css`.
 4. Check it: `npm test` (`tests/skins.test.ts` checks every registered skin
-   keeps the animated groups), then the studio (Art catalog → Skins, and the
-   skin's rows in Cast × state appear by themselves) and the judge sheet:
+   keeps the animated groups), then the judge sheet:
    `node tools/art/shoot.mjs pawn.white,pawn.white.<id> out.png`.
 
 ## Planned skins

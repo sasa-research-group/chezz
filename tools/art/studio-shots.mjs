@@ -1,14 +1,14 @@
-// Screenshots a studio section and the battle with ?art=new, at desktop and phone width.
-//   node tools/art/studio-shots.mjs <outDir> [section-id=pilot]
-// The page clock is paused before animations are frozen at 300ms, so the studio's
-// looping timers can't remount a rig between the freeze and the shot.
+// Screenshots a studio area (cast, stage, guide, mechanics) and the battle, at desktop and phone width.
+//   node tools/art/studio-shots.mjs <outDir> [area=cast]
+// The page clock is paused before animations are frozen at 300ms, so no timer can remount
+// a rig between the freeze and the shot.
 import { createServer } from "vite";
 import { chromium } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-const [out, section = "pilot"] = process.argv.slice(2);
+const [out, section = "cast"] = process.argv.slice(2);
 if (!out) { console.error("usage: node tools/art/studio-shots.mjs <outDir> [section-id]"); process.exit(1); }
 mkdirSync(out, { recursive: true });
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -31,12 +31,12 @@ try {
     await p.clock.pauseAt(t0 + 60_000);
     await freeze(p);
     await p.locator(`#${section}`).screenshot({ path: `${out}/${section}-${w}.png` });
-    await p.goto(`${base}?art=new`);
+    await p.goto(base);
     await p.getByRole("button", { name: /Start/ }).click();
     await p.locator(".rig").first().waitFor();
     await p.clock.pauseAt(t0 + 120_000);
     await freeze(p);
-    await p.screenshot({ path: `${out}/battle-art-new-${w}.png` });
+    await p.screenshot({ path: `${out}/battle-${w}.png` });
     await p.close();
   }
   console.log(`wrote ${out}`);

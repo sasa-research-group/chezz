@@ -30,7 +30,7 @@ node tools/art/gen.mjs docs/art/recipes/paint-rebel-pawn.json --from 2   # redo 
 node tools/art/sprite.mjs docs/art/recipes/paint-rebel-pawn.json --install
 ```
 
-The `paint-*.json` recipes make the in-game painted sprites (`?art=paint`), one whole image per piece. Their last step uses another model (`"model": "bria/remove-background"`, about $0.02) with `"imageField": "image"`, which sends the previous image under that input name with no prompt. `--from N` reuses step N-1's image from an earlier run in `art-out/<id>/`. The extra key `sprite` (`height`, `outline`) is read by `tools/art/sprite.mjs`, which trims the image, thickens its outer outline and, with `--install`, writes `src/assets/sprites/<id>.webp` and `sizes.json`. About $0.15 per character. Full guide: `docs/art/PAINTED.md`.
+The `paint-*.json` recipes make the in-game painted sprites (the default art), one whole image per piece. Their last step uses another model (`"model": "bria/remove-background"`, about $0.02) with `"imageField": "image"`, which sends the previous image under that input name with no prompt. `--from N` reuses step N-1's image from an earlier run in `art-out/<id>/`. The extra key `sprite` (`height`, `outline`) is read by `tools/art/sprite.mjs`, which trims the image, thickens its outer outline and, with `--install`, writes `src/assets/sprites/<id>.webp` and `sizes.json`. About $0.15 per character. Full guide: `docs/art/PAINTED.md`.
 
 ## What the recipes do
 

@@ -1,7 +1,7 @@
 import type { PatrolHue, RigKind } from "./PieceRig";
 import SIZES from "../assets/sprites/sizes.json";
 
-/** Painted sprites (`?art=paint`): one whole image per character, eyes painted in
+/** Painted sprites (the game's art): one whole image per character, eyes painted in
  * (src/assets/sprites/<side>-<kind>.webp, made by docs/art/recipes/paint-*.json and
  * tools/art/sprite.mjs). No parts and no rig: PieceRig draws the image inside its root
  * groups (.flip › .hop › .squash), so every animation moves the whole figure. */

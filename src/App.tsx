@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { PieceRig, RIG_MS as DURATION, URL_ART } from "./components/PieceRig";
+import { PieceRig, RIG_MS as DURATION } from "./components/PieceRig";
 import { SKINS } from "./components/skins";
 import { SkinPicker } from "./components/SkinPicker";
 import { creditWin, equip, loadMeta, saveMeta } from "./game/meta";
@@ -192,10 +192,9 @@ export default function App() {
   // A won run unlocks the next skin; creditWin ignores a victory it has already counted (a reload, say).
   useEffect(() => { if (run.phase === "victory") setMeta(m => creditWin(m, run, SKINS).meta); }, [run]);
   useEffect(() => { if (!saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
-  // Skins are drawn on the shape kit, so in battle they show only with the redrawn art (?art=new).
-  const skinOf = (kind: Kind) => URL_ART === "new" ? meta.equipped[kind] : undefined;
-  // Offered only where a worn skin can actually show; unlocks still count without it.
-  const skinPicker = URL_ART === "new" ? <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} /> : null;
+  // Skins have no painted sprites yet, so a worn skin draws on the SVG shape kit among the painted cast.
+  const skinOf = (kind: Kind) => meta.equipped[kind];
+  const skinPicker = <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} />;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const e = ENCOUNTERS[run.encounter], king = run.units.find(u => u.id === "king");

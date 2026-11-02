@@ -29,13 +29,12 @@ Reference crops: `docs/art/<id>.webp`. Judge rubric: `JUDGE.md`.
 - Fill the `Figure` groups so `rig.css` animates it: `body`, `armBack`,
   `prop` (pivot `propOrigin` at the front hand), `armFront`, `head`
   (with `.face > .eyes > .pupil`, `.ko-eyes`, and a `.mouth-yell` squint).
-  Full rig contract (groups, pivots, nesting): `docs/art/RIG.md`; check the
-  bones in the studio's Rig tab (`art.html#rig`).
+  Groups and pivots: `docs/art/RIG.md`.
 - Minimum sizes at 48px (0.48px per unit): parts at least 6 units, dot eyes
   r 2.4+, face lines `WEIGHT.face`, gaps between parts at least 3 units.
 
 ## Loop
-1. Draw. Add or update the studio entry (`src/art/Catalog.tsx`).
+1. Draw.
 2. `node tools/art/shoot.mjs <kind.side,…> <out.png>` and look at it yourself,
    plus `--scale 3 --crop 192` for close-ups. For a tall crest, also
    `node tools/art/battle-shot.mjs <kind> <out.png>` (patrol piece on the top
