@@ -212,7 +212,7 @@ The game draws characters as painted sprites in a 100×120 viewBox, shown at abo
 - Patrol royal blue and gold already match; keep the scheme, adjust hexes to section 7.
 - Ink: the sprites' added outline is `#1f1a19` (`tools/art/sprite.mjs`), near the sheet's black; `#382f2e` (`INK` in `PieceRig.tsx`) is for shadows, effects and UI.
 
-**Learned from the pawn pilot** (drawn with `src/components/inkKit.tsx`, checklist `docs/art/BRIEF.md`)
+**Learned from the pawn pilot** (SVG kit, removed; in git history before `2990253`)
 
 - Light comes from the upper left on screen for every rig. The kit derives each part's cel shadow (a crescent on the lower right, shifted 5.5 × 4 units) and mirrors it with the rig's facing, so hand-drawn shadow shapes are gone. About 2.2 units of the shift hides under the outline.
 - Shadows and highlights are clipped to their part and the outline is painted on top, so shading can't spill into a border.
@@ -228,7 +228,7 @@ The game draws characters as painted sprites in a 100×120 viewBox, shown at abo
 - Prop tines and prongs merge at 48px: a pole is its width plus 4.8 units of ink, so the pitchfork's three tines read as one grey block. Draw a multi-prong head as one solid shape, or space the poles by at least their inked width plus 3.
 - The ground shadow differs by faction on purpose (`PieceRig.tsx`): an ellipse under rebels and a diamond under the patrol. It is the game's side marker, drawn by the rig, not the figure; tell the judge.
 
-**Learned from the rooks** (`src/components/ArmourRooks.tsx`)
+**Learned from the rooks** (SVG kit, removed; in git history before `2990253`)
 
 - Rooks are the big pieces, like the old rig: helm top at y 12, body about 44 wide (pawns 32), still inside x 18–82.
 - Battlements: three merlons with two crenels 8 wide and 8 deep across a 36-wide top (merlons about 6.7). Narrower crenels close up under the outline at 48px.
@@ -239,7 +239,7 @@ The game draws characters as painted sprites in a 100×120 viewBox, shown at abo
 - A long upright prop beside a crest can't swing back: any backward rotation sweeps its head behind the crest. Let the body's lean be the wind-up, and on the strike slide the prop through the fist (rotate, then translate along the shaft) so the head lands low in front, a short reach (`rig-sledge`).
 - A face opening needs stone around it: a T opening plus framing plates on a 28-wide helm left only outline and void. Keep the T to about 17 × 9 plus a 6-wide stem.
 
-**Learned from the knights** (`src/components/ArmourKnights.tsx`)
+**Learned from the knights** (SVG kit, removed; in git history before `2990253`)
 
 - Knights stand about as tall as the rooks (helm or plume top near y 6–20) with a medium build (body about 30 wide).
 - The horse head is the crest: keep it clear of the helm, on the facing side, with a long head, a round jaw and a notch at the throat, an ear standing up, and a neck narrower than the head. A thin wedge pointing up reads as a leaf or a hand.
@@ -250,7 +250,7 @@ The game draws characters as painted sprites in a 100×120 viewBox, shown at abo
 - Only give the `arm-front` class (the cheer raises it) to an arm whose hand holds nothing; a hand gripping the prop would lift off it.
 - A horse head reads as a horse through its jaw, throat notch and a dark mane strip; a chanfron covering most of the head turns it into a grey wedge. Give the horse one coat colour, body and head.
 
-**Learned from the bishops** (`src/components/ArmourBishops.tsx`)
+**Learned from the bishops** (SVG kit, removed; in git history before `2990253`)
 
 - A mitre carries the bishop only when it is at least as wide as the head under it, with straight sides that taper in the top third. A narrow pointed mitre reads as a candle flame or a cowl's point at 48px.
 - A dark hood around a black void needs a mid tone (about `#7a7068`), and the robe below it lighter still; the sheet's near-black hood merged hood, void and robe into one mass.
@@ -260,7 +260,7 @@ The game draws characters as painted sprites in a 100×120 viewBox, shown at abo
 - A shepherd's crook beside a tall mitre: the hook must clear the mitre's shoulder by the outline on both sides, so the shaft runs near x 78 and the curl turns back toward the head. That leaves the hook's opening only 2–3 units inside x 82. The patrol crozier clears his wider mitre with a smaller curl and his head 3 units back.
 - A cope reads as a cope when it is narrow at the shoulders and flares to the hem; gold on the capelet and on the mitre merges into one gold mass, so keep the capelet blue with a gold edge.
 
-**Learned from the kings** (`src/components/ArmourKings.tsx`)
+**Learned from the kings** (SVG kit, removed; in git history before `2990253`)
 
 - (Superseded by the figure box above: the board now has a deep far rim, and the limit is y 0.) Before the rim, a top-row piece could only rise to about y 15 on a phone's 4×4 board, so the kings' crowns stop there and the king is the widest piece, not the tallest.
 - Crown points need open gaps: five ball-tipped points on a 40-wide crown fill their gaps with ink at 48px and read as a dark comb. Three bold points (rebel) or three ball-tipped points (patrol) keep daylight between them.
@@ -269,7 +269,7 @@ The game draws characters as painted sprites in a 100×120 viewBox, shown at abo
 - A crossguard under about 7 units tall is all ink, and a sleeve drawn over the prop hides it: put the guard above the sleeve's ink, a hand's height over the fist, with an inner line.
 - The head pops loose in the shared death animation. A figure without a beard over the chest needs a neck block in the body under the head, so no background shows between head and shoulders.
 - The crown must be its own `.crown` group inside the head: the checkmate finale throws it off.
-**Learned from the queens** (`src/components/ArmourQueens.tsx`)
+**Learned from the queens** (SVG kit, removed; in git history before `2990253`)
 
 - In battle a piece is 0.92 of a square wide and anchored at 64% of its height, so the square's top edge sits at about y 21 in the rig (y 25–30 on screen, after the board's tilt). A crest above it stands on the far rim from the top row, which is fine down to y 0 (the figure box above). The queens were drawn to an older y 21 cap, so their crowns are squat; they may grow.
 - Narrow crown points fill with ink at 48px: the outer stroke and the cel crescent swallow anything under about 8 units wide. Draw a small crown with three fat points, unshaded and traced with the `inner` line.
