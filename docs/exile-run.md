@@ -105,7 +105,6 @@ hits on the same boards. Ask: can you explain each hit without the log? Did
 recruitment change your plan? Did you feel attached to a piece? Did healing
 compete meaningfully with recruiting? Which rule produced clearer decisions?
 
-Export playtest JSON includes mode, choices, orders, results, and your feedback.
 Browser-local saves use `chezz.exile.v1`, separate from the earlier prototypes.
 
 Pushes to `main` deploy the game to GitHub Pages; PR #1 merged this slice on

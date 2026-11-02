@@ -3,7 +3,7 @@ import { newRun } from "../../src/game/turns";
 
 const SAVE = "chezz.turns.v1", META = "chezz.meta.v1";
 
-test("level designer: edit a level, see problems inline, and playtest it without touching the run save", async ({ page }) => {
+test("level designer: edit a level, see problems inline, and test-run it without touching the run save", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(String(e)));
   page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
@@ -34,16 +34,16 @@ test("level designer: edit a level, see problems inline, and playtest it without
 
   // Play it: the real game, this level, the test army; then back to the editor.
   await page.getByRole("button", { name: "▶ Play" }).click();
-  const playtest = page.getByRole("region", { name: "Playtest" });
-  await expect(playtest.locator(".exile-piece.black")).toHaveCount(3);
-  await expect(playtest.getByRole("dialog", { name: "New run" })).toHaveCount(0);
-  await playtest.getByRole("button", { name: /^b1 white king/ }).click();
-  await playtest.getByRole("button", { name: /^b2 empty, move here/ }).click();
-  await expect(playtest.getByRole("button", { name: /^b2 white king/ })).toBeVisible();
-  await playtest.getByRole("button", { name: "End turn" }).click();
-  await expect(playtest.getByRole("button", { name: "End turn" })).toBeEnabled();
-  await playtest.getByRole("button", { name: "■ Stop" }).click();
-  await expect(playtest).toHaveCount(0);
+  const testRun = page.getByRole("region", { name: "Test run" });
+  await expect(testRun.locator(".exile-piece.black")).toHaveCount(3);
+  await expect(testRun.getByRole("dialog", { name: "New run" })).toHaveCount(0);
+  await testRun.getByRole("button", { name: /^b1 white king/ }).click();
+  await testRun.getByRole("button", { name: /^b2 empty, move here/ }).click();
+  await expect(testRun.getByRole("button", { name: /^b2 white king/ })).toBeVisible();
+  await testRun.getByRole("button", { name: "End turn" }).click();
+  await expect(testRun.getByRole("button", { name: "End turn" })).toBeEnabled();
+  await testRun.getByRole("button", { name: "■ Stop" }).click();
+  await expect(testRun).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^d4 enemy rook/ })).toBeVisible();
 
   expect(await page.evaluate(([s, m]) => [localStorage.getItem(s), localStorage.getItem(m)], [SAVE, META])).toEqual([run, meta]);

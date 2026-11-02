@@ -8,8 +8,9 @@
 .plaque{display:flex;align-items:center;gap:6px;background:#2b201b;border:3px solid #a8865f;border-radius:10px;padding:2px 8px;min-height:44px;color:#f6e3b4;font-weight:900}
 .plaque-face{width:26px;height:32px;display:block}.plaque-face svg{width:100%;height:100%;display:block}
 .hearts{display:flex;gap:1px}.hearts i{font-style:normal;font-size:15px;line-height:1;color:#f6e3b433}.hearts i.full{color:#ef5a4c}
-.road-dots{display:flex;gap:3px}.road-dots i{width:9px;height:9px;border-radius:50%;border:2px solid #a8865f}.road-dots i.done{background:#a8865f}.road-dots i.here{background:#ffd34d;border-color:#ffd34d}
-.battle-plaque b{font-size:17px}.battle-plaque small{font-size:11px;opacity:.7}
+.battle-plaque{flex-direction:column;justify-content:center;align-items:flex-start;gap:1px;line-height:1;padding:3px 10px}
+.battle-plaque>small{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#a8865f}
+.battle-plaque b{font-size:17px;white-space:nowrap}.battle-plaque b small{font-size:12px;color:#f6e3b4bb}
 .coins{margin-left:auto;display:flex;align-items:center;gap:6px;color:#ffe08a;font-weight:900;font-size:20px}
 .coins i{font-style:normal;width:26px;height:26px;border-radius:50%;background:#e2a92a;color:#5a3d10;border:2px solid #2b201b;display:grid;place-items:center;font-size:13px}
 .menu-button{width:44px;height:44px;flex-shrink:0;border-radius:12px;background:#2b201b;border:3px solid #a8865f;display:grid;place-items:center;padding:0;color:#f6e3b4}
@@ -27,27 +28,30 @@
 .exile-field .notice{top:auto;bottom:30px;background:#2b201b;border-radius:8px;padding:3px 10px;font-size:12px}
 .playback-caption{position:absolute;bottom:0;left:50%;transform:translateX(-50%);max-width:94%;z-index:60;pointer-events:none;font-size:12px;font-weight:700;color:#f6e3b4;background:#2b201bd9;border-radius:8px;padding:3px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .playback-caption:empty{display:none}
+.enemy-waits{animation:waits-in .25s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes waits-in{from{opacity:0;transform:translateX(-50%) rotate(-2deg) scale(.7)}}
 
-/* HUD strip: the selected piece's card and the legend, the shield token and the bell. */
-.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". . shield bell";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
+/* HUD strip: the selected piece's card, the shield token and the End turn pill. */
+.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". . shield end";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
 .hud-info{grid-area:info;display:flex;align-items:center;gap:10px;min-height:48px;min-width:0}
 .table-hud .selected-card{margin:0;padding:3px 10px 3px 4px;gap:6px;background:#2b201b;border:2px solid #a8865f;border-radius:10px;min-height:46px;flex-shrink:0;color:#f6e3b4}
 .table-hud .selected-card svg:not(.strike-icon){width:30px}
 .table-hud .selected-card>div{gap:2px 8px}
 .table-hud .unit-stats{color:#f6e3b4}
 .table-hud .action-pips i{background:#2b201b;border-color:#9fd1bf}.table-hud .action-pips i.full{background:#9fd1bf}
-.table-hud .board-legend{margin:0!important;color:#f6e3b4cc!important;gap:4px 10px}
 .shield-token{grid-area:shield;position:relative;width:64px;height:64px;border-radius:50%;padding:0;background:#cfe2f3;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b,inset 0 -5px 0 #9bbfe0;display:grid;place-items:center}
 .shield-token svg{width:28px;height:30px;fill:#2f5a82;stroke:#2b201b;stroke-width:1.5}
 .shield-token:disabled{opacity:.4;box-shadow:0 2px 0 #2b201b}
+.shield-plus{position:absolute;right:-8px;bottom:-4px;background:#2f5a82;color:#fff;border:2px solid #2b201b;border-radius:9px;padding:1px 5px;font-size:13px;font-weight:900;line-height:1.1}
 .skip-token{grid-area:shield;width:64px;height:64px;border-radius:50%;padding:0;background:#e8d9b4;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b;display:grid;place-items:center}
 .skip-token svg{width:28px;height:28px;fill:#2b201b}
-.bell{grid-area:bell;position:relative;width:84px;height:84px;border-radius:50%;padding:0;background:radial-gradient(circle at 40% 35%,#ffe58a,#e2a92a 70%);border:4px solid #2b201b;box-shadow:0 6px 0 #2b201b;display:grid;place-items:center}
-.bell svg{width:42px;height:42px;fill:#2b201b}
-.bell:active:enabled{transform:translateY(3px);box-shadow:0 3px 0 #2b201b}
-.bell:disabled{opacity:1;filter:saturate(.25) brightness(.75)}
-.bell.locked{background:radial-gradient(circle at 40% 35%,#f3a094,#a3271c 70%);filter:none}
-.bell-lock{position:absolute;top:-4px;right:-4px;width:26px;height:26px;border-radius:50%;background:#a3271c;color:#fff7dc;border:2px solid #2b201b;font-style:normal;font-weight:900;display:grid;place-items:center}
+.end-turn{grid-area:end;display:flex;align-items:center;gap:8px;height:64px;padding:0 20px 0 12px;border-radius:32px;background:linear-gradient(#ffe58a,#e2a92a);border:4px solid #2b201b;box-shadow:0 6px 0 #2b201b;color:#2b201b;font-weight:900;font-size:17px;white-space:nowrap}
+.end-turn-icon{width:32px;height:32px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;font-size:19px;background:#2b201b;color:#ffe58a}
+.end-turn-icon svg{width:18px;height:18px;fill:currentColor}
+.end-turn:active:enabled{transform:translateY(3px);box-shadow:0 3px 0 #2b201b}
+.end-turn:disabled{opacity:1;filter:saturate(.25) brightness(.75)}
+.end-turn.locked{background:linear-gradient(#f3a094,#a3271c);color:#fff7dc;filter:none}
+.end-turn.locked .end-turn-icon{background:#fff7dc;color:#a3271c}
 .table-hud button:focus-visible,.top-bar button:focus-visible,.pause-menu :focus-visible{outline-color:#ffe08a}
 
 /* Pause menu: a brass-rimmed card over the dimmed table. */
@@ -62,22 +66,17 @@
 .menu-card .rules-card{margin:4px 6px 8px;color:#f6e3b4}.menu-card .rules-card dt{color:#ffe08a}.menu-card .rules-card dd{color:#f6e3b4cc}
 .menu-log p{font-size:12px;line-height:1.5;color:#f6e3b4bb;margin:6px 14px 0}
 .menu-log[open]{padding-bottom:6px}
-.skin-picker{display:flex;flex-wrap:wrap;gap:10px;padding:6px 4px}
-.skin-pick{position:relative;width:64px;height:76px;padding:2px 4px;border-radius:10px;border:2px solid #5a4434;background:#3a2b22;cursor:pointer}
-.skin-pick .rig{width:100%;height:100%}
-.skin-pick.worn{border-color:#e2a92a;background:#4a3826}
-.skin-pick.locked{cursor:default}
-.skin-pick.locked .rig{filter:brightness(0) opacity(.4)}
-.skin-mark{position:absolute;right:-6px;top:-6px;width:22px;height:22px;border-radius:11px;background:#e2a92a;color:#2b201b;font-size:12px;font-weight:900;display:grid;place-items:center}
-.skin-pick.locked .skin-mark{background:#2b201b;border:2px solid #5a4434}
-.exile-modal .skin-picker{justify-content:center}
+.menu-section{margin:8px 4px 0;padding-top:10px;border-top:2px solid #5a4434;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#a8865f;font-weight:900}
+.menu-row.jump{cursor:default;flex-wrap:wrap;gap:6px 12px;padding:8px 14px}
+.jump-picks{flex-basis:100%;display:flex;gap:8px;padding-left:32px}
+.jump-picks button{min-width:52px;height:44px;padding:0 10px;white-space:nowrap;border-radius:8px;border:2px solid #a8865f;background:#2b201b;color:#f6e3b4;font:inherit;font-weight:900;cursor:pointer}
+.jump-picks button.armed{background:#c2493c;border-color:#fff7dc;color:#fff7dc}
 
 /* Small phones (under 375px): shrink the table objects so the strip and the bar still fit. */
 @media(orientation:portrait) and (max-width:374px){
-  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:12px}.road-dots{display:none}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
+  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:12px}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
   .table-hud{gap:6px;padding:4px 8px 8px}
-  .shield-token,.skip-token{width:52px;height:52px}.bell{width:68px;height:68px}.bell svg{width:34px;height:34px}
-  .table-hud .board-legend{font-size:9px!important;gap:3px 8px}
+  .shield-token,.skip-token{width:52px;height:52px}.end-turn{height:56px;font-size:15px;padding:0 14px 0 10px}
 }
 @media(orientation:landscape){
   .exile-app{grid-template-rows:minmax(0,1fr);grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"top field hud"}
@@ -85,22 +84,21 @@
   .menu-button{order:-1}
   .king-plaque,.battle-plaque{flex-direction:column;padding:6px 4px;gap:4px}
   .hearts{flex-direction:column}
-  .road-dots{flex-direction:column}
   .coins{margin:0;flex-direction:column;gap:2px;font-size:18px}
-  .table-hud{width:196px;grid-template-columns:1fr 1fr;grid-template-areas:"info info" "shield bell";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
+  .table-hud{width:196px;grid-template-columns:1fr;grid-template-areas:"info" "shield" "end";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
   .hud-info{flex-direction:column;align-items:stretch;min-height:0}
   .table-hud .selected-card{align-self:center}
   .exile-field .board-camera{--pt:24px;--pb:14px}
+  .end-turn{width:100%;justify-content:center;font-size:15px;padding:0 10px;white-space:normal;line-height:1.1}
 }
 @media(orientation:landscape) and (max-height:500px){
   .shield-token{width:56px;height:56px}
-  .bell{width:72px;height:72px}.bell svg{width:36px;height:36px}
-  .table-hud .board-legend{font-size:9px!important}
+  .end-turn{height:52px}
 }
 @media(orientation:landscape) and (min-width:1100px) and (min-height:600px){
   .top-bar{padding:16px 14px}
   .table-hud{width:270px;padding:16px 20px 16px 10px}
   .shield-token{width:76px;height:76px}.shield-token svg{width:34px;height:36px}
-  .bell{width:116px;height:116px}.bell svg{width:56px;height:56px}
+  .end-turn{height:76px;font-size:18px}
   .exile-field .board-camera{--pt:36px;--pb:44px;--px:16px}
 }

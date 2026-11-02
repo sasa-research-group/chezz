@@ -37,13 +37,13 @@
   writes atomically; an unchanged file isn't touched. On a static build the
   button is "Download JSON". Save is off while any level has problems.
 
-## Playtests and the army question
-- ▶ Play opens the real game (`App` with a `playtest` prop) full screen over
+## Test runs and the army question
+- ▶ Play opens the real game (`App` with a `test` prop, `src/art/TestRun.tsx`) full screen over
   the studio with this level and its test army. It reads and writes no saves:
   not the run (`chezz.turns.v1`), not the meta (`chezz.meta.v1`), so no skin
   unlocks. Restart deals the level again; Stop returns to the editor.
 - In a real run the army at a level depends on what the player recruited, so
-  a playtest uses a stand-in. `testArmy` is that stand-in, per level:
+  a test run uses a stand-in. `testArmy` is that stand-in, per level:
   - **Typical** (default, no `testArmy` saved): `typicalArmy` replays the run's
     economy: 2 starting gold plus each earlier level's reward, buying the
     strongest recruit it can afford (rook 8, bishop 6, pawn 3) at each hideout,
@@ -52,4 +52,5 @@
     rewards and start counts as you edit them.
   - **Minimum**: the king alone.
   - Custom: add, remove or change pieces; it is saved as `testArmy`.
-- The real game ignores `testArmy` and uses the player's actual army.
+- The real game ignores `testArmy` and uses the player's actual army,
+  except the ☰ menu's Developer → Jump to battle, which fields it.

@@ -26,7 +26,8 @@ design and piece stats (HP, damage), not from an action budget.
 ## Defend
 - Until that side's next turn the piece takes 1 less damage per hit and, if it
   survives, hits each attacker back with its own damage when it can reach the
-  attacker's square.
+  attacker's square. The screen shows this as +1 defense (the shield token and
+  the defended piece's chip read +1).
 
 ## Check
 - Your king is in check when the enemy's next turn could kill him: every enemy
@@ -52,9 +53,13 @@ design and piece stats (HP, damage), not from an action budget.
   stepping onto a square to strike from, a pawn reaching the far row, closing
   in on your king or nearest piece, and bracing when only the block saves it
   or it could hit back.
+- If no enemy piece acts, the log reads "Enemy waits" and the screen shows an
+  ENEMY WAITS ribbon.
 
 ## Run
 - Battles are data in `src/game/levels/levels.json` (`docs/levels.md`), with
   the rebel hideout between them: recruit a pawn, bishop or rook, or heal the
   king. HP carries over and fallen allies stay gone.
-- A designer playtest plays one level with a given army and never saves.
+- A studio test run plays one level with a given army and never saves.
+- Jump to battle (☰ menu, Developer) starts a fresh, saved run at battle N
+  with that level's test army and the typical run's leftover gold (`startAt`).

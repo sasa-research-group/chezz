@@ -17,11 +17,13 @@ reference oddballs: `docs/art/odd-*.webp`. Style rules: `docs/art-style.md`
 - Skins are cosmetic. They never change stats or rules; `turns.ts` knows
   nothing about them.
 - Every skin is a painted sprite like the rest of the cast.
-- The picker is in the ☰ menu and on the Victory screen; the studio shows the
+- No in-game picker for now: skins will be unlocked and worn from the map
+  (the ☰ and Victory pickers were removed Nov 2). A skin already worn in an
+  old save still draws. The studio shows the
   skins on the Cast sheet and in the Stage's Piece list. The hideout's army
   portraits and the top bar's king portrait don't show skins yet.
 - Two tabs open at once can overwrite each other's unlocks (each writes its whole
-  copy). Fine for the prototype.
+  copy). Fine for now.
 
 ## How it works
 

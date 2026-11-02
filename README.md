@@ -1,6 +1,6 @@
 # Chezz — Escape from Exile
 
-An early prototype: a browser tactics game with chess pieces. An exiled king
+A browser tactics game with chess pieces. An exiled king
 fights through small boards, recruits followers at the rebel hideout between
 battles, and keeps every wound and loss. You act, then the enemy acts. Rules:
 [docs/turn-based.md](docs/turn-based.md).
@@ -28,7 +28,7 @@ npm run test:e2e   # Playwright (PLAYWRIGHT_CHROMIUM_PATH=/path/to/chrome to reu
 - **src/components/PieceRig.tsx**, **SpriteRig.tsx**, **src/sprite.css**: the
   cast, one painted sprite per piece and skin, animated whole
   ([docs/art/PAINTED.md](docs/art/PAINTED.md), [docs/art-style.md](docs/art-style.md)).
-- **art.html → src/art/**: the studio: Cast, Stage, Levels (edit and playtest
+- **art.html → src/art/**: the studio: Cast, Stage, Levels (edit and test-run
   battles), Style guide, Mechanics.
 - **lab.html → src/lab/**: an old rule experiment from the dropped
   simultaneous-orders design ([docs/lab.md](docs/lab.md)).

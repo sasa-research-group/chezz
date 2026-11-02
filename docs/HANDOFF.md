@@ -6,17 +6,22 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   energy: every piece on both sides moves once (sliding any distance) and
   strikes or defends once per turn. Balance now comes from levels and stats.
 - **Levels:** data in `src/game/levels/levels.json` (`docs/levels.md`). The
-  studio's Levels tab edits them, saves under `npm run dev`, and playtests one
+  studio's Levels tab edits them, saves under `npm run dev`, and test-runs one
   level in the real game with a test army and no saves touched.
 - **Art:** one painted sprite per piece and skin, moved whole
   (`SpriteRig.tsx`, `sprite.css`, `docs/art/PAINTED.md`); look in
   `docs/art-style.md`.
 - **Skins** (`docs/art/SKINS.md`): winning a run unlocks the next rebel skin
-  (`meta.ts`); wear it from ☰ or Victory.
+  (`meta.ts`). No in-game picker now; skins will be unlocked on the map. A skin
+  worn in an old save still draws.
 - **Studio** (`art.html` → `src/art/`): Cast, Stage, Levels, Style guide,
   Mechanics.
-- **Table UI:** a 100dvh wooden table: `TopBar.tsx`, tilted board, HUD strip
-  (`table/`, `table.css`); menus in the ☰ `PauseMenu`. Next: drag-to-defend.
+- **Table UI:** a 100dvh wooden table: `TopBar.tsx` ("Battle n of N"), tilted
+  board, HUD strip (`table/`: +1 shield, End turn pill; `table.css`). A turn
+  where the enemy does nothing shows ENEMY WAITS. Next: drag-to-defend.
+- **☰ menu** (`PauseMenu.tsx`): player items, then a Developer section (Art
+  studio, Jump to battle N: tap twice; fresh saved run with the level's test
+  army). A regular game: no playtest notes, export or feedback copy.
 - **In the game:** promotion (you pick; enemy becomes a queen), tap to strike
   (walk up and strike), knight leaps, check (End turn locks while the king
   could die next turn; moves into check blocked), checkmate finale, hideout

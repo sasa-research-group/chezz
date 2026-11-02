@@ -6,7 +6,7 @@ import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, listIssues, testAr
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
 
-const Playtest = lazy(() => import("./Playtest"));
+const TestRun = lazy(() => import("./TestRun"));
 const LEVELS_ENDPOINT = "/__studio/levels";
 
 type Tool = "wall" | "enemy" | "start" | "erase";
@@ -191,7 +191,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
       </div>
     </section>
     {playing !== null && <Suspense fallback={null}>
-      <Playtest test={{ level: levels[playing], army: testArmyOf(levels, playing), index: playing, battles: levels.length }} title={levelName(levels[playing], playing)} onStop={() => setPlaying(null)} />
+      <TestRun test={{ level: levels[playing], army: testArmyOf(levels, playing), index: playing, battles: levels.length }} title={levelName(levels[playing], playing)} onStop={() => setPlaying(null)} />
     </Suspense>}
   </div>;
 }

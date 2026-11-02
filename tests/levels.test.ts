@@ -49,7 +49,7 @@ describe("levels data", () => {
     // Survivors carry over, so a later level needs at least as many starts.
     expect(parseLevels({ version: 1, levels: [base, { ...base, starts: [{ x: 1, y: 3 }] }] })).toEqual({ ok: false, errors: ["Level 2: Fewer starts than battle 1 (2)"] });
   });
-  it("gives a playtest the king plus the best recruit each hideout's gold affords", () => {
+  it("gives a test run the king plus the best recruit each hideout's gold affords", () => {
     const three = [{ x: 1, y: 3 }, { x: 2, y: 3 }, { x: 0, y: 3 }];
     const run: Level[] = [{ ...base, reward: 8, starts: [three[0]] }, { ...base, reward: 8, starts: three }, { ...base, starts: three }];
     expect(typicalArmy(run, 0)).toEqual(["king"]);

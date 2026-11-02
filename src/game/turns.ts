@@ -17,7 +17,7 @@ export type Run = {
   promoting?: string;
   /** Recruits bought at the hub, waiting in the barracks until you take the road. */
   recruits?: Recruit[];
-  /** A designer playtest's level, played on its own: it replaces the run's battle list and ends the run when won. Never saved. */
+  /** A studio test run's level, played on its own: it replaces the run's battle list and ends the run when won. Never saved. */
   level?: Encounter;
 };
 export type Recruit = "pawn" | "bishop" | "rook";
@@ -29,7 +29,7 @@ export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3,
 export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop: 2, knight: 2, pawn: 1 };
 /** The run's battles, in order, from `levels/levels.json` (edited in the studio's level designer; checked by `levels.ts`). */
 export const ENCOUNTERS = levelsFile.levels as unknown as Encounter[];
-/** The battle this run is fighting: a playtest's own level, or the run's current encounter. */
+/** The battle this run is fighting: a test run's own level, or the run's current encounter. */
 export const levelOf = (g: Run): Encounter => g.level ?? ENCOUNTERS[g.encounter];
 export type CampChoice = Recruit | "heal";
 export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
@@ -105,10 +105,14 @@ export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, units: [], log: [], history: [], nextId: 1 };
   return spawn(g, [{ id: "king", side: "white", kind: "king", hp: HP.king, x: 0, y: 0 }]);
 }
-/** A designer playtest: one level on its own with a given army (king first), shown as battle `index + 1`. */
-export function playtest(level: Encounter, army: Kind[], index: number): Run {
-  const units = army.map((kind, i): Unit => ({ id: kind === "king" && !army.slice(0, i).includes("king") ? "king" : `ally-${i}`, side: "white", kind, hp: HP[kind], x: 0, y: 0 }));
-  return spawn({ ...newRun(), encounter: index, level, nextId: army.length }, units);
+const armyOf = (army: Kind[]): Unit[] => army.map((kind, i) => ({ id: kind === "king" && !army.slice(0, i).includes("king") ? "king" : `ally-${i}`, side: "white", kind, hp: HP[kind], x: 0, y: 0 }));
+/** A studio test run: one level on its own with a given army (king first), shown as battle `index + 1`. */
+export function testRun(level: Encounter, army: Kind[], index: number): Run {
+  return spawn({ ...newRun(), encounter: index, level, nextId: army.length }, armyOf(army));
+}
+/** A fresh run that starts at battle `index` with a given army (king first) and gold, then carries on as usual. */
+export function startAt(index: number, army: Kind[], gold: number): Run {
+  return spawn({ ...newRun(), encounter: index, gold, nextId: army.length }, armyOf(army));
 }
 
 const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => (u.id === id ? { ...u, ...patch } : u));
@@ -327,7 +331,8 @@ export function endTurn(g: Run): { run: Run; steps: Step[] } {
   if (g.phase !== "player" || g.promoting) return { run: g, steps: [] };
   // In check you must get the king safe first, unless nothing this turn can.
   if (inCheck(g) && canEscape(g)) return { run: g, steps: [] };
-  const { run, steps } = enemyTurn(g);
+  const { run: acted, steps } = enemyTurn(g);
+  const run = steps.length ? acted : note(acted, "Enemy waits");
   if (run.phase !== "player") return { run, steps };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : u));
   return { run: { ...run, units, turn: run.turn + 1 }, steps };

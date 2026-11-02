@@ -79,10 +79,9 @@
 .action-pips{display:inline-flex;gap:3px}.action-pips i{width:7px;height:7px;border-radius:50%;border:1.5px solid #396c61;background:#fcf5de}.action-pips i.full{background:#396c61}
 .exile-piece>.action-pips{position:absolute;left:50%;bottom:-11px;transform:translateX(-50%);pointer-events:none}
 .selected-card>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.unit-stats{font-size:12px;font-weight:800;color:#4f5d4b}
-/* Legend for the board marks, drawn like the marks themselves. */
-.board-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10px!important;color:#766a58!important;margin:0 0 12px!important}.board-legend span{display:flex;align-items:center;gap:4px}
-.board-legend i,.rules-card i{display:inline-grid;grid-auto-flow:column;place-items:center;min-width:18px;height:18px;padding:0 3px;border-radius:9px;font-style:normal;font-size:10px;font-weight:900;border:2px solid}
-.lg-move{border-color:#2d6755;background:#b9d3a1;color:#2d6755}.lg-strike{background:#c2493c;color:#fff7dc;border-color:#382f2e}.lg-unsafe{background:#f3d5cf;color:#a3271c;border-color:#a3271c;border-style:dashed!important}.lg-check{background:#a3271c;color:#fff7dc;border-color:#382f2e}
+/* The rules card's board marks, drawn like the marks themselves. */
+.rules-card i{display:inline-grid;grid-auto-flow:column;place-items:center;min-width:18px;height:18px;padding:0 3px;border-radius:9px;font-style:normal;font-size:10px;font-weight:900;border:2px solid}
+.lg-unsafe{background:#f3d5cf;color:#a3271c;border-color:#a3271c;border-style:dashed!important}.lg-check{background:#a3271c;color:#fff7dc;border-color:#382f2e}
 .rules-card{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:18px 0 24px;font-size:13px;align-items:center}.rules-card dt{font-weight:800;color:#382f2e}.rules-card dd{margin:0;color:#766a58;display:flex;gap:10px;flex-wrap:wrap}
 @media(max-width:700px){.exile-piece>.action-pips{bottom:-8px}.action-pips i{width:5px;height:5px;border-width:1px}}
 .strike-icon{width:1.3em;height:1.3em;vertical-align:-.3em;margin-right:1px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;overflow:visible}

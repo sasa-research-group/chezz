@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, playtest, promote, reaches, readRun, strikeExposesKing, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, promote, reaches, readRun, startAt, strikeExposesKing, testRun, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import type { Encounter, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -368,9 +368,9 @@ describe("turn-based rules", () => {
     expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();
   });
 
-  it("plays a single level on its own in a playtest, ending in victory with no hideout", () => {
+  it("plays a single level on its own in a test run, ending in victory with no hideout", () => {
     const level: Encounter = { reward: 5, width: 5, height: 3, walls: [{ x: 4, y: 0 }], spawns: [["pawn", 1, 1, 1]], starts: [{ x: 0, y: 2 }, { x: 2, y: 2 }] };
-    const g = playtest(level, ["king", "rook"], 1);
+    const g = testRun(level, ["king", "rook"], 1);
     expect(g.encounter).toBe(1);
     expect(g.units.map(u => [u.kind, u.side, u.x, u.y, u.hp])).toEqual([["king", "white", 0, 2, HP.king], ["rook", "white", 2, 2, HP.rook], ["pawn", "black", 1, 1, 1]]);
     // The board is the level's, not the real battle 2's.
@@ -383,7 +383,7 @@ describe("turn-based rules", () => {
   });
   it("lets every enemy piece act each turn", () => {
     const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };
-    const { steps } = endTurn(playtest(level, ["king"], 0));
+    const { steps } = endTurn(testRun(level, ["king"], 0));
     expect(new Set(steps.map(s => s.actor))).toEqual(new Set(["enemy-0-0", "enemy-0-1", "enemy-0-2"]));
     // Each piece moves at most once and strikes or defends at most once.
     for (const id of ["enemy-0-0", "enemy-0-1", "enemy-0-2"]) {
@@ -408,9 +408,24 @@ describe("turn-based rules", () => {
     expect(move(g, "r", { x: 0, y: 2 })).toBe(g);
     expect(attack(g, "r", "f").run).toBe(g);
   });
-  it("never restores a playtest as a saved run", () => {
+  it("starts a fresh, saveable run at a later battle that still goes through the hideout", () => {
+    const g = startAt(1, ["king", "rook"], 4);
+    expect(g).toMatchObject({ encounter: 1, gold: 4, phase: "player", turn: 1 });
+    expect(g.units.filter(u => u.side === "white").map(u => [u.id, u.kind, u.x, u.y])).toEqual([["king", "king", ENCOUNTERS[1].starts[0].x, ENCOUNTERS[1].starts[0].y], ["ally-1", "rook", ENCOUNTERS[1].starts[1].x, ENCOUNTERS[1].starts[1].y]]);
+    expect(readRun(JSON.stringify(g))).not.toBeNull();
+    const cleared = { ...g, units: g.units.filter(u => u.side === "white") };
+    expect(attack({ ...cleared, units: [...cleared.units, { id: "e", side: "black", kind: "pawn", x: g.units[0].x, y: g.units[0].y - 1, hp: 1 }] }, "king", "e").run.phase).toBe("camp");
+  });
+  it("logs a turn where the enemy does nothing", () => {
+    const level: Encounter = { reward: 0, width: 4, height: 4, walls: [{ x: 0, y: 1 }], spawns: [["pawn", 0, 0, 1]], starts: [{ x: 3, y: 3 }] };
+    const { run, steps } = endTurn(testRun(level, ["king"], 0));
+    expect(steps).toEqual([]);
+    expect(run.log[0]).toBe("Enemy waits");
+    expect(run.turn).toBe(2);
+  });
+  it("never restores a test run as a saved run", () => {
     const level: Encounter = { ...ENCOUNTERS[0] };
-    expect(readRun(JSON.stringify(playtest(level, ["king"], 0)))).toBeNull();
+    expect(readRun(JSON.stringify(testRun(level, ["king"], 0)))).toBeNull();
   });
   it("can complete the three-battle run with a simple strategy", () => {
     let g = newRun(), turns = 0;

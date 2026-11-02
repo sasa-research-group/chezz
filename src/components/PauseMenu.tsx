@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { RefObject } from "react";
 import { RulesCard } from "./Panels";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input:not(:disabled), summary, [tabindex]:not([tabindex='-1'])";
@@ -29,21 +29,28 @@ export function useDialogKeys(ref: RefObject<HTMLElement | null>, onClose: () =>
   }, [ref]);
 }
 
-type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onExport: () => void; onClose: () => void; skins?: ReactNode };
+type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onClose: () => void; battles: number; onJump?: (index: number) => void };
 
-/** The pause menu's card: everything that isn't play. Rendered bare in the studio; the game wraps it in PauseMenu. */
-export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onExport, onClose, skins }: MenuProps) {
+/** The pause menu's card: the player's items, then the developer's under their own header. */
+export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose, battles, onJump }: MenuProps) {
   const [rules, setRules] = useState(false);
+  // Jumping replaces the run, so the first tap only arms a battle and a second tap on it goes.
+  const [armed, setArmed] = useState<number | null>(null);
   return <div className="menu-card">
     <button className="menu-row resume" onClick={onClose}><span aria-hidden="true">▶</span>Resume</button>
     <button className="menu-row" aria-expanded={rules} onClick={() => setRules(r => !r)}><span aria-hidden="true">?</span>Rules</button>
     {rules && <RulesCard />}
     <button className="menu-row" disabled={newRunDisabled} onClick={onNewRun}><span aria-hidden="true">↺</span>New run</button>
     <label className="menu-row toggle"><span aria-hidden="true">»</span>Fast enemy turns<input type="checkbox" checked={fast} onChange={ev => onFast(ev.target.checked)} /></label>
-    {skins}
     <details className="menu-log"><summary className="menu-row"><span aria-hidden="true">≡</span>Battle log</summary>{log.map((text, i) => <p key={i}>{text}</p>)}</details>
-    <button className="menu-row" onClick={onExport}><span aria-hidden="true">↗</span>Export</button>
+    <h2 className="menu-section">Developer</h2>
     <a className="menu-row" href="./art.html"><span aria-hidden="true">✎</span>Art studio</a>
+    {onJump && <div className="menu-row jump" role="group" aria-label="Jump to battle"><span aria-hidden="true">⇥</span>Jump to battle
+      <span className="jump-picks">{Array.from({ length: battles }, (_, i) => {
+        const go = armed === i;
+        return <button key={i} className={go ? "armed" : ""} disabled={newRunDisabled} aria-label={go ? `Confirm battle ${i + 1}` : `Battle ${i + 1}`} onClick={() => go ? onJump(i) : setArmed(i)}>{i + 1}{go && " ✓"}</button>;
+      })}</span>
+    </div>}
   </div>;
 }
 

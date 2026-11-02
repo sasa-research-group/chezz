@@ -1,11 +1,11 @@
 /** The battles as data: `levels/levels.json` holds them, `turns.ts` plays them, and the studio's
  * level designer edits them. This module checks a level before it is played or written back to the
- * repo, formats the file so diffs stay readable, and picks the army a designer playtest fields.
+ * repo, formats the file so diffs stay readable, and picks the army a studio test run fields.
  * Pure: no DOM, no file system. */
 import { COST, HP, newRun } from "./turns";
 import type { Encounter, Kind, Pos, Recruit } from "./turns";
 
-/** A battle plus designer-only extras: a list name and the army a playtest fields. The game ignores both. */
+/** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
 export type Level = Encounter & { name?: string; testArmy?: Kind[] };
 export type LevelsFile = { version: 1; levels: Level[] };
 /** One problem with a level, tied to the control (and square) it concerns. */
@@ -123,6 +123,10 @@ const RECRUITS: Recruit[] = ["rook", "bishop", "pawn"];
 /** The army a player plausibly brings to level `index`: the king, plus at each hideout before it the
  * strongest recruit the run's gold so far affords (one per stop, while the next road has room). */
 export function typicalArmy(levels: Level[], index: number): Kind[] {
+  return typicalStart(levels, index).army;
+}
+/** The typical army for level `index` and the gold left over after buying it. */
+export function typicalStart(levels: Level[], index: number): { army: Kind[]; gold: number } {
   const army: Kind[] = ["king"];
   let gold = newRun().gold;
   for (let i = 0; i < index; i++) {
@@ -130,7 +134,7 @@ export function typicalArmy(levels: Level[], index: number): Kind[] {
     const pick = RECRUITS.find(r => COST[r] <= gold);
     if (pick && army.length < levels[i + 1].starts.length) { army.push(pick); gold -= COST[pick]; }
   }
-  return army.slice(0, Math.max(1, levels[index]?.starts.length ?? 1));
+  return { army: army.slice(0, Math.max(1, levels[index]?.starts.length ?? 1)), gold };
 }
-/** The army a designer playtest fields: the level's saved test army, or the typical one. */
+/** The army a studio test run fields: the level's saved test army, or the typical one. */
 export const testArmyOf = (levels: Level[], index: number): Kind[] => levels[index].testArmy ?? typicalArmy(levels, index);

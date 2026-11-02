@@ -278,7 +278,7 @@ for (const size of SIZES) {
     await page.goto("/");
     await page.getByRole("button", { name: /^c1 white king/ }).click();
     expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
-    for (const name of ["Menu", "End turn", "Defend"]) await inView(page, name);
+    for (const name of ["Menu", "End turn", "Defend +1"]) await inView(page, name);
     await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
     await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
     await page.reload();
@@ -315,7 +315,7 @@ test("the ☰ menu opens and closes with Escape and keeps focus inside", async (
   await expect(menu.getByRole("button", { name: "Resume" })).toBeFocused();
   // Tab wraps from the last item to the first, and Shift+Tab back.
   await page.keyboard.press("Shift+Tab");
-  await expect(menu.getByRole("link", { name: "Art studio" })).toBeFocused();
+  await expect(menu.getByRole("button", { name: "Battle 3" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(menu.getByRole("button", { name: "Resume" })).toBeFocused();
   await page.keyboard.press("Escape");
@@ -418,23 +418,42 @@ test("the game draws every piece as one painted sprite", async ({ page }) => {
   await expect(page.locator(".piece-layer svg.rig image.sprite")).toHaveCount(3);
 });
 
-test("wear an unlocked skin from the pause menu; it draws as its painted sprite", async ({ page }) => {
-  const start = newRun();
-  const g = { ...start, units: [...start.units, { id: "p1", side: "white" as const, kind: "pawn" as const, x: 0, y: 3, hp: 1 }] };
-  await page.addInitScript(([run, meta]) => {
-    if (sessionStorage.getItem("seeded")) return;
-    sessionStorage.setItem("seeded", "1");
-    localStorage.setItem("chezz.turns.v1", run);
-    localStorage.setItem("chezz.meta.v1", meta);
-  }, [JSON.stringify(g), JSON.stringify({ version: 1, unlocked: ["frog-pot"], equipped: {} })]);
+test("a skin worn in an old save still draws; the menu has no skin picker", async ({ page }) => {
+  await page.addInitScript(meta => localStorage.setItem("chezz.meta.v1", meta), JSON.stringify({ version: 1, unlocked: ["cat-king"], equipped: { king: "cat-king" } }));
   await page.goto("/");
-  const frogs = page.locator(".piece-layer .rig.skin-frog-pot");
-  await expect(frogs).toHaveCount(0);
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
+  await expect(page.locator(".piece-layer .rig.skin-cat-king image.sprite")).toHaveAttribute("href", /skin-cat-king/);
   await page.getByRole("button", { name: "Menu" }).click();
-  const pick = page.getByRole("dialog", { name: "Menu" }).getByTestId("skin-frog-pot");
-  await pick.click();
-  await expect(pick).toHaveAttribute("aria-pressed", "true");
-  await page.keyboard.press("Escape");
-  await expect(frogs.locator("image.sprite")).toHaveAttribute("href", /skin-frog-pot/);
-  await expect(page.locator(".piece-layer svg.rig image.sprite")).toHaveCount(4);
+  await expect(page.getByRole("dialog", { name: "Menu" }).getByRole("group", { name: "Skins" })).toHaveCount(0);
+});
+
+test("ending a turn where the enemy does nothing shows ENEMY WAITS and logs it", async ({ page }) => {
+  const start = newRun();
+  // The pawn is boxed in by the rook and has nothing to strike.
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 1, hp: 5, moved: true, acted: true }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 0, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: "End turn" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "ENEMY WAITS" })).toBeVisible();
+  await expect.poll(async () => (await saved(page)).log[0]).toBe("Enemy waits");
+  await expect(page.getByRole("status").filter({ hasText: "ENEMY WAITS" })).toBeHidden();
+});
+
+test("the top bar reads Battle n of N, and Developer → Jump to battle starts battle N after a second tap", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
+  await expect(page.getByRole("img", { name: "Battle 1 of 3" })).toBeVisible();
+  await page.getByRole("button", { name: "Menu" }).click();
+  const menu = page.getByRole("dialog", { name: "Menu" });
+  await expect(menu.getByRole("heading", { name: "Developer" })).toBeVisible();
+  await menu.getByRole("button", { name: "Battle 2" }).click();
+  await expect(menu).toBeVisible();
+  expect((await saved(page)).encounter).toBe(0);
+  await menu.getByRole("button", { name: "Confirm battle 2" }).click();
+  await expect(menu).toBeHidden();
+  await expect.poll(async () => (await saved(page)).encounter).toBe(1);
+  const g = await saved(page);
+  expect(g.units.filter(u => u.side === "white").map(u => u.kind)).toEqual(["king", "rook"]);
+  expect(g.turn).toBe(1);
+  await expect(page.getByRole("img", { name: "Battle 2 of 3" })).toBeVisible();
 });

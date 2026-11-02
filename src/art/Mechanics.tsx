@@ -64,7 +64,6 @@ const RUN: [string, string][] = [
   ["King dies", "Run over (checkmate finale)"],
   ["Last battle won", "Victory screen"],
   ["Save", "Autosave every change (localStorage chezz.turns.v1)"],
-  ["Export", "Playtest JSON (run + log + note)"],
 ];
 const PROMOTE: PromoteTo[] = ["queen", "rook", "bishop", "knight"];
 const RECRUITS = (["pawn", "bishop", "rook"] as const);
