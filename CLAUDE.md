@@ -1,62 +1,49 @@
-# Chezz — working notes for Claude
+# Chezz — working notes for agents
+
+## Stage: early prototype
+We are in the early prototype stage. Be willing to make major changes to game
+mechanics. Build them quickly so the developers can playtest and give feedback.
+Rapid iteration is the name of the game.
 
 ## What's live
 Escape from Exile, turn-based: `src/main.tsx` → `src/App.tsx` → `src/game/turns.ts`
-(rules). Pieces are painted sprites (one image each, `src/components/SpriteRig.tsx`,
-`src/sprite.css`, `docs/art/PAINTED.md`) drawn by `src/components/PieceRig.tsx`, skins
-included (`docs/art/SKINS.md`); they are the only art (the SVG shape kit was removed in
-Nov 2026). Studio at `art.html` → `src/art/`: Cast,
-Stage, Levels (`docs/levels.md`), style guide, mechanics.
-`src/exile.css`. Rules doc:
-`docs/turn-based.md`. Lab: `lab.html` → `src/lab/` (Duel, pure solver).
-`src/game/exile.ts` is the previous simultaneous engine (`docs/exile-run.md`);
-the lab Duel and `tests/exile.test.ts` still use it. Plan:
-`reports/Simultaneous chess tactics design.md`. The older Between Worlds
-prototype (Three.js board, shops, gambits) was removed in Oct 2026; it is in
-git history before that commit.
+(rules, written up in `docs/turn-based.md`). Battles are data in
+`src/game/levels/levels.json` (`docs/levels.md`). Pieces and skins are painted
+sprites, one image each (`src/components/SpriteRig.tsx`, `src/sprite.css`,
+`docs/art/PAINTED.md`), drawn by `src/components/PieceRig.tsx`. Studio at
+`art.html` → `src/art/`: Cast, Stage, Levels, style guide, mechanics.
 
-## Rules-code invariants
+## Rules code
 - `turns.ts` is pure and deterministic: no DOM, no randomness, no mutating inputs.
 - The enemy turn is computed in full before playback; playback only shows it.
-- Rule changes are test-first: write a failing test in `tests/turns.test.ts`,
-  fix it, then update `docs/turn-based.md` in the same change.
+- When a rule changes, update `docs/turn-based.md` in the same change so the
+  written rules match the game.
 
-## Checks (all must pass before merging into local main)
+## Checks
 ```sh
 npm test            # vitest
-npx tsc -b          # types (npm run build also runs it)
-npm run build
-PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run test:e2e
+npm run build       # tsc -b + production build
+npm run test:e2e    # Playwright
 ```
-In cloud containers, use the preinstalled Chromium (check the build number under
-`/opt/pw-browsers`). Never run `playwright install`.
+Run them before merging into local `main`. Never run `playwright install`; with a
+preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
 
 ## The art harness lives in this repo
-Someone else must be able to clone this repo and generate the same art. So
-everything the art depends on is committed here, never only in an agent's
-memory, a scratch folder or a personal tool:
-- Style: `docs/art-style.md` (rules), `docs/art/` (reference images, one crop
-  per character), `docs/art/recipe.md` (exact model + prompts that made them).
-- Decisions and rejected directions: `docs/art/DECISIONS.md`. Add to it when
-  the owner picks or rejects a look, with their reason.
-- Pipeline (concept → style guide → builder → judge): `docs/art/PIPELINE.md`,
-  `docs/art/BRIEF.md`, `docs/art/JUDGE.md`, scripts in `tools/art/`.
-- A prompt, script, palette or rule that produced something the owner kept
-  goes into these files in the same change. Don't save project knowledge to
-  agent memory.
-- Concept images are scratch until picked; the picked one is committed (webp,
-  under ~800KB) with its prompt.
+Someone else must be able to clone this repo and generate the same art, so what
+the art depends on is committed here, not in agent memory or a scratch folder:
+- Style: `docs/art-style.md`, reference images in `docs/art/`.
+- How to generate: `docs/art/PAINTED.md`, `docs/art/GENERATING.md`, recipes in
+  `docs/art/recipes/`, scripts in `tools/art/`.
+- Owner decisions on the look: `docs/art/DECISIONS.md`.
+- A prompt or rule that produced art the owner kept goes into these files in the
+  same change.
 
 ## Workflow
 - Local development only: no PRs and no pushes unless the owner asks. Agents
-  commit on a local `claude/*` branch; the lead merges it into local `main`.
+  commit on a local `claude/*` branch; the lead merges into local `main`.
   Pushing `main` deploys to GitHub Pages, so it waits for the owner.
-- Split work into small tasks, each with a command that proves it's done.
-- Before merging into local `main`, have a fresh-context reviewer subagent read the diff.
-- Models: lead on Opus at medium effort; cheap read-only explorers for searches;
-  the reviewer at high effort.
-- Keep `docs/HANDOFF.md` current and under 4k chars.
-- Ask Wesley one question at a time, with a recommended option. Keep replies short.
+- Keep `docs/HANDOFF.md` current and short.
+- Ask the owner one question at a time, with a recommended option. Keep replies short.
 
 # The project board: item model, CLI and lead rules
 @~/.local/share/workboard/BOARD.md
