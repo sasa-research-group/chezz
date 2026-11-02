@@ -3,6 +3,7 @@
  * square in its chess shape; a knight's jump costs 2), then strike the next
  * square in its shape (2) or defend (1). Pure and
  * deterministic: no DOM, no randomness, inputs are never mutated. */
+import levelsFile from "./levels/levels.json" with { type: "json" };
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
@@ -17,6 +18,8 @@ export type Run = {
   promoting?: string;
   /** Recruits bought at the hub, waiting in the barracks until you take the road. */
   recruits?: Recruit[];
+  /** A designer playtest's level, played on its own: it replaces the run's battle list and ends the run when won. Never saved. */
+  level?: Encounter;
 };
 export type Recruit = "pawn" | "bishop" | "rook";
 export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
@@ -28,21 +31,20 @@ export const ENERGY = 4;
 export const STRIKE_COST = 2;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
 export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop: 2, knight: 2, pawn: 1 };
-export const ENCOUNTERS: Encounter[] = [
-  { reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
-  { reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
-  { reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
-];
+/** The run's battles, in order, from `levels/levels.json` (edited in the studio's level designer; checked by `levels.ts`). */
+export const ENCOUNTERS = levelsFile.levels as unknown as Encounter[];
+/** The battle this run is fighting: a playtest's own level, or the run's current encounter. */
+export const levelOf = (g: Run): Encounter => g.level ?? ENCOUNTERS[g.encounter];
 export type CampChoice = Recruit | "heal";
 export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
 
 export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
-export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (ENCOUNTERS[g.encounter].height - p.y);
+export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (levelOf(g).height - p.y);
 export const at = (g: Run, p: Pos) => g.units.find(u => same(u, p));
 export const kindName = (k: string) => k[0].toUpperCase() + k.slice(1);
 export const label = (u: Unit) => u.side === "white" ? kindName(u.kind) : `Enemy ${u.kind}`;
 export function passable(g: Run, p: Pos) {
-  const e = ENCOUNTERS[g.encounter];
+  const e = levelOf(g);
   return p.x >= 0 && p.y >= 0 && p.x < e.width && p.y < e.height && !e.walls.some(w => same(w, p));
 }
 const DIAGONALS = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -50,7 +52,7 @@ const STRAIGHTS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LEAPS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
 const slides = (k: Kind) => k === "rook" ? STRAIGHTS : k === "bishop" ? DIAGONALS : k === "queen" ? [...STRAIGHTS, ...DIAGONALS] : null;
 const forward = (u: Unit) => u.side === "white" ? -1 : 1;
-const energyOf = (g: Run, side: Side) => side === "white" ? g.energy : ENCOUNTERS[g.encounter].enemyEnergy;
+const energyOf = (g: Run, side: Side) => side === "white" ? g.energy : levelOf(g).enemyEnergy;
 
 /** Empty squares a piece can move to this turn, priced by distance. */
 export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
@@ -103,7 +105,7 @@ export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
 }
 
 function spawn(g: Run, army: Unit[]): Run {
-  const e = ENCOUNTERS[g.encounter];
+  const e = levelOf(g);
   const whites = army.map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map(([kind, x, y, hp], i) => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black" as const, x, y, hp }));
   return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [] };
@@ -112,12 +114,17 @@ export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
   return spawn(g, [{ id: "king", side: "white", kind: "king", hp: HP.king, x: 0, y: 0 }]);
 }
+/** A designer playtest: one level on its own with a given army (king first), shown as battle `index + 1`. */
+export function playtest(level: Encounter, army: Kind[], index: number): Run {
+  const units = army.map((kind, i): Unit => ({ id: kind === "king" && !army.slice(0, i).includes("king") ? "king" : `ally-${i}`, side: "white", kind, hp: HP[kind], x: 0, y: 0 }));
+  return spawn({ ...newRun(), encounter: index, level, nextId: army.length }, units);
+}
 
 const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => (u.id === id ? { ...u, ...patch } : u));
 function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["King captured", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
-    const last = g.encounter === ENCOUNTERS.length - 1, reward = ENCOUNTERS[g.encounter].reward;
+    const last = !!g.level || g.encounter === ENCOUNTERS.length - 1, reward = levelOf(g).reward;
     return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : `+${reward} ✦`, ...g.log] };
   }
   return g;
@@ -143,7 +150,7 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   // A pawn on the far row waits for you to choose what it becomes.
   return u.kind === "pawn" && to.y === lastRank(g, u) ? { ...next, promoting: id } : next;
 }
-const lastRank = (g: Run, u: Unit) => (u.side === "white" ? 0 : ENCOUNTERS[g.encounter].height - 1);
+const lastRank = (g: Run, u: Unit) => (u.side === "white" ? 0 : levelOf(g).height - 1);
 function promoted(g: Run, u: Unit, kind: PromoteTo): { run: Run; step: Step } {
   const text = `${label(u)} → ${kind}`;
   const run = note({ ...g, units: withUnit(g, u.id, { kind, hp: HP[kind] }) }, text);
@@ -219,7 +226,7 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
  * nothing scores above zero or the pool is spent. */
 function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   let run: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) };
-  let energy = ENCOUNTERS[g.encounter].enemyEnergy;
+  let energy = levelOf(g).enemyEnergy;
   const steps: Step[] = [];
   const pool = energy;
   for (let guard = 0; guard < 20 && energy > 0 && run.phase === "player"; guard++) {
@@ -302,7 +309,7 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
       }
     });
   };
-  search(g, ENCOUNTERS[g.encounter].enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
+  search(g, levelOf(g).enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
   const damage = Math.max(0, ...combos.map(c => c.damage));
   const bar = Math.min(damage, king.hp);
   const attackers = [...new Set(combos.filter(c => damage > 0 && c.damage >= bar).flatMap(c => c.ids))];
@@ -371,7 +378,7 @@ export function leaveCamp(g: Run): Run {
 export function readRun(raw: string | null): Run | null {
   try {
     const g = JSON.parse(raw ?? "null") as Run | null;
-    if (!g || g.version !== 2 || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !ENCOUNTERS[g.encounter] || !["player", "camp", "victory", "defeat"].includes(g.phase)) return null;
+    if (!g || g.version !== 2 || g.level !== undefined || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !ENCOUNTERS[g.encounter] || !["player", "camp", "victory", "defeat"].includes(g.phase)) return null;
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;

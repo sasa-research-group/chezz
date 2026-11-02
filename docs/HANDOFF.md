@@ -16,8 +16,13 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Skins** (`docs/art/SKINS.md`): winning a run unlocks the next rebel skin
   (`meta.ts`); wear it from ☰ or Victory. All six painted (`skin-<id>.webp`).
 - **Studio** (`art.html` → `src/art/`): Cast (stills, landing), Stage (one
-  piece, a button per action, 1×–0.1×), Style guide, Mechanics. Contract:
+  piece, a button per action, 1×–0.1×), Levels, Style guide, Mechanics. Contract:
   `docs/art/RIG.md`.
+- **Levels** (`docs/levels.md`): battles are data
+  (`src/game/levels/levels.json`, checked by `levels.ts`). The studio's
+  Levels tab edits them, saves to the repo under `npm run dev`, and playtests
+  one level in the real game with a per-level test army (Typical/Minimum/
+  custom) and no saves touched.
 - **Diorama shell** (`claude/diorama-shell`, UI plan steps 1–2): a 100dvh
   wooden table: `TopBar.tsx`, tilted board, HUD strip (`table/`,
   `table.css`). Rules, New run, fast turns, skins, log, export, studio live

@@ -68,7 +68,62 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
 .construct-row .spec{flex:1;min-width:260px}
 .lineup{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;align-items:end;max-width:820px;margin:8px 0}.lineup>div{display:grid;grid-template-columns:1fr 1fr;align-items:end;text-align:center}.lineup small{grid-column:1/-1;font-size:10px;font-weight:700;text-transform:capitalize}
 .lineup.silhouette .sprite-still{filter:brightness(0) opacity(.85)}
+/* Levels: the level designer. List | board | settings. */
+.levels-area{display:grid;grid-template-columns:200px minmax(0,1fr) 290px;gap:18px;align-items:start;margin-top:12px}
+.level-list ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.level-list ol button{width:100%;display:grid;grid-template-columns:1fr auto;align-items:center;text-align:left;gap:0 6px;font:inherit;padding:8px 10px;border:1px solid #cabc9e;border-radius:8px;background:#fbf6e8;color:#382f2e;cursor:pointer}
+.level-list ol button b{font-size:13px}.level-list ol button small{grid-column:1;font-size:11px;color:#766a58}
+.level-list ol button[aria-current]{background:#396c61;border-color:#396c61;color:#fff7dc}.level-list ol button[aria-current] small{color:#d8e8dd}
+.level-bad{grid-row:1/3;grid-column:2;font-style:normal;font-size:11px;font-weight:900;background:#a3271c;color:#fff7dc;border-radius:9px;min-width:18px;padding:1px 5px;text-align:center}
+.level-list-tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.levels-area button{font:inherit;font-size:13px;font-weight:700;padding:7px 8px;border:1px solid #cabc9e;background:#f4ecd6;color:#4d4033;border-radius:8px;cursor:pointer}
+.levels-area button:disabled{opacity:.45;cursor:default}
+.levels-area .seg button{text-transform:capitalize}
+.level-canvas{display:grid;gap:10px;min-width:0}
+.level-tools{max-width:560px;width:100%;justify-self:center}
+.studio .level-canvas .board-camera{max-width:560px!important;padding:26px 8px 18px!important}
+.level-board .exile-cell{cursor:pointer}.level-board .exile-cell:hover{filter:brightness(1.08)}
+.level-board .exile-cell.level-flag{box-shadow:inset 0 0 0 4px #c2493c}
+.level-board .piece-layer{pointer-events:none}
+.start-mark{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#fbf6e8;border:2px solid #396c61;color:#396c61;font-size:11px;font-weight:900;line-height:1}
+.start-mark.king{background:#f2c36b;border-color:#382f2e;color:#382f2e}
+.exile-cell .start-mark{position:absolute;top:4px;right:4px;z-index:2}
+.level-issues{list-style:none;margin:0 auto;padding:8px 12px;max-width:560px;width:100%;background:#f3d5cf;border:1px solid #c2493c;border-radius:8px;color:#7d1d15;font-size:13px;font-weight:700;display:grid;gap:3px}
+.level-issues li::before{content:"✕ "}.level-issues code{margin-left:6px;font-size:11px}
+.level-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
+.levels-area .level-play{background:#396c61;border-color:#396c61;color:#fff7dc;padding:8px 16px}
+.level-status{font-size:12px;font-weight:800;color:#396c61;min-width:60px}.level-status.bad{color:#a3271c}
+.level-controls{display:grid;gap:14px;background:#fbf6e8;border:1px solid #cabc9e;border-radius:12px;padding:14px;min-width:0}
+.level-controls input{font:inherit;font-size:14px;font-weight:700;padding:6px 8px;border:1px solid #cabc9e;border-radius:8px;background:#fffdf5;color:#382f2e;min-width:0;width:100%}
+.level-controls select{font:inherit;font-size:13px;font-weight:700;padding:4px 6px;border:1px solid #cabc9e;border-radius:6px;background:#fffdf5;color:#382f2e;text-transform:capitalize}
+.level-nums{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.level-num{display:grid;gap:4px}.level-num>span{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;font-weight:800;color:#766a58}
+.level-rows,.level-chips,.level-army{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.level-rows li{display:grid;grid-template-columns:28px 1fr auto 70px auto;align-items:center;gap:6px;font-size:13px}
+.level-rows .sprite-still{width:28px}.level-rows b{text-transform:capitalize}.level-rows code{font-size:11px;color:#766a58}
+.level-rows label{display:flex;align-items:center;gap:3px;color:#a3271c;font-weight:800}.level-rows input{padding:3px 5px;font-size:13px}
+.levels-area .level-rows button,.levels-area .level-chips button,.levels-area .level-army button{padding:2px 8px;font-size:14px;line-height:1.2}
+.level-chips{grid-template-columns:repeat(auto-fill,minmax(82px,1fr))}
+.level-chips li,.level-army li{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
+.level-chips li button{margin-left:auto}
+.level-army{margin:4px 0}.level-army li{min-height:30px}.level-army li b{text-transform:capitalize}.level-army li button{margin-left:auto}
+.level-note{font-size:11px;color:#766a58;text-transform:capitalize}
+/* The playtest covers the studio with the real game. */
+.playtest{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;background:#3a2b22}
+.playtest .exile-app{height:auto;flex:1;min-height:0}
+.playtest-bar{display:flex;align-items:center;gap:10px;padding:6px 12px;background:#241a14;color:#f6e3b4;font:700 13px system-ui,sans-serif}
+.playtest-bar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;text-transform:capitalize}
+.playtest-bar button{font:inherit;padding:6px 12px;border-radius:7px;border:1px solid #6b5848;background:#3a2b22;color:#f6e3b4;cursor:pointer}
+.playtest-bar button.stop{background:#c2493c;border-color:#c2493c;color:#fff7dc}
+@media(max-width:1060px){
+  .levels-area{grid-template-columns:180px minmax(0,1fr)}
+  .level-controls{grid-column:1/-1}
+}
 @media(max-width:700px){
+  .levels-area{grid-template-columns:minmax(0,1fr)}
+  .level-list ol{display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}.level-list ol li{flex:0 0 132px}
+  .level-list-tools{grid-template-columns:repeat(5,auto);justify-content:start}
+  .studio .level-canvas .board-camera{padding:22px 4px 14px!important}
   .studio{padding:0 16px 48px}
   .studio-head{gap:8px 12px}.studio-head nav a{padding:6px 8px;font-size:12px}
   .entries{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.entry.wide{grid-column:1/-1}
