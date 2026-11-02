@@ -97,6 +97,12 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 
 ## Run
 - Three encounters with the rebel hideout between them (`buy`, `leaveCamp`).
+  The encounters are data in `src/game/levels/levels.json`, edited in the
+  studio's level designer (`docs/levels.md`).
+- A designer playtest (`playtest`) is a run with its own `level`: it plays
+  that one level with a given army (king first, onto the start squares in
+  order), and winning it ends in victory, with no hideout. Such a run is never
+  restored from a save.
   The king walks between buildings (`src/components/Hub.tsx`):
   - Barracks: recruit a pawn (3 gold), bishop (6) or rook (8), or heal the king
     2 (4). Buy as often as gold allows; recruits wait in the barracks

@@ -7,7 +7,7 @@ import { creditWin, equip, loadMeta, saveMeta } from "./game/meta";
 import { BattleBanner, GuardBadge } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { DAMAGE, STRIKE_COST, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kindName, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, same, strikeExposesKing, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { DAMAGE, STRIKE_COST, approaches, promote, ENCOUNTERS, ENERGY, HP, at, attack, attackTargets, buy, canEscape, coord, defend, endTurn, exposesKing, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, playtest as playtestRun, reaches, readRun, same, strikeExposesKing, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { Legend } from "./components/Panels";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
@@ -16,7 +16,7 @@ import { Bell } from "./components/table/Bell";
 import { ShieldToken } from "./components/table/ShieldToken";
 import { SkipToken } from "./components/table/SkipToken";
 import { StrikeIcon } from "./components/StrikeIcon";
-import type { Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
+import type { Encounter, Kind, Pos, PromoteTo, Run, Step, Target, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
 function saved() { try { return readRun(localStorage.getItem(SAVE)); } catch { return null; } }
@@ -26,6 +26,8 @@ function exportRun(run: Run, feedback: string) {
 }
 /** Choosing which square to walk to before striking a target (when there's more than one). */
 type Picking = { target: Unit; options: Target[] };
+/** A designer playtest: one level with a set army, shown as battle `index + 1` of `battles`. It never touches the run or meta saves. */
+export type Playtest = { level: Encounter; army: Kind[]; index: number; battles: number };
 type Playback = { steps: Step[]; before: Run; index: number };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
@@ -36,7 +38,7 @@ const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], morph: {}, lunge
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
 function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage, spd, picking, checkers, pips, skinOf }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined }) {
-  const e = ENCOUNTERS[run.encounter];
+  const e = levelOf(run);
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
   // Moves that would put your own king in check are shown, but blocked with a red ✕.
@@ -96,11 +98,12 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
   </div>;
 }
 
-export default function App() {
-  const [run, setRun] = useState<Run>(() => saved() ?? newRun());
-  const [intro, setIntro] = useState(() => !saved());
+export default function App({ playtest }: { playtest?: Playtest } = {}) {
+  const fresh = () => playtest ? playtestRun(playtest.level, playtest.army, playtest.index) : newRun();
+  const [run, setRun] = useState<Run>(() => (playtest ? null : saved()) ?? fresh());
+  const [intro, setIntro] = useState(() => !playtest && !saved());
   // End-of-battle sequence: let the last blow land, celebrate (or mourn), then show the menu.
-  const [outroDone, setOutroDone] = useState(() => outroKey(saved() ?? newRun()));
+  const [outroDone, setOutroDone] = useState(() => outroKey(run));
   const [banner, setBanner] = useState<"" | "cleared" | "victory" | "defeat" | "checkmate">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [playback, setPlayback] = useState<Playback | null>(null);
@@ -190,14 +193,15 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [meta, setMeta] = useState(() => loadMeta(() => localStorage, SKINS));
   // A won run unlocks the next skin; creditWin ignores a victory it has already counted (a reload, say).
-  useEffect(() => { if (run.phase === "victory") setMeta(m => creditWin(m, run, SKINS).meta); }, [run]);
-  useEffect(() => { if (!saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
+  useEffect(() => { if (run.phase === "victory" && !playtest) setMeta(m => creditWin(m, run, SKINS).meta); }, [run]);
+  useEffect(() => { if (!playtest && !saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
   // Skins have no painted sprites yet, so a worn skin draws on the SVG shape kit among the painted cast.
   const skinOf = (kind: Kind) => meta.equipped[kind];
   const skinPicker = <SkinPicker meta={meta} onEquip={(s, on) => setMeta(m => equip(m, s, on))} />;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const e = ENCOUNTERS[run.encounter], king = run.units.find(u => u.id === "king");
+  const e = levelOf(run), king = run.units.find(u => u.id === "king");
+  const battles = playtest ? playtest.battles : ENCOUNTERS.length;
   const selected = run.units.find(u => u.id === selectedId && u.side === "white");
   const locked = !!playback || intro || run.phase !== "player" || !!run.promoting || striding;
   // Check: the enemy's next turn could kill the king. You can't end the turn until he's safe, unless nothing can make him safe.
@@ -234,7 +238,7 @@ export default function App() {
     return () => { clearTimeout(celebrate); clearTimeout(done); };
   }, [outro, playback, intro, key]);
   const skipOutro = () => { setBanner(""); setOutroDone(key); };
-  useEffect(() => { if (!intro) try { localStorage.setItem(SAVE, JSON.stringify(run)); } catch { setNotice("Autosave off"); } }, [run, intro]);
+  useEffect(() => { if (!intro && !playtest) try { localStorage.setItem(SAVE, JSON.stringify(run)); } catch { setNotice("Autosave off"); } }, [run, intro]);
   useEffect(() => {
     // The pause menu pauses the enemy's playback.
     if (!playback || menu) return;
@@ -337,14 +341,14 @@ export default function App() {
     if (result.run.phase === "defeat" && fallen) setFall({ king: fallen, by: [...new Set(result.steps.filter(st => st.target === "king").map(st => st.actor))] });
     if (result.steps.length) setPlayback({ steps: result.steps, before: run, index: 0 });
   };
-  function start() { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(newRun()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
+  function start() { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setRun(fresh()); setSelectedId(null); setIntro(false); setFeedback(""); setNotice(""); }
   const step = playback ? playback.steps[playback.index] : null;
   const shown = step ? step.units : run.units;
   const caption = step ? step.text : picking ? "Strike from?" : "";
   const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); };
   const skip = () => { if (timer.current) clearTimeout(timer.current); setPlayback(null); };
   return <main className="exile-app">
-    <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={HP.king} battle={run.encounter + 1} battles={ENCOUNTERS.length} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
+    <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={HP.king} battle={run.encounter + 1} battles={battles} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
       <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} />
       {playback && <span className="turn-ribbon">ENEMY TURN</span>}
@@ -365,10 +369,10 @@ export default function App() {
         : <ShieldToken cost={1} disabled={!selected || locked || selected.acted || run.energy < 1} onClick={defendNow} />}
       <Bell state={playback ? "waiting" : checkLocked ? "locked" : "ready"} label={playback ? "Enemy turn" : checkLocked ? "King in check" : "End turn"} disabled={locked || checkLocked} onClick={finishTurn} />
     </section>
-    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={start}>Start<span>→</span></button>{saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
+    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={start}>Start<span>→</span></button>{!playtest && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
     {!intro && !playback && run.promoting && <div className="exile-modal-shade"><section className="exile-modal camp-modal" role="dialog" aria-modal="true" aria-label="Promote your pawn"><h1>Promote</h1><div className="camp-offers">{(["queen", "rook", "bishop", "knight"] as const).map(kind => <button key={kind} onClick={() => choosePromotion(kind)}><div className="offer-art"><PieceRig kind={kind} side="white" /></div><h2>{kindName(kind)}</h2><p>♥{HP[kind]} ⚔{DAMAGE[kind]}</p></button>)}</div></section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
-    {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${ENCOUNTERS.length} · turn ${run.turn}`}</p>{run.phase === "victory" && skinPicker}<label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button><button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
+    {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${HP.king}` : `Battle ${run.encounter + 1} / ${battles} · turn ${run.turn}`}</p>{!playtest && <>{run.phase === "victory" && skinPicker}<label className="feedback-label">Playtest notes<textarea value={feedback} onChange={ev => setFeedback(ev.target.value)} /></label><button className="secondary-button" onClick={() => exportRun(run, feedback)}>Export notes ↗</button></>}<button className="primary-button" onClick={start}>Play again<span>→</span></button></section></div>}
     {menu && <PauseMenu log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onExport={() => exportRun(run, feedback)} onClose={() => setMenu(false)} skins={skinPicker} />}
   </main>;
 }

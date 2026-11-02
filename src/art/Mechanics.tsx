@@ -138,7 +138,7 @@ export function Mechanics() {
     </Group>
 
     <Group id="battles" title="Battles">
-      {ENCOUNTERS.map((e, i) => <Entry key={i} name={`Battle ${i + 1}`} src="ENCOUNTERS" note={`${e.width}×${e.height} · enemy energy ${e.enemyEnergy} · reward ${e.reward} gold · ${e.starts.length} start square${e.starts.length > 1 ? "s" : ""}`} wide><Encounter i={i} /></Entry>)}
+      {ENCOUNTERS.map((e, i) => <Entry key={i} name={`Battle ${i + 1}`} src="src/game/levels/levels.json" note={`${e.width}×${e.height} · enemy energy ${e.enemyEnergy} · reward ${e.reward} gold · ${e.starts.length} start square${e.starts.length > 1 ? "s" : ""}`} wide><Encounter i={i} /></Entry>)}
     </Group>
 
     <Group id="hideout" title="Hideout">

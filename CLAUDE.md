@@ -4,7 +4,7 @@
 Escape from Exile, turn-based: `src/main.tsx` → `src/App.tsx` → `src/game/turns.ts`
 (rules). Pieces are painted sprites (one image each, `src/components/SpriteRig.tsx`,
 `src/sprite.css`, `docs/art/PAINTED.md`) drawn by `src/components/PieceRig.tsx`; the
-SVG kit (`?art=new`) remains only for skins. Studio at `art.html` → `src/art/`: Cast,
+SVG kit (`?art=new`) remains only for skins. Studio at `art.html` → `src/art/`: Cast, Levels (`docs/levels.md`),
 Stage, style guide, mechanics. `src/exile.css`. `PieceArt.tsx` is the old art, still
 used by the lab. Rules doc:
 `docs/turn-based.md`. Lab: `lab.html` → `src/lab/` (Duel, pure solver).

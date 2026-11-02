@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, unsafeStrikes, walkAndStrike } from "../src/game/turns";
-import type { Run, Unit } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, playtest, promote, reaches, readRun, strikeExposesKing, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import type { Encounter, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
@@ -383,6 +383,27 @@ describe("turn-based rules", () => {
     expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();
   });
 
+  it("plays a single level on its own in a playtest, ending in victory with no hideout", () => {
+    const level: Encounter = { reward: 5, enemyEnergy: 1, width: 5, height: 3, walls: [{ x: 4, y: 0 }], spawns: [["pawn", 1, 1, 1]], starts: [{ x: 0, y: 2 }, { x: 2, y: 2 }] };
+    const g = playtest(level, ["king", "rook"], 1);
+    expect(g.encounter).toBe(1);
+    expect(g.units.map(u => [u.kind, u.side, u.x, u.y, u.hp])).toEqual([["king", "white", 0, 2, HP.king], ["rook", "white", 2, 2, HP.rook], ["pawn", "black", 1, 1, 1]]);
+    // The board is the level's, not the real battle 2's.
+    expect(passable(g, { x: 4, y: 1 })).toBe(true);
+    expect(passable(g, { x: 4, y: 0 })).toBe(false);
+    expect(passable(g, { x: 5, y: 1 })).toBe(false);
+    const won = attack(g, "king", g.units[2].id).run;
+    expect(won.phase).toBe("victory");
+    expect(won.gold).toBe(g.gold + 5);
+  });
+  it("uses the level's own enemy energy in a playtest", () => {
+    const level: Encounter = { reward: 0, enemyEnergy: 1, width: 4, height: 4, walls: [], spawns: [["rook", 3, 0, 5]], starts: [{ x: 0, y: 3 }] };
+    expect(endTurn(playtest(level, ["king"], 0)).spent).toBeLessThanOrEqual(1);
+  });
+  it("never restores a playtest as a saved run", () => {
+    const level: Encounter = { ...ENCOUNTERS[0] };
+    expect(readRun(JSON.stringify(playtest(level, ["king"], 0)))).toBeNull();
+  });
   it("can complete the three-battle run with a simple strategy", () => {
     let g = newRun(), turns = 0;
     while (!["victory", "defeat"].includes(g.phase) && turns++ < 80) {
