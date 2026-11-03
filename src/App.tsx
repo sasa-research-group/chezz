@@ -4,20 +4,28 @@ import { PieceRig, RIG_MS as DURATION } from "./components/PieceRig";
 import { SKINS } from "./components/skins";
 import { creditWin, loadMeta, saveMeta } from "./game/meta";
 import { testArmyOf, typicalStart } from "./game/levels";
-import { BattleBanner, GuardBadge } from "./components/BoardArt";
+import { BattleBanner, GuardBadge, IntentMarks } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { approaches, ENCOUNTERS, at, attack, attackTargets, buy, canDefend, canEscape, coord, defend, endTurn, exposesKing, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { approaches, ENCOUNTERS, at, attack, attackTargets, buy, canDefend, canEscape, coord, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
 import { ShieldToken } from "./components/table/ShieldToken";
 import { SkipToken } from "./components/table/SkipToken";
 import { StrikeIcon } from "./components/StrikeIcon";
-import type { Encounter, Kind, Pos, Rules, Run, Step, Unit } from "./game/turns";
+import type { Encounter, Intent, Kind, Pos, Rules, Run, Step, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
+/** The turn as it stood before a previewed move, saved beside the run so a reload can still cancel it. */
+const SAVE_START = "chezz.turns.v1.start";
 function saved() { try { return readRun(localStorage.getItem(SAVE)); } catch { return null; } }
+function savedStart(g: Run | null) {
+  try {
+    const s = g && readRun(localStorage.getItem(SAVE_START));
+    return s && g.phase === "player" && s.phase === "player" && s.encounter === g.encounter && s.turn === g.turn ? s : null;
+  } catch { return null; }
+}
 /** A fresh run at battle `index` with the level's test army and the typical run's leftover gold. */
 function jumpRun(index: number) {
   return startAt(index, testArmyOf(ENCOUNTERS, index), typicalStart(ENCOUNTERS, index).gold);
@@ -49,13 +57,23 @@ function strikeTiming(step: Step, before: Unit[]) {
 /** Identifies one end-of-battle moment, so its celebration plays once. */
 const outroKey = (g: Run) => g.phase === "player" ? "" : `${g.encounter}-${g.phase}-${g.turn}-${g.units.length}`;
 
-function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage, spd, picking, checkers, pips, skinOf }: { run: Run; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined }) {
+/** HP, damage and the defend bonus while braced: the same line on your pieces' cards and the enemy's. */
+const UnitStats = ({ u, r }: { u: Unit; r: Rules }) => <span className="unit-stats">♥{u.hp}/{r.hp[u.kind]} <StrikeIcon />{r.damage[u.kind]}{u.defending && <span className="guard"> +{r.defend}</span>}</span>;
+function intentWords(g: Run, i: Intent) {
+  if (intentWaits(i)) return "waits";
+  const target = i.strike && g.units.find(u => u.id === i.strike!.target);
+  return [i.to && `moves to ${coord(g, i.to)}`, i.strike && `strikes ${target ? label(target).toLowerCase() : "?"} −${i.strike.damage}${i.strike.kills ? ", kills" : ""}`, i.defend && "defends"].filter(Boolean).join(", ");
+}
+
+function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare, onHover, locked, stage, spd, picking, checkers, pips, skinOf, intent }: { run: Run; moveRun: Run; home: Pos | null; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; onHover: (p: Pos | null) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined; intent: Intent | null }) {
   const e = levelOf(run), r = rulesOf(run);
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
   const counter = stage.counter && flash?.damage.some(d => d.id === stage.counter!.victim) ? stage.counter : null;
-  // Moves that would put your own king in check are shown, but blocked with a red ✕.
-  const moves = selected && !locked ? moveTargets(run, selected).map(t => ({ ...t, unsafe: exposesKing(run, selected.id, t) })) : [];
+  // Moves that would put your own king in check are shown, but blocked with a red ✕. A previewed piece
+  // offers its moves from where it started the turn (moveRun), so you can try another square.
+  const mover = selected && moveRun.units.find(u => u.id === selected.id);
+  const moves = mover && !locked ? moveTargets(moveRun, mover).map(t => ({ ...t, unsafe: exposesKing(moveRun, mover.id, t) })) : [];
   // Strikes in place, plus enemies the piece can walk up to and strike this turn.
   const strikes = selected && !locked ? [...attackTargets(run, selected).filter(t => !strikeExposesKing(run, selected.id, t.id!)), ...run.units.filter(v => v.side === "black" && approaches(run, selected.id, v.id).length).map(v => ({ x: v.x, y: v.y, id: v.id }))] : [];
   // Enemies it could hit only by leaving the king in check get a ✕ chip instead of a sword badge.
@@ -74,7 +92,8 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
           const m = picking ? undefined : moves.find(t => same(t, p)), s = picking ? undefined : strikes.find(t => same(t, p));
           const focus = flash?.focus.some(q => same(p, q)) || (counter?.landed && same(counter.at, p));
           return <button key={i} disabled={locked || !passable(run, p)}
-            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${piece?.defending ? `guarded-tile ${piece.side}` : ""} ${s ? "strikeable" : ""}`}
+            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${piece?.defending ? `guarded-tile ${piece.side}` : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""}`}
+            onPointerEnter={ev => { if (ev.pointerType === "mouse") onHover(p); }} onPointerLeave={ev => { if (ev.pointerType === "mouse") onHover(null); }}
             aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP${piece.defending ? ", defending" : ""}` : passable(run, p) ? "empty" : "obstacle"}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
             {m && !m.unsafe && <span className="target-dot" />}
@@ -82,6 +101,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
             {pick && <span className="target-dot approach-dot"><b className="cost-label"><StrikeIcon /></b></span>}</button>;
         })}
       </div>
+      {intent && !locked && <IntentMarks intent={intent} cols={e.width} rows={e.height} leaps={run.units.find(u => u.id === intent.id)?.kind === "knight"} bonus={r.defend} />}
       <div className="piece-layer" aria-hidden="true" style={{ "--spd": spd } as CSSProperties}>{[...units, ...stage.ghosts.filter(gh => !units.some(u => u.id === gh.id))].map(piece => {
         const awaiting = counter?.victim === piece.id && !counter.landed;
         const damage = awaiting ? undefined : flash?.damage.find(d => d.id === piece.id);
@@ -95,7 +115,7 @@ function Board({ run, units, selected, flash: rawFlash, onSquare, locked, stage,
         const lunge = stage.lunge[piece.id], spot = lunge && lunge !== "home" ? lunge : piece;
         // Enemies you can strike right now glow and carry a sword badge, drawn over the art.
         const strike = !ghost && !picking ? strikes.find(t => t.id === piece.id) : undefined;
-        return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id ? "selected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
+        return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id ? "selected" : ""} ${!locked && intent?.id === piece.id ? "inspected" : ""} ${piece.defending ? "guarded" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
           style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
           <PieceRig key={`${piece.id}-${anim.key}`} kind={piece.kind} side={piece.side} action={anim.action} defending={!!piece.defending} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < r.hp[piece.kind] && piece.hp <= r.hp[piece.kind] / 2} skin={skinOf(piece.kind)} />
           {strike && <span className="strike-badge"><StrikeIcon /></span>}
@@ -121,6 +141,12 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const [outroDone, setOutroDone] = useState(() => outroKey(run));
   const [banner, setBanner] = useState<"" | "cleared" | "victory" | "defeat" | "checkmate">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Moves are previews until a strike, a defend or End turn commits them: this is the run as it stood
+  // before the first uncommitted move, which Cancel (or Escape) goes back to.
+  const [turnStart, setTurnStart] = useState<Run | null>(() => test ? null : savedStart(saved()));
+  // The enemy whose card and plan are shown: tapped (inspectId) or, with a mouse, hovered.
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const [playback, setPlayback] = useState<Playback | null>(null);
   const [flash, setFlash] = useState<{ step: Step; hold: number } | null>(null);
   const [fast, setFast] = useState(false);
@@ -215,6 +241,21 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const selected = run.units.find(u => u.id === selectedId && u.side === "white");
   const selectedBenched = !!selected && sidelined(run, selected);
   const locked = !!playback || intro || run.phase !== "player" || striding;
+  const preview = run.phase === "player" ? turnStart : null;
+  // A previewed piece moves again from where it started the turn, not from its preview square.
+  const moveRun = useMemo(() => {
+    const was = preview && selected?.moved ? preview.units.find(u => u.id === selected.id) : undefined;
+    if (!preview || !was || was.moved) return run;
+    if (r.turn === "one") return preview;
+    if (run.units.some(u => u.id !== was.id && same(u, was))) return run;
+    return { ...run, units: run.units.map(u => (u.id === was.id ? { ...u, x: was.x, y: was.y, moved: false } : u)) };
+  }, [run, preview, selected?.id, selected?.moved]);
+  const homeOf = (id: string) => { const was = preview?.units.find(u => u.id === id), now = run.units.find(u => u.id === id); return was && now && !same(was, now) ? { x: was.x, y: was.y } : null; };
+  const home = selected ? homeOf(selected.id) : null;
+  // What the enemy would do if the turn ended now, recomputed from the board as previewed.
+  const plan = useMemo(() => (locked ? [] : enemyPlan(run)), [run, locked]);
+  const enemy = run.units.find(u => u.side === "black" && u.id === (hoverId ?? inspectId));
+  const intent = enemy && !locked ? intentOf(run, plan, enemy.id) : null;
   // Check: the enemy's next turn could kill the king. You can't end the turn until he's safe, unless nothing can make him safe.
   const check = useMemo(() => {
     if (run.phase !== "player" || striding || !inCheck(run)) return null;
@@ -244,7 +285,13 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   }, [outro, playback, intro, key]);
   const skipOutro = () => { setBanner(""); setOutroDone(key); };
   useEffect(() => { if (!waits) return; const id = setTimeout(() => setWaits(0), reduced ? 1200 : fast ? 700 : 1400); return () => clearTimeout(id); }, [waits]);
-  useEffect(() => { if (!intro && !test) try { localStorage.setItem(SAVE, JSON.stringify(run)); } catch { setNotice("Autosave off"); } }, [run, intro]);
+  useEffect(() => {
+    if (intro || test) return;
+    try {
+      localStorage.setItem(SAVE, JSON.stringify(run));
+      if (turnStart) localStorage.setItem(SAVE_START, JSON.stringify(turnStart)); else localStorage.removeItem(SAVE_START);
+    } catch { setNotice("Autosave off"); }
+  }, [run, turnStart, intro]);
   useEffect(() => {
     // The pause menu pauses the enemy's playback.
     if (!playback || menu) return;
@@ -260,19 +307,21 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   // The menu belongs to the table: not over the intro, the hub or the end screens.
   const canMenu = !intro && run.phase === "player";
   useEffect(() => { if (!canMenu) setMenu(false); }, [canMenu]);
-  // Escape backs out one step: the strike-from pick, then the selection, then opens the pause menu.
-  // The menu closes itself on Escape and marks the event handled.
+  // Escape backs out one step: the strike-from pick, the enemy card, the previewed move, the selection,
+  // then opens the pause menu. The menu closes itself on Escape and marks the event handled.
   useEffect(() => {
     if (menu || !canMenu) return;
     const back = (ev: KeyboardEvent) => {
       if (ev.key !== "Escape" || ev.defaultPrevented) return;
       if (picking) setPicking(null);
+      else if (inspectId) setInspectId(null);
+      else if (preview && !locked) cancelPreview();
       else if (selectedId) setSelectedId(null);
       else setMenu(true);
     };
     window.addEventListener("keydown", back);
     return () => window.removeEventListener("keydown", back);
-  }, [menu, canMenu, picking, selectedId]);
+  }, [menu, canMenu, picking, selectedId, inspectId, preview, locked, run]);
   useEffect(() => {
     if (!playback) return;
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
@@ -288,7 +337,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   };
   /** Commits a strike's result and plays it. */
   const land = (g: Run, next: Run, step: Step | null, attacker: Unit, target: Unit) => {
-    setRun(next); setNotice("");
+    setRun(next); setNotice(""); setTurnStart(null); setInspectId(null);
     setFlash(step ? { step, hold: strikeTiming(step, g.units).counter?.lands ?? 0 } : null);
     if (step) perform(step, g.units);
     // A king felled by a defender's counter on your own turn still gets his finale.
@@ -304,7 +353,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (!plan) return;
     const walked = plan.walked;
     face(attacker.id, attacker, from); animate(attacker.id, "move");
-    setRun(walked); setNotice(""); setStriding(true);
+    setRun(walked); setNotice(""); setStriding(true); setTurnStart(null); setInspectId(null);
     timers.current.push(setTimeout(() => {
       setStriding(false);
       const moved = walked.units.find(v => v.id === attacker.id)!;
@@ -323,27 +372,40 @@ export default function App({ test }: { test?: TestLevel } = {}) {
       if (!at(run, p) || same(picking.target, p)) { setNotice(""); return; }
     }
     const u = at(run, p);
-    if (u?.side === "white") { setSelectedId(u.id); setNotice(""); return; }
-    if (!selected) return;
-    if (u) {
+    if (u?.side === "white") { setSelectedId(u.id); setInspectId(null); setNotice(""); return; }
+    if (u && selected) {
       // Tap an enemy to strike it: in place if it's next to you, otherwise walk up first.
       if (strikeNow(run, selected, u)) return;
       const ways = approaches(run, selected.id, u.id);
-      if (!ways.length) return;
       if (ways.length === 1) { strikeFrom(ways[0], selected, u); return; }
-      setPicking({ target: u, options: ways });
-      return;
+      if (ways.length) { setPicking({ target: u, options: ways }); return; }
     }
-    const next = move(run, selected.id, p);
-    if (next === run) return;
+    // An enemy you can't strike shows its card and plan.
+    if (u) { setInspectId(u.id); setNotice(""); return; }
+    setInspectId(null);
+    if (!selected) return;
+    // Tapping the square a previewed piece started on takes the move back.
+    if (home && same(home, p)) { cancelPreview(); return; }
+    const next = move(moveRun, selected.id, p);
+    if (next === moveRun) return;
+    if (!preview) setTurnStart(run);
     face(selected.id, selected, p); animate(selected.id, "move");
     setRun(next); setNotice("");
+  };
+  /** Takes back every move since the last strike, defend or End turn: pieces walk home. */
+  const cancelPreview = () => {
+    if (!preview || locked) return;
+    for (const u of run.units) {
+      const was = preview.units.find(v => v.id === u.id);
+      if (was && !same(was, u)) { face(u.id, u, was); animate(u.id, "move"); }
+    }
+    setRun(preview); setTurnStart(null); setPicking(null); setNotice("");
   };
   const finishTurn = () => {
     if (locked) return;
     const result = endTurn(run);
     if (result.run === run) return;
-    setSelectedId(null); setNotice(""); setPicking(null);
+    setSelectedId(null); setNotice(""); setPicking(null); setTurnStart(null); setInspectId(null); setHoverId(null);
     // Commit the enemy's result at once (autosave included); playback only shows it.
     setRun(result.run);
     const fallen = run.units.find(u => u.id === "king");
@@ -354,20 +416,20 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   // Under one move per turn, the turn passes on its own once your piece has done all it usefully can,
   // after its animation has played.
   useEffect(() => {
-    if (locked || flash || !turnSpent(run)) return;
+    if (locked || flash || preview || !turnSpent(run)) return;
     const id = setTimeout(finishTurn, (reduced ? 150 : 450) * spd);
     return () => clearTimeout(id);
-  }, [run, locked, flash]);
-  function start(next: Run = fresh()) { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setWaits(0); setRun(next); setSelectedId(null); setIntro(false); setNotice(""); }
+  }, [run, locked, flash, preview]);
+  function start(next: Run = fresh()) { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setWaits(0); setRun(next); setTurnStart(null); setInspectId(null); setSelectedId(null); setIntro(false); setNotice(""); }
   const step = playback ? playback.steps[playback.index] : null;
   const shown = step ? step.units : run.units;
   const caption = step ? (step.counter && stage.counter?.landed ? step.counter : step.text) : picking ? "Strike from?" : "";
-  const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); setRun(defend(run, selected.id)); animate(selected.id, "defend"); };
+  const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); const next = defend(run, selected.id); if (next === run) return; setRun(next); setTurnStart(null); animate(selected.id, "defend"); };
   const skip = () => { if (timer.current) clearTimeout(timer.current); setPlayback(null); };
   return <main className="exile-app">
     <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={r.hp.king} battle={run.encounter + 1} battles={battles} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
-      <Board run={playback ? playback.before : run} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} />
+      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} />
       {playback && <span className="turn-ribbon">ENEMY TURN</span>}
       {waits > 0 && !playback && <span key={waits} role="status" className="turn-ribbon enemy-waits">ENEMY WAITS</span>}
       {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
@@ -378,15 +440,21 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     </section>
     <section className="table-hud" aria-label="Actions">
       <div className="hud-info">
-        {selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" skin={skinOf(selected.kind)} /><div><strong>{kindName(selected.kind)}</strong><span className="unit-stats">♥{selected.hp} <StrikeIcon />{r.damage[selected.kind]}</span><span className="action-pips" role="img" aria-label={selectedBenched ? "locked: another piece acted" : selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted || selectedBenched ? "" : "full"} /><i className={selected.acted || selectedBenched ? "" : "full"} /></span></div></div>}
+        {enemy && intent && !locked ? <div className="selected-card enemy-card" role="group" aria-label={`${label(enemy)} card`}><PieceRig kind={enemy.kind} side="black" /><div><strong>{label(enemy)}</strong><UnitStats u={enemy} r={r} />
+          <span className="intent-line" role="img" aria-label={`Intent: ${intentWords(run, intent)}`}>{intentWaits(intent) ? "waits" : <>
+            {intent.to && <span>→ {coord(run, intent.to)}</span>}
+            {intent.strike && <span><StrikeIcon />{kindName(run.units.find(u => u.id === intent.strike!.target)?.kind ?? "")} −{intent.strike.damage}</span>}
+            {intent.defend && <span>+{r.defend}</span>}</>}</span></div></div>
+        : selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" skin={skinOf(selected.kind)} /><div><strong>{kindName(selected.kind)}</strong><UnitStats u={selected} r={r} /><span className="action-pips" role="img" aria-label={selectedBenched ? "locked: another piece acted" : selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted || selectedBenched ? "" : "full"} /><i className={selected.acted || selectedBenched ? "" : "full"} /></span></div></div>}
       </div>
+      {preview && !locked && <button className="cancel-move" aria-label="Cancel" onClick={cancelPreview} title="Take the move back (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg><span className="cancel-label">Cancel</span></button>}
       {playback
         ? <SkipToken onClick={skip} />
         : <ShieldToken bonus={r.defend} disabled={!selected || locked || !canDefend(run, selected)} onClick={defendNow} />}
       <EndTurnButton state={playback ? "waiting" : checkLocked ? "locked" : "ready"} disabled={locked || checkLocked} onClick={finishTurn} />
     </section>
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
-    {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
+    {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${r.hp.king}` : `Battle ${run.encounter + 1} of ${battles} · turn ${run.turn}`}</p><button className="primary-button" onClick={() => start()}>Play again<span>→</span></button></section></div>}
     {menu && <PauseMenu rules={r} log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onClose={() => setMenu(false)} battles={battles} onJump={test ? undefined : index => { setMenu(false); start(jumpRun(index)); }} />}
   </main>;

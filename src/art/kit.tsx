@@ -32,7 +32,7 @@ export function Group({ id, title, children }: { id: string; title: string; chil
 export type Piece = { kind: RigKind; side: RigSide; x: number; y: number; cls?: string; hp?: number; max?: number; extra?: ReactNode };
 export type Cell = { cls?: string; dot?: ReactNode };
 /** A small board built from the game's own board classes (exile.css), tilt and all, with still sprites. */
-export function MiniBoard({ cols, rows, cells = {}, pieces = [], style }: { cols: number; rows: number; cells?: Record<string, Cell>; pieces?: Piece[]; style?: CSSProperties }) {
+export function MiniBoard({ cols, rows, cells = {}, pieces = [], style, overlay }: { cols: number; rows: number; cells?: Record<string, Cell>; pieces?: Piece[]; style?: CSSProperties; overlay?: ReactNode }) {
   return <div className="board-camera" style={{ "--cols": cols, "--rows": rows, ...style } as CSSProperties}>
     <div className="board-plane" style={{ aspectRatio: `${cols}/${rows}` }}>
       <div className="exile-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
@@ -41,6 +41,7 @@ export function MiniBoard({ cols, rows, cells = {}, pieces = [], style }: { cols
           return <div key={i} className={`exile-cell ${(x + y) % 2 ? "grass" : "sand"} ${c?.cls ?? ""}`}>{c?.dot}</div>;
         })}
       </div>
+      {overlay}
       <div className="piece-layer">{pieces.map((p, i) =>
         <div key={i} className={`exile-piece ${p.side} ${p.cls ?? ""}`} style={{ left: `${(p.x + .5) / cols * 100}%`, top: `${(p.y + .5) / rows * 100}%`, width: `${92 / cols}%`, zIndex: Math.round(p.y * 10 + 30) }}>
           <SpriteStill kind={p.kind} side={p.side} className="rig" />

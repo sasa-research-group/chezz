@@ -91,3 +91,22 @@
    ink inside the viewBox (tests/figure-bounds.test.ts) stays on the frame. Needs --cols on the camera. */
 .board-camera{container-type:inline-size;--rim-k:.33}
 .board-plane{--cell:calc((100cqw - 2 * var(--frame)) / var(--cols, 4));--rim:calc(var(--rim-k) * var(--cell));border-top-width:var(--rim)}
+
+/* Enemy intent: what a hovered or tapped enemy would do if you ended the turn now (IntentMarks). The
+   lines lie flat on the board under the pieces; the chips stand up in front, like the strike badges. */
+.intent-layer{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible;transform:translateZ(1px)}
+.intent-path-under{fill:none;stroke:#2b201b;stroke-width:.16;stroke-linecap:round;opacity:.45}
+.intent-path{fill:none;stroke:#c2493c;stroke-width:.09;stroke-linecap:round;stroke-dasharray:.16 .12}
+#intent-head path{fill:#c2493c;stroke:#2b201b;stroke-width:1.2}
+.intent-dest{fill:#c2493c33;stroke:#c2493c;stroke-width:.05;stroke-dasharray:.1 .07}
+.intent-blow{stroke:#a3271c;stroke-width:.07;stroke-linecap:round}
+.intent-ring{fill:#a3271c22;stroke:#a3271c;stroke-width:.07}
+.intent-chips{position:absolute;inset:0;pointer-events:none;z-index:5;transform-style:preserve-3d}
+.intent-chip{position:absolute;transform:translate(-50%,-50%) rotateX(-8deg) translateZ(40px);display:flex;align-items:center;gap:1px;border:2px solid #382f2e;border-radius:8px;box-shadow:0 2px 0 #382f2e;padding:1px 6px;font-size:13px;font-weight:900;line-height:1.1;white-space:nowrap}
+.intent-chip.hit{background:#fff7dc;color:#a3271c}.intent-chip.hit.kills{background:#a3271c;color:#fff7dc}
+.intent-chip.brace{background:#dbe9f6;color:#2f5a82;border-style:dashed;margin-left:-28%;padding:1px 4px 1px 2px;font-size:11px}
+.intent-chip.brace svg{width:13px;height:14px;fill:#2f5a82;stroke:#382f2e;stroke-width:2}
+.intent-chip.idle{background:#2b201b;color:#f6e3b4;font-size:10px;letter-spacing:.5px;padding:0 6px;border-color:#a8865f;box-shadow:none}
+@media(max-width:700px){.intent-chip{font-size:11px;padding:0 4px}.intent-chip.idle{font-size:9px}.intent-chip.brace svg{width:10px;height:11px}}
+.exile-piece.inspected .rig{filter:drop-shadow(0 0 3px #fff3d9) drop-shadow(0 0 5px #c2493c)}
+.exile-cell.start-square::before{content:"";position:absolute;inset:30%;border:2px dashed #2b201b66;border-radius:50%;pointer-events:none}

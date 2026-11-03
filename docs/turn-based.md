@@ -19,10 +19,10 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 - **`turn: "one"`** (the default): each side acts with one piece per turn,
   chess-style. That piece may move, then strike or defend; or strike or
   defend without moving. Once it has moved or acted, your other pieces are
-  locked for the turn (`sidelined`). The turn passes on its own once the piece
-  has struck or defended, or has moved with nothing safe to strike and no
-  enemy that could hit it (`turnSpent`); otherwise the strike or defend is on
-  offer and End turn skips it.
+  locked for the turn (`sidelined`) until the move is cancelled. The turn
+  passes on its own once the piece has struck or defended. A move alone is a
+  preview (below) and waits for End turn, which skips the strike or defend.
+  (`turnSpent` still says when a moved piece has nothing safe left to do.)
 - **`turn: "all"`**: every piece on a side may act every turn.
 - Each piece may **move** once in its chess shape, any distance: rooks,
   bishops and queens slide until a piece or wall stops them; kings step one
@@ -30,6 +30,22 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   promotion); knights leap.
 - Then it may **strike** or **defend** once, not both. It can't move after
   either.
+
+## Previews and enemy intent
+- A move is a preview until a strike, a defend or End turn commits it. The
+  piece stands on the new square and everything (check, the ! threat marks,
+  enemy intent) reads from there. Cancel (next to End turn), Escape, or
+  tapping the start square puts it back; tapping another empty square moves it
+  again from its start. Under one move per turn, cancel to try another piece.
+  A move alone never passes the turn on its own; End turn commits it.
+- The run saves the previewed board plus the turn's start
+  (`chezz.turns.v1.start`), so a reload can still cancel.
+- Hover (mouse) or tap an enemy to see its card (HP, damage, +N if braced) and
+  its intent: what it would do if you ended the turn now (`enemyPlan`,
+  `intentOf`): an arrow to the square it would move to, a ring and −N on the
+  piece it would strike, a ghost +N shield if it would brace, or "waits".
+  Under one move per turn only the enemy that acts shows a plan. Tapping an
+  enemy your selected piece can strike still strikes.
 
 ## Strikes
 - Reach: one square in the piece's capture shape. Kings and queens strike any

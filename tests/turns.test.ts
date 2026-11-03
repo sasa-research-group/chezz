@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, HP, RULES, approaches, attack, attackTargets, buy, campReason, canDefend, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, HP, RULES, approaches, attack, attackTargets, buy, campReason, canDefend, canEscape, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import type { Encounter, Rules, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
@@ -412,6 +412,20 @@ describe("turn-based rules", () => {
     expect(steps).toEqual([]);
     expect(run.log[0]).toBe("Enemy waits");
     expect(run.turn).toBe(2);
+  });
+  it("plans the enemy turn End turn would play, from a previewed move, without changing the board", () => {
+    // A rook on b3 steps beside the king and strikes; move the king away and the plan changes.
+    const rook: Unit = { id: "e", side: "black", kind: "rook", x: 1, y: 1, hp: 5 };
+    const g = board([king, rook, { id: "p", side: "black", kind: "pawn", x: 3, y: 0, hp: 1 }], { rules: ONE });
+    const frozen = JSON.stringify(g), plan = enemyPlan(g);
+    expect(JSON.stringify(g)).toBe(frozen);
+    expect(plan).toEqual(endTurn(g).steps);
+    expect(intentOf(g, plan, "e")).toMatchObject({ strike: { target: "king", damage: DAMAGE.rook, kills: false } });
+    // Under one move per turn the other enemy waits.
+    expect(intentWaits(intentOf(g, plan, "p")!)).toBe(true);
+    const moved = move(g, "king", { x: 0, y: 3 });
+    expect(intentOf(moved, enemyPlan(moved), "e")).not.toEqual(intentOf(g, plan, "e"));
+    expect(intentOf(g, plan, "king")).toBeNull();
   });
   it("never restores a test run as a saved run", () => {
     const level: Encounter = { ...ENCOUNTERS[0] };

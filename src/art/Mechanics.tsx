@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
-import { ENCOUNTERS, RULES, approaches, canEscape, exposesKing, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
+import { IntentMarks } from "../components/BoardArt";
+import { ENCOUNTERS, RULES, approaches, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, Rules, Run, Side, Unit } from "../game/turns";
 import { LIMITS, SHOP, formatRules, parseRules } from "../game/rules";
 import type { Shop } from "../game/rules";
@@ -47,6 +48,13 @@ function TapToStrike({ r }: { r: Rules }) {
   const cells: Record<string, Cell> = { [key(e)]: { cls: "aimed" }, ...Object.fromEntries(ways.map(t => [key(t), { dot: dot(<StrikeIcon />, "approach-dot") }])) };
   return <><MiniBoard cols={4} rows={4} cells={cells} pieces={[pc(r, king), { ...pc(r, q), cls: "selected" }, { ...pc(r, e), cls: "targetable", extra: ways.length ? <span className="strike-badge"><StrikeIcon /></span> : undefined }]} />
     <p className="fine">approaches(): {ways.length} square{ways.length === 1 ? "" : "s"}</p></>;
+}
+/** A rook's plan before and after a previewed king move: the same enemyPlan() the game draws on hover. */
+function Intent({ r, previewed }: { r: Rules; previewed: boolean }) {
+  const king = unit(r, "king", "king", "white", previewed ? 0 : 1, 3), rook = unit(r, "e", "rook", "black", 1, 1), pawn = unit(r, "p", "pawn", "black", 3, 0);
+  const run = board(r, [king, rook, pawn]), plan = enemyPlan(run), intent = intentOf(run, plan, "e")!;
+  return <><MiniBoard cols={4} rows={4} pieces={[pc(r, king), { ...pc(r, rook), cls: "inspected" }, pc(r, pawn)]} overlay={<IntentMarks intent={intent} cols={4} rows={4} leaps={false} bonus={r.defend} />} />
+    <p className="fine">{plan.map(s => s.text).join(" · ") || "Enemy waits"}</p></>;
 }
 function Encounter({ r, i }: { r: Rules; i: number }) {
   const e = ENCOUNTERS[i];
@@ -145,7 +153,7 @@ export function Mechanics() {
     <Group id="turn" title="Turn">
       <table className="spec"><tbody>
         <tr><th>Order</th><td>You, then the enemy</td></tr>
-        <tr><th>Per turn</th><td>{one ? "One piece per side: it moves, then strikes or defends (or just strikes or defends). Once it has acted the turn passes; after a move with nothing left worth doing it passes on its own; End turn skips the rest" : "Every piece, every turn: 1 move, then strike or defend"}</td></tr>
+        <tr><th>Per turn</th><td>{one ? "One piece per side: it moves, then strikes or defends (or just strikes or defends). Once it has acted the turn passes; a move alone is a preview until End turn (Cancel takes it back); End turn skips the rest" : "Every piece, every turn: 1 move, then strike or defend"}</td></tr>
         <tr><th>Move</th><td>Its chess shape, any distance · slides stop at pieces and walls · knights leap · pawns stop at the far row</td></tr>
         <tr><th>Strike</th><td>Next square in the piece's shape · striker stays put</td></tr>
         <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn{live.counter ? " · counters any attacker it can reach" : ""}</td></tr>
@@ -188,6 +196,8 @@ export function Mechanics() {
     </Group>
 
     <Group id="enemy" title="Enemy turn">
+      <Entry name="Intent" src="enemyPlan() · intentOf()" note="hover or tap an enemy" wide><Intent r={live} previewed={false} /></Entry>
+      <Entry name="Intent after a previewed move" src="enemyPlan()" note="king previewed on a1" wide><Intent r={live} previewed /></Entry>
       <table className="spec"><thead><tr><th>Action</th><th>Score</th></tr></thead><tbody>{enemyScores(live).map(([a, b]) => <tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>
       <p className="fine">enemyTurn(): best score first {one ? "across every piece; once one piece has acted only it may carry on" : "across every piece, repeat until nothing scores above 0 (each piece moves once and strikes or defends once)"}. Deterministic; computed in full before playback.</p>
     </Group>

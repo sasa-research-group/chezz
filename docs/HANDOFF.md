@@ -4,7 +4,7 @@
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then strike
-  or defend); the turn passes on its own once that piece is done. `"turn":
+  or defend); the turn passes on its own once that piece strikes or defends. `"turn":
   "all"` brings back every piece acting. No promotion: pawns stop at the far
   row.
 - **Stats as data:** `src/game/rules.json` (HP, damage, defend +N, counter
@@ -35,6 +35,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   could die next turn; moves into check blocked), checkmate finale, hideout
   hub (`Hub.tsx`) with barracks and locked placeholders. A defender's counter
   plays as its own beat (swing, impact, damage) and logs its own line.
+- **Previews and intent:** moves are previews until a strike, defend or End
+  turn (Cancel / Escape takes them back; saved with the turn's start so a
+  reload can cancel). Hover or tap an enemy for its card and its plan
+  (`enemyPlan` in `turns.ts`, drawn by `IntentMarks` in `BoardArt.tsx`).
 - **No narrator text:** on screen only numbers, nouns and icons. Story
   unwritten (`Encounter.story` hook). Ask before adding prose.
 - **Balance** (`docs/levels.md`): levels untouched since the no-energy pass.
@@ -46,7 +50,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 ## Open items
 - The test player (`tests/turns-strategy.ts`) is a two-turn search; balance
   numbers are a floor, so playtest the new levels.
-- Enemy intent isn't shown before it acts.
+- Intent shows one enemy at a time (hover or tap); no always-on view of the
+  whole enemy turn yet. A move with nothing left to do now waits for End turn.
 - App debt: `App.tsx` is dense; intro/end modals lack Escape and
   a focus trap (`useDialogKeys` in `PauseMenu.tsx` is ready to reuse).
 - Dead-end/loop audit (Oct 11), waiting on Wesley's play to pick fixes:

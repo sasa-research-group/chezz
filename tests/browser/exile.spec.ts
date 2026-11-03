@@ -209,6 +209,63 @@ test("one move per turn: once a piece moves the others are locked, and acting pa
   await expect.poll(async () => (await saved(page)).turn).toBe(2);
 });
 
+// The rook on b3 plans to step to b2 and strike the king on b1.
+const intentBoard = () => {
+  const start = newRun();
+  return { ...start, units: [start.units[0], { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
+};
+
+test("hover or tap an enemy to see its card and what it plans", async ({ page }) => {
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(intentBoard()));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^b3 black rook/ }).hover();
+  await expect(page.locator(".intent-layer")).toHaveCount(1);
+  await expect(page.locator(".intent-chip.hit")).toHaveText("−2");
+  await page.mouse.move(0, 0);
+  await expect(page.locator(".intent-layer")).toHaveCount(0);
+  await page.getByRole("button", { name: /^b3 black rook/ }).click();
+  const card = page.getByRole("group", { name: "Enemy rook card" });
+  await expect(card).toContainText("♥5/5");
+  await expect(card.getByRole("img", { name: "Intent: moves to b2, strikes king −2" })).toBeVisible();
+  // Under one move per turn the pawn isn't the piece that acts.
+  await page.getByRole("button", { name: /^d4 black pawn/ }).click();
+  await expect(page.locator(".intent-chip.idle")).toHaveText("waits");
+  // Selecting your own piece brings its card back.
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await expect(page.getByRole("group", { name: /Enemy/ })).toHaveCount(0);
+});
+
+test("a move is a preview: the enemy's plan follows it, and Escape or Cancel takes it back", async ({ page }) => {
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(intentBoard()));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await page.getByRole("button", { name: /^a1 empty, move here/ }).click();
+  await expect(page.getByRole("button", { name: /^a1 white king/ })).toBeVisible();
+  await page.getByRole("button", { name: /^b3 black rook/ }).click();
+  await expect(page.getByRole("img", { name: "Intent: moves to b1, strikes king −2" })).toBeVisible();
+  // Nothing to strike, but a move alone doesn't pass the turn: it waits to be committed or cancelled.
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+  // A reload keeps the preview, and it can still be cancelled.
+  await page.reload();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: /^b1 white king/ })).toBeVisible();
+  expect((await saved(page)).units.find(u => u.id === "king")).toMatchObject({ x: 1, y: 3 });
+  // Escape closes the enemy card first, then takes the move back.
+  await page.getByRole("button", { name: /^b1 white king/ }).click();
+  await page.getByRole("button", { name: /^c1 empty, move here/ }).click();
+  await page.getByRole("button", { name: /^b3 black rook/ }).click();
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole("group", { name: "Enemy rook card" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("group", { name: "Enemy rook card" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^c1 white king/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /^b1 white king/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("chezz.turns.v1.start"))).toBeNull();
+  await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
+});
+
 test("a pawn on the far row stays a pawn", async ({ page }) => {
   const start = newRun();
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
@@ -406,8 +463,10 @@ test("play the exile run through browser controls", async ({ page }) => {
       await expect.poll(async () => (await saved(page)).encounter).toBe(g.encounter + 1);
       continue;
     }
-    // Under one move per turn the game passes a spent turn on its own.
+    // Under one move per turn the game passes a spent turn on its own once a piece has acted; a move
+    // alone is a preview, which End turn commits.
     if (turnSpent(g)) {
+      if (!g.units.some(u => u.side === "white" && u.acted)) await page.getByRole("button", { name: "End turn" }).click();
       await expect.poll(async () => { const s = await saved(page); return s.turn !== g.turn || s.phase !== "player"; }, { timeout: 15000 }).toBe(true);
       continue;
     }

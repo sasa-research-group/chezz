@@ -374,14 +374,34 @@ export function turnSpent(g: Run): boolean {
   if (!mover) return false;
   return !attackTargets(g, mover).some(t => !strikeExposesKing(g, mover.id, t.id!)) && !(threatened(g, mover) && canDefend(g, mover));
 }
+/** Your pieces' moves are spent; their blocks last through the enemy's turn. */
+const handOver = (g: Run): Run => ({ ...g, units: g.units.map(u => (u.side === "white" ? { ...u, moved: false, acted: false } : u)) });
+/** What the enemy would do if you ended your turn now, step by step: its turn computed from the board
+ * as it stands (a previewed move included). Nothing is changed; only End turn makes it happen. */
+export function enemyPlan(g: Run): Step[] {
+  return g.phase === "player" ? enemyTurn(handOver(g)).steps : [];
+}
+/** One enemy piece's part of a plan: where it would move, whom it would strike and for how much, and
+ * whether it would brace. A piece with none of these waits. */
+export type Intent = { id: string; from: Pos; to?: Pos; strike?: { target: string; at: Pos; damage: number; kills: boolean }; defend?: boolean };
+export function intentOf(g: Run, plan: Step[], id: string): Intent | null {
+  const u = g.units.find(v => v.id === id);
+  if (!u || u.side !== "black") return null;
+  const intent: Intent = { id, from: { x: u.x, y: u.y } };
+  for (const step of plan.filter(st => st.actor === id)) {
+    if (step.kind === "move") { const to = step.units.find(v => v.id === id); if (to) intent.to = { x: to.x, y: to.y }; }
+    else if (step.kind === "defend") intent.defend = true;
+    else if (step.target) intent.strike = { target: step.target, at: step.focus[0], damage: step.damage.find(d => d.id === step.target)?.amount ?? 0, kills: step.killed.includes(step.target) };
+  }
+  return intent;
+}
+export const intentWaits = (i: Intent) => !i.to && !i.strike && !i.defend;
 /** Ends the player's turn: the enemy acts, then your pieces are ready again. */
 export function endTurn(g: Run): { run: Run; steps: Step[] } {
   if (g.phase !== "player") return { run: g, steps: [] };
   // In check you must get the king safe first, unless nothing this turn can.
   if (inCheck(g) && canEscape(g)) return { run: g, steps: [] };
-  // Your pieces' moves are spent; their blocks last through the enemy's turn.
-  const handed: Run = { ...g, units: g.units.map(u => (u.side === "white" ? { ...u, moved: false, acted: false } : u)) };
-  const { run: acted, steps } = enemyTurn(handed);
+  const { run: acted, steps } = enemyTurn(handOver(g));
   const run = steps.length ? acted : note(acted, "Enemy waits");
   if (run.phase !== "player") return { run, steps };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : { ...u, moved: false, acted: false }));

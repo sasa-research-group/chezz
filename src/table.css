@@ -32,7 +32,7 @@
 @keyframes waits-in{from{opacity:0;transform:translateX(-50%) rotate(-2deg) scale(.7)}}
 
 /* HUD strip: the selected piece's card, the shield token and the End turn pill. */
-.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". . shield end";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
+.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". cancel shield end";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
 .hud-info{grid-area:info;display:flex;align-items:center;gap:10px;min-height:48px;min-width:0}
 .table-hud .selected-card{margin:0;padding:3px 10px 3px 4px;gap:6px;background:#2b201b;border:2px solid #a8865f;border-radius:10px;min-height:46px;flex-shrink:0;color:#f6e3b4}
 .table-hud .selected-card svg:not(.strike-icon){width:30px}
@@ -52,6 +52,13 @@
 .end-turn:disabled{opacity:1;filter:saturate(.25) brightness(.75)}
 .end-turn.locked{background:linear-gradient(#f3a094,#a3271c);color:#fff7dc;filter:none}
 .end-turn.locked .end-turn-icon{background:#fff7dc;color:#a3271c}
+.cancel-move{grid-area:cancel;justify-self:end;display:flex;align-items:center;gap:6px;height:48px;padding:0 14px 0 10px;border-radius:24px;background:#2b201b;border:3px solid #a8865f;box-shadow:0 4px 0 #1c1512;color:#f6e3b4;font-weight:900;font-size:14px;white-space:nowrap}
+.cancel-move svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.cancel-move:active{transform:translateY(2px);box-shadow:0 2px 0 #1c1512}
+.table-hud .enemy-card{border-color:#c2493c}
+.table-hud .enemy-card .unit-stats .guard{color:#9bbfe0}
+.intent-line{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#f3a094;white-space:nowrap}
+.intent-line .strike-icon{width:12px;height:12px}
 .table-hud button:focus-visible,.top-bar button:focus-visible,.pause-menu :focus-visible{outline-color:#ffe08a}
 
 /* Pause menu: a brass-rimmed card over the dimmed table. */
@@ -77,6 +84,7 @@
   .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:12px}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
   .table-hud{gap:6px;padding:4px 8px 8px}
   .shield-token,.skip-token{width:52px;height:52px}.end-turn{height:56px;font-size:15px;padding:0 14px 0 10px}
+  .cancel-move{padding:0 12px}.cancel-label{display:none}
 }
 @media(orientation:landscape){
   .exile-app{grid-template-rows:minmax(0,1fr);grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"top field hud"}
@@ -85,9 +93,10 @@
   .king-plaque,.battle-plaque{flex-direction:column;padding:6px 4px;gap:4px}
   .hearts{flex-direction:column}
   .coins{margin:0;flex-direction:column;gap:2px;font-size:18px}
-  .table-hud{width:196px;grid-template-columns:1fr;grid-template-areas:"info" "shield" "end";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
+  .table-hud{width:196px;grid-template-columns:1fr;grid-template-areas:"info" "cancel" "shield" "end";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
   .hud-info{flex-direction:column;align-items:stretch;min-height:0}
   .table-hud .selected-card{align-self:center}
+  .cancel-move{justify-self:center}
   .exile-field .board-camera{--pt:24px;--pb:14px}
   .end-turn{width:100%;justify-content:center;font-size:15px;padding:0 10px;white-space:normal;line-height:1.1}
 }
