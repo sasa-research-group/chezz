@@ -18,6 +18,8 @@ sprites, one image each (`src/components/SpriteRig.tsx`, `src/sprite.css`,
 - The enemy turn is computed in full before playback; playback only shows it.
 - When a rule changes, update `docs/turn-based.md` in the same change so the
   written rules match the game.
+- Balance is the owner's: they tune `rules.json` and `levels.json` by hand in the
+  studio. Don't retune those values or run and report balance numbers.
 
 ## Checks
 ```sh
