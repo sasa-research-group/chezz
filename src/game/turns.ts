@@ -120,12 +120,16 @@ export function approaches(g: Run, id: string, targetId: string): Pos[] {
 
 /** The steps a piece strikes along: its capture shape. */
 const strikeSteps = (u: Unit) => u.kind === "pawn" ? [[1, forward(u)], [-1, forward(u)]] : u.kind === "knight" ? LEAPS : slides(u.kind) ?? [...STRAIGHTS, ...DIAGONALS];
+/** A strikeback happens only between pieces striking from one step away: a ranged strike never draws one,
+ * and a ranged piece never strikes back from afar. */
+export const strikesBack = (g: Run, attacker: Unit, target: Unit) =>
+  rulesOf(g).counter && reaches(g, attacker, attacker, target, true) && reaches(g, target, target, attacker, true);
 /** Could u, standing on `from`, strike `target`? A strike reaches one step in the piece's capture shape,
  * or, for a kind whose range is "line", any number of steps along it as long as every square between is
  * open: the first piece or wall in the way stops it. u's own square never blocks (it may have moved). */
-export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
+export function reaches(g: Run, u: Unit, from: Pos, target: Pos, near = false): boolean {
   const dx = target.x - from.x, dy = target.y - from.y;
-  const line = rulesOf(g).range[u.kind] === "line";
+  const line = !near && rulesOf(g).range[u.kind] === "line";
   for (const [sx, sy] of strikeSteps(u)) {
     const n = sx ? dx / sx : dy / sy;
     if (!Number.isInteger(n) || n < 1 || dx !== sx * n || dy !== sy * n || (n > 1 && !line)) continue;
@@ -230,7 +234,7 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   const damage = [{ id: v.id, amount: dealt }];
   const text = `${label(a)} strikes ${label(v).toLowerCase()} −${dealt}${survives ? "" : " · killed"}`;
   let counter: string | undefined;
-  if (survives && rulesOf(g).counter && reaches({ ...g, units }, v, v, a)) {
+  if (survives && strikesBack({ ...g, units }, a, v)) {
     const back = rulesOf(g).damage[v.kind], left = a.hp - back;
     units = left > 0 ? units.map(u => (u.id === a.id ? { ...u, hp: left } : u)) : units.filter(u => u.id !== a.id);
     if (left <= 0) g = { ...g, fell: a.side };
@@ -324,8 +328,8 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
         const v = run.units.find(w => w.id === t.id)!;
         const dealt = hitFor(run, u, v);
         if (dealt === 0) continue;
-        // A target that survives strikes back if it can reach the striker's square.
-        const countered = r.counter && dealt < v.hp && reaches(run, v, v, u) ? r.damage[v.kind] : 0;
+        // A target that survives strikes back, unless either side strikes from range.
+        const countered = dealt < v.hp && strikesBack(run, u, v) ? r.damage[v.kind] : 0;
         const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0);
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => strike(run, u, t) });
       }

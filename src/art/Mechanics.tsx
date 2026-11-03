@@ -170,7 +170,7 @@ export function Mechanics() {
         <tr><th>Per turn</th><td>{one ? "One piece per side: it moves, then strikes or defends (or just strikes or defends). Once it has acted the turn passes; a move alone is a preview until End turn (Cancel takes it back); End turn skips the rest" : "Every piece, every turn: 1 move, then strike or defend"}</td></tr>
         <tr><th>Move</th><td>Its chess shape, any distance · slides stop at pieces and walls · knights leap · pawns stop at the far row</td></tr>
         <tr><th>Strike</th><td>Next square in the piece's shape · range "Line": any distance along it, stopped by the first piece or wall · striker stays put</td></tr>
-        <tr><th>Strike back</th><td>{live.counter ? "Any struck piece that survives hits the attacker back with its own damage, if it can reach the attacker's square" : "Off"}</td></tr>
+        <tr><th>Strike back</th><td>{live.counter ? "A struck piece that survives hits back with its own damage, if it can reach the attacker. Never from range: a ranged strike draws none, and a ranged piece never strikes back from afar" : "Off"}</td></tr>
         <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn</td></tr>
         <tr><th>Enemy</th><td>{one ? "One piece too: its best-scoring action, then that piece's follow-up" : "Every piece may act"}</td></tr>
       </tbody></table>
@@ -204,8 +204,8 @@ export function Mechanics() {
     </Group>
 
     <Group id="strikeback" title="Ranged strikes and strike back">
-      <Entry name="Bishop vs rook" src="attack() · reaches()" note="the rook can't reach back" wide><StrikeBack r={live} foe="rook" /></Entry>
-      <Entry name="Bishop vs bishop" src="attack() · reaches()" note="same diagonal: it strikes back" wide><StrikeBack r={live} foe="bishop" /></Entry>
+      <Entry name="Bishop vs rook" src="attack() · reaches()" note="ranged: no strike back" wide><StrikeBack r={live} foe="rook" /></Entry>
+      <Entry name="Bishop vs bishop" src="attack() · reaches()" note="ranged: no strike back, even bishop to bishop" wide><StrikeBack r={live} foe="bishop" /></Entry>
     </Group>
 
     <Group id="knight" title="Knight leap">

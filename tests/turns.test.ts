@@ -101,11 +101,15 @@ describe("turn-based rules", () => {
     expect(attackTargets(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }]), bishop)).toEqual([{ x: 3, y: 0, id: "f" }]);
     expect(attackTargets(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 2, y: 1 }]), bishop)).toEqual([]);
     expect(attackTargets(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 0, y: 0 }], { level: { ...WALLED, walls: [{ x: 1, y: 2 }] } }), bishop)).toEqual([]);
-    // A rook struck from afar can't reach back; a bishop on the same diagonal can.
+    // A ranged strike never draws a strikeback, not even from a bishop on the same diagonal.
     const shot = attack(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }]), "b", "f");
     expect(shot.step).toMatchObject({ text: `Bishop strikes enemy rook −${DAMAGE.bishop}`, counter: undefined });
     const duel = attack(board([bishop, { ...foe, kind: "bishop", x: 2, y: 1 }, { ...king, x: 3, y: 3 }]), "b", "f");
-    expect(unit(duel.run, "b")!.hp).toBe(3 - DAMAGE.bishop);
+    expect(duel.step.counter).toBeUndefined();
+    expect(unit(duel.run, "b")!.hp).toBe(3);
+    // Up close, the struck bishop does strike back.
+    const close = attack(board([bishop, { ...foe, kind: "bishop", x: 1, y: 2 }, { ...king, x: 3, y: 3 }]), "b", "f");
+    expect(unit(close.run, "b")!.hp).toBe(3 - DAMAGE.bishop);
     // With range 1, bishops strike only the next diagonal square.
     const adjacent = { rules: { ...RULES, range: { ...RULES.range, bishop: 1 as const } } };
     expect(attackTargets(board([bishop, { ...foe, x: 2, y: 1 }, { ...king, x: 3, y: 3 }], adjacent), bishop)).toEqual([]);

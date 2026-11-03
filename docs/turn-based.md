@@ -79,12 +79,13 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 - The striker stays on its own square, even on a kill.
 - Strikeback: if `counter` is on, a struck piece that survives hits the
   attacker back with its own damage when it can reach the attacker's square,
-  whether or not it was defending. A bishop's long shot draws one only from a
-  piece that reaches back (another bishop on that diagonal, a queen next to it).
+  whether or not it was defending. Ranged strikes are the exception: a strike
+  from more than one step away never draws a strikeback, and a ranged piece
+  never strikes back from afar (`strikesBack`).
 - A strikeback plays as its own beat: the attacker's blow lands, then the
   target swings back, then the attacker takes the hit (and falls if it dies).
   The log reads it as its own line, e.g. "Enemy rook counters −2". A ranged
-  hit (either way) flies as a streak from striker to target.
+  hit flies as a streak from striker to target.
 - Tap-to-strike: tapping an enemy the piece can't reach yet walks it up to a
   square it can strike from and strikes (`approaches`, `walkAndStrike`),
   judged as one action.
