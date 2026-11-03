@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENCOUNTERS, HP, buy, endTurn, leaveCamp, newRun, startAt } from "../src/game/turns";
+import { ENCOUNTERS, HP, begin, buy, endTurn, leaveCamp, newRun, startAt } from "../src/game/turns";
 import type { Kind, Run } from "../src/game/turns";
 import { typicalArmy } from "../src/game/levels";
 import { playTurn } from "./turns-strategy";
@@ -11,7 +11,8 @@ const TURN_LIMIT = 30;
 type Result = { phase: Run["phase"]; turns: number; left: string };
 const army = (g: Run) => g.units.filter(u => u.side === "white").map(u => `${u.kind}${u.hp}/${HP[u.kind]}`).join(" ") || "none";
 
-function playBattle(g: Run): { run: Run; result: Result } {
+function playBattle(dealt: Run): { run: Run; result: Result } {
+  let g = begin(dealt);
   const start = g.encounter;
   let turns = 0;
   while (g.phase === "player" && g.encounter === start && turns++ < TURN_LIMIT) {
@@ -25,7 +26,7 @@ function playBattle(g: Run): { run: Run; result: Result } {
 function playRun(shop: (g: Run) => Run): Result[] {
   let g = newRun();
   const results: Result[] = [];
-  while (g.phase === "player") {
+  while (g.phase === "deploy") {
     const { run, result } = playBattle(g);
     results.push(result);
     if (run.phase !== "camp") break;

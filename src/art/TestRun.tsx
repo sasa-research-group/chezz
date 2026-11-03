@@ -6,7 +6,7 @@ import "../table.css";
 
 /** The real game, full screen over the studio, playing one level with a set army. It never reads or
  * writes the player's run or meta saves. Stop returns to the editor; Restart deals the level again. */
-export default function TestRun({ test, title, onStop }: { test: TestLevel; title: string; onStop: () => void }) {
+export default function TestRun({ test, title, armyText, onStop }: { test: TestLevel; title: string; armyText: string; onStop: () => void }) {
   const [round, setRound] = useState(0);
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -16,7 +16,7 @@ export default function TestRun({ test, title, onStop }: { test: TestLevel; titl
   return createPortal(<div className="test-run" role="region" aria-label="Test run">
     <div className="test-run-bar">
       <b>▶ {title}</b>
-      <span>{test.army.join(" · ")}</span>
+      <span>{armyText}</span>
       <button type="button" onClick={() => setRound(r => r + 1)}>↻ Restart</button>
       <button type="button" className="stop" onClick={onStop}>■ Stop</button>
     </div>

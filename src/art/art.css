@@ -118,6 +118,15 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
 .test-run-bar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;text-transform:capitalize}
 .test-run-bar button{font:inherit;padding:6px 12px;border-radius:7px;border:1px solid #6b5848;background:#3a2b22;color:#f6e3b4;cursor:pointer}
 .test-run-bar button.stop{background:#c2493c;border-color:#c2493c;color:#fff7dc}
+.level-board .exile-cell.picked{box-shadow:inset 0 0 0 4px #396c61,inset 0 0 0 7px #fbf6e8}
+.unit-picker{display:flex;flex-wrap:wrap;align-items:center;gap:6px;justify-content:center;background:#fbf6e8;border:1px solid #cabc9e;border-radius:10px;padding:6px 8px;box-sizing:border-box}
+.unit-picker>b{font-size:13px;color:#396c61;min-width:22px;text-align:center}
+.unit-picker .seg{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.levels-area .unit-picker .seg button{padding:5px 8px;flex:0 0 auto}
+.levels-area .unit-picker-remove{color:#a3271c}
+.level-hint{margin:0;text-align:center;font-size:12px;color:#766a58}
+.level-army li code{font-size:11px;color:#766a58;min-width:20px}
+.level-note.plain{text-transform:none}
 @media(max-width:1060px){
   .levels-area{grid-template-columns:180px minmax(0,1fr)}
   .level-controls{grid-column:1/-1}

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, HP, RULES, approaches, attack, attackTargets, buy, campReason, canDefend, canEscape, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, HP, RULES, approaches, attack, attackTargets, begin, deploy, buy, campReason, canDefend, canEscape, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import type { Encounter, Rules, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
-function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), units, ...extra }; }
+function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), phase: "player", units, ...extra }; }
 const ONE: Rules = { ...RULES, turn: "one" }, ALL: Rules = { ...RULES, turn: "all" };
 const unit = (g: Run, id: string) => g.units.find(u => u.id === id);
 // Fixed boards, so these rules don't move when the shipped battles are retuned.
@@ -12,10 +12,38 @@ const WALLED: Encounter = { reward: 0, width: 6, height: 4, walls: [{ x: 3, y: 1
 const BRIDGE: Encounter = { reward: 0, width: 6, height: 6, walls: [0, 1, 4, 5].flatMap(x => [{ x, y: 2 }, { x, y: 3 }]), spawns: [], starts: [] };
 
 describe("turn-based rules", () => {
-  it("opens on the player's turn", () => {
+  it("opens in the deploy phase, then the player's turn", () => {
     const g = newRun();
-    expect(g.phase).toBe("player");
+    expect(g.phase).toBe("deploy");
     expect(g.units.filter(u => u.side === "white")).toHaveLength(1);
+    expect(begin(g).phase).toBe("player");
+  });
+  it("lets you rearrange your pieces on the start squares before the battle begins", () => {
+    const level: Encounter = { reward: 0, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 }] };
+    const g = testRun(level, ["king", "rook"], 0);
+    const where = (r: Run) => r.units.filter(u => u.side === "white").map(u => [u.id, u.x, u.y]);
+    // Onto your own piece: the two swap. Onto a spare start: it moves.
+    const swapped = deploy(g, "king", { x: 2, y: 3 });
+    expect(where(swapped)).toEqual([["king", 2, 3], ["ally-1", 1, 3]]);
+    expect(where(deploy(swapped, "ally-1", { x: 3, y: 3 }))).toEqual([["king", 2, 3], ["ally-1", 3, 3]]);
+    // Not a start square, not your piece, or not the deploy phase: nothing happens.
+    expect(deploy(g, "king", { x: 1, y: 2 })).toBe(g);
+    expect(deploy(g, "enemy-0-0", { x: 3, y: 3 })).toBe(g);
+    expect(deploy(begin(g), "king", { x: 3, y: 3 })).toEqual(begin(g));
+    expect(JSON.stringify(g)).toBe(JSON.stringify(testRun(level, ["king", "rook"], 0)));
+    // The enemy's plan is ready to inspect before the battle begins.
+    expect(enemyPlan(g)).toEqual(enemyPlan(begin(g)));
+    expect(move(g, "king", { x: 1, y: 2 })).toBe(g);
+  });
+  it("places a test army exactly where the designer put it, empty starts included", () => {
+    const level: Encounter = { reward: 0, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 }] };
+    const g = testRun(level, [{ kind: "rook", x: 1, y: 3 }, { kind: "king", x: 3, y: 3 }], 0);
+    expect(g.units.filter(u => u.side === "white").map(u => [u.id, u.kind, u.x, u.y])).toEqual([["ally-0", "rook", 1, 3], ["king", "king", 3, 3]]);
+    expect(deploy(g, "king", { x: 2, y: 3 }).units.filter(u => u.side === "white").map(u => [u.x, u.y])).toEqual([[1, 3], [2, 3]]);
+  });
+  it("saves and restores the deploy phase", () => {
+    const g = deploy(startAt(1, ["king", "rook"], 4), "king", ENCOUNTERS[1].starts[2]);
+    expect(readRun(JSON.stringify(g))).toEqual(g);
   });
 
   it("moves pieces in their chess shape, sliders any distance", () => {
@@ -267,7 +295,7 @@ describe("turn-based rules", () => {
   });
 
   it("runs a deterministic enemy turn, then readies the player's pieces", () => {
-    const g = move(newRun(), "king", { x: 1, y: 2 });
+    const g = move(begin(newRun()), "king", { x: 1, y: 2 });
     const a = endTurn(g), b = endTurn(g);
     expect(a).toEqual(b);
     expect(a.run.phase).toBe("player"); expect(a.run.turn).toBe(2);
@@ -277,7 +305,7 @@ describe("turn-based rules", () => {
   it("keeps stuck enemy pawns busy when they can do something useful", () => {
     // King steps to a2: the pawn on a3 is blocked and bracing wouldn't save it, so it waits; the c-pawn marches.
     const level: Encounter = { reward: 0, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] };
-    const { run, steps } = endTurn(move(testRun(level, ["king"], 0), "king", { x: 0, y: 2 }));
+    const { run, steps } = endTurn(move(begin(testRun(level, ["king"], 0)), "king", { x: 0, y: 2 }));
     expect(unit(run, "enemy-0-0")).toMatchObject({ x: 0, y: 1 });
     expect(unit(run, "enemy-0-0")!.defending).toBeFalsy();
     expect(unit(run, "enemy-0-1")).toMatchObject({ x: 2, y: 2 });
@@ -335,7 +363,7 @@ describe("turn-based rules", () => {
     // More recruits than the next road has squares for would leave pieces with nowhere to stand.
     expect(readRun(JSON.stringify({ ...shopped, recruits: ["pawn", "pawn", "pawn"] }))).toBeNull();
     const next = leaveCamp(shopped);
-    expect(next).toMatchObject({ phase: "player", encounter: 1, recruits: undefined });
+    expect(next).toMatchObject({ phase: "deploy", encounter: 1, recruits: undefined });
     expect(next.history.slice(-3)).toEqual(["Camp: pawn", "Camp: bishop", "Camp: road"]);
     expect(next.units.filter(u => u.side === "white").map(u => [u.kind, u.hp])).toEqual([["king", 4], ["pawn", HP.pawn], ["bishop", HP.bishop]]);
   });
@@ -360,7 +388,7 @@ describe("turn-based rules", () => {
 
   it("plays a single level on its own in a test run, ending in victory with no hideout", () => {
     const level: Encounter = { reward: 5, width: 5, height: 3, walls: [{ x: 4, y: 0 }], spawns: [["pawn", 1, 1, 1]], starts: [{ x: 0, y: 2 }, { x: 2, y: 2 }] };
-    const g = testRun(level, ["king", "rook"], 1);
+    const g = begin(testRun(level, ["king", "rook"], 1));
     expect(g.encounter).toBe(1);
     expect(g.units.map(u => [u.kind, u.side, u.x, u.y, u.hp])).toEqual([["king", "white", 0, 2, HP.king], ["rook", "white", 2, 2, HP.rook], ["pawn", "black", 1, 1, 1]]);
     // The board is the level's, not the real battle 2's.
@@ -373,7 +401,7 @@ describe("turn-based rules", () => {
   });
   it("lets every enemy piece act each turn when every piece acts", () => {
     const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };
-    const { steps } = endTurn(testRun(level, ["king"], 0, ALL));
+    const { steps } = endTurn(begin(testRun(level, ["king"], 0, ALL)));
     expect(new Set(steps.map(s => s.actor))).toEqual(new Set(["enemy-0-0", "enemy-0-1", "enemy-0-2"]));
     // Each piece moves at most once and strikes or defends at most once.
     for (const id of ["enemy-0-0", "enemy-0-1", "enemy-0-2"]) {
@@ -400,15 +428,15 @@ describe("turn-based rules", () => {
   });
   it("starts a fresh, saveable run at a later battle that still goes through the hideout", () => {
     const g = startAt(1, ["king", "rook"], 4);
-    expect(g).toMatchObject({ encounter: 1, gold: 4, phase: "player", turn: 1 });
+    expect(g).toMatchObject({ encounter: 1, gold: 4, phase: "deploy", turn: 1 });
     expect(g.units.filter(u => u.side === "white").map(u => [u.id, u.kind, u.x, u.y])).toEqual([["king", "king", ENCOUNTERS[1].starts[0].x, ENCOUNTERS[1].starts[0].y], ["ally-1", "rook", ENCOUNTERS[1].starts[1].x, ENCOUNTERS[1].starts[1].y]]);
     expect(readRun(JSON.stringify(g))).not.toBeNull();
-    const cleared = { ...g, units: g.units.filter(u => u.side === "white") };
+    const cleared = { ...begin(g), units: g.units.filter(u => u.side === "white") };
     expect(attack({ ...cleared, units: [...cleared.units, { id: "e", side: "black", kind: "pawn", x: g.units[0].x, y: g.units[0].y - 1, hp: 1 }] }, "king", "e").run.phase).toBe("camp");
   });
   it("logs a turn where the enemy does nothing", () => {
     const level: Encounter = { reward: 0, width: 4, height: 4, walls: [{ x: 0, y: 1 }], spawns: [["pawn", 0, 0, 1]], starts: [{ x: 3, y: 3 }] };
-    const { run, steps } = endTurn(testRun(level, ["king"], 0));
+    const { run, steps } = endTurn(begin(testRun(level, ["king"], 0)));
     expect(steps).toEqual([]);
     expect(run.log[0]).toBe("Enemy waits");
     expect(run.turn).toBe(2);
@@ -434,6 +462,7 @@ describe("turn-based rules", () => {
   it("plays a whole run with a simple strategy without breaking the board", () => {
     let g = newRun(), turns = 0;
     while (!["victory", "defeat"].includes(g.phase) && turns++ < 80) {
+      if (g.phase === "deploy") { g = begin(g); continue; }
       if (g.phase === "camp") { g = leaveCamp(buy(g, unit(g, "king")!.hp < 3 ? "heal" : "rook")); continue; }
       g = playTurn(g);
       if (g.phase === "player") g = endTurn(g).run;
@@ -474,7 +503,7 @@ describe("turn-based rules", () => {
     });
     it("makes the enemy act with one piece: its best action and that piece's follow-up", () => {
       const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };
-      const { run, steps } = endTurn(testRun(level, ["king"], 0, ONE));
+      const { run, steps } = endTurn(begin(testRun(level, ["king"], 0, ONE)));
       expect(new Set(steps.map(s => s.actor)).size).toBe(1);
       expect(steps.length).toBeGreaterThan(0);
       expect(run.turn).toBe(2);

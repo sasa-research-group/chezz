@@ -16,6 +16,11 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   studio's Levels tab edits them, saves under `npm run dev`, and test-runs one
   level in the real game with a test army and no saves touched. Checks are
   errors (block Save/Play) or amber warnings (design rules, never block).
+  The Army tool sets starts and the exact test unit on each (or None); Undo /
+  Redo per level (Ctrl/⌘ Z). No "wall ahead of start" warning any more.
+- **Deploy phase:** every battle opens with your pieces on the start squares;
+  drag (or tap, tap) to move or swap them, then Begin (`deploy`, `begin` in
+  `turns.ts`).
 - **Art:** one painted sprite per piece and skin, moved whole
   (`SpriteRig.tsx`, `sprite.css`, `docs/art/PAINTED.md`); look in
   `docs/art-style.md`.

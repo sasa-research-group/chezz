@@ -32,12 +32,17 @@ describe("levels data", () => {
     expect(messages({ spawns: [["rook", 1, 0, 6]] })).toContain("Enemy rook HP 1–5");
     expect(messages({ spawns: [] })).toContain("Needs an enemy");
     expect(messages({ starts: [] })).toContain("Needs a king start");
-    expect(messages({ testArmy: ["rook"] })).toContain("Army needs one king, first");
-    expect(messages({ testArmy: ["king", "rook", "pawn"] })).toContain("Army 3 > 2 starts");
-    expect(levelIssues({ ...base, width: 9, spawns: [], starts: [], testArmy: ["rook"] }).every(isError)).toBe(true);
+    expect(messages({ testArmy: [{ kind: "rook", x: 1, y: 3 }] })).toContain("Army needs exactly one king");
+    expect(messages({ testArmy: [{ kind: "king", x: 1, y: 3 }, { kind: "king", x: 2, y: 3 }] })).toContain("Army needs exactly one king");
+    expect(levelIssues({ ...base, testArmy: [{ kind: "king", x: 1, y: 3 }, { kind: "rook", x: 0, y: 0 }] })).toContainEqual({ field: "testArmy", message: "Army rook off a start", at: { x: 0, y: 0 } });
+    expect(messages({ testArmy: [{ kind: "king", x: 1, y: 3 }, { kind: "rook", x: 1, y: 3 }] })).toContain("Two army pieces on one start");
+    // Empty starts are fine: the king alone, on the second start.
+    expect(levelIssues({ ...base, testArmy: [{ kind: "king", x: 2, y: 3 }] })).toEqual([]);
+    expect(levelIssues({ ...base, width: 9, spawns: [], starts: [], testArmy: [{ kind: "rook", x: 1, y: 3 }] }).every(isError)).toBe(true);
   });
   it("flags design rules as warnings, which don't block", () => {
-    expect(levelIssues({ ...base, walls: [{ x: 2, y: 1 }] })).toEqual([{ field: "starts", message: "Wall ahead of start", at: { x: 2, y: 3 }, warning: true }]);
+    // A wall ahead of a start is the designer's call, not a warning.
+    expect(levelIssues({ ...base, walls: [{ x: 2, y: 1 }] })).toEqual([]);
     expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 2 })).filter(w => w.x !== 1 && w.x !== 2), spawns: [["pawn", 0, 0, 1]], starts: [{ x: 1, y: 3 }] })).toEqual([]);
     expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 1 })), spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }] })).toContainEqual({ field: "spawns", message: "Enemy pawn cut off", at: { x: 1, y: 0 }, warning: true });
     // Survivors carry over, so a later level should have at least as many starts.
@@ -66,7 +71,12 @@ describe("levels data", () => {
     expect(typicalArmy(poor, 1)).toEqual(["king", "pawn"]);
     // No room on the road: the recruit isn't bought.
     expect(typicalArmy([base, { ...base, starts: [{ x: 1, y: 3 }] }], 1)).toEqual(["king"]);
-    expect(testArmyOf([{ ...base, testArmy: ["king", "bishop"] }], 0)).toEqual(["king", "bishop"]);
+    const placed = [{ kind: "bishop" as const, x: 1, y: 3 }, { kind: "king" as const, x: 2, y: 3 }];
+    expect(testArmyOf([{ ...base, testArmy: placed }], 0)).toEqual(placed);
+    // Without a saved test army, the typical one fills the starts in order.
+    expect(testArmyOf(run, 1)).toEqual([{ kind: "king", x: 1, y: 3 }, { kind: "rook", x: 2, y: 3 }]);
+    expect(formatLevels([{ ...base, testArmy: [{ x: 1, y: 3, kind: "king" }] as never }])).toContain('"testArmy": [{ "kind": "king", "x": 1, "y": 3 }]');
+    expect(parseLevels({ version: 1, levels: [{ ...base, testArmy: ["king"] }] }).ok).toBe(false);
   });
 });
 

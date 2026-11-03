@@ -4,7 +4,8 @@
 - The battles live in `src/game/levels/levels.json` (`{ version: 1, levels: [...] }`).
   `turns.ts` reads them as `ENCOUNTERS`; each has the `Encounter` shape:
   `width`, `height` (2–8), `walls`, `spawns` (`[kind, x, y, hp]`), `starts`
-  (your army fills them in order, king first), `reward`, and an
+  (a real run's army fills them in order, king first; then the player
+  rearranges it in the deploy phase), `reward`, and an
   optional `story` the designer keeps but doesn't show.
 - Designer-only fields, ignored by the game: `name` (list label) and
   `testArmy` (see below).
@@ -16,10 +17,9 @@
 - **Errors** (would crash or corrupt; block Save and Play, and `parseLevels`
   refuses them): board 2–8 a side; nothing off the board; no enemy or start on
   a wall; no two things on one square; enemy HP 1–max for its kind; at least
-  one enemy and one start; reward 0–99; a test army has one king, first, and
-  no more pieces than starts.
-- **Warnings** (design rules; shown in amber, never block): a wall ahead of a
-  start (pawns only step forward, so a recruited pawn there is stuck); an enemy
+  one enemy and one start; reward 0–99; a test army has exactly one king,
+  every piece on a start square and no two on one. Empty starts are fine.
+- **Warnings** (design rules; shown in amber, never block): an enemy
   the king can't reach from his start (king steps around walls); a level with
   fewer starts than the one before (survivors carry over; the game drops
   whoever doesn't fit). Issues carry `warning: true`; `isError` tells them
@@ -29,12 +29,19 @@
 - Left: the list. Select, Add, Duplicate, ↑/↓, Delete. A red count marks a
   level with errors; an amber count, one with only warnings.
 - Board: drawn with the game's board classes and the painted stills. Tools:
-  Wall, Enemy (pick the piece), Start, Erase. One thing per square: painting
-  replaces what was there; clicking the same thing again removes it. Errors
+  Wall, Enemy (pick the piece), Army, Erase. One thing per square: painting
+  replaces what was there; clicking the same thing again removes it. With
+  Army, clicking a square makes it a start; clicking a start opens its unit
+  picker (king, queen, rook, bishop, knight, pawn or None, plus Remove start).
+  Picking the king for a square moves him there. The test army stands on the
+  board as sprites. Numbers on the starts are the order a real army fills them. Errors
   (red) and warnings (amber) list under the board and ring their square in
   the same colour.
-- Right: name, width, height, reward, each enemy's HP, the start
-  order, and the test army.
+- Right: name, width, height, reward, each enemy's HP, and the Army list:
+  each start in order with its test unit (or none) and a remove button.
+- Undo / Redo (buttons, Ctrl/⌘ Z and Shift Ctrl/⌘ Z, or Ctrl Y) step through
+  every edit to the selected level. Each level keeps its own history, in
+  memory until Save or a reload.
 - Save writes every level through a dev-only Vite endpoint
   (`vite.levels.ts`, `POST /__studio/levels`, `apply: "serve"`). The
   Mechanics tab saves `src/game/rules.json` the same way
@@ -50,8 +57,12 @@
   not the run (`chezz.turns.v1`), not the meta (`chezz.meta.v1`), so no skin
   unlocks. Restart deals the level again; Stop returns to the editor.
 - In a real run the army at a level depends on what the player recruited, so
-  a test run uses a stand-in. `testArmy` is that stand-in, per level:
-  - **Typical** (default, no `testArmy` saved): `typicalArmy` replays the run's
+  a test run uses a stand-in. `testArmy` is that stand-in, per level, piece by
+  square: `[{ "kind": "king", "x": 1, "y": 3 }, ...]`. ▶ Play deals it exactly
+  as placed (empty starts stay empty, spare squares to deploy onto), then the
+  deploy phase lets you rearrange it before Begin:
+  - **Typical** (default, no `testArmy` saved): filled into the starts in
+    order (`placeInOrder`). `typicalArmy` replays the run's
     economy: the starting gold plus each earlier level's reward, buying the
     strongest recruit it can afford at each hideout (gold and prices from
     `rules.json`; today 2 gold, rook 8, bishop 6, pawn 3),
@@ -59,10 +70,11 @@
     king; battle 2 king + rook; battle 3 king + rook + rook. It follows the
     rewards and start counts as you edit them, and the Mechanics tab's
     unsaved prices.
-  - **Minimum**: the king alone.
-  - Custom: add, remove or change pieces; it is saved as `testArmy`.
+  - **Minimum**: the king alone, on start 1.
+  - Custom: pick a unit per start square (from a preset or from scratch); it
+    is saved as `testArmy`.
 - The real game ignores `testArmy` and uses the player's actual army,
-  except the ☰ menu's Developer → Jump to battle, which fields it.
+  except the ☰ menu's Developer → Jump to battle, which fields it as placed.
 
 ## Balance (no energy, Nov 2)
 Rosters (squares in chess notation, your side at the bottom):

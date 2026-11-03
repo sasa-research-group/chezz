@@ -14,6 +14,18 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   run's gold).
 - A studio test run can carry unsaved rules (`Run.rules`); saved runs never do.
 
+## Deploy
+- Every battle opens in the deploy phase (`phase: "deploy"`): a new run, the
+  next battle after the hideout, Jump to battle and a studio test run. Your
+  army stands on the level's start squares (filled in order, king first; a
+  test army as the designer placed it). The start squares are highlighted.
+- Drag one of your pieces onto another start square (or tap it, then tap the
+  square): it moves there, and a piece already there swaps to where it came
+  from (`deploy(run, id, to)`; the swap glides, instantly under reduced
+  motion). Dropped anywhere else, it snaps back.
+- Enemies can be inspected (card and intent) as they'd act if the battle
+  began as placed. Begin (`begin`) starts turn 1. The phase saves and reloads.
+
 ## Turns
 - You act, then the enemy acts.
 - **`turn: "one"`** (the default): each side acts with one piece per turn,

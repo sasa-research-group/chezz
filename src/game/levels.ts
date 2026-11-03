@@ -3,10 +3,10 @@
  * repo, formats the file so diffs stay readable, and picks the army a studio test run fields.
  * Pure: no DOM, no file system. */
 import { HP, RULES } from "./turns";
-import type { Encounter, Kind, Pos, Recruit, Rules } from "./turns";
+import type { Encounter, Kind, Placed, Pos, Recruit, Rules } from "./turns";
 
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
-export type Level = Encounter & { name?: string; testArmy?: Kind[] };
+export type Level = Encounter & { name?: string; testArmy?: Placed[] };
 export type LevelsFile = { version: 1; levels: Level[] };
 /** One problem with a level, tied to the control (and square) it concerns. An error would crash or
  * corrupt the game and blocks Save and Play; a warning breaks a design rule and is only shown. */
@@ -34,7 +34,8 @@ function shapeOf(v: unknown, i: number): Level | string {
   for (const k of ["reward", "width", "height"] as const) if (!int(l[k], -999, 999)) return `${where}: ${k} must be a whole number`;
   for (const k of ["walls", "starts"] as const) if (!Array.isArray(l[k]) || !(l[k] as unknown[]).every(isPos)) return `${where}: ${k} must be a list of {x, y}`;
   if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && s.length === 4 && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y, hp]`;
-  if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isKind))) return `${where}: testArmy must be a list of piece kinds`;
+  const isPlaced = (p: unknown) => !!p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 3 && isKind((p as Placed).kind) && int((p as Placed).x, -99, 99) && int((p as Placed).y, -99, 99);
+  if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isPlaced))) return `${where}: testArmy must be a list of {kind, x, y}`;
   for (const k of ["name", "story"] as const) if (l[k] !== undefined && (typeof l[k] !== "string" || (l[k] as string).length > 200)) return `${where}: ${k} must be short text`;
   return l as unknown as Level;
 }
@@ -62,8 +63,6 @@ export function levelIssues(l: Level): Issue[] {
   l.starts.forEach((s, i) => place("starts", s, i === 0 ? "King start" : `Start ${i + 1}`));
   if (!l.spawns.length) out.push({ field: "spawns", message: "Needs an enemy" });
   if (!l.starts.length) out.push({ field: "starts", message: "Needs a king start" });
-  // Pawns only step forward, so a recruited pawn on a walled file is stuck behind the wall.
-  for (const s of l.starts) if (inside(s) && l.walls.some(w => w.x === s.x && w.y < s.y)) out.push({ field: "starts", message: "Wall ahead of start", at: s, warning: true });
   // An enemy the king can't reach may never be beaten.
   if (l.starts.length && inside(l.starts[0]) && !walls.has(key(l.starts[0]))) {
     const reach = new Set([key(l.starts[0])]), queue = [l.starts[0]];
@@ -77,9 +76,14 @@ export function levelIssues(l: Level): Issue[] {
     for (const [kind, x, y] of l.spawns) if (inside({ x, y }) && !walls.has(key({ x, y })) && !reach.has(key({ x, y }))) out.push({ field: "spawns", message: `Enemy ${kind} cut off`, at: { x, y }, warning: true });
   }
   if (l.testArmy) {
-    const kings = l.testArmy.filter(k => k === "king").length;
-    if (l.testArmy[0] !== "king" || kings !== 1) out.push({ field: "testArmy", message: "Army needs one king, first" });
-    if (l.testArmy.length > l.starts.length) out.push({ field: "testArmy", message: `Army ${l.testArmy.length} > ${l.starts.length} starts` });
+    if (l.testArmy.filter(p => p.kind === "king").length !== 1) out.push({ field: "testArmy", message: "Army needs exactly one king" });
+    const taken = new Set<string>();
+    for (const p of l.testArmy) {
+      const at = { x: p.x, y: p.y };
+      if (!l.starts.some(s => s.x === p.x && s.y === p.y)) out.push({ field: "testArmy", message: `Army ${p.kind} off a start`, at });
+      else if (taken.has(key(p))) out.push({ field: "testArmy", message: "Two army pieces on one start", at });
+      taken.add(key(p));
+    }
   }
   return out;
 }
@@ -115,7 +119,8 @@ export function formatLevels(levels: Level[]): string {
     : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${inline(x)}`).join(", ")} }`
     : JSON.stringify(v);
   const level = (l: Level) => {
-    const fields = KEYS.filter(k => l[k] !== undefined).map(k => `      ${JSON.stringify(k)}: ${inline(k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : l[k])}`);
+    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : k === "testArmy" ? l.testArmy!.map(p => ({ kind: p.kind, x: p.x, y: p.y })) : l[k];
+    const fields = KEYS.filter(k => l[k] !== undefined).map(k => `      ${JSON.stringify(k)}: ${inline(tidy(k))}`);
     return `    {\n${fields.join(",\n")}\n    }`;
   };
   return `{\n  "version": 1,\n  "levels": [\n${levels.map(level).join(",\n")}\n  ]\n}\n`;
@@ -139,5 +144,7 @@ export function typicalStart(levels: Level[], index: number, rules: Rules = RULE
   }
   return { army: army.slice(0, Math.max(1, levels[index]?.starts.length ?? 1)), gold };
 }
-/** The army a studio test run fields: the level's saved test army, or the typical one. */
-export const testArmyOf = (levels: Level[], index: number, rules: Rules = RULES): Kind[] => levels[index].testArmy ?? typicalArmy(levels, index, rules);
+/** Kinds standing on a level's start squares in order, as the game deals a real army. */
+export const placeInOrder = (l: Level, kinds: Kind[]): Placed[] => kinds.slice(0, l.starts.length).map((kind, i) => ({ kind, x: l.starts[i].x, y: l.starts[i].y }));
+/** The army a studio test run fields, piece by square: the level's saved test army, or the typical one in start order. */
+export const testArmyOf = (levels: Level[], index: number, rules: Rules = RULES): Placed[] => levels[index].testArmy ?? placeInOrder(levels[index], typicalArmy(levels, index, rules));
