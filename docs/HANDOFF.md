@@ -59,12 +59,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (`enemyPlan` in `turns.ts`, drawn by `IntentMarks` in `BoardArt.tsx`).
 - **No narrator text:** on screen only numbers, nouns and icons. Story
   unwritten (`Encounter.story` hook). Ask before adding prose.
-- **Balance** (`docs/levels.md`): levels untouched since the no-energy pass.
-  With strikebacks and ranged bishops the search player wins battles 1 and 2
-  (king 4/5) and falls in battle 3 with every army it tries (typical
-  king+rook, lone king, the whole run with a rook and heals), as it already
-  did before the change. Not retuned: the owner tweaks stats
-  in the studio. `tests/balance.test.ts` logs the numbers.
+- **Balance**: the owner tunes `rules.json` and `levels.json` by hand in the studio.
 
 ## Open items
 - The test player (`tests/turns-strategy.ts`) is a two-turn search; balance
