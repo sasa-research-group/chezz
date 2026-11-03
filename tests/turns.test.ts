@@ -60,6 +60,10 @@ describe("turn-based rules", () => {
     const g = board([king, rook]);
     // Rook from a1 slides up the whole file; the king blocks the row.
     expect(moveTargets(g, rook)).toEqual([{ x: 0, y: 2 }, { x: 0, y: 1 }, { x: 0, y: 0 }]);
+    expect(moveTargets({ ...g, rules: ALL }, rook)).toEqual(moveTargets({ ...g, rules: ONE }, rook));
+    // Enemy sliders cross the board in one move too: the rook on f2 slides to b2 to strike the king.
+    const far: Unit = { id: "e", side: "black", kind: "rook", x: 5, y: 2, hp: 5 };
+    expect(endTurn(board([{ ...king, x: 1, y: 3 }, far], { level: { ...WALLED, walls: [] } })).steps[0]).toMatchObject({ kind: "move", focus: [{ x: 1, y: 2 }] });
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 1, y: 3, hp: 3 };
     expect(moveTargets(board([knight]), knight).map(t => `${t.x},${t.y}`).sort()).toEqual(["0,1", "2,1", "3,2"]);
     const pawn: Unit = { id: "p", side: "white", kind: "pawn", x: 2, y: 3, hp: 1 };
@@ -80,7 +84,7 @@ describe("turn-based rules", () => {
     expect(move(hit, "king", { x: 0, y: 3 })).toBe(hit);
   });
 
-  it("makes every piece strike only from an adjacent square in its shape", () => {
+  it("makes pieces strike the next square in their shape, and bishops any distance down an open diagonal", () => {
     const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
     const foe: Unit = { id: "f", side: "black", kind: "rook", x: 0, y: 0, hp: 5 };
     const far = board([rook, foe, { ...king, x: 3, y: 3 }]);
@@ -90,12 +94,22 @@ describe("turn-based rules", () => {
     expect(attackTargets(near, unit(near, "r")!)).toEqual([{ x: 0, y: 0, id: "f" }]);
     const { run } = attack(near, "r", "f");
     expect(unit(run, "f")!.hp).toBe(5 - DAMAGE.rook);
-    // Strikes land from where the piece stands: the rook doesn't move and takes nothing.
-    expect(unit(run, "r")).toMatchObject({ x: 0, y: 1, hp: 5 });
-    // Bishops strike only the next diagonal square.
+    // Strikes land from where the piece stands: the rook doesn't move, and the surviving rook strikes back.
+    expect(unit(run, "r")).toMatchObject({ x: 0, y: 1, hp: 5 - DAMAGE.rook });
+    // Bishops strike down the diagonal from where they stand, stopped by the first piece or wall.
     const bishop: Unit = { id: "b", side: "white", kind: "bishop", x: 0, y: 3, hp: 3 };
-    expect(attackTargets(board([bishop, { ...foe, x: 2, y: 1 }, { ...king, x: 3, y: 3 }]), bishop)).toEqual([]);
-    expect(attackTargets(board([bishop, { ...foe, x: 1, y: 2 }, { ...king, x: 3, y: 3 }]), bishop)).toEqual([{ x: 1, y: 2, id: "f" }]);
+    expect(attackTargets(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }]), bishop)).toEqual([{ x: 3, y: 0, id: "f" }]);
+    expect(attackTargets(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 2, y: 1 }]), bishop)).toEqual([]);
+    expect(attackTargets(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 0, y: 0 }], { level: { ...WALLED, walls: [{ x: 1, y: 2 }] } }), bishop)).toEqual([]);
+    // A rook struck from afar can't reach back; a bishop on the same diagonal can.
+    const shot = attack(board([bishop, { ...foe, x: 3, y: 0 }, { ...king, x: 3, y: 3 }]), "b", "f");
+    expect(shot.step).toMatchObject({ text: `Bishop strikes enemy rook −${DAMAGE.bishop}`, counter: undefined });
+    const duel = attack(board([bishop, { ...foe, kind: "bishop", x: 2, y: 1 }, { ...king, x: 3, y: 3 }]), "b", "f");
+    expect(unit(duel.run, "b")!.hp).toBe(3 - DAMAGE.bishop);
+    // With range 1, bishops strike only the next diagonal square.
+    const adjacent = { rules: { ...RULES, range: { ...RULES.range, bishop: 1 as const } } };
+    expect(attackTargets(board([bishop, { ...foe, x: 2, y: 1 }, { ...king, x: 3, y: 3 }], adjacent), bishop)).toEqual([]);
+    expect(attackTargets(board([bishop, { ...foe, x: 1, y: 2 }, { ...king, x: 3, y: 3 }], adjacent), bishop)).toEqual([{ x: 1, y: 2, id: "f" }]);
   });
 
   it("lists the squares a piece can step to and strike a target from", () => {
@@ -187,6 +201,24 @@ describe("turn-based rules", () => {
     expect(unit(run, "t")!.hp).toBe(5 - DAMAGE.rook);
     expect(reaches(run, unit(run, "m")!, { x: 0, y: 3 }, { x: 0, y: 1 })).toBe(false);
   });
+  it("makes any struck piece that survives strike back, defending or not", () => {
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
+    const { run, step } = attack(board([king, rook]), "king", "r");
+    expect(unit(run, "r")!.hp).toBe(5 - DAMAGE.king);
+    expect(unit(run, "king")!.hp).toBe(5 - DAMAGE.rook);
+    expect(step).toMatchObject({ counter: `Enemy rook counters −${DAMAGE.rook}` });
+    // Strikebacks off: no hit back.
+    expect(unit(attack(board([king, rook], { rules: { ...RULES, counter: false } }), "king", "r").run, "king")!.hp).toBe(5);
+  });
+  it("ends the turn of a side whose acting piece fell to a strikeback", () => {
+    // Under one move per turn: your pawn strikes the queen and dies to her strikeback; the king can't act after it.
+    const ally: Unit = { id: "w", side: "white", kind: "pawn", x: 0, y: 3, hp: 1 };
+    const fell = attack(board([{ ...king, x: 3, y: 3 }, { id: "q", side: "black", kind: "queen", x: 1, y: 2, hp: 9 }, ally], { rules: ONE }), "w", "q");
+    expect(unit(fell.run, "w")).toBeUndefined();
+    expect(sidelined(fell.run, unit(fell.run, "king")!)).toBe(true);
+    expect(turnSpent(fell.run)).toBe(true);
+    expect(endTurn(fell.run).run.fell).toBeUndefined();
+  });
   it("doesn't counter an attacker the defender can't reach", () => {
     // A black rook strikes a defending knight from the next square; knights can't hit adjacent squares.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
@@ -252,7 +284,9 @@ describe("turn-based rules", () => {
     expect(strikeExposesKing(g, "king", "r")).toBe(true);
     expect(attack(g, "king", "r").run).toBe(g);
     expect(unsafeStrikes(g, "king")).toEqual(["r"]);
-    expect(unsafeStrikes(board([{ ...king, hp: 4 }, { ...rook, defending: false }]), "king")).toEqual([]);
+    // It strikes back whether or not it defends; a healthier king can take it.
+    expect(unsafeStrikes(board([{ ...king, hp: 4 }, { ...rook, defending: false }]), "king")).toEqual(["r"]);
+    expect(unsafeStrikes(board([{ ...king, hp: 5 }, rook]), "king")).toEqual([]);
   });
   it("flags an enemy whose only walk-up strikes would leave the king in check", () => {
     // A defending queen counters any next square for 3, leaving the 4-HP king in check from every square he could strike from.

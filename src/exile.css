@@ -110,3 +110,5 @@
 @media(max-width:700px){.intent-chip{font-size:11px;padding:0 4px}.intent-chip.idle{font-size:9px}.intent-chip.brace svg{width:10px;height:11px}}
 .exile-piece.inspected .rig{filter:drop-shadow(0 0 3px #fff3d9) drop-shadow(0 0 5px #c2493c)}
 .exile-cell.start-square::before{content:"";position:absolute;inset:30%;border:2px dashed #2b201b66;border-radius:50%;pointer-events:none}
+.strike-bolt{position:absolute;left:var(--fx);top:var(--fy);width:calc(80% / var(--cols));height:7px;border-radius:4px;background:linear-gradient(90deg,#ffd36a00,#ffd36a 55%,#fffbe8);box-shadow:0 0 9px #ffcf5a,0 0 3px #fff;transform-origin:100% 50%;transform:translateZ(40px) translate(-100%,-50%) rotate(var(--a));animation:bolt-fly calc(var(--ms) * var(--spd,1)) cubic-bezier(.4,0,.8,1) both;pointer-events:none;z-index:400}
+@keyframes bolt-fly{0%{left:var(--fx);top:var(--fy);opacity:.2}15%{opacity:1}100%{left:var(--tx);top:var(--ty);opacity:1}}

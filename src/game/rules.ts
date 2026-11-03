@@ -6,14 +6,18 @@ import type { Kind } from "./turns";
 /** "one": each side acts with a single piece per turn, chess-style. "all": every piece acts each turn. */
 export type TurnMode = "one" | "all";
 export type Shop = "pawn" | "bishop" | "rook" | "heal";
+/** How far a piece strikes along its capture shape: 1 is the next square; "line" is any distance along
+ * those directions, stopped by the first piece or wall. */
+export type Reach = 1 | "line";
 export type Rules = {
   version: 1;
   turn: TurnMode;
   hp: Record<Kind, number>;
   damage: Record<Kind, number>;
+  range: Record<Kind, Reach>;
   /** Damage a defending piece blocks from each hit; the game shows it as +N. */
   defend: number;
-  /** Whether a defender that survives a hit strikes the attacker back. */
+  /** Strikebacks: whether any piece that survives a hit strikes the attacker back when it can reach it. */
   counter: boolean;
   cost: Record<Shop, number>;
   /** HP the hideout's heal gives back to the king. */
@@ -25,9 +29,10 @@ export type Rules = {
 export const RULE_KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
 export const SHOP: Shop[] = ["pawn", "bishop", "rook", "heal"];
 export const TURN_MODES: TurnMode[] = ["one", "all"];
+export const REACHES: Reach[] = [1, "line"];
 /** Allowed range for each number, so a typo can't make a piece unkillable or a level unloadable. */
 export const LIMITS = { hp: [1, 99], damage: [0, 99], defend: [0, 9], cost: [0, 99], heal: [0, 99], gold: [0, 99] } as const;
-const KEYS = ["version", "turn", "hp", "damage", "defend", "counter", "cost", "heal", "gold"] as const;
+const KEYS = ["version", "turn", "hp", "damage", "range", "defend", "counter", "cost", "heal", "gold"] as const;
 
 const int = (v: unknown, [lo, hi]: readonly [number, number]) => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -46,6 +51,9 @@ export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: fal
     for (const k of keys) if (!int(t[k], range)) errors.push(`${field} ${k}: ${range[0]}–${range[1]}`);
   };
   table("hp", RULE_KINDS); table("damage", RULE_KINDS); table("cost", SHOP);
+  const range = raw.range;
+  if (!isMap(range) || Object.keys(range).length !== RULE_KINDS.length || !RULE_KINDS.every(k => k in range)) errors.push(`range needs ${RULE_KINDS.join(", ")}`);
+  else for (const k of RULE_KINDS) if (!(REACHES as unknown[]).includes(range[k])) errors.push(`range ${k}: 1 or "line"`);
   for (const k of ["defend", "heal", "gold"] as const) if (!int(raw[k], LIMITS[k])) errors.push(`${k}: ${LIMITS[k][0]}–${LIMITS[k][1]}`);
   if (typeof raw.counter !== "boolean") errors.push("counter must be true or false");
   return errors.length ? { ok: false, errors } : { ok: true, rules: raw as unknown as Rules };
@@ -53,7 +61,7 @@ export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: fal
 
 /** JSON with one field per line and each table inline, so a changed stat is a one-line diff. */
 export function formatRules(r: Rules): string {
-  const inline = (keys: string[], t: Record<string, number>) => `{ ${keys.map(k => `${JSON.stringify(k)}: ${t[k]}`).join(", ")} }`;
-  const value = (k: typeof KEYS[number]) => k === "hp" || k === "damage" ? inline(RULE_KINDS, r[k]) : k === "cost" ? inline(SHOP, r.cost) : JSON.stringify(r[k]);
+  const inline = (keys: string[], t: Record<string, unknown>) => `{ ${keys.map(k => `${JSON.stringify(k)}: ${JSON.stringify(t[k])}`).join(", ")} }`;
+  const value = (k: typeof KEYS[number]) => k === "hp" || k === "damage" || k === "range" ? inline(RULE_KINDS, r[k]) : k === "cost" ? inline(SHOP, r.cost) : JSON.stringify(r[k]);
   return `{\n${KEYS.map(k => `  ${JSON.stringify(k)}: ${value(k)}`).join(",\n")}\n}\n`;
 }

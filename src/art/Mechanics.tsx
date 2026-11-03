@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
 import { IntentMarks } from "../components/BoardArt";
-import { ENCOUNTERS, RULES, approaches, spawnHp, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
-import type { Kind, Rules, Run, Side, Unit } from "../game/turns";
+import { ENCOUNTERS, RULES, approaches, attack, spawnHp, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
+import type { Kind, Reach, Rules, Run, Side, Unit } from "../game/turns";
 import { LIMITS, SHOP, formatRules, parseRules } from "../game/rules";
 import { listIssues } from "../game/levels";
 import type { Shop } from "../game/rules";
@@ -20,6 +20,7 @@ const pc = (r: Rules, u: Unit): Piece => ({ kind: u.kind, side: u.side, x: u.x, 
 const dot = (label?: ReactNode, cls = "") => <span className={`target-dot ${cls}`}>{label !== undefined && <b className="cost-label">{label}</b>}</span>;
 const key = (p: { x: number; y: number }) => `${p.x},${p.y}`;
 const REACH: Record<Kind, string> = { king: "8 neighbours", queen: "8 neighbours", rook: "4 straight neighbours", bishop: "4 diagonal neighbours", knight: "L-jump", pawn: "2 diagonals forward" };
+const REACH_LINE: Record<Kind, string> = { king: "8 lines", queen: "8 lines", rook: "4 straight lines", bishop: "4 diagonal lines", knight: "L-jumps in a line", pawn: "2 diagonal lines forward" };
 const MOVE: Record<Kind, string> = { king: "1 square, any way", queen: "slides any way", rook: "slides straight", bishop: "slides diagonally", knight: "L-jump (leaps)", pawn: "1 square forward, stops at the far row" };
 
 function Shape({ r, kind, side = "white" }: { r: Rules; kind: Kind; side?: Side }) {
@@ -50,6 +51,13 @@ function TapToStrike({ r }: { r: Rules }) {
   return <><MiniBoard cols={4} rows={4} cells={cells} pieces={[pc(r, king), { ...pc(r, q), cls: "selected" }, { ...pc(r, e), cls: "targetable", extra: ways.length ? <span className="strike-badge"><StrikeIcon /></span> : undefined }]} />
     <p className="fine">approaches(): {ways.length} square{ways.length === 1 ? "" : "s"}</p></>;
 }
+/** A bishop strikes down a diagonal: a rook can't hit back from there, another bishop can. */
+function StrikeBack({ r, foe }: { r: Rules; foe: Kind }) {
+  const king = unit(r, "king", "king", "white", 3, 3), b = unit(r, "b", "bishop", "white", 0, 3), e = unit(r, "e", foe, "black", 2, 1);
+  const run: Run = { ...board(r, [king, b, e]), phase: "player" }, { step } = attack(run, "b", "e");
+  return <><MiniBoard cols={4} rows={4} cells={{ [key(e)]: { cls: "aimed" } }} pieces={[pc(r, king), { ...pc(r, b), cls: "selected" }, pc(r, e)]} />
+    <p className="fine">{step ? [step.text, step.counter].filter(Boolean).join(" · ") : "can't strike"}</p></>;
+}
 /** A rook's plan before and after a previewed king move: the same enemyPlan() the game draws on hover. */
 function Intent({ r, previewed }: { r: Rules; previewed: boolean }) {
   const king = unit(r, "king", "king", "white", previewed ? 0 : 1, 3), rook = unit(r, "e", "rook", "black", 1, 1), pawn = unit(r, "p", "pawn", "black", 3, 0);
@@ -64,10 +72,10 @@ function Encounter({ r, i }: { r: Rules; i: number }) {
 }
 
 const enemyScores = (r: Rules): [string, string][] => [
-  ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king${r.counter ? " − 8×counter − 60 if the counter kills it" : ""}. Never for 0 damage.`],
+  ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king${r.counter ? " − 8×strikeback − 60 if the strikeback kills it" : ""}. Never for 0 damage.`],
   ["Step into strike range", "20 − squares travelled ÷ 10, only if it hasn't struck or defended"],
   ["Close in", "5 × moves saved − squares travelled ÷ 10, counting its own moves around walls to a square it could strike the king (weighted) or the nearest piece from; pawns with targets ahead march (1)"],
-  ["Brace (defend)", `0.4, only if threatened and the −${r.defend} saves it${r.counter ? ", or it can counter" : ""}`],
+  ["Brace (defend)", `0.4, only if threatened and the −${r.defend} saves it`],
   ["Wait", "Nothing scores above 0"],
 ];
 const RUN: [string, string][] = [
@@ -116,15 +124,17 @@ function RulesEditor({ r, onChange }: { r: Rules; onChange: (r: Rules) => void }
     } catch { setStatus({ ok: false, text: "Save failed" }); }
   }
   return <div className="rules-editor" aria-label="Rules editor" role="group">
-    <table className="spec wide-table rules-table"><thead><tr><th>Piece</th><th>HP</th><th>Damage</th><th>vs defender</th><th>Move</th><th>Strike reach</th></tr></thead>
+    <table className="spec wide-table rules-table"><thead><tr><th>Piece</th><th>HP</th><th>Damage</th><th>vs defender</th><th>Move</th><th>Strike range</th><th>Strike reach</th></tr></thead>
       <tbody>{KINDS.map(k => <tr key={k}><th><span className="rule-kind"><SpriteStill kind={k} side="white" />{k}</span></th>
         <td><Num label={`${k} HP`} prefix="♥" value={r.hp[k]} range={LIMITS.hp} onChange={n => edit({ hp: { ...r.hp, [k]: n } })} /></td>
         <td><Num label={`${k} damage`} prefix={<StrikeIcon />} value={r.damage[k]} range={LIMITS.damage} onChange={n => edit({ damage: { ...r.damage, [k]: n } })} /></td>
-        <td>{Math.max(0, r.damage[k] - r.defend)}</td><td>{MOVE[k]}</td><td>{REACH[k]}</td></tr>)}</tbody></table>
+        <td>{Math.max(0, r.damage[k] - r.defend)}</td><td>{MOVE[k]}</td>
+        <td><Seg<`${Reach}`> label={`${k} strike range`} value={`${r.range[k]}`} options={[["1", "1"], ["line", "Line"]]} onPick={v => edit({ range: { ...r.range, [k]: v === "line" ? "line" : 1 } })} /></td>
+        <td>{r.range[k] === "line" ? REACH_LINE[k] : REACH[k]}</td></tr>)}</tbody></table>
     <div className="rules-globals">
       <div className="stage-field"><span>Turn</span><Seg label="Turn" value={r.turn} options={[["one", "One piece"], ["all", "Every piece"]]} onPick={turn => edit({ turn })} /></div>
       <div className="stage-field"><span>Defend</span><Num label="Defend bonus" prefix="+" value={r.defend} range={LIMITS.defend} onChange={defend => edit({ defend })} /></div>
-      <div className="stage-field"><span>Counter</span><Seg label="Counter-strike" value={r.counter ? "on" : "off"} options={[["on", "On"], ["off", "Off"]]} onPick={v => edit({ counter: v === "on" })} /></div>
+      <div className="stage-field"><span>Strike back</span><Seg label="Strike back" value={r.counter ? "on" : "off"} options={[["on", "On"], ["off", "Off"]]} onPick={v => edit({ counter: v === "on" })} /></div>
       <div className="stage-field"><span>Start gold</span><Num label="Start gold" prefix="✦" value={r.gold} range={LIMITS.gold} onChange={gold => edit({ gold })} /></div>
       <div className="stage-field"><span>Heal</span><Num label="Heal HP" prefix="+♥" value={r.heal} range={LIMITS.heal} onChange={heal => edit({ heal })} /></div>
       <div className="stage-field rules-prices"><span>Prices ✦</span><div>{SHOP.map(s => <label key={s} className="rule-price">{SHOP_LABEL[s]}<Num label={`${SHOP_LABEL[s]} price`} value={r.cost[s]} range={LIMITS.cost} onChange={n => edit({ cost: { ...r.cost, [s]: n } })} /></label>)}</div></div>
@@ -159,8 +169,9 @@ export function Mechanics() {
         <tr><th>Order</th><td>You, then the enemy</td></tr>
         <tr><th>Per turn</th><td>{one ? "One piece per side: it moves, then strikes or defends (or just strikes or defends). Once it has acted the turn passes; a move alone is a preview until End turn (Cancel takes it back); End turn skips the rest" : "Every piece, every turn: 1 move, then strike or defend"}</td></tr>
         <tr><th>Move</th><td>Its chess shape, any distance · slides stop at pieces and walls · knights leap · pawns stop at the far row</td></tr>
-        <tr><th>Strike</th><td>Next square in the piece's shape · striker stays put</td></tr>
-        <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn{live.counter ? " · counters any attacker it can reach" : ""}</td></tr>
+        <tr><th>Strike</th><td>Next square in the piece's shape · range "Line": any distance along it, stopped by the first piece or wall · striker stays put</td></tr>
+        <tr><th>Strike back</th><td>{live.counter ? "Any struck piece that survives hits the attacker back with its own damage, if it can reach the attacker's square" : "Off"}</td></tr>
+        <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn</td></tr>
         <tr><th>Enemy</th><td>{one ? "One piece too: its best-scoring action, then that piece's follow-up" : "Every piece may act"}</td></tr>
       </tbody></table>
     </Group>
@@ -190,6 +201,11 @@ export function Mechanics() {
         <tr><th>Several ways</th><td>Pick the square (sword dots)</td></tr>
         <tr><th>Judged as</th><td>One action: walk may pass danger if the king is safe after the blow</td></tr>
       </tbody></table>
+    </Group>
+
+    <Group id="strikeback" title="Ranged strikes and strike back">
+      <Entry name="Bishop vs rook" src="attack() · reaches()" note="the rook can't reach back" wide><StrikeBack r={live} foe="rook" /></Entry>
+      <Entry name="Bishop vs bishop" src="attack() · reaches()" note="same diagonal: it strikes back" wide><StrikeBack r={live} foe="bishop" /></Entry>
     </Group>
 
     <Group id="knight" title="Knight leap">

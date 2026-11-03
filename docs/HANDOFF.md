@@ -7,8 +7,14 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   or defend); the turn passes on its own once that piece strikes or defends. `"turn":
   "all"` brings back every piece acting. No promotion: pawns stop at the far
   row.
-- **Stats as data:** `src/game/rules.json` (HP, damage, defend +N, counter
-  on/off, turn mode, prices, heal, start gold), checked by `rules.ts`. The
+- **Strikes:** every struck piece that survives strikes back if it can reach
+  the attacker (`counter` switch); Defend is only +N armour. Strike range is
+  per kind in `rules.json` (`range`: 1 or `"line"`); bishops are `"line"`:
+  they hit any enemy down an open diagonal without moving, drawn as a
+  streak. Sliders (rook, bishop, queen) move any distance in both turn
+  modes, for you and the enemy.
+- **Stats as data:** `src/game/rules.json` (HP, damage, strike range, defend
+  +N, strikebacks on/off, turn mode, prices, heal, start gold), checked by `rules.ts`. The
   studio's Mechanics tab edits it in place, redraws its diagrams live, and
   saves under `npm run dev` (Download JSON on a static build). Level test
   runs play by the unsaved rules. A stats save never breaks the levels:
@@ -45,8 +51,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **In the game:** tap to strike
   (walk up and strike), knight leaps, check (End turn locks while the king
   could die next turn; moves into check blocked), checkmate finale, hideout
-  hub (`Hub.tsx`) with barracks and locked placeholders. A defender's counter
-  plays as its own beat (swing, impact, damage) and logs its own line.
+  hub (`Hub.tsx`) with barracks and locked placeholders. A strikeback plays as
+  its own beat (swing, impact, damage) and logs its own line.
 - **Previews and intent:** moves are previews until a strike, defend or End
   turn (Cancel / Escape takes them back; saved with the turn's start so a
   reload can cancel). Hover or tap an enemy for its card and its plan
@@ -54,9 +60,10 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **No narrator text:** on screen only numbers, nouns and icons. Story
   unwritten (`Encounter.story` hook). Ask before adding prose.
 - **Balance** (`docs/levels.md`): levels untouched since the no-energy pass.
-  Under one move per turn the search player's typical army still wins each
-  battle but loses its rooks (king 1/5 after battle 3); the whole run with a
-  rook and heals now falls in battle 3. Not retuned: the owner tweaks stats
+  With strikebacks and ranged bishops the search player wins battles 1 and 2
+  (king 4/5) and falls in battle 3 with every army it tries (typical
+  king+rook, lone king, the whole run with a rook and heals), as it already
+  did before the change. Not retuned: the owner tweaks stats
   in the studio. `tests/balance.test.ts` logs the numbers.
 
 ## Open items
@@ -67,7 +74,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - App debt: `App.tsx` is dense; intro/end modals lack Escape and
   a focus trap (`useDialogKeys` in `PauseMenu.tsx` is ready to reuse).
 - Dead-end/loop audit (Oct 11), waiting on Wesley's play to pick fixes:
-  0-damage strikes (pawn vs defender) only get your piece countered; no turn
+  0-damage strikes (pawn vs defender) only get your piece struck back; no turn
   limit, so stalling is endless (a pawn walled in front or on the far row can't move); a king already in
   check can strike himself to death on a counter. No insufficient-material
   draws; End turn is never impossible.
