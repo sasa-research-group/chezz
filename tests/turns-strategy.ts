@@ -11,7 +11,7 @@ export function apply(g: Run, a: Action): Run {
   return a.type === "move" ? move(g, a.id, a.to) : a.type === "attack" ? attack(g, a.id, a.targetId).run : defend(g, a.id);
 }
 
-const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).sort().join("|") + g.phase;
+const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).sort().join("|") + g.phase + (g.fell ?? "");
 
 /** Every distinct way the rest of the player's turn can go, with the actions that get there. */
 export function turnOutcomes(start: Run): { run: Run; plan: Action[] }[] {

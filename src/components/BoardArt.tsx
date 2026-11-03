@@ -11,7 +11,7 @@ export function BattleBanner({ kind, line, onClick, focus = true }: { kind: Bann
     <small>Tap to continue</small></button>;
 }
 const SHIELD = "M10 1 L18 4 V10 C18 15 14.5 19 10 21 C5.5 19 2 15 2 10 V4 Z";
-export const GuardBadge = ({ bonus }: { bonus: number }) => <span className="guard-badge" title={`+${bonus} defense · counters`}><svg viewBox="0 0 20 22" aria-hidden="true"><path d={SHIELD} /></svg>+{bonus}</span>;
+export const GuardBadge = ({ bonus }: { bonus: number }) => <span className="guard-badge" title={`+${bonus} defense`}><svg viewBox="0 0 20 22" aria-hidden="true"><path d={SHIELD} /></svg>+{bonus}</span>;
 
 const centre = (p: Pos) => ({ x: p.x + .5, y: p.y + .5 });
 /** The point `by` squares short of b on the way from a, so a line ends before a marker instead of under it. */

@@ -50,12 +50,16 @@ type Playback = { steps: Step[]; before: Run; index: number };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
 /** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land.
- * counter: a struck defender hitting back; the attacker's damage and impact wait until it lands. */
-type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean; counter: { victim: string; at: Pos; landed: boolean } | null };
-const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], lunge: {}, doomed: [], holdFlash: false, mating: false, counter: null };
+ * counter: a struck piece hitting back; the attacker's damage and impact wait until it lands.
+ * bolts: ranged strikes in flight, drawn as a streak from striker to target. */
+type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean; counter: { victim: string; at: Pos; landed: boolean } | null; bolts: Bolt[] };
+type Bolt = { key: number; from: Pos; to: Pos; ms: number };
+const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], lunge: {}, doomed: [], holdFlash: false, mating: false, counter: null, bolts: [] };
+/** A strike from further than the next square (a knight's jump aside) flies to its target. */
+const ranged = (a: Unit, b: Pos) => a.kind !== "knight" && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) > 1;
 /** How far into its attack animation a blow lands (the impact stars peak a little past halfway). */
 const BLOW_MS = 300;
-/** When a strike's beats happen, in unscaled ms from its start. A defender that survives winds up its
+/** When a strike's beats happen, in unscaled ms from its start. A target that survives winds up its
  * counter once its own hit has played (after a surviving knight has flipped home). */
 function strikeTiming(step: Step, before: Unit[]) {
   const actor = before.find(u => u.id === step.actor);
@@ -143,7 +147,8 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
 
         </div>;
-      })}</div>
+      })}
+      {stage.bolts.map(b => <span key={b.key} className="strike-bolt" style={{ "--fx": `${(b.from.x + .5) / e.width * 100}%`, "--fy": `${(b.from.y + .2) / e.height * 100}%`, "--tx": `${(b.to.x + .5) / e.width * 100}%`, "--ty": `${(b.to.y + .2) / e.height * 100}%`, "--a": `${Math.atan2(b.to.y - b.from.y, b.to.x - b.from.x)}rad`, "--ms": `${b.ms}ms` } as CSSProperties} />)}</div>
     </div>
   </div>;
 }
@@ -187,6 +192,12 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     };
     if (delay) timers.current.push(setTimeout(go, delay * spd)); else go();
   };
+  /** Fires a ranged strike's streak from `from` to `to`, arriving `ms` (unscaled) after `delay`. */
+  const shoot = (from: Pos, to: Pos, delay: number, ms: number) => {
+    const key = animKey.current++;
+    timers.current.push(setTimeout(() => setStage(st => ({ ...st, bolts: [...st.bolts, { key, from, to, ms }] })), delay * spd));
+    timers.current.push(setTimeout(() => setStage(st => ({ ...st, bolts: st.bolts.filter(b => b.key !== key) })), (delay + ms + 60) * spd));
+  };
   const face = (id: string, from: Pos, to: Pos) => { if (to.x !== from.x) setStage(st => ({ ...st, facing: { ...st.facing, [id]: to.x > from.x ? 1 : -1 } })); };
   /** Animates a step from the rules: a move or a strike, with hits, counters and deaths. */
   const perform = (step: Step, beforeUnits: Unit[]) => {
@@ -213,7 +224,10 @@ export default function App({ test }: { test?: TestLevel } = {}) {
         later(home, () => { setStage(st => ({ ...st, lunge: { ...st.lunge, [actor.id]: "home" } })); animate(actor.id, "leap-back"); });
         later(home + DURATION["leap-back"], dropLunge);
       }
-    } else animate(actor.id, "attack");
+    } else {
+      animate(actor.id, "attack");
+      if (target && ranged(actor, target)) shoot(actor, target, 50, 180);
+    }
     const dying = beforeUnits.filter(u => step.killed.includes(u.id));
     if (dying.length) {
       // Each fallen piece waits for the blow that fells it: the target at impact, a countered attacker when the counter lands.
@@ -235,6 +249,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
       // take the hit, show its damage and, if it dies, fall.
       setStage(st => ({ ...st, counter: { victim: actor.id, at: { x: actor.x, y: actor.y }, landed: false } }));
       later(counter.start, () => { face(target.id, target, actor); animate(target.id, "attack"); });
+      if (ranged(target, actor)) shoot(target, actor, counter.start + 50, BLOW_MS - 50);
       later(counter.lands, () => setStage(st => st.counter?.victim === actor.id ? { ...st, counter: { ...st.counter, landed: true } } : st));
       if (!actorDies) animate(actor.id, "hit", counter.lands);
     }

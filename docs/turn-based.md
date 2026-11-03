@@ -8,8 +8,9 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   (`parseRules`, which rejects unknown fields and out-of-range numbers) and
   formats it (`formatRules`, one field per line). `turns.ts` loads it as
   `RULES` and refuses to start on a broken file.
-- Fields: `turn` (`"one"` or `"all"`), `hp` and `damage` per piece, `defend`
-  (damage a defender blocks per hit), `counter` (defenders strike back),
+- Fields: `turn` (`"one"` or `"all"`), `hp` and `damage` per piece, `range`
+  per piece (`1` or `"line"`, below), `defend` (damage a defender blocks per
+  hit), `counter` (strikebacks on or off),
   `cost` (hideout prices), `heal` (HP a heal gives back) and `gold` (a new
   run's gold).
 - A studio test run can carry unsaved rules (`Run.rules`); saved runs never do.
@@ -35,6 +36,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   passes on its own once the piece has struck or defended. A move alone is a
   preview (below) and waits for End turn, which skips the strike or defend.
   (`turnSpent` still says when a moved piece has nothing safe left to do.)
+  If the acting piece dies to a strikeback, that side's turn is over
+  (`Run.fell`).
 - **`turn: "all"`**: every piece on a side may act every turn.
 - Each piece may **move** once in its chess shape, any distance: rooks,
   bishops and queens slide until a piece or wall stops them; kings step one
@@ -60,9 +63,13 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   enemy your selected piece can strike still strikes.
 
 ## Strikes
-- Reach: one square in the piece's capture shape. Kings and queens strike any
-  adjacent square, rooks the four straight neighbours, bishops the four
-  diagonal ones, pawns diagonally forward, knights a knight's jump away.
+- Reach: along the piece's capture shape. Kings and queens strike the eight
+  directions, rooks the four straight ones, bishops the four diagonals, pawns
+  diagonally forward, knights a knight's jump away.
+- Range (`rules.json` `range`, per kind): `1` strikes the next square only;
+  `"line"` strikes any distance along those directions, from where the piece
+  stands, as long as the line is open: the first piece or wall it meets stops
+  it (it can strike that piece if it's an enemy). Bishops are `"line"` today.
 - Damage and full HP per piece come from `rules.json` (the owner retunes them
   in the studio, so they aren't copied here). A strike deals damage minus the
   defend bonus to a defender, never below 0.
@@ -70,19 +77,23 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   a spawn that leaves HP out starts at full. A saved run whose piece is above
   its kind's full HP (stats lowered since) loads it at full.
 - The striker stays on its own square, even on a kill.
+- Strikeback: if `counter` is on, a struck piece that survives hits the
+  attacker back with its own damage when it can reach the attacker's square,
+  whether or not it was defending. A bishop's long shot draws one only from a
+  piece that reaches back (another bishop on that diagonal, a queen next to it).
+- A strikeback plays as its own beat: the attacker's blow lands, then the
+  target swings back, then the attacker takes the hit (and falls if it dies).
+  The log reads it as its own line, e.g. "Enemy rook counters −2". A ranged
+  hit (either way) flies as a streak from striker to target.
 - Tap-to-strike: tapping an enemy the piece can't reach yet walks it up to a
   square it can strike from and strikes (`approaches`, `walkAndStrike`),
   judged as one action.
 
 ## Defend
 - Until that side's next turn the piece takes `defend` less damage per hit
-  (today 1) and, if `counter` is on and it survives, hits each attacker back
-  with its own damage when it can reach the attacker's square. The screen
-  shows the block as +N everywhere (the shield token, the defended piece's
-  chip, the Rules card).
-- A counter plays as its own beat: the attacker's blow lands, then the
-  defender swings back, then the attacker takes the hit (and falls if it
-  dies). The log reads it as its own line, e.g. "Enemy rook counters −2".
+  (today 1): armour, nothing more (every survivor strikes back anyway). The
+  screen shows the block as +N everywhere (the shield token, the defended
+  piece's chip, the Rules card).
 
 ## Check
 - Your king is in check when the enemy's next turn could kill him
@@ -90,8 +101,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   coming turn, in place or after its one move, hits him once. Under one move
   per turn the threat is the hardest single hit; under every piece acting the
   hits add up. Either way, check is a threat at least his HP.
-- You can't put your own king in check with a move or strike (its counter
-  included). A walk-up strike may pass through danger if the king is safe once
+- You can't put your own king in check with a move or strike (its
+  strikeback included). A walk-up strike may pass through danger if the king is safe once
   it lands. Once he's in check you may act freely, but you can't end the turn
   until he's safe, unless nothing you can still do helps (`canEscape`).
 - The king dying ends the run.
@@ -100,10 +111,10 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 - Deterministic and computed in full before it plays. The best-scoring action
   across the pieces that may still act goes first, repeated until nothing
   scores above zero: strikes first (kills and the king most, minus any
-  counter, never for 0 damage), then stepping onto a square to strike from,
+  strikeback, never for 0 damage), then stepping onto a square to strike from,
   closing in on your king or nearest piece (counted in the piece's own moves
   around walls and pieces, so sliders go round walls), and bracing when only
-  the block saves it or it could hit back.
+  the block saves it.
 - Under one move per turn the first action picks the piece; after a move,
   only that piece may follow up with a strike or brace.
 - If no enemy piece acts, the log reads "Enemy waits" and the screen shows an
