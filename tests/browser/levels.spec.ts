@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { FIXED, expect, stored, test } from "./fixed";
 import { newRun } from "../../src/game/turns";
 
 const SAVE = "chezz.turns.v1", META = "chezz.meta.v1";
@@ -7,7 +7,7 @@ test("level designer: edit a level, see problems inline, and test-run it without
   const errors: string[] = [];
   page.on("pageerror", e => errors.push(String(e)));
   page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
-  const run = JSON.stringify({ ...newRun(), gold: 7, turn: 3 }), meta = JSON.stringify({ version: 1, unlocked: [], equipped: {} });
+  const run = stored({ ...newRun(FIXED), gold: 7, turn: 3 }), meta = JSON.stringify({ version: 1, unlocked: [], equipped: {} });
   await page.addInitScript(([r, m]) => { if (!sessionStorage.getItem("seeded")) { localStorage.setItem("chezz.turns.v1", r); localStorage.setItem("chezz.meta.v1", m); sessionStorage.setItem("seeded", "1"); } }, [run, meta]);
   await page.goto("/art.html");
   await page.getByRole("navigation", { name: "Studio areas" }).getByRole("link", { name: "Levels" }).click();

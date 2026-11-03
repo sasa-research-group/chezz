@@ -2,21 +2,26 @@
  * level designer edits them. This module checks a level before it is played or written back to the
  * repo, formats the file so diffs stay readable, and picks the army a studio test run fields.
  * Pure: no DOM, no file system. */
-import { HP, RULES } from "./turns";
+import { LIMITS } from "./rules";
+import { RULES } from "./turns";
 import type { Encounter, Kind, Placed, Pos, Recruit, Rules } from "./turns";
 
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
 export type Level = Encounter & { name?: string; testArmy?: Placed[] };
 export type LevelsFile = { version: 1; levels: Level[] };
 /** One problem with a level, tied to the control (and square) it concerns. An error would crash or
- * corrupt the game and blocks Save and Play; a warning breaks a design rule and is only shown. */
-export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true };
+ * corrupt the game and blocks Save and Play; a warning breaks a design rule, or notes something the
+ * game fixes at load (an enemy's HP above its kind's max), and is only shown. No error depends on the
+ * rules file, so retuning stats can never make the levels file unloadable. */
+export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
 export const isError = (i: Issue) => !i.warning;
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
 /** Board sides: square names run a–h, so 8 is the widest a board can be. */
 export const MIN_SIDE = 2, MAX_SIDE = 8;
 export const MAX_REWARD = 99;
+/** The rules file's own HP ceiling: a spawn above it could never be within any legal stats. */
+export const MAX_HP = LIMITS.hp[1];
 const KEYS = ["name", "reward", "width", "height", "walls", "spawns", "starts", "testArmy", "story"] as const;
 
 const int = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
@@ -33,15 +38,16 @@ function shapeOf(v: unknown, i: number): Level | string {
   if (extra) return `${where}: unknown field ${extra}`;
   for (const k of ["reward", "width", "height"] as const) if (!int(l[k], -999, 999)) return `${where}: ${k} must be a whole number`;
   for (const k of ["walls", "starts"] as const) if (!Array.isArray(l[k]) || !(l[k] as unknown[]).every(isPos)) return `${where}: ${k} must be a list of {x, y}`;
-  if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && s.length === 4 && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y, hp]`;
+  if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && (s.length === 3 || s.length === 4) && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y] or [kind, x, y, hp]`;
   const isPlaced = (p: unknown) => !!p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 3 && isKind((p as Placed).kind) && int((p as Placed).x, -99, 99) && int((p as Placed).y, -99, 99);
   if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isPlaced))) return `${where}: testArmy must be a list of {kind, x, y}`;
   for (const k of ["name", "story"] as const) if (l[k] !== undefined && (typeof l[k] !== "string" || (l[k] as string).length > 200)) return `${where}: ${k} must be short text`;
   return l as unknown as Level;
 }
 
-/** Everything wrong with a level: errors that would make it unplayable, and warnings about design rules. */
-export function levelIssues(l: Level): Issue[] {
+/** Everything wrong with a level: errors that would make it unplayable, and warnings about design
+ * rules. `rules` only adds warnings (HP the game will clamp); no error depends on it. */
+export function levelIssues(l: Level, rules: Rules = RULES): Issue[] {
   const out: Issue[] = [];
   if (!int(l.width, MIN_SIDE, MAX_SIDE) || !int(l.height, MIN_SIDE, MAX_SIDE)) out.push({ field: "size", message: `Size ${MIN_SIDE}–${MAX_SIDE}` });
   if (!int(l.reward, 0, MAX_REWARD)) out.push({ field: "reward", message: `Reward 0–${MAX_REWARD}` });
@@ -58,7 +64,9 @@ export function levelIssues(l: Level): Issue[] {
   seen.clear();
   l.spawns.forEach(([kind, x, y, hp]) => {
     place("spawns", { x, y }, `Enemy ${kind}`);
-    if (!int(hp, 1, HP[kind])) out.push({ field: "spawns", message: `Enemy ${kind} HP 1–${HP[kind]}`, at: { x, y } });
+    if (hp === undefined) return;
+    if (!int(hp, 1, MAX_HP)) out.push({ field: "spawns", message: `Enemy ${kind} HP 1–${MAX_HP}`, at: { x, y } });
+    else if (hp > rules.hp[kind]) out.push({ field: "spawns", message: `${kind} HP ${hp} > max ${rules.hp[kind]} → ${rules.hp[kind]}`, at: { x, y }, warning: true, clamped: true });
   });
   l.starts.forEach((s, i) => place("starts", s, i === 0 ? "King start" : `Start ${i + 1}`));
   if (!l.spawns.length) out.push({ field: "spawns", message: "Needs an enemy" });
@@ -89,9 +97,9 @@ export function levelIssues(l: Level): Issue[] {
 }
 
 /** Each level's issues, plus the run's: survivors carry over, so a level with fewer starts than the one before leaves some behind. */
-export function listIssues(levels: Level[]): Issue[][] {
+export function listIssues(levels: Level[], rules: Rules = RULES): Issue[][] {
   return levels.map((l, i) => {
-    const own = levelIssues(l), prev = levels[i - 1];
+    const own = levelIssues(l, rules), prev = levels[i - 1];
     return prev && l.starts.length < prev.starts.length ? [...own, { field: "starts" as const, message: `Fewer starts than battle ${i} (${prev.starts.length})`, warning: true as const }] : own;
   });
 }

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { ENCOUNTERS, HP } from "../game/turns";
-import type { Kind, Placed, Pos } from "../game/turns";
+import { ENCOUNTERS, spawnHp } from "../game/turns";
+import type { Kind, Placed, Pos, Rules } from "../game/turns";
 import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, isError, listIssues, testArmyOf, typicalArmy } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
@@ -12,7 +12,7 @@ const LEVELS_ENDPOINT = "/__studio/levels";
 
 type Tool = "wall" | "enemy" | "army" | "erase";
 const TOOLS: [Tool, string][] = [["wall", "Wall"], ["enemy", "Enemy"], ["army", "Army"], ["erase", "Erase"]];
-const BLANK: Level = { reward: 0, width: 6, height: 6, walls: [], spawns: [["pawn", 2, 1, 1]], starts: [{ x: 2, y: 5 }] };
+const BLANK: Level = { reward: 0, width: 6, height: 6, walls: [], spawns: [["pawn", 2, 1]], starts: [{ x: 2, y: 5 }] };
 
 const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 const sq = (l: Level, p: Pos) => `${"abcdefgh"[p.x] ?? "?"}${l.height - p.y}`;
@@ -50,7 +50,7 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
 }
 
 /** The board as the game draws it (tilted plane, painted stills), with each square a button for the current tool. */
-function LevelBoard({ level, army, issues, picked, onSquare }: { level: Level; army: Placed[]; issues: Issue[]; picked: Pos | null; onSquare: (p: Pos) => void }) {
+function LevelBoard({ level, rules, army, issues, picked, onSquare }: { level: Level; rules: Rules; army: Placed[]; issues: Issue[]; picked: Pos | null; onSquare: (p: Pos) => void }) {
   const { width: w, height: h } = level;
   const cols = clamp(w, 1, MAX_SIDE), rows = clamp(h, 1, MAX_SIDE);
   const flag = (p: Pos) => {
@@ -58,8 +58,8 @@ function LevelBoard({ level, army, issues, picked, onSquare }: { level: Level; a
     return here.some(isError) ? "level-flag" : here.length ? "level-flag warn" : "";
   };
   const pieces = [
-    ...level.spawns.map(([kind, x, y, hp]) => ({ kind, side: "black" as const, x, y, hp, max: HP[kind] })),
-    ...army.map(p => ({ kind: p.kind, side: "white" as const, x: p.x, y: p.y, hp: HP[p.kind], max: HP[p.kind] })),
+    ...level.spawns.map(s => ({ kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rules, s), max: rules.hp[s[0]] })),
+    ...army.map(p => ({ kind: p.kind, side: "white" as const, x: p.x, y: p.y, hp: rules.hp[p.kind], max: rules.hp[p.kind] })),
   ].filter(p => p.x < cols && p.y < rows && p.x >= 0 && p.y >= 0);
   return <div className="board-camera level-board" style={{ "--cols": cols, "--rows": rows } as CSSProperties}>
     <div className="board-plane" style={{ aspectRatio: `${cols}/${rows}` }}>
@@ -68,7 +68,7 @@ function LevelBoard({ level, army, issues, picked, onSquare }: { level: Level; a
           const p = { x: i % cols, y: Math.floor(i / cols) };
           const wall = level.walls.some(v => same(v, p)), start = level.starts.findIndex(s => same(s, p));
           const spawn = level.spawns.find(([, x, y]) => same({ x, y }, p)), unit = army.find(a => same(a, p));
-          const what = [wall && "wall", spawn && `enemy ${spawn[0]} ${spawn[3]} HP`, start >= 0 && `start ${start + 1} ${unit ? `with ${unit.kind}` : "empty"}`].filter(Boolean).join(", ") || "empty";
+          const what = [wall && "wall", spawn && `enemy ${spawn[0]} ${spawnHp(rules, spawn)} HP`, start >= 0 && `start ${start + 1} ${unit ? `with ${unit.kind}` : "empty"}`].filter(Boolean).join(", ") || "empty";
           return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${flag(p)} ${picked && same(picked, p) ? "picked" : ""}`}
             aria-label={`${sq(level, p)} ${what}`} aria-pressed={picked ? same(picked, p) : undefined} onClick={() => onSquare(p)}>
             <span className="tile-coord">{sq(level, p)}</span>
@@ -110,8 +110,8 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   const [playing, setPlaying] = useState<number | null>(null);
   const sel = Math.min(Math.max(0, index), levels.length - 1);
   const level = levels[sel], history = historyOf(ids[sel]);
-  const issues = useMemo(() => listIssues(levels), [levels]);
   const rules = draftRules();
+  const issues = useMemo(() => listIssues(levels, rules), [levels, rules]);
   const army = testArmyOf(levels, sel, rules);
   const text = formatLevels(levels);
   const dirty = text !== saved;
@@ -161,7 +161,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
       if (tool === "erase") return rest;
       if (tool === "wall") return l.walls.some(w => same(w, p)) ? rest : { ...rest, walls: [...rest.walls, p] };
       const here = l.spawns.find(([, x, y]) => same({ x, y }, p));
-      return here?.[0] === enemy ? rest : { ...rest, spawns: [...rest.spawns, [enemy, p.x, p.y, HP[enemy]]] };
+      return here?.[0] === enemy ? rest : { ...rest, spawns: [...rest.spawns, [enemy, p.x, p.y]] };
     });
   };
   const setArmy = (next: Placed[] | undefined) => edit(l => { const { testArmy: _, ...rest } = l; return next ? { ...rest, testArmy: next } : rest; });
@@ -221,7 +221,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
           <button type="button" className="unit-picker-remove" onClick={() => { removeStart(pick); setPicked(null); }}>Remove start</button>
         </div>
         : <p className="level-hint">Click a square to make it a start; click a start to choose its unit.</p>)}
-      <LevelBoard level={level} army={army} issues={mine} picked={pick} onSquare={square} />
+      <LevelBoard level={level} rules={rules} army={army} issues={mine} picked={pick} onSquare={square} />
       <IssueList level={level} issues={errors} label="Problems" />
       <IssueList level={level} issues={warnings} label="Warnings" />
       <div className="level-actions">
@@ -245,7 +245,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
       <div className="stage-field"><span>Enemies</span>
         <ul className="level-rows">{level.spawns.map(([kind, x, y, hp], i) => <li key={i}>
           <SpriteStill kind={kind} side="black" /><b>{kind}</b><code>{sq(level, { x, y })}</code>
-          <label><span className="sr-only">{kind} {sq(level, { x, y })} HP</span>♥<input type="number" min={1} max={HP[kind]} value={hp} onChange={e => edit(l => ({ ...l, spawns: l.spawns.map((s, j) => (j === i ? [s[0], s[1], s[2], clamp(Number(e.target.value), 0, 99)] : s)) }))} /></label>
+          <label><span className="sr-only">{kind} {sq(level, { x, y })} HP</span>♥<input type="number" min={1} max={rules.hp[kind]} value={hp ?? ""} placeholder={`${rules.hp[kind]}`} title="Empty: full HP" onChange={e => edit(l => ({ ...l, spawns: l.spawns.map((s, j) => (j !== i ? s : e.target.value === "" ? [s[0], s[1], s[2]] : [s[0], s[1], s[2], clamp(Number(e.target.value), 0, 99)])) }))} /></label>
           <button type="button" aria-label={`Remove ${kind} ${sq(level, { x, y })}`} onClick={() => edit(l => ({ ...l, spawns: l.spawns.filter((_, j) => j !== i) }))}>×</button>
         </li>)}</ul>
       </div>

@@ -12,7 +12,10 @@ export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
 export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean; defending?: boolean };
 export type Target = Pos & { id?: string };
-export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; spawns: [Kind, number, number, number][]; starts: Pos[] };
+/** An enemy on its square: kind, x, y and its starting HP. HP left out means full health; HP above the
+ * kind's max (stats retuned since the level was saved) is clamped to the max. */
+export type Spawn = [Kind, number, number] | [Kind, number, number, number];
+export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; spawns: Spawn[]; starts: Pos[] };
 export type Run = {
   version: 2; encounter: number; turn: number;
   /** "deploy": before a battle's first turn, while you rearrange your pieces on the start squares. */
@@ -24,7 +27,11 @@ export type Run = {
   level?: Encounter;
   /** A studio run's unsaved rules, in place of `rules.json`. Never saved. */
   rules?: Rules;
+  /** A battle list in place of `levels/levels.json` (tests play fixed battles). Never saved. */
+  levels?: Encounter[];
 };
+/** What a run plays by, when it isn't the shipped files: tests pass fixed data so retuning the files can't move them. */
+export type GameData = { rules?: Rules; levels?: Encounter[] };
 export type Recruit = "pawn" | "bishop" | "rook";
 /** A piece placed on a given square: a studio test army. */
 export type Placed = Pos & { kind: Kind };
@@ -41,8 +48,12 @@ export const DAMAGE = RULES.damage;
 export const rulesOf = (g: Run): Rules => g.rules ?? RULES;
 /** The run's battles, in order, from `levels/levels.json` (edited in the studio's level designer; checked by `levels.ts`). */
 export const ENCOUNTERS = levelsFile.levels as unknown as Encounter[];
+/** The run's battle list: its own, or the file's. */
+export const levelsOf = (g: Run): Encounter[] => g.levels ?? ENCOUNTERS;
 /** The battle this run is fighting: a test run's own level, or the run's current encounter. */
-export const levelOf = (g: Run): Encounter => g.level ?? ENCOUNTERS[g.encounter];
+export const levelOf = (g: Run): Encounter => g.level ?? levelsOf(g)[g.encounter];
+/** The HP an enemy spawns with under rules `r`: full when the level leaves it out, never above the kind's max. */
+export const spawnHp = (r: Rules, [kind, , , hp]: Spawn): number => Math.max(1, Math.min(r.hp[kind], hp ?? r.hp[kind]));
 export type CampChoice = Recruit | "heal";
 export const COST: Record<CampChoice, number> = RULES.cost;
 
@@ -120,7 +131,7 @@ function spawn(g: Run, army: Unit[], placed = false): Run {
   const e = levelOf(g);
   // A level with fewer starts than the army (allowed, with a warning) loses the extras.
   const whites = placed ? army.map(u => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y })) : army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
-  const enemies = e.spawns.map(([kind, x, y, hp], i) => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black" as const, x, y, hp }));
+  const enemies = e.spawns.map((s, i) => ({ id: `enemy-${g.encounter}-${i}`, kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rulesOf(g), s) }));
   return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [] };
 }
 /** Deploy phase: move your piece to another start square, swapping places with your piece there. */
@@ -133,9 +144,12 @@ export function deploy(g: Run, id: string, to: Pos): Run {
 }
 /** Ends the deploy phase: the battle's first turn begins. */
 export const begin = (g: Run): Run => g.phase === "deploy" ? { ...g, phase: "player" } : g;
-export function newRun(): Run {
-  const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: RULES.gold, units: [], log: [], history: [], nextId: 1 };
-  return spawn(g, [{ id: "king", side: "white", kind: "king", hp: HP.king, x: 0, y: 0 }]);
+const withData = (g: Run, data?: GameData): Run => ({ ...g, ...(data?.rules && { rules: data.rules }), ...(data?.levels && { levels: data.levels }) });
+/** A fresh run at battle 1. `data` plays it by fixed rules and battles instead of the files. */
+export function newRun(data?: GameData): Run {
+  const r = data?.rules ?? RULES;
+  const g = withData({ version: 2, encounter: 0, turn: 1, phase: "player", gold: r.gold, units: [], log: [], history: [], nextId: 1 }, data);
+  return spawn(g, [{ id: "king", side: "white", kind: "king", hp: r.hp.king, x: 0, y: 0 }]);
 }
 /** Units for an army: kinds fill the start squares in order; placed pieces keep their squares. */
 function armyOf(army: (Kind | Placed)[], r: Rules): Unit[] {
@@ -150,15 +164,15 @@ export function testRun(level: Encounter, army: Kind[] | Placed[], index: number
   return spawn({ ...newRun(), encounter: index, level, nextId: army.length, ...(rules ? { rules, gold: rules.gold } : {}) }, armyOf(army, rules ?? RULES), isPlaced(army));
 }
 /** A fresh run that starts at battle `index` with a given army and gold, then carries on as usual. */
-export function startAt(index: number, army: Kind[] | Placed[], gold: number): Run {
-  return spawn({ ...newRun(), encounter: index, gold, nextId: army.length }, armyOf(army, RULES), isPlaced(army));
+export function startAt(index: number, army: Kind[] | Placed[], gold: number, data?: GameData): Run {
+  return spawn({ ...newRun(data), encounter: index, gold, nextId: army.length }, armyOf(army, data?.rules ?? RULES), isPlaced(army));
 }
 
 const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => (u.id === id ? { ...u, ...patch } : u));
 function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["King captured", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
-    const last = !!g.level || g.encounter === ENCOUNTERS.length - 1, reward = levelOf(g).reward;
+    const last = !!g.level || g.encounter === levelsOf(g).length - 1, reward = levelOf(g).reward;
     return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : `+${reward} ✦`, ...g.log] };
   }
   return g;
@@ -436,7 +450,7 @@ export function campReason(g: Run, choice: CampChoice): string {
   if (g.gold < r.cost[choice]) return "Not enough gold";
   if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= r.hp.king) return "Full HP";
   const army = g.units.filter(u => u.side === "white").length + (g.recruits?.length ?? 0);
-  if (choice !== "heal" && army >= (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0)) return "Army full";
+  if (choice !== "heal" && army >= (levelsOf(g)[g.encounter + 1]?.starts.length ?? 0)) return "Army full";
   return "";
 }
 /** Spend gold at the hub: mend the king now, or add a recruit to the barracks. You can buy as often as gold and room allow. */
@@ -455,16 +469,20 @@ export function leaveCamp(g: Run): Run {
   return spawn({ ...g, encounter: g.encounter + 1, nextId: g.nextId + recruits.length, recruits: undefined, history: [...g.history, "Camp: road"] }, army);
 }
 
-export function readRun(raw: string | null): Run | null {
+/** Reads a saved run, checked against the files (or `data`, which the returned run then plays by).
+ * A piece saved above its kind's max HP, because the stats were retuned since, comes back at the max. */
+export function readRun(raw: string | null, data?: GameData): Run | null {
   try {
-    const g = JSON.parse(raw ?? "null") as Run | null;
-    if (!g || g.version !== 2 || g.level !== undefined || g.rules !== undefined || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !ENCOUNTERS[g.encounter] || !["deploy", "player", "camp", "victory", "defeat"].includes(g.phase)) return null;
+    const saved = JSON.parse(raw ?? "null") as Run | null;
+    if (!saved || typeof saved !== "object" || saved.level !== undefined || saved.rules !== undefined || saved.levels !== undefined) return null;
+    const g = withData(saved, data), r = rulesOf(g), levels = levelsOf(g);
+    if (g.version !== 2 || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !levels[g.encounter] || !["deploy", "player", "camp", "victory", "defeat"].includes(g.phase)) return null;
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId)) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if ((g.phase === "player" || g.phase === "deploy") && !g.units.some(u => u.side === "black")) return null;
-    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0))) return null;
-    if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
+    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[g.encounter + 1]?.starts.length ?? 0))) return null;
+    if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
-    return g;
+    return g.units.some(u => u.hp > r.hp[u.kind]) ? { ...g, units: g.units.map(u => (u.hp > r.hp[u.kind] ? { ...u, hp: r.hp[u.kind] } : u)) } : g;
   } catch { return null; }
 }

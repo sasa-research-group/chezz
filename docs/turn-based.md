@@ -63,9 +63,12 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 - Reach: one square in the piece's capture shape. Kings and queens strike any
   adjacent square, rooks the four straight neighbours, bishops the four
   diagonal ones, pawns diagonally forward, knights a knight's jump away.
-- Damage and full HP per piece come from `rules.json`. Today: damage pawn 1,
-  knight 2, bishop 2, king 2, rook 2, queen 3; HP pawn 2, knight 3, bishop 3,
-  king 5, rook 5, queen 9. A pawn's strike deals 0 to a defender.
+- Damage and full HP per piece come from `rules.json` (the owner retunes them
+  in the studio, so they aren't copied here). A strike deals damage minus the
+  defend bonus to a defender, never below 0.
+- An enemy starts a battle with its level's HP, clamped to its kind's full HP;
+  a spawn that leaves HP out starts at full. A saved run whose piece is above
+  its kind's full HP (stats lowered since) loads it at full.
 - The striker stays on its own square, even on a kill.
 - Tap-to-strike: tapping an enemy the piece can't reach yet walks it up to a
   square it can strike from and strikes (`approaches`, `walkAndStrike`),

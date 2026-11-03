@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, HP, RULES, approaches, attack, attackTargets, begin, deploy, buy, campReason, canDefend, canEscape, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
-import type { Encounter, Rules, Run, Unit } from "../src/game/turns";
+import { approaches, attack, attackTargets, begin, deploy, buy, campReason, canDefend, canEscape, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, passable, reaches, sidelined, strikeExposesKing, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import * as turns from "../src/game/turns";
+import type { Encounter, Kind, Placed, Rules, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
+import { FIXED, stored } from "./fixtures";
+
+// Fixed rules and battles, so retuning the shipped files never moves these tests.
+const RULES = FIXED.rules, HP = RULES.hp, DAMAGE = RULES.damage, COST = RULES.cost, ENCOUNTERS = FIXED.levels;
+const newRun = () => turns.newRun(FIXED);
+const startAt = (index: number, army: Kind[], gold: number) => turns.startAt(index, army, gold, FIXED);
+const testRun = (level: Encounter, army: Kind[] | Placed[], index: number, rules: Rules = RULES) => turns.testRun(level, army, index, rules);
+const readRun = (raw: string | null) => turns.readRun(raw, FIXED);
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
 function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), phase: "player", units, ...extra }; }
@@ -43,7 +52,7 @@ describe("turn-based rules", () => {
   });
   it("saves and restores the deploy phase", () => {
     const g = deploy(startAt(1, ["king", "rook"], 4), "king", ENCOUNTERS[1].starts[2]);
-    expect(readRun(JSON.stringify(g))).toEqual(g);
+    expect(readRun(stored(g))).toEqual(g);
   });
 
   it("moves pieces in their chess shape, sliders any distance", () => {
@@ -357,11 +366,11 @@ describe("turn-based rules", () => {
     expect(shopped.gold).toBe(20 - COST.heal - COST.pawn - COST.bishop);
     expect(shopped.recruits).toEqual(["pawn", "bishop"]);
     // Recruits wait in the barracks (off the board) until you leave, so saves stay valid.
-    expect(readRun(JSON.stringify(shopped))).toEqual(shopped);
-    expect(readRun(JSON.stringify({ ...shopped, recruits: ["queen"] }))).toBeNull();
-    expect(readRun(JSON.stringify({ ...newRun(), recruits: ["pawn"] }))).toBeNull();
+    expect(readRun(stored(shopped))).toEqual(shopped);
+    expect(readRun(stored({ ...shopped, recruits: ["queen"] }))).toBeNull();
+    expect(readRun(stored({ ...newRun(), recruits: ["pawn"] }))).toBeNull();
     // More recruits than the next road has squares for would leave pieces with nowhere to stand.
-    expect(readRun(JSON.stringify({ ...shopped, recruits: ["pawn", "pawn", "pawn"] }))).toBeNull();
+    expect(readRun(stored({ ...shopped, recruits: ["pawn", "pawn", "pawn"] }))).toBeNull();
     const next = leaveCamp(shopped);
     expect(next).toMatchObject({ phase: "deploy", encounter: 1, recruits: undefined });
     expect(next.history.slice(-3)).toEqual(["Camp: pawn", "Camp: bishop", "Camp: road"]);
@@ -376,14 +385,22 @@ describe("turn-based rules", () => {
     expect(buy({ ...g, gold: 1 }, "pawn").gold).toBe(1);
   });
   it("restores valid saves and rejects broken ones", () => {
-    const g = newRun(); expect(readRun(JSON.stringify(g))).toEqual(g);
-    expect(readRun(JSON.stringify({ ...g, units: [...g.units, { ...g.units[0], id: "dup" }] }))).toBeNull();
+    const g = newRun(); expect(readRun(stored(g))).toEqual(g);
+    expect(readRun(stored({ ...g, units: [...g.units, { ...g.units[0], id: "dup" }] }))).toBeNull();
     expect(readRun("{")).toBeNull();
     // A studio run's unsaved rules never come back as a saved run.
     expect(readRun(JSON.stringify({ ...g, rules: RULES }))).toBeNull();
-    expect(readRun(JSON.stringify({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
-    expect(readRun(JSON.stringify({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
-    expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();
+    expect(readRun(stored({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
+    expect(readRun(stored({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
+    expect(readRun(stored({ ...g, turn: 0 }))).toBeNull();
+  });
+  it("fits HP to the rules: a spawn without HP is full, one above the max and an old save come back at the max", () => {
+    const level: Encounter = { reward: 0, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 0], ["rook", 2, 0, 9], ["knight", 3, 0, 1]], starts: [{ x: 1, y: 3 }] };
+    const weak: Rules = { ...RULES, hp: { ...RULES.hp, pawn: 1, rook: 2, king: 3 } };
+    expect(testRun(level, ["king"], 0, weak).units.map(u => [u.kind, u.hp])).toEqual([["king", 3], ["pawn", 1], ["rook", 2], ["knight", 1]]);
+    expect(testRun(level, ["king"], 0).units.map(u => u.hp)).toEqual([HP.king, HP.pawn, HP.rook, 1]);
+    const strong = newRun();
+    expect(turns.readRun(stored(strong), { ...FIXED, rules: weak })!.units.map(u => u.hp)).toEqual([3, 1, 1]);
   });
 
   it("plays a single level on its own in a test run, ending in victory with no hideout", () => {
@@ -430,7 +447,7 @@ describe("turn-based rules", () => {
     const g = startAt(1, ["king", "rook"], 4);
     expect(g).toMatchObject({ encounter: 1, gold: 4, phase: "deploy", turn: 1 });
     expect(g.units.filter(u => u.side === "white").map(u => [u.id, u.kind, u.x, u.y])).toEqual([["king", "king", ENCOUNTERS[1].starts[0].x, ENCOUNTERS[1].starts[0].y], ["ally-1", "rook", ENCOUNTERS[1].starts[1].x, ENCOUNTERS[1].starts[1].y]]);
-    expect(readRun(JSON.stringify(g))).not.toBeNull();
+    expect(readRun(stored(g))).not.toBeNull();
     const cleared = { ...begin(g), units: g.units.filter(u => u.side === "white") };
     expect(attack({ ...cleared, units: [...cleared.units, { id: "e", side: "black", kind: "pawn", x: g.units[0].x, y: g.units[0].y - 1, hp: 1 }] }, "king", "e").run.phase).toBe("camp");
   });

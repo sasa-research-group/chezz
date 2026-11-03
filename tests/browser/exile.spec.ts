@@ -1,10 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { FIXED, expect, stored, test, withFixed } from "./fixed";
 import type { Page } from "@playwright/test";
 import { begin, coord, newRun, startAt, turnSpent } from "../../src/game/turns";
 import type { Run } from "../../src/game/turns";
 import { nextAction } from "../turns-strategy";
 
-const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("chezz.turns.v1")!) as Run);
+const saved = async (page: Page) => withFixed(await page.evaluate(() => JSON.parse(localStorage.getItem("chezz.turns.v1")!) as Run));
 const cell = (page: Page, g: Run, p: { x: number; y: number }) => page.getByRole("button", { name: new RegExp(`^${coord(g, p)} `) });
 
 test("move, end turn, watch the enemy, and resume after reload", async ({ page }) => {
@@ -28,8 +28,8 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
 
 test("the winning blow plays out and celebrates before the hideout", async ({ page }) => {
   // One pawn left, diagonally in front of the king.
-  const g = { ...begin(newRun()), units: [newRun().units[0], { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 2, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  const g = { ...begin(newRun(FIXED)), units: [newRun(FIXED).units[0], { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 2, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await page.getByRole("button", { name: /^c2 black pawn/ }).click();
@@ -42,11 +42,11 @@ test("the winning blow plays out and celebrates before the hideout", async ({ pa
 });
 
 test("tap an enemy to walk up and strike it when there's one way in", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   const pawn = (id: string, x: number, y: number) => ({ id, side: "black" as const, kind: "pawn" as const, x, y, hp: 1 });
   // A rook down the a-file has one way in: the square in front of the pawn.
   const g = { ...start, units: [{ ...start.units[0], x: 2, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 3, hp: 5 }, pawn("enemy-0-0", 0, 0), pawn("enemy-0-1", 2, 1), pawn("enemy-0-2", 3, 0)] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a1 white rook/ }).click();
   // Enemies you can strike are marked on the board with a sword badge.
@@ -58,9 +58,9 @@ test("tap an enemy to walk up and strike it when there's one way in", async ({ p
 });
 
 test("a knight flips over to strike and lands back home", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "knight" as const, x: 0, y: 3, hp: 3 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 1, y: 1, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a1 white knight/ }).click();
   await page.getByRole("button", { name: /^b3 black pawn, 1 HP, strike/ }).click();
@@ -73,10 +73,10 @@ test("a knight flips over to strike and lands back home", async ({ page }) => {
 });
 
 test("with several squares to strike from, you pick one", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   const pawn = (id: string, x: number, y: number) => ({ id, side: "black" as const, kind: "pawn" as const, x, y, hp: 1 });
   const now = { ...start, units: [start.units[0], pawn("enemy-0-1", 1, 1), pawn("enemy-0-2", 3, 0)] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(now));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(now));
   await page.goto("/");
   const king = now.units[0], target = now.units[1];
   await cell(page, now, king).click();
@@ -95,10 +95,10 @@ test("with several squares to strike from, you pick one", async ({ page }) => {
 });
 
 test("check locks End turn until the king is safe", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // The rook can step next to the 2-HP king and strike for 2.
   const g = { ...start, units: [{ ...start.units[0], hp: 2 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await expect(page.getByRole("alert")).toHaveText("Check");
   await expect(page.locator(".check-mark")).toHaveCount(1);
@@ -111,10 +111,10 @@ test("check locks End turn until the king is safe", async ({ page }) => {
 });
 
 test("checkmate plays a finale before the defeat screen", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // The king has already acted and is still in check: the turn may end, and the rook lands the killing blow.
   const g = { ...start, units: [{ ...start.units[0], hp: 2, moved: true, acted: true }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await expect(page.getByRole("alert")).toContainText("No way out");
   await page.getByRole("button", { name: "End turn" }).click();
@@ -128,10 +128,10 @@ test("checkmate plays a finale before the defeat screen", async ({ page }) => {
 });
 
 test("a king felled by a counter on your own turn still gets the finale", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // Striking a defending rook: it survives and counters for 2, which kills a 2-HP king.
   const g = { ...start, units: [{ ...start.units[0], hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 1, y: 2, hp: 5, defending: true }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   // The braced enemy is marked as defending, and its tile still shows the red strike ring.
   await expect(page.getByRole("button", { name: /^b2 black rook, 5 HP, defending/ })).toBeVisible();
@@ -147,10 +147,10 @@ test("a king felled by a counter on your own turn still gets the finale", async 
 });
 
 test("moves that would put your own king in check are blocked", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // On b2 the pawn could step to c3 and finish the 1-HP king, so b2 is off limits.
   const g = { ...start, units: [{ ...start.units[0], hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await expect(page.locator(".unsafe-dot")).toHaveCount(1);
@@ -162,10 +162,10 @@ test("moves that would put your own king in check are blocked", async ({ page })
 });
 
 test("a walk-up strike may step into danger when the blow removes it", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // b3 sits in front of the pawn: on its own that's check for a 1-HP king, but striking from there kills the pawn.
   const g = { ...start, units: [{ ...start.units[0], x: 0, y: 0, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 2, y: 0, hp: 1 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 3, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a4 white king/ }).click();
   await expect(page.getByRole("button", { name: /^b3 empty, blocked/ })).toBeVisible();
@@ -176,10 +176,10 @@ test("a walk-up strike may step into danger when the blow removes it", async ({ 
 });
 
 test("in check, an offered walk-up strike lands in full", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // The king is in check from the rook on c4. Our rook walks to b4 (blocking) and strikes it; the counter is fine.
   const g = { ...start, units: [{ ...start.units[0], x: 0, y: 0, hp: 2 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 1, y: 2, hp: 1 }, { id: "enemy-1-0", side: "black" as const, kind: "rook" as const, x: 2, y: 0, hp: 5, defending: true }, { id: "enemy-1-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await expect(page.getByRole("alert")).toHaveText("Check");
   await page.getByRole("button", { name: /^b2 white rook/ }).click();
@@ -189,10 +189,10 @@ test("in check, an offered walk-up strike lands in full", async ({ page }) => {
 });
 
 test("one move per turn: once a piece moves the others are locked, and acting passes the turn", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // The rook can slide up to the pawn on a4 and strike it; the king waits on d1.
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 3, hp: 5 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 0, y: 0, hp: 2 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 2, y: 0, hp: 2 }] };
-  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(g));
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a1 white rook/ }).click();
   await page.getByRole("button", { name: /^a3 empty, move here/ }).click();
@@ -212,12 +212,12 @@ test("one move per turn: once a piece moves the others are locked, and acting pa
 
 // The rook on b3 plans to step to b2 and strike the king on b1.
 const intentBoard = () => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   return { ...start, units: [start.units[0], { id: "enemy-0-0", side: "black" as const, kind: "rook" as const, x: 1, y: 1, hp: 5 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
 };
 
 test("hover or tap an enemy to see its card and what it plans", async ({ page }) => {
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(intentBoard()));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(intentBoard()));
   await page.goto("/");
   await page.getByRole("button", { name: /^b3 black rook/ }).hover();
   await expect(page.locator(".intent-layer")).toHaveCount(1);
@@ -237,7 +237,7 @@ test("hover or tap an enemy to see its card and what it plans", async ({ page })
 });
 
 test("a move is a preview: the enemy's plan follows it, and Escape or Cancel takes it back", async ({ page }) => {
-  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(intentBoard()));
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, stored(intentBoard()));
   await page.goto("/");
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await page.getByRole("button", { name: /^a1 empty, move here/ }).click();
@@ -268,9 +268,9 @@ test("a move is a preview: the enemy's plan follows it, and Escape or Cancel tak
 });
 
 test("a pawn on the far row stays a pawn", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
-  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(g));
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a3 white pawn/ }).click();
   await page.getByRole("button", { name: /^a4 empty/ }).click();
@@ -279,9 +279,9 @@ test("a pawn on the far row stays a pawn", async ({ page }) => {
 });
 
 test("the hideout: walk to the barracks, recruit, take the road; placeholders stay locked", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   const g = { ...start, phase: "camp" as const, gold: 20, units: [{ ...start.units[0], hp: 3 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.setViewportSize({ width: 390, height: 664 });
   await page.goto("/");
   const hub = page.getByRole("dialog", { name: "Rebel hideout" });
@@ -348,16 +348,16 @@ const inView = async (page: Page, name: string) => {
 
 for (const size of SIZES) {
   test(`the battle and the hideout fit ${size.width}x${size.height} without scrolling`, async ({ page }) => {
-    const start = begin(newRun());
+    const start = begin(newRun(FIXED));
     const battle3 = { ...start, encounter: 2, units: [{ ...start.units[0], x: 2, y: 5 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 3, y: 5, hp: 5 }, { id: "enemy-2-0", side: "black" as const, kind: "knight" as const, x: 3, y: 0, hp: 3 }] };
     await page.setViewportSize(size);
-    await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(battle3));
+    await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, stored(battle3));
     await page.goto("/");
     await page.getByRole("button", { name: /^c1 white king/ }).click();
     expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
     for (const name of ["Menu", "End turn", "Defend +1"]) await inView(page, name);
     await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
-    await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
+    await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), stored({ ...start, phase: "camp", gold: 12 }));
     await page.reload();
     await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
     expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
@@ -371,9 +371,9 @@ for (const size of SIZES) {
 }
 
 test("on battle 3's 6x6 board every square is at least 56px on a phone", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, encounter: 2, units: [{ ...start.units[0], x: 2, y: 5 }, { id: "enemy-2-0", side: "black" as const, kind: "knight" as const, x: 3, y: 0, hp: 3 }] }));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored({ ...start, encounter: 2, units: [{ ...start.units[0], x: 2, y: 5 }, { id: "enemy-2-0", side: "black" as const, kind: "knight" as const, x: 3, y: 0, hp: 3 }] }));
   await page.goto("/");
   const cells = page.locator(".exile-cell");
   await expect(cells).toHaveCount(36);
@@ -433,8 +433,8 @@ test("the menu pauses the enemy's turn", async ({ page }) => {
 });
 
 test("the menu stays shut over the hideout, and light dialogs keep dark text", async ({ page }) => {
-  const start = begin(newRun());
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify({ ...start, phase: "camp", gold: 12 }));
+  const start = begin(newRun(FIXED));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored({ ...start, phase: "camp", gold: 12 }));
   await page.goto("/");
   await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -495,9 +495,9 @@ test("play the exile run through browser controls", async ({ page }) => {
 });
 
 test("winning the last battle shows Victory and unlocks the first skin", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   const g = { ...start, encounter: 2, units: [{ ...start.units[0], x: 2, y: 5 }, { id: "enemy-2-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 4, hp: 1 }] };
-  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(g));
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, stored(g));
   await page.goto("/");
   await cell(page, g, g.units[0]).click();
   await cell(page, g, g.units[1]).click();
@@ -529,10 +529,10 @@ test("a skin worn in an old save still draws; the menu has no skin picker", asyn
 });
 
 test("ending a turn where the enemy does nothing shows ENEMY WAITS and logs it", async ({ page }) => {
-  const start = begin(newRun());
+  const start = begin(newRun(FIXED));
   // The pawn is boxed in by the rook and has nothing to strike.
   const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 1, hp: 5, moved: true, acted: true }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 0, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
   await page.goto("/");
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.getByRole("status").filter({ hasText: "ENEMY WAITS" })).toBeVisible();
@@ -561,8 +561,8 @@ test("the top bar reads Battle n of N, and Developer → Jump to battle starts b
 
 test("deploy: drag a piece onto another start square to swap, then Begin", async ({ page }) => {
   // Battle 2: the king on b1, a rook on a1, and f1 spare.
-  const g = startAt(1, ["king", "rook"], 0);
-  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { localStorage.setItem("chezz.turns.v1", run); sessionStorage.setItem("seeded", "1"); } }, JSON.stringify(g));
+  const g = startAt(1, ["king", "rook"], 0, FIXED);
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { localStorage.setItem("chezz.turns.v1", run); sessionStorage.setItem("seeded", "1"); } }, stored(g));
   await page.goto("/");
   await expect(page.getByText("DEPLOY", { exact: true })).toBeVisible();
   await expect(page.locator(".exile-cell.deploy-square")).toHaveCount(3);

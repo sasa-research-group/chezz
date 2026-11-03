@@ -6,7 +6,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
 import * as checks from "../src/game/rules";
 import { formatRules, parseRules } from "../src/game/rules";
-import { RULES } from "../src/game/turns";
+import { RULES as SHIPPED } from "../src/game/turns";
+import { FIXED_RULES as RULES } from "./fixtures";
 import { LEVELS_HEADER, rulesHandler, rulesPlugin } from "../vite.levels";
 
 const FILE = new URL("../src/game/rules.json", import.meta.url);
@@ -14,7 +15,7 @@ const FILE = new URL("../src/game/rules.json", import.meta.url);
 describe("rules data", () => {
   it("ships a rules file that parses and round-trips byte for byte", () => {
     expect(parseRules(JSON.parse(readFileSync(FILE, "utf8"))).ok).toBe(true);
-    expect(formatRules(RULES)).toBe(readFileSync(FILE, "utf8"));
+    expect(formatRules(SHIPPED)).toBe(readFileSync(FILE, "utf8"));
   });
   it("lists every problem in a broken file", () => {
     expect(parseRules([]).ok).toBe(false);

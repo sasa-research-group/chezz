@@ -5,20 +5,44 @@ import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
 import * as checks from "../src/game/levels";
-import { formatLevels, isError, levelIssues, listIssues, parseLevels, testArmyOf, typicalArmy } from "../src/game/levels";
+import { KINDS, formatLevels, isError, levelIssues, listIssues, parseLevels, testArmyOf, typicalArmy } from "../src/game/levels";
 import type { Level } from "../src/game/levels";
-import { ENCOUNTERS } from "../src/game/turns";
+import { ENCOUNTERS, RULES, begin, endTurn, startAt } from "../src/game/turns";
+import type { Kind, Rules, Run } from "../src/game/turns";
+import { LIMITS, parseRules } from "../src/game/rules";
+import { FIXED_RULES } from "./fixtures";
 import { LEVELS_HEADER, levelsHandler, levelsPlugin } from "../vite.levels";
 
 const FILE = new URL("../src/game/levels/levels.json", import.meta.url);
 const base: Level = { reward: 4, width: 4, height: 4, walls: [], spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 2, y: 3 }] };
-const messages = (l: Partial<Level>) => levelIssues({ ...base, ...l }).map(i => i.message);
+const messages = (l: Partial<Level>) => levelIssues({ ...base, ...l }, FIXED_RULES).map(i => i.message);
+
+/** A battle deals a king and live enemies, none above its kind's max, and a turn plays without throwing. */
+function startsAndPlays(dealt: Run) {
+  const max = (u: Run["units"][number]) => (dealt.rules ?? RULES).hp[u.kind];
+  expect(dealt.phase).toBe("deploy");
+  expect(dealt.units.some(u => u.id === "king")).toBe(true);
+  expect(dealt.units.filter(u => u.side === "black").length).toBeGreaterThan(0);
+  expect(dealt.units.every(u => u.hp >= 1 && u.hp <= max(u))).toBe(true);
+  expect(["player", "camp", "victory", "defeat"]).toContain(endTurn(begin(dealt)).run.phase);
+}
 
 describe("levels data", () => {
-  it("ships a levels file that parses cleanly", () => {
-    const parsed = parseLevels(JSON.parse(readFileSync(FILE, "utf8")));
-    expect(parsed.ok).toBe(true);
-    expect(ENCOUNTERS.length).toBeGreaterThan(0);
+  it("ships data that loads, with every battle ready to start", () => {
+    expect(parseLevels(JSON.parse(readFileSync(FILE, "utf8"))).ok).toBe(true);
+    expect(parseRules(JSON.parse(JSON.stringify(RULES))).ok).toBe(true);
+    expect(listIssues(ENCOUNTERS).flat().filter(isError)).toEqual([]);
+    ENCOUNTERS.forEach((_, i) => startsAndPlays(startAt(i, ["king"], 0)));
+  });
+  it("loads the shipped levels under any legal stats, so saving rules never breaks them", () => {
+    const every = (n: number) => Object.fromEntries(KINDS.map(k => [k, n])) as Record<Kind, number>;
+    const extremes: Rules[] = [LIMITS.hp[0], LIMITS.hp[1]].flatMap(hp => [LIMITS.damage[0], LIMITS.damage[1]].map(damage => ({ ...RULES, hp: every(hp), damage: every(damage) })));
+    for (const rules of extremes) {
+      expect(parseRules(JSON.parse(JSON.stringify(rules))).ok).toBe(true);
+      expect(parseLevels(JSON.parse(readFileSync(FILE, "utf8"))).ok).toBe(true);
+      expect(listIssues(ENCOUNTERS, rules).flat().filter(isError)).toEqual([]);
+      ENCOUNTERS.forEach((_, i) => startsAndPlays(startAt(i, ["king"], 0, { rules })));
+    }
   });
   it("keeps the file in the designer's own format, so a save round-trips without noise", () => {
     expect(formatLevels(ENCOUNTERS)).toBe(readFileSync(FILE, "utf8"));
@@ -29,7 +53,7 @@ describe("levels data", () => {
     expect(levelIssues({ ...base, spawns: [["pawn", 4, 0, 1]] })).toContainEqual({ field: "spawns", message: "Enemy pawn off the board", at: { x: 4, y: 0 } });
     expect(messages({ walls: [{ x: 1, y: 3 }] })).toContain("King start on a wall");
     expect(messages({ spawns: [["pawn", 2, 3, 1]] })).toContain("Start 2 overlaps enemy pawn");
-    expect(messages({ spawns: [["rook", 1, 0, 6]] })).toContain("Enemy rook HP 1–5");
+    expect(messages({ spawns: [["rook", 1, 0, 0]] })).toContain("Enemy rook HP 1–99");
     expect(messages({ spawns: [] })).toContain("Needs an enemy");
     expect(messages({ starts: [] })).toContain("Needs a king start");
     expect(messages({ testArmy: [{ kind: "rook", x: 1, y: 3 }] })).toContain("Army needs exactly one king");
@@ -39,6 +63,18 @@ describe("levels data", () => {
     // Empty starts are fine: the king alone, on the second start.
     expect(levelIssues({ ...base, testArmy: [{ kind: "king", x: 2, y: 3 }] })).toEqual([]);
     expect(levelIssues({ ...base, width: 9, spawns: [], starts: [], testArmy: [{ kind: "rook", x: 1, y: 3 }] }).every(isError)).toBe(true);
+  });
+  it("warns, never errs, when a spawn's HP is above its kind's max: the game clamps it", () => {
+    const over: Level = { ...base, spawns: [["rook", 1, 0, 6]] };
+    expect(levelIssues(over, FIXED_RULES)).toEqual([{ field: "spawns", message: "rook HP 6 > max 5 → 5", at: { x: 1, y: 0 }, warning: true, clamped: true }]);
+    expect(levelIssues(over, { ...FIXED_RULES, hp: { ...FIXED_RULES.hp, rook: 6 } })).toEqual([]);
+    expect(parseLevels({ version: 1, levels: [over] }).ok).toBe(true);
+    // HP left out means full health, whatever the stats.
+    const full: Level = { ...base, spawns: [["rook", 1, 0]] };
+    expect(levelIssues(full, FIXED_RULES)).toEqual([]);
+    expect(parseLevels({ version: 1, levels: [full] })).toEqual({ ok: true, file: { version: 1, levels: [full] } });
+    expect(formatLevels([full])).toContain('"spawns": [["rook", 1, 0]]');
+    expect(parseLevels({ version: 1, levels: [{ ...base, spawns: [["rook", 1, 0, 1, 1]] }] }).ok).toBe(false);
   });
   it("flags design rules as warnings, which don't block", () => {
     // A wall ahead of a start is the designer's call, not a warning.
@@ -63,18 +99,18 @@ describe("levels data", () => {
   it("gives a test run the king plus the best recruit each hideout's gold affords", () => {
     const three = [{ x: 1, y: 3 }, { x: 2, y: 3 }, { x: 0, y: 3 }];
     const run: Level[] = [{ ...base, reward: 8, starts: [three[0]] }, { ...base, reward: 8, starts: three }, { ...base, starts: three }];
-    expect(typicalArmy(run, 0)).toEqual(["king"]);
+    expect(typicalArmy(run, 0, FIXED_RULES)).toEqual(["king"]);
     // 2 starting gold + 8 → a rook (8); then 2 + 8 → another rook.
-    expect(typicalArmy(run, 1)).toEqual(["king", "rook"]);
-    expect(typicalArmy(run, 2)).toEqual(["king", "rook", "rook"]);
+    expect(typicalArmy(run, 1, FIXED_RULES)).toEqual(["king", "rook"]);
+    expect(typicalArmy(run, 2, FIXED_RULES)).toEqual(["king", "rook", "rook"]);
     const poor = [{ ...base, reward: 2 }, { ...base, reward: 0 }, base];
-    expect(typicalArmy(poor, 1)).toEqual(["king", "pawn"]);
+    expect(typicalArmy(poor, 1, FIXED_RULES)).toEqual(["king", "pawn"]);
     // No room on the road: the recruit isn't bought.
-    expect(typicalArmy([base, { ...base, starts: [{ x: 1, y: 3 }] }], 1)).toEqual(["king"]);
+    expect(typicalArmy([base, { ...base, starts: [{ x: 1, y: 3 }] }], 1, FIXED_RULES)).toEqual(["king"]);
     const placed = [{ kind: "bishop" as const, x: 1, y: 3 }, { kind: "king" as const, x: 2, y: 3 }];
     expect(testArmyOf([{ ...base, testArmy: placed }], 0)).toEqual(placed);
     // Without a saved test army, the typical one fills the starts in order.
-    expect(testArmyOf(run, 1)).toEqual([{ kind: "king", x: 1, y: 3 }, { kind: "rook", x: 2, y: 3 }]);
+    expect(testArmyOf(run, 1, FIXED_RULES)).toEqual([{ kind: "king", x: 1, y: 3 }, { kind: "rook", x: 2, y: 3 }]);
     expect(formatLevels([{ ...base, testArmy: [{ x: 1, y: 3, kind: "king" }] as never }])).toContain('"testArmy": [{ "kind": "king", "x": 1, "y": 3 }]');
     expect(parseLevels({ version: 1, levels: [{ ...base, testArmy: ["king"] }] }).ok).toBe(false);
   });

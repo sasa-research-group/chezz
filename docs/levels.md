@@ -3,7 +3,7 @@
 ## Data
 - The battles live in `src/game/levels/levels.json` (`{ version: 1, levels: [...] }`).
   `turns.ts` reads them as `ENCOUNTERS`; each has the `Encounter` shape:
-  `width`, `height` (2–8), `walls`, `spawns` (`[kind, x, y, hp]`), `starts`
+  `width`, `height` (2–8), `walls`, `spawns` (`[kind, x, y, hp]`, or `[kind, x, y]` for full HP), `starts`
   (a real run's army fills them in order, king first; then the player
   rearranges it in the deploy phase), `reward`, and an
   optional `story` the designer keeps but doesn't show.
@@ -12,17 +12,23 @@
 - `src/game/levels.ts` checks a level (`levelIssues`), a whole file
   (`parseLevels`, which also rejects unknown fields and wrong types) and
   writes the file (`formatLevels`: one field per line, short lists inline).
-  `tests/levels.test.ts` checks the shipped file parses cleanly and
-  round-trips byte for byte; it doesn't pin the battles' contents.
+  `tests/levels.test.ts` checks the shipped file loads, every battle starts,
+  and the file round-trips byte for byte; it doesn't pin the battles' contents.
+  It also loads the shipped levels under extreme legal stats (every HP 1 and 99,
+  damage 0 and 99), so a rules save can never make the levels file unloadable.
+  Tests that pin numbers play by fixed copies in `tests/fixtures/`.
 - **Errors** (would crash or corrupt; block Save and Play, and `parseLevels`
   refuses them): board 2–8 a side; nothing off the board; no enemy or start on
-  a wall; no two things on one square; enemy HP 1–max for its kind; at least
+  a wall; no two things on one square; enemy HP a whole number 1–99; at least
   one enemy and one start; reward 0–99; a test army has exactly one king,
   every piece on a start square and no two on one. Empty starts are fine.
+  No error depends on `rules.json`, so retuning stats never breaks a level.
 - **Warnings** (design rules; shown in amber, never block): an enemy
   the king can't reach from his start (king steps around walls); a level with
   fewer starts than the one before (survivors carry over; the game drops
-  whoever doesn't fit). Issues carry `warning: true`; `isError` tells them
+  whoever doesn't fit); an enemy's HP above its kind's max ("pawn HP 2 >
+  max 1 → 1": the game clamps it when the battle starts, and the Mechanics tab
+  lists the same clamps under the stats). Issues carry `warning: true`; `isError` tells them
   apart. Shrinking the board in the editor drops what falls outside it.
 
 ## Studio: Levels tab (`art.html#levels/N`)
@@ -37,7 +43,8 @@
   board as sprites. Numbers on the starts are the order a real army fills them. Errors
   (red) and warnings (amber) list under the board and ring their square in
   the same colour.
-- Right: name, width, height, reward, each enemy's HP, and the Army list:
+- Right: name, width, height, reward, each enemy's HP (empty: full HP; new
+  enemies start empty, so they follow stat changes), and the Army list:
   each start in order with its test unit (or none) and a remove button.
 - Undo / Redo (buttons, Ctrl/⌘ Z and Shift Ctrl/⌘ Z, or Ctrl Y) step through
   every edit to the selected level. Each level keeps its own history, in

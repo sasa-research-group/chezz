@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
 import { IntentMarks } from "../components/BoardArt";
-import { ENCOUNTERS, RULES, approaches, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
+import { ENCOUNTERS, RULES, approaches, spawnHp, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, Rules, Run, Side, Unit } from "../game/turns";
 import { LIMITS, SHOP, formatRules, parseRules } from "../game/rules";
+import { listIssues } from "../game/levels";
 import type { Shop } from "../game/rules";
 import { Entry, Group, KINDS, MiniBoard, SpriteStill } from "./kit";
 import type { Cell, Piece } from "./kit";
@@ -59,7 +60,7 @@ function Intent({ r, previewed }: { r: Rules; previewed: boolean }) {
 function Encounter({ r, i }: { r: Rules; i: number }) {
   const e = ENCOUNTERS[i];
   const cells: Record<string, Cell> = Object.fromEntries([...e.walls.map(w => [key(w), { cls: "wall" }]), ...e.starts.map((s, n) => [key(s), { dot: dot(n + 1) }])]);
-  return <MiniBoard cols={e.width} rows={e.height} cells={cells} pieces={e.spawns.map(([kind, x, y, hp]) => ({ kind, side: "black", x, y, hp, max: r.hp[kind] }))} />;
+  return <MiniBoard cols={e.width} rows={e.height} cells={cells} pieces={e.spawns.map(s => ({ kind: s[0], side: "black", x: s[1], y: s[2], hp: spawnHp(r, s), max: r.hp[s[0]] }))} />;
 }
 
 const enemyScores = (r: Rules): [string, string][] => [
@@ -96,7 +97,9 @@ function RulesEditor({ r, onChange }: { r: Rules; onChange: (r: Rules) => void }
   const text = formatRules(r), dirty = text !== saved;
   const parsed = parseRules(JSON.parse(JSON.stringify(r)));
   const errors = parsed.ok ? [] : parsed.errors;
-  const edit = (patch: Partial<Rules>) => { onChange({ ...r, ...patch }); setStatus(null); };
+  // Stats never break a battle; the game clamps what no longer fits, and this says where.
+  const clamps = parsed.ok ? listIssues(ENCOUNTERS, parsed.rules).flatMap((issues, i) => issues.filter(x => x.clamped).map(x => `Battle ${i + 1} ${"abcdefgh"[x.at!.x]}${ENCOUNTERS[i].height - x.at!.y}: ${x.message}`)) : [];
+  const edit =(patch: Partial<Rules>) => { onChange({ ...r, ...patch }); setStatus(null); };
   async function save() {
     if (errors.length) return;
     if (!import.meta.env.DEV) {
@@ -127,6 +130,7 @@ function RulesEditor({ r, onChange }: { r: Rules; onChange: (r: Rules) => void }
       <div className="stage-field rules-prices"><span>Prices ✦</span><div>{SHOP.map(s => <label key={s} className="rule-price">{SHOP_LABEL[s]}<Num label={`${SHOP_LABEL[s]} price`} value={r.cost[s]} range={LIMITS.cost} onChange={n => edit({ cost: { ...r.cost, [s]: n } })} /></label>)}</div></div>
     </div>
     {errors.length > 0 && <ul className="level-issues" aria-label="Problems">{errors.map(e => <li key={e}>{e}</li>)}</ul>}
+    {clamps.length > 0 && <ul className="level-issues warn" aria-label="Warnings">{clamps.map(c => <li key={c}>{c}</li>)}</ul>}
     <div className="level-actions rules-actions">
       <button type="button" disabled={errors.length > 0 || !dirty} onClick={save}>{import.meta.env.DEV ? "Save" : "Download JSON"}</button>
       <button type="button" disabled={!dirty} onClick={() => { onChange(JSON.parse(saved)); setStatus(null); }}>Revert</button>

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { META_KEY, creditWin, emptyMeta, equip, loadMeta, readMeta, saveMeta, type Meta, type SkinRef } from "../src/game/meta";
 import { newRun, readRun } from "../src/game/turns";
+import { FIXED, stored } from "./fixtures";
 
 const SKINS: SkinRef[] = [{ id: "frog", kind: "pawn" }, { id: "goose", kind: "bishop" }];
-const won = () => ({ ...newRun(), phase: "victory" as const });
+const won = () => ({ ...newRun(FIXED), phase: "victory" as const });
 
 describe("readMeta", () => {
   it("gives an empty meta for nothing, bad JSON or a wrong shape", () => {
@@ -45,12 +46,12 @@ describe("creditWin", () => {
   });
   it("still recognises a credited run after it is saved and loaded again", () => {
     const run = won(), once = creditWin(emptyMeta(), run, SKINS).meta;
-    const reloaded = readRun(JSON.stringify(run))!;
+    const reloaded = readRun(stored(run), FIXED)!;
     expect(reloaded).not.toBeNull();
     expect(creditWin(readMeta(JSON.stringify(once), SKINS), reloaded, SKINS).unlocked).toBeUndefined();
   });
   it("ignores runs that are not won", () => {
-    for (const phase of ["player", "camp", "defeat"] as const) expect(creditWin(emptyMeta(), { ...newRun(), phase }, SKINS).unlocked).toBeUndefined();
+    for (const phase of ["player", "camp", "defeat"] as const) expect(creditWin(emptyMeta(), { ...newRun(FIXED), phase }, SKINS).unlocked).toBeUndefined();
   });
 });
 

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixed";
+import type { Page } from "@playwright/test";
 
 function watchErrors(page: Page) {
   const errors: string[] = [];

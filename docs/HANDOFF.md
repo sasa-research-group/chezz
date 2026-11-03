@@ -11,7 +11,14 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   on/off, turn mode, prices, heal, start gold), checked by `rules.ts`. The
   studio's Mechanics tab edits it in place, redraws its diagrams live, and
   saves under `npm run dev` (Download JSON on a static build). Level test
-  runs play by the unsaved rules.
+  runs play by the unsaved rules. A stats save never breaks the levels:
+  spawn HP above a kind's max is clamped when the battle starts and shown as
+  an amber warning (Levels and Mechanics tabs); no level error depends on the
+  rules. Tests that pin numbers play by fixed copies in `tests/fixtures/`
+  (`newRun(data)`, `startAt(..., data)`, `readRun(raw, data)`; the browser
+  tests swap the JSON modules via `tests/browser/fixed.ts`), so retuning the
+  shipped files can't break them; `tests/browser/shipped.spec.ts` and the
+  levels test are the only checks on the shipped data, and pin no numbers.
 - **Levels:** data in `src/game/levels/levels.json` (`docs/levels.md`). The
   studio's Levels tab edits them, saves under `npm run dev`, and test-runs one
   level in the real game with a test army and no saves touched. Checks are
