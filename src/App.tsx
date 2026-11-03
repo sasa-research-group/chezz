@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { PieceRig, RIG_MS as DURATION } from "./components/PieceRig";
 import { SKINS } from "./components/skins";
 import { creditWin, loadMeta, saveMeta } from "./game/meta";
@@ -7,11 +7,12 @@ import { testArmyOf, typicalStart } from "./game/levels";
 import { BattleBanner, GuardBadge, IntentMarks } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { approaches, begin, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canDefend, canEscape, coord, defend, defendsLeft,endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { approaches, begin, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canDefend, canEscape, coord, defend, defendsLeft, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
-import { DefendsLeft, ShieldToken } from "./components/table/ShieldToken";
+import { ShieldToken } from "./components/table/ShieldToken";
+import { EnemyEmblem, KingHearts, TeamBar } from "./components/table/TeamBar";
 import { SkipToken } from "./components/table/SkipToken";
 import { PhaseBanner, phaseTiming, type PhaseKind } from "./components/table/PhaseBanner";
 import { StrikeIcon } from "./components/StrikeIcon";
@@ -83,7 +84,7 @@ function intentWords(g: Run, i: Intent) {
   return [i.to && `moves to ${coord(g, i.to)}`, i.strike && `strikes ${target ? label(target).toLowerCase() : "?"} −${i.strike.damage}${i.strike.kills ? ", kills" : ""}`, i.defend && "defends"].filter(Boolean).join(", ");
 }
 
-function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare, onHover, locked, stage, spd, picking, checkers, pips, skinOf, intent, deploy }: { run: Run; moveRun: Run; home: Pos | null; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; onHover: (p: Pos | null) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined; intent: Intent | null; deploy: Deploy | null }) {
+function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare, onHover, locked, stage, spd, picking, checkers, pips, skinOf, intent, deploy, above, below }: { run: Run; moveRun: Run; home: Pos | null; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; onHover: (p: Pos | null) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined; intent: Intent | null; deploy: Deploy | null; above?: ReactNode; below?: ReactNode }) {
   const e = levelOf(run), r = rulesOf(run);
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
@@ -101,6 +102,7 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
   const fallen = stage.mating ? stage.ghosts.find(g => g.id === "king") : undefined;
   const focus: Record<string, string> = fallen ? { "--zx": `${(fallen.x + .5) / e.width * 100}%`, "--zy": `${(fallen.y + .5) / e.height * 100}%` } : {};
   return <div className={`board-camera ${fallen ? "mate-zoom" : ""}`} style={{ "--cols": e.width, "--rows": e.height, ...focus } as CSSProperties}>
+    {above}
     <div className="board-plane" style={{ aspectRatio: `${e.width}/${e.height}` }}>
       <div className="exile-grid" style={{ gridTemplateColumns: `repeat(${e.width}, 1fr)` }}>
         {Array.from({ length: e.width * e.height }, (_, i) => {
@@ -152,6 +154,7 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
       })}
       {stage.bolts.map(b => <span key={b.key} className="strike-bolt" style={{ "--fx": `${(b.from.x + .5) / e.width * 100}%`, "--fy": `${(b.from.y + .2) / e.height * 100}%`, "--tx": `${(b.to.x + .5) / e.width * 100}%`, "--ty": `${(b.to.y + .2) / e.height * 100}%`, "--a": `${Math.atan2(b.to.y - b.from.y, b.to.x - b.from.x)}rad`, "--ms": `${b.ms}ms` } as CSSProperties} />)}</div>
     </div>
+    {below}
   </div>;
 }
 
@@ -520,17 +523,21 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const step = playback && !playback.lead ? playback.steps[playback.index] : null;
   const shown = step ? step.units : playback ? playback.before.units : run.units;
   const caption = step ? (step.counter && stage.counter?.landed ? step.counter : step.text) : picking ? "Strike from?" : "";
+  const captionLine = <div className="playback-caption" aria-live="polite">{caption}</div>;
   const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); const next = defend(run, selected.id); if (next === run) return; setRun(next); setTurnStart(null); animate(selected.id, "defend"); };
+  // The run is committed before playback, so the enemy's shields are counted back up and spent one by one as its defends play.
+  const enemyDefends = defendsLeft(run, "black") + (playback ? playback.steps.slice(playback.lead ? playback.index : playback.index + 1).filter(st => st.kind === "defend").length : 0);
   const skip = () => { if (timer.current) clearTimeout(timer.current); endPlayback(); };
   return <main className="exile-app">
-    <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={r.hp.king} battle={run.encounter + 1} battles={battles} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
+    <TopBar battle={run.encounter + 1} battles={battles} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
-      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null} />
-      {playback && <span className="turn-ribbon">ENEMY PHASE</span>}
-      {deploying && <span className="turn-ribbon deploy-ribbon">DEPLOY</span>}
-      {waits > 0 && !playback && <span key={waits} role="status" className="turn-ribbon enemy-waits">ENEMY WAITS</span>}
-      {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
-      <div className={`playback-caption ${playback ? "playing" : ""}`} aria-live="polite">{caption}</div>
+      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null}
+        above={<TeamBar side="black" defends={r.defends} defendsLeft={enemyDefends} center={playback ? <><span className="turn-ribbon">ENEMY PHASE</span>{captionLine}</>
+          : deploying ? <span className="turn-ribbon deploy-ribbon">DEPLOY</span>
+          : waits > 0 && <span key={waits} role="status" className="turn-ribbon enemy-waits">ENEMY WAITS</span>}><EnemyEmblem /></TeamBar>}
+        below={<TeamBar side="white" defends={r.defends} defendsLeft={defendsLeft(run, "white")} center={!playback && <>
+          {check && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
+          {captionLine}</>}><KingHearts hp={shown.find(u => u.id === "king")?.hp ?? 0} max={r.hp.king} /></TeamBar>} />
       {notice && <p role="status" className="notice">{notice}</p>}
       <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate" : banner === "defeat" ? "Defeat" : banner === "victory" ? "Victory" : banner === "cleared" ? "Battle won" : ""}</p>
       {banner && <BattleBanner kind={banner} line={banner === "cleared" ? `+${e.reward} ✦` : undefined} onClick={skipOutro} />}
@@ -541,7 +548,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
           <span className="intent-line" role="img" aria-label={`Intent: ${intentWords(run, intent)}`}>{intentWaits(intent) ? "waits" : <>
             {intent.to && <span>→ {coord(run, intent.to)}</span>}
             {intent.strike && <span><StrikeIcon />{kindName(run.units.find(u => u.id === intent.strike!.target)?.kind ?? "")} −{intent.strike.damage}</span>}
-            {intent.defend && <span>+{r.defend}</span>}</>}</span><DefendsLeft side="black" left={defendsLeft(run, "black")} /></div></div>
+            {intent.defend && <span>+{r.defend}</span>}</>}</span></div></div>
         : selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" skin={skinOf(selected.kind)} /><div><strong>{kindName(selected.kind)}</strong><UnitStats u={selected} r={r} /><span className="action-pips" role="img" aria-label={selectedBenched ? "locked: another piece acted" : selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted || selectedBenched ? "" : "full"} /><i className={selected.acted || selectedBenched ? "" : "full"} /></span></div></div>}
       </div>
       {preview && !locked && <button className="cancel-move" aria-label="Cancel" onClick={cancelPreview} title="Take the move back (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg><span className="cancel-label">Cancel</span></button>}
@@ -549,7 +556,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
         ? <button className="end-turn ready begin" onClick={beginBattle}><span className="end-turn-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" /></svg></span><span className="end-turn-label">Begin</span></button>
         : <>{playback
         ? <SkipToken onClick={skip} />
-        : <ShieldToken bonus={r.defend} left={defendsLeft(run, "white")} disabled={!selected || locked || !canDefend(run, selected)} onClick={defendNow} />}
+        : <ShieldToken bonus={r.defend} disabled={!selected || locked || !canDefend(run, selected)} onClick={defendNow} />}
       <EndTurnButton state={playback ? "waiting" : checkLocked ? "locked" : "ready"} disabled={locked || checkLocked} onClick={finishTurn} /></>}
     </section>
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}

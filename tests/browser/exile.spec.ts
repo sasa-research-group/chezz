@@ -325,6 +325,10 @@ test("compact layout fits an iPhone screen without scrolling", async ({ page }) 
   // A defending piece is marked: a shield chip and "defending" in its label.
   await expect(page.locator(".guard-badge")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^b1 white king, 5 HP, defending/ })).toBeVisible();
+  // The spent defend stays on your team bar, hollowed out; the enemy's are untouched.
+  await expect(page.getByRole("img", { name: "Defends: 2 of 3 left" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Your team" }).locator(".defend-badge.spent")).toHaveCount(1);
+  await expect(page.getByRole("img", { name: "Enemy defends: 3 of 3 left" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/exile-mobile.png", fullPage: true });
 });
@@ -333,7 +337,7 @@ const SIZES = [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width
 /** The page doesn't scroll, and since the shell clips rather than scrolls, nothing in the bar, the strip or the board spills out of view either. */
 const noScroll = (page: Page) => page.evaluate(() => {
   const el = document.documentElement;
-  const out = [...document.querySelectorAll(".top-bar > *, .table-hud > *, .table-hud button, .board-plane, .hub-map")].filter(e => {
+  const out = [...document.querySelectorAll(".top-bar > *, .team-bar, .table-hud > *, .table-hud button, .board-plane, .hub-map")].filter(e => {
     const r = e.getBoundingClientRect();
     return r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5;
   }).map(e => e.className);
@@ -357,7 +361,7 @@ for (const size of SIZES) {
     await page.goto("/");
     await page.getByRole("button", { name: /^c1 white king/ }).click();
     expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
-    for (const name of ["Menu", "End turn", "Defend +1 · 3 left"]) await inView(page, name);
+    for (const name of ["Menu", "End turn", "Defend +1"]) await inView(page, name);
     await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
     await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), stored({ ...start, phase: "camp", gold: 12 }));
     await page.reload();

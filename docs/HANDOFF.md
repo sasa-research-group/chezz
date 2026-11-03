@@ -9,7 +9,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   row.
 - **Strikes:** every struck piece that survives strikes back if it can reach
   the attacker (`counter` switch); Defend is only +N armour, and each side
-  gets `defends` (3) per battle, shown as ×N on the shield token. Strike range is
+  gets `defends` (3) per battle, shown as shields on the team bars. Strike range is
   per kind in `rules.json` (`range`: 1 or `"line"`); bishops are `"line"`:
   they hit any enemy down an open diagonal without moving, drawn as a
   streak. Sliders (rook, bishop, queen) move any distance in both turn
@@ -43,9 +43,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   worn in an old save still draws.
 - **Studio** (`art.html` → `src/art/`): Cast, Stage, Levels, Style guide,
   Mechanics (with the stats editor on top).
-- **Table UI:** a 100dvh wooden table: `TopBar.tsx` ("Battle n of N"), tilted
-  board, HUD strip (`table/`: +N shield, End turn pill; `table.css`). A turn
-  where the enemy does nothing shows ENEMY WAITS. Next: drag-to-defend.
+- **Table UI:** a 100dvh wooden table: `TopBar.tsx` ("Battle n of N", gold,
+  menu), tilted board with a team bar on each edge (`table/TeamBar.tsx`:
+  enemy above, yours below with the king's hearts; one shield badge per
+  defend, spent ones cracked; turn labels, playback caption and Check sit in
+  the bars' middle), HUD strip (`table/`: +N shield, End turn pill;
+  `table.css`). A turn where the enemy does nothing shows ENEMY WAITS. Next: drag-to-defend.
   ENEMY PHASE / YOUR PHASE banners sweep across the screen (`table/PhaseBanner.tsx`, ~1 s, shorter when fast).
 - **☰ menu** (`PauseMenu.tsx`): player items, then a Developer section (Art
   studio, Jump to battle N: tap twice; fresh saved run with the level's test

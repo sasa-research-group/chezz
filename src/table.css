@@ -6,8 +6,6 @@
 /* Top bar: brass-rimmed plaques along the far edge of the table. */
 .top-bar{grid-area:top;display:flex;align-items:center;gap:8px;padding:8px 10px 4px}
 .plaque{display:flex;align-items:center;gap:6px;background:#2b201b;border:3px solid #a8865f;border-radius:10px;padding:2px 8px;min-height:44px;color:#f6e3b4;font-weight:900}
-.plaque-face{width:26px;height:32px;display:block}.plaque-face svg{width:100%;height:100%;display:block}
-.hearts{display:flex;gap:1px}.hearts i{font-style:normal;font-size:15px;line-height:1;color:#f6e3b433}.hearts i.full{color:#ef5a4c}
 .battle-plaque{flex-direction:column;justify-content:center;align-items:flex-start;gap:1px;line-height:1;padding:3px 10px}
 .battle-plaque>small{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:#a8865f}
 .battle-plaque b{font-size:17px;white-space:nowrap}.battle-plaque b small{font-size:12px;color:#f6e3b4bb}
@@ -20,16 +18,36 @@
 .exile-field{grid-area:field;position:relative;min-height:0;min-width:0;container-type:size;display:grid;place-items:center;overflow:clip}
 /* --px grows with the field so the tilt's wider near edge stays inside it. The height fit counts the
    far rim (--rim in exile.css), which grows with the square. */
-.exile-field .board-camera{--pt:26px;--pb:18px;--px:max(6px,3cqw - 6px);--frame:12px;margin:0;max-width:none;padding:var(--pt) var(--px) var(--pb);width:min(100cqw,(100cqh - var(--pt) - var(--pb) - var(--frame)) / (var(--rows) + var(--rim-k)) * var(--cols) + 2 * var(--frame) + 2 * var(--px))}
+.exile-field .board-camera{--pt:26px;--pb:18px;--px:max(6px,3cqw - 6px);--frame:12px;--bar:34px;margin:0;max-width:none;padding:calc(var(--pt) + var(--bar)) var(--px) calc(var(--pb) + var(--bar));width:min(100cqw,(100cqh - var(--pt) - var(--pb) - 2 * var(--bar) - var(--frame)) / (var(--rows) + var(--rim-k)) * var(--cols) + 2 * var(--frame) + 2 * var(--px))}
 .exile-field .board-plane{border-width:var(--frame);border-top-width:var(--rim);border-color:#7a5c44;background:#7a5c44;box-shadow:0 8px 0 #3a2b22,0 26px 36px #000a}
-.turn-ribbon,.exile-field .check-alert,.exile-field .notice{position:absolute;top:2px;left:50%;transform:translateX(-50%) rotate(-2deg);z-index:60;pointer-events:none;white-space:nowrap;margin:0!important}
-.turn-ribbon{background:#2b201b;color:#f6e3b4;border:3px solid #a8865f;border-radius:8px;padding:3px 14px;font-weight:900;letter-spacing:1.5px;font-size:13px}
-.exile-field .check-alert{padding:3px 14px}
-.exile-field .notice{top:auto;bottom:30px;background:#2b201b;border-radius:8px;padding:3px 10px;font-size:12px}
-.playback-caption{position:absolute;bottom:0;left:50%;transform:translateX(-50%);max-width:94%;z-index:60;pointer-events:none;font-size:12px;font-weight:700;color:#f6e3b4;background:#2b201bd9;border-radius:8px;padding:3px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.playback-caption:empty{display:none}
+.exile-field .notice{position:absolute;bottom:30px;left:50%;transform:translateX(-50%) rotate(-2deg);z-index:60;pointer-events:none;white-space:nowrap;margin:0!important;background:#2b201b;border-radius:8px;padding:3px 10px;font-size:12px}
+/* Team bars: each side's status on its own edge of the board, the enemy's on the far edge and yours on
+   the near one. They sit in the camera's padding, outside the tilt, inset to the plane's width. */
+.team-bar{position:absolute;left:calc(var(--px) + 4px);right:calc(var(--px) + 4px);height:var(--bar);box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:0 8px 0 4px;background:#2b201b;border:2px solid #a8865f;border-radius:10px;box-shadow:0 3px 0 #1c1512;color:#f6e3b4;pointer-events:none;transition:opacity .4s}
+/* Painted before the board, so back-row pieces stand in front of the enemy's bar. */
+.team-bar.black{top:max(0px,var(--pt) - 18px);border-color:#c2493c}
+.team-bar.white{bottom:max(0px,var(--pb) - 14px);z-index:5}
+.board-camera.mate-zoom .team-bar{opacity:0}
+.team-center{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;overflow:hidden}
+.turn-ribbon{font-weight:900;letter-spacing:1.5px;font-size:11px;white-space:nowrap;color:#f6e3b4}
+.deploy-ribbon{color:#9fd1bf}
 .enemy-waits{animation:waits-in .25s cubic-bezier(.34,1.56,.64,1) both}
-@keyframes waits-in{from{opacity:0;transform:translateX(-50%) rotate(-2deg) scale(.7)}}
+@keyframes waits-in{from{opacity:0;transform:scale(.7)}}
+.playback-caption{max-width:100%;font-size:11px;font-weight:700;color:#f6e3b4cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.playback-caption:empty{display:none}
+.team-bar .check-alert{margin:0!important;padding:0 8px;border-radius:6px;font-size:11px!important;line-height:1.5!important;white-space:nowrap}
+.team-king{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.team-face{width:22px;height:28px;display:block;flex-shrink:0}.team-face svg{width:100%;height:100%;display:block}
+.hearts{display:flex;gap:1px}.hearts i{font-style:normal;font-size:15px;line-height:1;color:#f6e3b433}.hearts i.full{color:#ef5a4c}
+.defend-badges{display:flex;gap:4px;flex-shrink:0}
+.defend-badge{width:20px;height:22px;overflow:visible}
+.defend-badge path{fill:#9bbfe0;stroke:#f6e3b4;stroke-width:1.6;stroke-linejoin:round}
+.defend-badge .crack{fill:none;stroke:none}
+.defend-badge.spent path{fill:#00000040;stroke:#a8865f88;stroke-dasharray:2.5 2}
+.defend-badge.spent .crack{stroke:#a8865faa;stroke-width:1.3;stroke-dasharray:none;stroke-linecap:round}
+.defend-badge.breaking{animation:badge-break .6s ease-out}
+@keyframes badge-break{0%{transform:scale(1)}25%{transform:scale(1.45) rotate(-8deg);filter:brightness(2.2)}60%{transform:scale(.8) rotate(6deg)}100%{transform:none}}
+@media(prefers-reduced-motion:reduce){.defend-badge.breaking{animation:none}}
 
 /* HUD strip: the selected piece's card, the shield token and the End turn pill. */
 .table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". cancel shield end";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
@@ -43,11 +61,6 @@
 .shield-token svg{width:28px;height:30px;fill:#2f5a82;stroke:#2b201b;stroke-width:1.5}
 .shield-token:disabled{opacity:.4;box-shadow:0 2px 0 #2b201b}
 .shield-plus{position:absolute;right:-8px;bottom:-4px;background:#2f5a82;color:#fff;border:2px solid #2b201b;border-radius:9px;padding:1px 5px;font-size:13px;font-weight:900;line-height:1.1}
-.shield-left{position:absolute;left:-8px;top:-6px;background:#f6e3b4;color:#2b201b;border:2px solid #2b201b;border-radius:9px;padding:1px 5px;font-size:13px;font-weight:900;line-height:1.1}
-.shield-left.empty{background:#c2493c;color:#fff}
-.defends-left{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800;color:#9bbfe0;white-space:nowrap}
-.table-hud .selected-card .defends-left svg{width:11px;height:12px;fill:currentColor;stroke:none}
-.defends-left.empty{color:#f3a094}
 .skip-token{grid-area:shield;width:64px;height:64px;border-radius:50%;padding:0;background:#e8d9b4;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b;display:grid;place-items:center}
 .skip-token svg{width:28px;height:28px;fill:#2b201b}
 .end-turn{grid-area:end;display:flex;align-items:center;gap:8px;height:64px;padding:0 20px 0 12px;border-radius:32px;background:linear-gradient(#ffe58a,#e2a92a);border:4px solid #2b201b;box-shadow:0 6px 0 #2b201b;color:#2b201b;font-weight:900;font-size:17px;white-space:nowrap}
@@ -86,7 +99,7 @@
 
 /* Small phones (under 375px): shrink the table objects so the strip and the bar still fit. */
 @media(orientation:portrait) and (max-width:374px){
-  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:12px}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
+  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:13px}.defend-badge{width:17px;height:19px}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
   .table-hud{gap:6px;padding:4px 8px 8px}
   .shield-token,.skip-token{width:52px;height:52px}.end-turn{height:56px;font-size:15px;padding:0 14px 0 10px}
   .cancel-move{padding:0 12px}.cancel-label{display:none}
@@ -95,8 +108,7 @@
   .exile-app{grid-template-rows:minmax(0,1fr);grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"top field hud"}
   .top-bar{flex-direction:column;justify-content:center;padding:8px 6px;gap:8px}
   .menu-button{order:-1}
-  .king-plaque,.battle-plaque{flex-direction:column;padding:6px 4px;gap:4px}
-  .hearts{flex-direction:column}
+  .battle-plaque{flex-direction:column;padding:6px 4px;gap:4px}
   .coins{margin:0;flex-direction:column;gap:2px;font-size:18px}
   .table-hud{width:196px;grid-template-columns:1fr;grid-template-areas:"info" "cancel" "shield" "end";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
   .hud-info{flex-direction:column;align-items:stretch;min-height:0}
