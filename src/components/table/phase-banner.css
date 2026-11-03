@@ -1,0 +1,12 @@
+/* Phase banner: a wooden band across the middle of the screen; the words sweep in from the right and out to the left. */
+.phase-banner{--band:#2b201b;--tall:clamp(64px,13vh,104px);position:fixed;left:0;right:0;top:50%;height:var(--tall);margin-top:calc(var(--tall) / -2);z-index:85;pointer-events:none;display:grid;place-items:center;overflow:hidden;background:var(--band);border-block:4px solid #a8865f;box-shadow:0 0 0 3px #2b201b,0 12px 30px #1a121077;animation:phase-band var(--phase-ms) cubic-bezier(.2,.8,.2,1) both}
+.phase-banner.enemy{--band:linear-gradient(90deg,#3a100c,#6b1f17 30%,#6b1f17 70%,#3a100c)}
+.phase-banner.player{--band:linear-gradient(90deg,#1d3d36,#396c61 30%,#396c61 70%,#1d3d36)}
+.phase-banner span{font-family:Georgia,serif;font-weight:900;font-size:clamp(30px,8.5vw,60px);letter-spacing:3px;color:#f6e3b4;text-shadow:0 3px 0 #1a1210;white-space:nowrap;animation:phase-words var(--phase-ms) cubic-bezier(.2,.8,.2,1) both}
+@keyframes phase-band{0%{transform:scaleY(0);opacity:0}14%{transform:scaleY(1);opacity:1}82%{transform:scaleY(1);opacity:1}100%{transform:scaleY(0);opacity:0}}
+@keyframes phase-words{0%{transform:translateX(70vw);opacity:0}24%{transform:translateX(0);opacity:1}72%{transform:translateX(0);opacity:1}100%{transform:translateX(-70vw);opacity:0}}
+@keyframes phase-fade{0%,100%{opacity:0}20%,75%{opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  .phase-banner{animation-name:phase-fade}
+  .phase-banner span{animation:none}
+}

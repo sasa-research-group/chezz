@@ -46,6 +46,7 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Table UI:** a 100dvh wooden table: `TopBar.tsx` ("Battle n of N"), tilted
   board, HUD strip (`table/`: +N shield, End turn pill; `table.css`). A turn
   where the enemy does nothing shows ENEMY WAITS. Next: drag-to-defend.
+  ENEMY PHASE / YOUR PHASE banners sweep across the screen (`table/PhaseBanner.tsx`, ~1 s, shorter when fast).
 - **☰ menu** (`PauseMenu.tsx`): player items, then a Developer section (Art
   studio, Jump to battle N: tap twice; fresh saved run with the level's test
   army). A regular game: no playtest notes, export or feedback copy.

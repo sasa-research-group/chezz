@@ -115,7 +115,7 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   until he's safe, unless nothing you can still do helps (`canEscape`).
 - The king dying ends the run.
 
-## Enemy turn
+## Enemy phase
 - Deterministic and computed in full before it plays. The best-scoring action
   across the pieces that may still act goes first, repeated until nothing
   scores above zero: strikes first (kills and the king most, minus any

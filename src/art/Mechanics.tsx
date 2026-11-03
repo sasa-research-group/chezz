@@ -216,7 +216,7 @@ export function Mechanics() {
       </tbody></table>
     </Group>
 
-    <Group id="enemy" title="Enemy turn">
+    <Group id="enemy" title="Enemy phase">
       <Entry name="Intent" src="enemyPlan() · intentOf()" note="hover or tap an enemy" wide><Intent r={live} previewed={false} /></Entry>
       <Entry name="Intent after a previewed move" src="enemyPlan()" note="king previewed on a1" wide><Intent r={live} previewed /></Entry>
       <table className="spec"><thead><tr><th>Action</th><th>Score</th></tr></thead><tbody>{enemyScores(live).map(([a, b]) => <tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>

@@ -13,6 +13,7 @@ import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
 import { DefendsLeft, ShieldToken } from "./components/table/ShieldToken";
 import { SkipToken } from "./components/table/SkipToken";
+import { PhaseBanner, phaseTiming, type PhaseKind } from "./components/table/PhaseBanner";
 import { StrikeIcon } from "./components/StrikeIcon";
 import type { Encounter, Intent, Kind, Placed, Pos, Rules, Run, Step, Unit } from "./game/turns";
 
@@ -46,7 +47,8 @@ function squareAt(clientX: number, clientY: number): { p: Pos; at: Pos } | null 
 }
 /** A studio test run: one level with a set army, shown as battle `index + 1` of `battles`, optionally by the studio's unsaved rules. It never touches the run or meta saves. */
 export type TestLevel = { level: Encounter; army: Placed[]; index: number; battles: number; rules?: Rules };
-type Playback = { steps: Step[]; before: Run; index: number };
+/** `lead`: the enemy-phase banner is still sweeping in, so no step has played yet. */
+type Playback = { steps: Step[]; before: Run; index: number; lead?: boolean };
 /** Presentation-only animation state: what each piece is doing, which way it faces, and fallen pieces still playing their death. */
 type Anim = { action: RigAction; key: number };
 /** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land.
@@ -168,12 +170,13 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const [inspectId, setInspectId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [playback, setPlayback] = useState<Playback | null>(null);
+  const [phaseBanner, setPhaseBanner] = useState<{ kind: PhaseKind; n: number } | null>(null);
   const [flash, setFlash] = useState<{ step: Step; hold: number } | null>(null);
   const [fast, setFast] = useState(false);
   const [stage, setStage] = useState<Stage>(EMPTY_STAGE);
   const animKey = useRef(1);
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Animation time scale, matched to the enemy-turn step interval (800ms, 250ms fast, 90ms reduced).
+  // Animation time scale, matched to the enemy-phase step interval (800ms, 250ms fast, 90ms reduced).
   const spd = reducedMotion ? .1 : fast ? .3 : 1;
   const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage(EMPTY_STAGE); setStriding(false); setPicking(null); };
   const [picking, setPicking] = useState<Picking | null>(null);
@@ -331,12 +334,16 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   useEffect(() => {
     // The pause menu pauses the enemy's playback.
     if (!playback || menu) return;
+    if (playback.lead) {
+      timer.current = setTimeout(() => setPlayback({ ...playback, lead: false }), phaseTiming(fast, reduced).lead);
+      return () => { if (timer.current) clearTimeout(timer.current); };
+    }
     // A strike that draws a counter holds its beat until the counter has landed.
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
     const counter = strikeTiming(playback.steps[playback.index], prev).counter;
     timer.current = setTimeout(() => {
       if (playback.index + 1 < playback.steps.length) setPlayback({ ...playback, index: playback.index + 1 });
-      else setPlayback(null);
+      else endPlayback();
     }, (reduced ? 90 : fast ? 250 : 800) + (counter ? counter.lands * spd : 0));
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [playback, fast, reduced, menu]);
@@ -360,10 +367,10 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     return () => window.removeEventListener("keydown", back);
   }, [menu, canMenu, picking, selectedId, inspectId, preview, locked, run, deployPick]);
   useEffect(() => {
-    if (!playback) return;
+    if (!playback || playback.lead) return;
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
     perform(playback.steps[playback.index], prev);
-  }, [playback?.steps, playback?.index]);
+  }, [playback?.steps, playback?.index, playback?.lead]);
   useEffect(() => { if (!flash || stage.holdFlash) return; const id = setTimeout(() => setFlash(null), 700 + flash.hold * spd); return () => clearTimeout(id); }, [flash, stage.holdFlash]);
 
   const strikeNow = (g: Run, attacker: Unit, target: Unit) => {
@@ -446,7 +453,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     };
     window.addEventListener("pointermove", moveTo); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
   };
-  const beginBattle = () => { setDeployPick(null); setDrag(null); setInspectId(null); setRun(begin(run)); };
+  const beginBattle = () => { setDeployPick(null); setDrag(null); setInspectId(null); setRun(begin(run)); showPhase("player"); };
   const square = (p: Pos) => {
     if (deploying) { deploySquare(p); return; }
     if (locked) return;
@@ -487,6 +494,9 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     }
     setRun(preview); setTurnStart(null); setPicking(null); setNotice("");
   };
+  const showPhase = (kind: PhaseKind) => setPhaseBanner(b => ({ kind, n: (b?.n ?? 0) + 1 }));
+  // Control comes back to you only if the enemy's phase didn't end the battle.
+  const endPlayback = () => { setPlayback(null); if (run.phase === "player") showPhase("player"); };
   const finishTurn = () => {
     if (locked) return;
     const result = endTurn(run);
@@ -496,8 +506,8 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     setRun(result.run);
     const fallen = run.units.find(u => u.id === "king");
     if (result.run.phase === "defeat" && fallen) setFall({ king: fallen, by: [...new Set(result.steps.filter(st => st.target === "king").map(st => st.actor))] });
-    if (result.steps.length) setPlayback({ steps: result.steps, before: run, index: 0 });
-    else if (result.run.phase === "player") setWaits(w => w + 1);
+    if (result.steps.length) { setPlayback({ steps: result.steps, before: run, index: 0, lead: true }); showPhase("enemy"); }
+    else if (result.run.phase === "player") { setWaits(w => w + 1); showPhase("player"); }
   };
   // Under one move per turn, the turn passes on its own once your piece has done all it usefully can,
   // after its animation has played.
@@ -506,17 +516,17 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     const id = setTimeout(finishTurn, (reduced ? 150 : 450) * spd);
     return () => clearTimeout(id);
   }, [run, locked, flash, preview]);
-  function start(next: Run = fresh()) { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setWaits(0); setRun(next); setTurnStart(null); setInspectId(null); setSelectedId(null); setIntro(false); setNotice(""); setDeployPick(null); setDrag(null); }
-  const step = playback ? playback.steps[playback.index] : null;
-  const shown = step ? step.units : run.units;
+  function start(next: Run = fresh()) { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setPhaseBanner(null); setWaits(0); setRun(next); setTurnStart(null); setInspectId(null); setSelectedId(null); setIntro(false); setNotice(""); setDeployPick(null); setDrag(null); }
+  const step = playback && !playback.lead ? playback.steps[playback.index] : null;
+  const shown = step ? step.units : playback ? playback.before.units : run.units;
   const caption = step ? (step.counter && stage.counter?.landed ? step.counter : step.text) : picking ? "Strike from?" : "";
   const defendNow = () => { if (!selected) return; setPicking(null); setNotice(""); const next = defend(run, selected.id); if (next === run) return; setRun(next); setTurnStart(null); animate(selected.id, "defend"); };
-  const skip = () => { if (timer.current) clearTimeout(timer.current); setPlayback(null); };
+  const skip = () => { if (timer.current) clearTimeout(timer.current); endPlayback(); };
   return <main className="exile-app">
     <TopBar kingHp={shown.find(u => u.id === "king")?.hp ?? 0} kingMax={r.hp.king} battle={run.encounter + 1} battles={battles} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
       <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null} />
-      {playback && <span className="turn-ribbon">ENEMY TURN</span>}
+      {playback && <span className="turn-ribbon">ENEMY PHASE</span>}
       {deploying && <span className="turn-ribbon deploy-ribbon">DEPLOY</span>}
       {waits > 0 && !playback && <span key={waits} role="status" className="turn-ribbon enemy-waits">ENEMY WAITS</span>}
       {check && !playback && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
@@ -545,6 +555,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${r.hp.king}` : `Battle ${run.encounter + 1} of ${battles} · turn ${run.turn}`}</p><button className="primary-button" onClick={() => start()}>Play again<span>→</span></button></section></div>}
+    {phaseBanner && <PhaseBanner key={phaseBanner.n} kind={phaseBanner.kind} total={phaseTiming(fast, reduced).total} onDone={() => setPhaseBanner(b => b?.n === phaseBanner.n ? null : b)} />}
     {menu && <PauseMenu rules={r} log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onClose={() => setMenu(false)} battles={battles} onJump={test ? undefined : index => { setMenu(false); start(jumpRun(index)); }} />}
   </main>;
 }

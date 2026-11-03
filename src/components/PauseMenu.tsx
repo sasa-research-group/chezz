@@ -42,7 +42,7 @@ export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose,
     <button className="menu-row" aria-expanded={rules} onClick={() => setRules(r => !r)}><span aria-hidden="true">?</span>Rules</button>
     {rules && <RulesCard rules={shown} />}
     <button className="menu-row" disabled={newRunDisabled} onClick={onNewRun}><span aria-hidden="true">↺</span>New run</button>
-    <label className="menu-row toggle"><span aria-hidden="true">»</span>Fast enemy turns<input type="checkbox" checked={fast} onChange={ev => onFast(ev.target.checked)} /></label>
+    <label className="menu-row toggle"><span aria-hidden="true">»</span>Fast enemy phase<input type="checkbox" checked={fast} onChange={ev => onFast(ev.target.checked)} /></label>
     <details className="menu-log"><summary className="menu-row"><span aria-hidden="true">≡</span>Battle log</summary>{log.map((text, i) => <p key={i}>{text}</p>)}</details>
     <h2 className="menu-section">Developer</h2>
     <a className="menu-row" href="./art.html"><span aria-hidden="true">✎</span>Art studio</a>

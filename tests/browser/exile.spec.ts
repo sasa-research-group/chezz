@@ -18,9 +18,11 @@ test("move, end turn, watch the enemy, and resume after reload", async ({ page }
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "king")?.y).toBe(2);
   await page.screenshot({ path: "test-results/exile-board.png", fullPage: true });
   await page.getByRole("button", { name: "End turn" }).click();
-  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
+  await expect(page.locator(".phase-banner.enemy")).toHaveText("ENEMY PHASE");
+  await expect(page.locator(".turn-ribbon", { hasText: "ENEMY PHASE" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeDisabled();
   await page.getByRole("button", { name: "Skip" }).click();
+  await expect(page.locator(".phase-banner.player")).toHaveText("YOUR PHASE");
   await expect.poll(async () => (await saved(page)).turn).toBe(2);
   await page.reload();
   await expect(page.getByRole("button", { name: /^b2 white king/ })).toBeEnabled();
@@ -206,7 +208,7 @@ test("one move per turn: once a piece moves the others are locked, and acting pa
   await page.getByRole("button", { name: /^a3 white rook/ }).click();
   await page.getByRole("button", { name: /^a4 black pawn, 2 HP, strike/ }).click();
   // Striking spends the piece, and the turn passes without End turn.
-  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.locator(".turn-ribbon", { hasText: "ENEMY PHASE" })).toBeVisible({ timeout: 10000 });
   await expect.poll(async () => (await saved(page)).turn).toBe(2);
 });
 
@@ -418,7 +420,7 @@ test("the menu pauses the enemy's turn", async ({ page }) => {
   await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
   await page.getByRole("button", { name: "Begin" }).click();
   await page.getByRole("button", { name: "End turn" }).click();
-  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
+  await expect(page.locator(".turn-ribbon", { hasText: "ENEMY PHASE" })).toBeVisible();
   const caption = page.locator(".playback-caption");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible();
@@ -426,10 +428,10 @@ test("the menu pauses the enemy's turn", async ({ page }) => {
   // Many 800ms steps' worth of clock: the step shown must not change while paused.
   await page.clock.runFor(10000);
   expect(await caption.textContent()).toBe(paused);
-  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible();
+  await expect(page.locator(".turn-ribbon", { hasText: "ENEMY PHASE" })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.clock.runFor(10000);
-  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeHidden();
+  await expect(page.locator(".turn-ribbon", { hasText: "ENEMY PHASE" })).toBeHidden();
 });
 
 test("the menu stays shut over the hideout, and light dialogs keep dark text", async ({ page }) => {
@@ -449,7 +451,7 @@ test("play the exile run through browser controls", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
   await page.getByRole("button", { name: "Menu" }).click();
-  await page.getByRole("checkbox", { name: "Fast enemy turns" }).check();
+  await page.getByRole("checkbox", { name: "Fast enemy phase" }).check();
   await page.keyboard.press("Escape");
   for (let i = 0; i < 120; i++) {
     const g = await saved(page);
