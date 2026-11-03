@@ -100,8 +100,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   defend spends one (`Run.defended` counts them, `defendsLeft`). With none
   left, that side's pieces can't defend (`canDefend`) and the enemy stops
   bracing. The count resets when a battle is dealt; a save without it has a
-  full pool. The shield token's corner shows yours (×N); an inspected enemy's
-  card shows the enemy's.
+  full pool. Each side's team bar shows one shield per defend, and a spent one
+  stays, hollow and cracked: the enemy's above the board, yours below.
 
 ## Check
 - Your king is in check when the enemy's next turn could kill him
