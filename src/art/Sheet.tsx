@@ -8,10 +8,8 @@ import { skinById } from "../components/skins";
 type Spec = { kind: RigKind; side: RigSide; skin?: string };
 const KINDS: RigKind[] = ["pawn", "knight", "bishop", "rook", "queen", "king"];
 const SIZES = [48, 84, 192];
-const ACTIONS: RigAction[] = ["move", "attack", "defend", "hit", "death", "cheer", "morph-out"];
+const ACTIONS: RigAction[] = ["move", "attack", "defend", "hit", "death", "cheer"];
 const KNIGHT_ACTIONS: RigAction[] = ["leap", "leap-back"];
-/** Queens are what pawns promote into, so their sheet shows the morph-in too. */
-const QUEEN_ACTIONS: RigAction[] = ["morph-in"];
 /** Only kings play the checkmate finale, which throws the crown off. */
 const KING_ACTIONS: RigAction[] = ["mate"];
 const FRACS = [0, .2, .35, .5, .65, .85];
@@ -47,7 +45,7 @@ function RigRows({ spec }: { spec: Spec }) {
       <Rig spec={spec} px={84} wounded label="wounded" />
       <Rig spec={spec} px={84} defending label="guarding" />
     </div>
-    {[...ACTIONS, ...(spec.kind === "knight" ? KNIGHT_ACTIONS : []), ...(spec.kind === "queen" ? QUEEN_ACTIONS : []), ...(spec.kind === "king" ? KING_ACTIONS : [])].map(a => <div key={a} className="sheet-row sheet-frames"><b>{a}</b>
+    {[...ACTIONS, ...(spec.kind === "knight" ? KNIGHT_ACTIONS : []), ...(spec.kind === "king" ? KING_ACTIONS : [])].map(a => <div key={a} className="sheet-row sheet-frames"><b>{a}</b>
       {FRACS.map(f => <Rig key={f} spec={spec} px={84} action={a} frac={f} label={`${Math.round(f * 100)}%`} />)}</div>)}
   </section>;
 }

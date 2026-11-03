@@ -2,8 +2,8 @@
  * level designer edits them. This module checks a level before it is played or written back to the
  * repo, formats the file so diffs stay readable, and picks the army a studio test run fields.
  * Pure: no DOM, no file system. */
-import { COST, HP, newRun } from "./turns";
-import type { Encounter, Kind, Pos, Recruit } from "./turns";
+import { HP, RULES } from "./turns";
+import type { Encounter, Kind, Pos, Recruit, Rules } from "./turns";
 
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
 export type Level = Encounter & { name?: string; testArmy?: Kind[] };
@@ -62,7 +62,7 @@ export function levelIssues(l: Level): Issue[] {
   l.starts.forEach((s, i) => place("starts", s, i === 0 ? "King start" : `Start ${i + 1}`));
   if (!l.spawns.length) out.push({ field: "spawns", message: "Needs an enemy" });
   if (!l.starts.length) out.push({ field: "starts", message: "Needs a king start" });
-  // A recruited pawn should be able to march up and promote from any start square.
+  // Pawns only step forward, so a recruited pawn on a walled file is stuck behind the wall.
   for (const s of l.starts) if (inside(s) && l.walls.some(w => w.x === s.x && w.y < s.y)) out.push({ field: "starts", message: "Wall ahead of start", at: s, warning: true });
   // An enemy the king can't reach may never be beaten.
   if (l.starts.length && inside(l.starts[0]) && !walls.has(key(l.starts[0]))) {
@@ -123,20 +123,21 @@ export function formatLevels(levels: Level[]): string {
 
 const RECRUITS: Recruit[] = ["rook", "bishop", "pawn"];
 /** The army a player plausibly brings to level `index`: the king, plus at each hideout before it the
- * strongest recruit the run's gold so far affords (one per stop, while the next road has room). */
-export function typicalArmy(levels: Level[], index: number): Kind[] {
-  return typicalStart(levels, index).army;
+ * strongest recruit the run's gold so far affords (one per stop, while the next road has room).
+ * `rules` gives the prices and starting gold; the studio passes its unsaved ones. */
+export function typicalArmy(levels: Level[], index: number, rules: Rules = RULES): Kind[] {
+  return typicalStart(levels, index, rules).army;
 }
 /** The typical army for level `index` and the gold left over after buying it. */
-export function typicalStart(levels: Level[], index: number): { army: Kind[]; gold: number } {
+export function typicalStart(levels: Level[], index: number, rules: Rules = RULES): { army: Kind[]; gold: number } {
   const army: Kind[] = ["king"];
-  let gold = newRun().gold;
+  let gold = rules.gold;
   for (let i = 0; i < index; i++) {
     gold += levels[i].reward;
-    const pick = RECRUITS.find(r => COST[r] <= gold);
-    if (pick && army.length < levels[i + 1].starts.length) { army.push(pick); gold -= COST[pick]; }
+    const pick = RECRUITS.find(r => rules.cost[r] <= gold);
+    if (pick && army.length < levels[i + 1].starts.length) { army.push(pick); gold -= rules.cost[pick]; }
   }
   return { army: army.slice(0, Math.max(1, levels[index]?.starts.length ?? 1)), gold };
 }
 /** The army a studio test run fields: the level's saved test army, or the typical one. */
-export const testArmyOf = (levels: Level[], index: number): Kind[] => levels[index].testArmy ?? typicalArmy(levels, index);
+export const testArmyOf = (levels: Level[], index: number, rules: Rules = RULES): Kind[] => levels[index].testArmy ?? typicalArmy(levels, index, rules);

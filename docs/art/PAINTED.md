@@ -73,14 +73,14 @@ webp files are the canonical art; a re-run gives a similar character.
   └ .fx-pop, .fx-smoke
   ```
   `.flip` mirrors the patrol to face left; `.hop` carries jumps, the hit flash and knight
-  flips; `.squash` carries squash, lean, lunge, knockback, fall and morph.
+  flips; `.squash` carries squash, lean, lunge, knockback and fall.
 - `src/rig.css`: pivots, shield, shared effects, knight flips, reduced motion.
   `src/sprite.css` (loaded after): whole-sprite keyframes per action and skin quirks.
 - One-shot lengths at 1× are `RIG_MS` in `PieceRig.tsx`; every duration is
   `calc(<ms> * var(--spd,1))`. The game sets `--spd` to 1, 0.3 (fast) or 0.1 (reduced
   motion); the stage's slow modes use 2, 4 and 10.
-- Sequences live in `App.tsx`: promotion is morph-out then morph-in; a knight strike is
-  leap, attack, leap-back; checkmate plays `mate`.
+- Sequences live in `App.tsx`: a knight strike is leap, attack, leap-back; checkmate
+  plays `mate`.
 
 | Action | Motion | Effects |
 |---|---|---|
@@ -92,7 +92,6 @@ webp files are the canonical art; a re-run gives a similar character.
 | hit | white flash, knockback, settle | damage pop |
 | death | flash, hop, tips over, lies flat, fades | smoke, dust, stars |
 | cheer | two jumps | sparkles |
-| morph-out / in | shrink to nothing / pop back | sparkle / smoke |
 | leap / leap-back | front flip and backflip | lines / dust |
 | mate | staggers, tumbles, lands flat | crown particle flies off |
 

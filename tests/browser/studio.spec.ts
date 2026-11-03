@@ -55,11 +55,9 @@ test("studio stage: buttons play one take at the game's speed scale, and the tog
   expect(await page.locator(".stage-piece .squash").evaluate(el => el.getAnimations().map(a => a.effect?.getComputedTiming().duration))).toEqual([2240]);
 
   await page.getByRole("group", { name: "Speed" }).getByRole("button", { name: "1×", exact: true }).click();
-  await takes.getByRole("button", { name: "Promote" }).click();
-  await expect(rig).toHaveClass(/act-morph-out/);
-  await page.clock.runFor(650);
-  await expect(rig).toHaveClass(/act-morph-in/);
-  await page.clock.runFor(750);
+  await takes.getByRole("button", { name: "Cheer" }).click();
+  await expect(rig).toHaveClass(/act-cheer/);
+  await page.clock.runFor(1400);
   await expect(rig).toHaveClass(/act-idle/);
 
   await page.getByRole("group", { name: "State" }).getByRole("button", { name: "Guarding" }).click();
@@ -79,6 +77,32 @@ test("studio stage: buttons play one take at the game's speed scale, and the tog
   await expect(rig).toHaveClass(/act-attack/);
   await page.clock.runFor(380);
   await expect(rig).toHaveClass(/act-leap-back/);
+  expect(errors).toEqual([]);
+});
+
+test("studio: the Mechanics stats edit live and revert", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/art.html#mechanics");
+  const editor = page.getByRole("group", { name: "Rules editor" });
+  const rook = page.getByRole("figure").filter({ hasText: "Recruit rook" });
+  await expect(rook).toContainText("2 dmg");
+  await editor.getByRole("spinbutton", { name: "rook damage" }).fill("4");
+  await expect(rook).toContainText("4 dmg");
+  await expect(editor.getByRole("status")).toHaveText("Unsaved");
+  // A number out of range is listed and blocks Save, and the diagrams keep the last good value.
+  await editor.getByRole("spinbutton", { name: "Defend bonus" }).fill("12");
+  await expect(editor.getByRole("list", { name: "Problems" })).toContainText("defend: 0–9");
+  await expect(editor.getByRole("button", { name: "Save" })).toBeDisabled();
+  await editor.getByRole("group", { name: "Turn" }).getByRole("button", { name: "Every piece" }).click();
+  await expect(page.locator("#turn")).toContainText("One piece per side");
+  await editor.getByRole("spinbutton", { name: "Defend bonus" }).fill("2");
+  await expect(page.locator("#turn")).toContainText("+2 (−2 damage per hit)");
+  await editor.getByRole("group", { name: "Turn" }).getByRole("button", { name: "Every piece" }).click();
+  await expect(page.locator("#turn")).toContainText("Every piece, every turn");
+  await editor.getByRole("button", { name: "Revert" }).click();
+  await expect(rook).toContainText("2 dmg");
+  await expect(editor.getByRole("list", { name: "Problems" })).toHaveCount(0);
+  await expect(page.locator("#turn")).toContainText("One piece per side");
   expect(errors).toEqual([]);
 });
 

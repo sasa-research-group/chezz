@@ -30,7 +30,6 @@ const TAKES: Take[] = [
   { id: "hit", label: "Hit", steps: [["hit", 0]] },
   { id: "death", label: "Death", steps: [["death", 0]] },
   { id: "cheer", label: "Cheer", steps: [["cheer", 0]] },
-  { id: "promote", label: "Promote", steps: [["morph-out", 0], ["morph-in", RIG_MS["morph-out"]]] },
   { id: "leap", label: "Leap", only: "knight", steps: [["leap", 0], ["attack", RIG_MS.leap], ["leap-back", LEAP_HOME]] },
   { id: "mate", label: "Checkmate", only: "king", steps: [["mate", 0]] },
 ];

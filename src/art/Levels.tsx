@@ -5,6 +5,7 @@ import type { Kind, Pos } from "../game/turns";
 import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, isError, listIssues, testArmyOf, typicalArmy } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
+import { draftRules } from "./rulesDraft";
 
 const TestRun = lazy(() => import("./TestRun"));
 const LEVELS_ENDPOINT = "/__studio/levels";
@@ -94,7 +95,8 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   const sel = Math.min(Math.max(0, index), levels.length - 1);
   const level = levels[sel];
   const issues = useMemo(() => listIssues(levels), [levels]);
-  const army = testArmyOf(levels, sel);
+  const rules = draftRules();
+  const army = testArmyOf(levels, sel, rules);
   const text = formatLevels(levels);
   const dirty = text !== saved;
   const broken = issues.some(i => i.some(isError));
@@ -134,7 +136,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   }
 
   const mine = issues[sel], errors = mine.filter(isError), warnings = mine.filter(i => !isError(i));
-  const typical = typicalArmy(levels, sel);
+  const typical = typicalArmy(levels, sel, rules);
   return <div className="levels-area">
     <aside className="level-list" aria-label="Levels">
       <ol>{levels.map((l, i) => <li key={i}>
@@ -206,7 +208,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
       </div>
     </section>
     {playing !== null && <Suspense fallback={null}>
-      <TestRun test={{ level: levels[playing], army: testArmyOf(levels, playing), index: playing, battles: levels.length }} title={levelName(levels[playing], playing)} onStop={() => setPlaying(null)} />
+      <TestRun test={{ level: levels[playing], army: testArmyOf(levels, playing, rules), index: playing, battles: levels.length, rules }} title={levelName(levels[playing], playing)} onStop={() => setPlaying(null)} />
     </Suspense>}
   </div>;
 }

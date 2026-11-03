@@ -8,12 +8,12 @@ import { CrownFx, SpriteImage, hasSkinSprite, spriteBox } from "./SpriteRig";
  * moved whole: src/rig.css holds the groups and shared effects, src/sprite.css the keyframes. */
 export type RigKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type RigSide = "white" | "black";
-export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "morph-out" | "morph-in" | "leap" | "leap-back" | "mate";
+export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "leap" | "leap-back" | "mate";
 
 export const INK = "#382f2e";
 const GOLD = "#e7ba58", STEEL = "#cfd6d8", WOOD = "#a77a4f", WOOD_SH = "#80583a", PATROL_BLUE = "#3d5fc4";
 /** How long each one-shot action plays at 1x (ms); the keyframes in rig.css and sprite.css use the same values. */
-export const RIG_MS: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, "morph-out": 650, "morph-in": 750, leap: 340, "leap-back": 420, mate: 2600 };
+export const RIG_MS: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, leap: 340, "leap-back": 420, mate: 2600 };
 const o = { stroke: INK, strokeWidth: 3.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 const f = { stroke: INK, strokeWidth: 2.2, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 

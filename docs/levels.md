@@ -19,7 +19,7 @@
   one enemy and one start; reward 0–99; a test army has one king, first, and
   no more pieces than starts.
 - **Warnings** (design rules; shown in amber, never block): a wall ahead of a
-  start (a recruited pawn should be able to march up and promote); an enemy
+  start (pawns only step forward, so a recruited pawn there is stuck); an enemy
   the king can't reach from his start (king steps around walls); a level with
   fewer starts than the one before (survivors carry over; the game drops
   whoever doesn't fit). Issues carry `warning: true`; `isError` tells them
@@ -36,24 +36,29 @@
 - Right: name, width, height, reward, each enemy's HP, the start
   order, and the test army.
 - Save writes every level through a dev-only Vite endpoint
-  (`vite.levels.ts`, `POST /__studio/levels`, `apply: "serve"`). It needs the
+  (`vite.levels.ts`, `POST /__studio/levels`, `apply: "serve"`). The
+  Mechanics tab saves `src/game/rules.json` the same way
+  (`POST /__studio/rules`, checked with `parseRules`). It needs the
   `x-chezz-studio: save` header, JSON and a same-origin request, re-checks with `parseLevels`, and
   writes atomically; an unchanged file isn't touched. On a static build the
   button is "Download JSON". Save is off while any level has an error; warnings save.
 
 ## Test runs and the army question
 - ▶ Play opens the real game (`App` with a `test` prop, `src/art/TestRun.tsx`) full screen over
-  the studio with this level and its test army. It reads and writes no saves:
+  the studio with this level and its test army, played by the Mechanics tab's
+  rules (unsaved edits included). It reads and writes no saves:
   not the run (`chezz.turns.v1`), not the meta (`chezz.meta.v1`), so no skin
   unlocks. Restart deals the level again; Stop returns to the editor.
 - In a real run the army at a level depends on what the player recruited, so
   a test run uses a stand-in. `testArmy` is that stand-in, per level:
   - **Typical** (default, no `testArmy` saved): `typicalArmy` replays the run's
-    economy: 2 starting gold plus each earlier level's reward, buying the
-    strongest recruit it can afford (rook 8, bishop 6, pawn 3) at each hideout,
+    economy: the starting gold plus each earlier level's reward, buying the
+    strongest recruit it can afford at each hideout (gold and prices from
+    `rules.json`; today 2 gold, rook 8, bishop 6, pawn 3),
     one per stop, while the next level has a start for it. Today: battle 1
     king; battle 2 king + rook; battle 3 king + rook + rook. It follows the
-    rewards and start counts as you edit them.
+    rewards and start counts as you edit them, and the Mechanics tab's
+    unsaved prices.
   - **Minimum**: the king alone.
   - Custom: add, remove or change pieces; it is saved as `testArmy`.
 - The real game ignores `testArmy` and uses the player's actual army,
@@ -80,3 +85,14 @@ than asserting them; it's a floor for a person, not a target.
 | Lone king, battle by battle | won all three (king 4/5 at the end) | wins battle 1 (4/5), loses battles 2 and 3 |
 | Whole run, rook then heal at each hideout | victory, king 5/5 + 2 rooks | victory in 8 turns of battle 3, king 2/5, both rooks lost |
 | Whole run, lone king | victory | defeat in battle 2, turn 4 |
+
+## Balance under one move per turn (no promotion, Nov 2)
+Same levels and stats; only the turn rule changed (`turn: "one"`) and
+promotion is gone. `tests/balance.test.ts`:
+
+| Run | One move per turn (default) | Every piece acts, no promotion |
+|---|---|---|
+| Typical army, battle by battle (full HP) | wins all three; battle 2 costs the rook (king 4/5), battle 3 both rooks (king 1/5, 12 turns) | wins all three; battle 3 costs both rooks (king 2/5) |
+| Lone king, battle by battle | wins battles 1 (4/5) and 2 (2/5, 8 turns), loses battle 3 | wins battles 1 and 2 (3/5), loses battle 3 |
+| Whole run, rook then heal at each hideout | defeat in battle 3, turn 10 | victory in 8 turns of battle 3, king 2/5 |
+| Whole run, lone king | defeat in battle 3, turn 11 | defeat in battle 3, turn 6 |

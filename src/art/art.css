@@ -149,3 +149,23 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
 .sheet-sil .rig{filter:brightness(0)}
 .sheet-grey .rig{filter:grayscale(1)}
 .sheet-cast .sheet-cell{background:#c6b393}
+
+/* Mechanics: the rules editor. */
+.rules-editor{grid-column:1/-1;display:grid;gap:12px;max-width:820px}
+.rules-editor .spec{margin:0}
+.rule-kind{display:flex;align-items:center;gap:6px;text-transform:capitalize}.rules-table .sprite-still{width:26px;flex:none}
+.rules-table td{vertical-align:middle}
+.rule-num{display:inline-flex;align-items:center;gap:3px;font-weight:800}.rule-num i{font-style:normal;color:#a3271c;display:inline-flex}.rule-num i svg{width:13px;height:13px}
+.rule-num input{font:inherit;font-size:14px;font-weight:800;width:58px;padding:4px 6px;border:1px solid #cabc9e;border-radius:6px;background:#fffdf5;color:#382f2e}
+.rules-globals{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 14px;background:#fbf6e8;border:1px solid #cabc9e;border-radius:10px;padding:12px}
+.rules-prices{grid-column:1/-1}.rules-prices>div{display:flex;flex-wrap:wrap;gap:8px 14px}
+.rule-price{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
+.rules-editor button{font:inherit;font-size:13px;font-weight:700;padding:7px 10px;border:1px solid #cabc9e;background:#f4ecd6;color:#4d4033;border-radius:8px;cursor:pointer}
+.rules-editor button:disabled{opacity:.45;cursor:default}
+.rules-globals .seg button{white-space:nowrap}
+.rules-actions{justify-content:flex-start}.rules-editor .level-issues{margin:0;max-width:none}
+@media(max-width:700px){
+  .rules-table th:nth-child(5),.rules-table td:nth-child(5),.rules-table th:nth-child(6),.rules-table td:nth-child(6){display:none}
+  .rule-num input{width:48px;font-size:13px}
+  .rules-globals{grid-template-columns:repeat(2,minmax(0,1fr))}.rules-globals .seg button{white-space:normal}
+}

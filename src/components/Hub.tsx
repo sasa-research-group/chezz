@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { COST, DAMAGE, ENCOUNTERS, HP, campReason, kindName } from "../game/turns";
+import { ENCOUNTERS, campReason, kindName, rulesOf } from "../game/turns";
 import type { CampChoice, Pos, Recruit, Run } from "../game/turns";
 import { PieceRig } from "./PieceRig";
 import { StrikeIcon } from "./StrikeIcon";
@@ -122,7 +122,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
     path.forEach((p, i) => timers.current.push(setTimeout(() => setKing(p), i * stepMs)));
     timers.current.push(setTimeout(() => { setWalking(false); if (then) setOpen(then); }, path.length * stepMs));
   };
-  const kingUnit = run.units.find(u => u.id === "king");
+  const r = rulesOf(run), kingUnit = run.units.find(u => u.id === "king");
   const army = run.units.filter(u => u.side === "white");
   const recruits = run.recruits ?? [];
   const next = ENCOUNTERS[run.encounter + 1];
@@ -134,7 +134,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
       <div><p className="kicker">+{reward} ✦</p><h1>Rebel hideout</h1></div>
       <div className="hub-stats">
         <span>✦ <b>{run.gold}</b><small>GOLD</small></span>
-        <span>♛ <b>{kingUnit?.hp ?? 0} / {HP.king}</b><small>KING HP</small></span>
+        <span>♛ <b>{kingUnit?.hp ?? 0} / {r.hp.king}</b><small>KING HP</small></span>
         <span className="hub-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(k => `${k} (recruit)`)].join(", ")}`}>
           {army.map(u => <i key={u.id}><PieceRig kind={u.kind} side="white" /></i>)}
           {recruits.map((k, i) => <i key={`r${i}`} className="new"><PieceRig kind={k} side="white" /></i>)}
@@ -169,8 +169,8 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
           <div className="camp-offers">{OFFERS.map(choice => <button key={choice} data-testid={`buy-${choice}`} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
             <div className="offer-art">{choice === "heal" ? <span>♥</span> : <PieceRig kind={choice} side="white" />}</div>
             <h2>{choice === "heal" ? "Heal king" : kindName(choice)}</h2>
-            <p>{choice === "heal" ? `+2♥ · max ${HP.king}` : <>♥{HP[choice]} <StrikeIcon />{DAMAGE[choice]}<ReachGlyph kind={choice} /></>}</p>
-            <strong>{campReason(run, choice) || `✦ ${COST[choice]}`}</strong></button>)}</div>
+            <p>{choice === "heal" ? `+${r.heal}♥ · max ${r.hp.king}` : <>♥{r.hp[choice]} <StrikeIcon />{r.damage[choice]}<ReachGlyph kind={choice} /></>}</p>
+            <strong>{campReason(run, choice) || `✦ ${r.cost[choice]}`}</strong></button>)}</div>
         </> : place.id === "road" ? <>
           <h1>Battle {run.encounter + 2} / {ENCOUNTERS.length}</h1>
           <div className="hub-army road-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(k => `${k} (recruit)`)].join(", ")}`}>

@@ -8,4 +8,4 @@ export function BattleBanner({ kind, line, onClick, focus = true }: { kind: Bann
     {line && <em>{line}</em>}
     <small>Tap to continue</small></button>;
 }
-export const GuardBadge = () => <span className="guard-badge" title="+1 defense · counters"><svg viewBox="0 0 20 22" aria-hidden="true"><path d="M10 1 L18 4 V10 C18 15 14.5 19 10 21 C5.5 19 2 15 2 10 V4 Z" /></svg>+1</span>;
+export const GuardBadge = ({ bonus }: { bonus: number }) => <span className="guard-badge" title={`+${bonus} defense · counters`}><svg viewBox="0 0 20 22" aria-hidden="true"><path d="M10 1 L18 4 V10 C18 15 14.5 19 10 21 C5.5 19 2 15 2 10 V4 Z" /></svg>+{bonus}</span>;

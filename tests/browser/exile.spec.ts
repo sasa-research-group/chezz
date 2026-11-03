@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { coord, newRun } from "../../src/game/turns";
+import { coord, newRun, turnSpent } from "../../src/game/turns";
 import type { Run } from "../../src/game/turns";
 import { nextAction } from "../turns-strategy";
 
@@ -53,7 +53,7 @@ test("tap an enemy to walk up and strike it when there's one way in", async ({ p
   await page.getByRole("button", { name: /^a4 black pawn, 1 HP, strike \(walks up first\)/ }).click();
   await expect.poll(async () => (await saved(page)).units.some(u => u.id === "enemy-0-0")).toBe(false);
   const now = await saved(page);
-  expect(now.units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 1, acted: true });
+  expect(now.units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 1 });
 });
 
 test("a knight flips over to strike and lands back home", async ({ page }) => {
@@ -187,20 +187,37 @@ test("in check, an offered walk-up strike lands in full", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveCount(0);
 });
 
-test("a pawn on the far row lets you pick its promotion", async ({ page }) => {
+test("one move per turn: once a piece moves the others are locked, and acting passes the turn", async ({ page }) => {
   const start = newRun();
-  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 1 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
-  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  // The rook can slide up to the pawn on a4 and strike it; the king waits on d1.
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 3, hp: 5 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 0, y: 0, hp: 2 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 2, y: 0, hp: 2 }] };
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a1 white rook/ }).click();
+  await page.getByRole("button", { name: /^a3 empty, move here/ }).click();
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")?.y).toBe(1);
+  // It can still strike, so the turn waits; the king is locked out.
+  await expect(page.locator(".exile-piece.white.spent")).toHaveCount(1);
+  await page.getByRole("button", { name: /^d1 white king/ }).click();
+  await expect(page.getByRole("img", { name: /^locked/ })).toBeVisible();
+  await expect(page.locator(".target-dot")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Defend/ })).toBeDisabled();
+  await page.getByRole("button", { name: /^a3 white rook/ }).click();
+  await page.getByRole("button", { name: /^a4 black pawn, 2 HP, strike/ }).click();
+  // Striking spends the piece, and the turn passes without End turn.
+  await expect(page.getByText("ENEMY TURN", { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect.poll(async () => (await saved(page)).turn).toBe(2);
+});
+
+test("a pawn on the far row stays a pawn", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "pawn" as const, x: 0, y: 1, hp: 2 }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
+  await page.addInitScript(run => { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("chezz.turns.v1", run); } }, JSON.stringify(g));
   await page.goto("/");
   await page.getByRole("button", { name: /^a3 white pawn/ }).click();
   await page.getByRole("button", { name: /^a4 empty/ }).click();
-  const picker = page.getByRole("dialog", { name: "Promote your pawn" });
-  await expect(picker).toBeVisible();
-  await expect(page.getByRole("button", { name: "End turn" })).toBeDisabled();
-  await picker.getByRole("button", { name: /Knight/ }).click();
-  await expect(picker).toBeHidden();
-  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")?.kind).toBe("knight");
-  await page.screenshot({ path: "test-results/exile-promotion.png" });
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")).toMatchObject({ kind: "pawn", y: 0 });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("the hideout: walk to the barracks, recruit, take the road; placeholders stay locked", async ({ page }) => {
@@ -387,6 +404,11 @@ test("play the exile run through browser controls", async ({ page }) => {
       await page.getByTestId("place-road").click();
       await page.getByRole("button", { name: "Start battle" }).click();
       await expect.poll(async () => (await saved(page)).encounter).toBe(g.encounter + 1);
+      continue;
+    }
+    // Under one move per turn the game passes a spent turn on its own.
+    if (turnSpent(g)) {
+      await expect.poll(async () => { const s = await saved(page); return s.turn !== g.turn || s.phase !== "player"; }, { timeout: 15000 }).toBe(true);
       continue;
     }
     const a = nextAction(g);

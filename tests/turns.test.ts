@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, promote, reaches, readRun, startAt, strikeExposesKing, testRun, unsafeStrikes, walkAndStrike } from "../src/game/turns";
-import type { Encounter, Run, Unit } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, HP, RULES, approaches, attack, attackTargets, buy, campReason, canDefend, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, passable, reaches, readRun, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import type { Encounter, Rules, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
 function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), units, ...extra }; }
+const ONE: Rules = { ...RULES, turn: "one" }, ALL: Rules = { ...RULES, turn: "all" };
 const unit = (g: Run, id: string) => g.units.find(u => u.id === id);
 // Fixed boards, so these rules don't move when the shipped battles are retuned.
 const WALLED: Encounter = { reward: 0, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [], starts: [] };
@@ -170,12 +171,14 @@ describe("turn-based rules", () => {
     // No single move puts it next to the king: no threat at all.
     expect(kingThreat(board([{ ...king, hp: 1 }, { ...rook, x: 5, y: 0 }], { level: WALLED })).damage).toBe(0);
   });
-  it("counts an enemy pawn that promotes and then strikes as a threat", () => {
-    // The pawn steps onto your back row, becomes a queen, and strikes for 3.
-    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 4, hp: 1 };
-    const g = board([{ ...king, x: 2, y: 4, hp: 3 }, pawn], { level: BRIDGE });
-    expect(kingThreat(g)).toMatchObject({ damage: 3, attackers: ["p"] });
-    expect(inCheck(g)).toBe(true);
+  it("judges the threat by one enemy piece under one move per turn, and adds every hit up otherwise", () => {
+    // Two pawns could each hit the 2-HP king for 1.
+    const pawn = (id: string, x: number): Unit => ({ id, side: "black", kind: "pawn", x, y: 2, hp: 1 });
+    const units = [{ ...king, hp: 2 }, pawn("a", 0), pawn("b", 2)];
+    expect(kingThreat(board(units, { rules: ONE }))).toEqual({ damage: 1, attackers: ["a", "b"] });
+    expect(inCheck(board(units, { rules: ONE }))).toBe(false);
+    expect(kingThreat(board(units, { rules: ALL }))).toEqual({ damage: 2, attackers: ["a", "b"] });
+    expect(inCheck(board(units, { rules: ALL }))).toBe(true);
   });
   it("marks every piece that could finish the king on its own", () => {
     const pawn = (id: string, x: number): Unit => ({ id, side: "black", kind: "pawn", x, y: 2, hp: 1 });
@@ -288,7 +291,7 @@ describe("turn-based rules", () => {
     // On 3 HP it survives the hit anyway, so bracing would be wasted.
     expect(unit(endTurn(board([{ ...king, x: 2, y: 1 }, { ...knight, hp: 3 }])).run, "n")!.defending).toBeFalsy();
   });
-  it("doesn't march pawns away from every target when they can't promote yet", () => {
+  it("doesn't march pawns away from every target", () => {
     // King behind the pawn's line on the 6×6 bridge: nothing ahead to chase, and the far row is too far.
     const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 2, y: 1, hp: 1 };
     const { run } = endTurn(board([{ ...king, x: 0, y: 0 }, pawn], { level: BRIDGE }));
@@ -300,34 +303,16 @@ describe("turn-based rules", () => {
     expect(endTurn(g).run.phase).toBe("defeat");
   });
 
-  it("promotes your pawn on the far row into the piece you pick, which can still act", () => {
-    const pawn: Unit = { id: "p", side: "white", kind: "pawn", x: 0, y: 1, hp: 1 };
-    const foe: Unit = { id: "f", side: "black", kind: "rook", x: 1, y: 0, hp: 5 };
-    const g = board([{ ...king, x: 3, y: 3 }, pawn, foe]);
-    const reached = move(g, "p", { x: 0, y: 0 });
-    expect(reached.promoting).toBe("p");
-    // Nothing else happens until the choice is made.
-    expect(defend(reached, "king")).toBe(reached);
-    expect(endTurn(reached).run).toBe(reached);
-    expect(promote(reached, "p", "pawn" as never).run).toBe(reached);
-    const { run, step } = promote(reached, "p", "rook");
-    expect(run.promoting).toBeUndefined();
-    expect(unit(run, "p")).toMatchObject({ kind: "rook", hp: HP.rook, x: 0, y: 0 });
-    expect(step).toMatchObject({ actor: "p", kind: "promote", from: "pawn" });
-    // Moved this turn, but it can still strike as its new self.
-    expect(attackTargets(run, unit(run, "p")!).map(t => t.id)).toContain("f");
-  });
-  it("turns an enemy pawn that reaches your end into a full-health queen", () => {
-    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 };
-    const { run, steps } = endTurn(board([{ ...king, x: 0, y: 3 }, pawn]));
-    expect(unit(run, "p")).toMatchObject({ kind: "queen", hp: HP.queen, x: 3, y: 3 });
-    expect(steps.map(s => s.kind)).toEqual(["move", "promote"]);
-  });
-  it("starts every army square on a file with a clear run to the far row", () => {
-    // A recruited pawn must be able to march all the way and promote on every map.
-    ENCOUNTERS.forEach((e, i) => e.starts.forEach(st => {
-      for (let y = st.y - 1; y >= 0; y--) expect(e.walls.some(w => w.x === st.x && w.y === y), `encounter ${i} start ${st.x},${st.y}`).toBe(false);
-    }));
+  it("keeps a pawn on the far row a pawn, with nowhere further to step", () => {
+    const pawn: Unit = { id: "p", side: "white", kind: "pawn", x: 0, y: 1, hp: 2 };
+    const reached = move(board([{ ...king, x: 3, y: 3 }, pawn]), "p", { x: 0, y: 0 });
+    expect(unit(reached, "p")).toMatchObject({ kind: "pawn", x: 0, y: 0 });
+    const next = endTurn(reached).run;
+    expect(moveTargets(next, unit(next, "p")!)).toEqual([]);
+    // An enemy pawn that reaches your end stays a pawn too.
+    const { run, steps } = endTurn(board([{ ...king, x: 0, y: 3 }, { id: "e", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 }]));
+    expect(unit(run, "e")).toMatchObject({ kind: "pawn", x: 3, y: 3 });
+    expect(steps.map(s => s.kind)).toEqual(["move"]);
   });
   it("offers a cheap pawn recruit at camp", () => {
     const g = { ...newRun(), phase: "camp" as const, gold: COST.pawn };
@@ -366,10 +351,8 @@ describe("turn-based rules", () => {
     const g = newRun(); expect(readRun(JSON.stringify(g))).toEqual(g);
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { ...g.units[0], id: "dup" }] }))).toBeNull();
     expect(readRun("{")).toBeNull();
-    expect(readRun(JSON.stringify({ ...g, promoting: "king" }))).toBeNull();
-    const onFarRow = { ...g, units: [...g.units, { id: "ally-9", side: "white", kind: "pawn", x: 0, y: 0, hp: 1 }] };
-    expect(readRun(JSON.stringify({ ...onFarRow, promoting: "ally-9" }))).not.toBeNull();
-    expect(readRun(JSON.stringify({ ...onFarRow, phase: "camp", promoting: "ally-9" }))).toBeNull();
+    // A studio run's unsaved rules never come back as a saved run.
+    expect(readRun(JSON.stringify({ ...g, rules: RULES }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
     expect(readRun(JSON.stringify({ ...g, turn: 0 }))).toBeNull();
@@ -388,9 +371,9 @@ describe("turn-based rules", () => {
     expect(won.phase).toBe("victory");
     expect(won.gold).toBe(g.gold + 5);
   });
-  it("lets every enemy piece act each turn", () => {
+  it("lets every enemy piece act each turn when every piece acts", () => {
     const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };
-    const { steps } = endTurn(testRun(level, ["king"], 0));
+    const { steps } = endTurn(testRun(level, ["king"], 0, ALL));
     expect(new Set(steps.map(s => s.actor))).toEqual(new Set(["enemy-0-0", "enemy-0-1", "enemy-0-2"]));
     // Each piece moves at most once and strikes or defends at most once.
     for (const id of ["enemy-0-0", "enemy-0-1", "enemy-0-2"]) {
@@ -398,11 +381,11 @@ describe("turn-based rules", () => {
       expect(steps.filter(s => s.actor === id && (s.kind === "strike" || s.kind === "defend")).length).toBeLessThanOrEqual(1);
     }
   });
-  it("lets every one of your pieces move and strike in the same turn", () => {
+  it("lets every one of your pieces move and strike in the same turn when every piece acts", () => {
     const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
     const bishop: Unit = { id: "b", side: "white", kind: "bishop", x: 3, y: 2, hp: 3 };
     const foes: Unit[] = [{ id: "f", side: "black", kind: "rook", x: 0, y: 0, hp: 5 }, { id: "g", side: "black", kind: "rook", x: 1, y: 0, hp: 5 }];
-    let g = board([{ ...king, x: 2, y: 3 }, rook, bishop, ...foes]);
+    let g = board([{ ...king, x: 2, y: 3 }, rook, bishop, ...foes], { rules: ALL });
     g = move(g, "r", { x: 0, y: 1 });
     g = attack(g, "r", "f").run;
     g = move(g, "b", { x: 2, y: 1 });
@@ -444,5 +427,46 @@ describe("turn-based rules", () => {
     }
     // Winning is a balance question, not a rule: tests/balance.test.ts reports it.
     console.log(`Simple strategy run: ${g.phase} at battle ${g.encounter + 1}, turn ${g.turn}`);
+  });
+
+  describe("one move per turn", () => {
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
+    const foe: Unit = { id: "f", side: "black", kind: "rook", x: 0, y: 0, hp: 5 };
+    const start = () => board([{ ...king, x: 3, y: 3 }, rook, foe], { rules: ONE });
+    it("lets only the piece that acted first carry on: move, then strike", () => {
+      const moved = move(start(), "r", { x: 0, y: 1 });
+      const k = unit(moved, "king")!;
+      expect(sidelined(moved, k)).toBe(true);
+      expect(moveTargets(moved, k)).toEqual([]);
+      expect(canDefend(moved, k)).toBe(false);
+      expect(defend(moved, "king")).toBe(moved);
+      // The rook itself may still strike.
+      expect(attack(moved, "r", "f").run).not.toBe(moved);
+      // Striking or defending without moving takes the turn too.
+      const braced = defend(start(), "king");
+      expect(moveTargets(braced, unit(braced, "r")!)).toEqual([]);
+    });
+    it("passes the turn once the piece has acted, or has moved with nothing left worth doing", () => {
+      expect(turnSpent(start())).toBe(false);
+      // Next to the enemy rook: it can strike, so the turn waits.
+      expect(turnSpent(move(start(), "r", { x: 0, y: 1 }))).toBe(false);
+      expect(turnSpent(attack(move(start(), "r", { x: 0, y: 1 }), "r", "f").run)).toBe(true);
+      expect(turnSpent(defend(start(), "r"))).toBe(true);
+      // The king steps to a square no enemy can reach: nothing to strike, nothing to defend against.
+      const far = board([{ ...king, x: 3, y: 3 }, { ...foe, x: 0, y: 0, kind: "pawn", hp: 1 }], { rules: ONE, level: BRIDGE });
+      expect(turnSpent(move(far, "king", { x: 3, y: 2 }))).toBe(true);
+      // Every piece acting never passes the turn on its own.
+      expect(turnSpent(defend(board(start().units, { rules: ALL }), "r"))).toBe(false);
+    });
+    it("makes the enemy act with one piece: its best action and that piece's follow-up", () => {
+      const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };
+      const { run, steps } = endTurn(testRun(level, ["king"], 0, ONE));
+      expect(new Set(steps.map(s => s.actor)).size).toBe(1);
+      expect(steps.length).toBeGreaterThan(0);
+      expect(run.turn).toBe(2);
+      // The rook slides next to the king and strikes him.
+      const { steps: struck } = endTurn(board([{ ...king, x: 1, y: 3 }, { ...foe, x: 0, y: 1 }, { id: "p", side: "black", kind: "pawn", x: 3, y: 0, hp: 1 }], { rules: ONE }));
+      expect(struck.map(s => [s.actor, s.kind])).toEqual([["f", "move"], ["f", "strike"]]);
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { RulesCard } from "./Panels";
+import type { Rules } from "../game/turns";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input:not(:disabled), summary, [tabindex]:not([tabindex='-1'])";
 
@@ -29,17 +30,17 @@ export function useDialogKeys(ref: RefObject<HTMLElement | null>, onClose: () =>
   }, [ref]);
 }
 
-type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onClose: () => void; battles: number; onJump?: (index: number) => void };
+type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onClose: () => void; battles: number; onJump?: (index: number) => void; rules?: Rules };
 
 /** The pause menu's card: the player's items, then the developer's under their own header. */
-export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose, battles, onJump }: MenuProps) {
+export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose, battles, onJump, rules: shown }: MenuProps) {
   const [rules, setRules] = useState(false);
   // Jumping replaces the run, so the first tap only arms a battle and a second tap on it goes.
   const [armed, setArmed] = useState<number | null>(null);
   return <div className="menu-card">
     <button className="menu-row resume" onClick={onClose}><span aria-hidden="true">▶</span>Resume</button>
     <button className="menu-row" aria-expanded={rules} onClick={() => setRules(r => !r)}><span aria-hidden="true">?</span>Rules</button>
-    {rules && <RulesCard />}
+    {rules && <RulesCard rules={shown} />}
     <button className="menu-row" disabled={newRunDisabled} onClick={onNewRun}><span aria-hidden="true">↺</span>New run</button>
     <label className="menu-row toggle"><span aria-hidden="true">»</span>Fast enemy turns<input type="checkbox" checked={fast} onChange={ev => onFast(ev.target.checked)} /></label>
     <details className="menu-log"><summary className="menu-row"><span aria-hidden="true">≡</span>Battle log</summary>{log.map((text, i) => <p key={i}>{text}</p>)}</details>

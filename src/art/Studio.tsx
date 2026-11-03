@@ -11,7 +11,7 @@ const AREAS = [
   { id: "stage", label: "Stage", toc: [] },
   { id: "levels", label: "Levels", toc: [] },
   { id: "guide", label: "Style guide", toc: [["target", "Target style"], ["ref-cast", "Reference cast"], ["rules", "Rules"], ["ref-palette", "Reference palette"], ["palette", "UI palette"], ["type", "Type"], ["construction", "Construction"], ["sides", "Side markers"], ["timing", "Timing"], ["a11y", "Accessibility"]] },
-  { id: "mechanics", label: "Mechanics", toc: [["turn", "Turn"], ["pieces", "Pieces"], ["check", "Check"], ["strike", "Tap to strike"], ["knight", "Knight"], ["promotion", "Promotion"], ["enemy", "Enemy"], ["battles", "Battles"], ["hideout", "Hideout"], ["gold", "Gold"], ["run", "Run"]] },
+  { id: "mechanics", label: "Mechanics", toc: [["stats", "Stats"], ["turn", "Turn"], ["pieces", "Pieces"], ["check", "Check"], ["strike", "Tap to strike"], ["knight", "Knight"], ["enemy", "Enemy"], ["battles", "Battles"], ["hideout", "Hideout"], ["gold", "Gold"], ["run", "Run"]] },
 ] as const;
 type AreaId = typeof AREAS[number]["id"];
 const areaOf = (hash: string): AreaId => hash.startsWith("#stage") ? "stage" : hash.startsWith("#levels") ? "levels" : AREAS.find(a => hash === `#${a.id}` || a.toc.some(([id]) => hash === `#${id}`))?.id ?? "cast";
