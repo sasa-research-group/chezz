@@ -8,8 +8,10 @@ import type { Encounter, Kind, Pos, Recruit } from "./turns";
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
 export type Level = Encounter & { name?: string; testArmy?: Kind[] };
 export type LevelsFile = { version: 1; levels: Level[] };
-/** One problem with a level, tied to the control (and square) it concerns. */
-export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos };
+/** One problem with a level, tied to the control (and square) it concerns. An error would crash or
+ * corrupt the game and blocks Save and Play; a warning breaks a design rule and is only shown. */
+export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true };
+export const isError = (i: Issue) => !i.warning;
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
 /** Board sides: square names run a–h, so 8 is the widest a board can be. */
@@ -37,7 +39,7 @@ function shapeOf(v: unknown, i: number): Level | string {
   return l as unknown as Level;
 }
 
-/** Everything wrong with a level that would make it unplayable or break the run's rules. */
+/** Everything wrong with a level: errors that would make it unplayable, and warnings about design rules. */
 export function levelIssues(l: Level): Issue[] {
   const out: Issue[] = [];
   if (!int(l.width, MIN_SIDE, MAX_SIDE) || !int(l.height, MIN_SIDE, MAX_SIDE)) out.push({ field: "size", message: `Size ${MIN_SIDE}–${MAX_SIDE}` });
@@ -60,9 +62,9 @@ export function levelIssues(l: Level): Issue[] {
   l.starts.forEach((s, i) => place("starts", s, i === 0 ? "King start" : `Start ${i + 1}`));
   if (!l.spawns.length) out.push({ field: "spawns", message: "Needs an enemy" });
   if (!l.starts.length) out.push({ field: "starts", message: "Needs a king start" });
-  // A recruited pawn has to be able to march up and promote from any start square.
-  for (const s of l.starts) if (inside(s) && l.walls.some(w => w.x === s.x && w.y < s.y)) out.push({ field: "starts", message: "Wall ahead of start", at: s });
-  // Every enemy must be reachable from the king's start, or the battle can never end.
+  // A recruited pawn should be able to march up and promote from any start square.
+  for (const s of l.starts) if (inside(s) && l.walls.some(w => w.x === s.x && w.y < s.y)) out.push({ field: "starts", message: "Wall ahead of start", at: s, warning: true });
+  // An enemy the king can't reach may never be beaten.
   if (l.starts.length && inside(l.starts[0]) && !walls.has(key(l.starts[0]))) {
     const reach = new Set([key(l.starts[0])]), queue = [l.starts[0]];
     while (queue.length) {
@@ -72,7 +74,7 @@ export function levelIssues(l: Level): Issue[] {
         if (inside(q) && !walls.has(key(q)) && !reach.has(key(q))) { reach.add(key(q)); queue.push(q); }
       }
     }
-    for (const [kind, x, y] of l.spawns) if (inside({ x, y }) && !walls.has(key({ x, y })) && !reach.has(key({ x, y }))) out.push({ field: "spawns", message: `Enemy ${kind} cut off`, at: { x, y } });
+    for (const [kind, x, y] of l.spawns) if (inside({ x, y }) && !walls.has(key({ x, y })) && !reach.has(key({ x, y }))) out.push({ field: "spawns", message: `Enemy ${kind} cut off`, at: { x, y }, warning: true });
   }
   if (l.testArmy) {
     const kings = l.testArmy.filter(k => k === "king").length;
@@ -82,15 +84,15 @@ export function levelIssues(l: Level): Issue[] {
   return out;
 }
 
-/** Each level's issues, plus the run's: survivors carry over, so a level can't have fewer starts than the one before. */
+/** Each level's issues, plus the run's: survivors carry over, so a level with fewer starts than the one before leaves some behind. */
 export function listIssues(levels: Level[]): Issue[][] {
   return levels.map((l, i) => {
     const own = levelIssues(l), prev = levels[i - 1];
-    return prev && l.starts.length < prev.starts.length ? [...own, { field: "starts" as const, message: `Fewer starts than battle ${i} (${prev.starts.length})` }] : own;
+    return prev && l.starts.length < prev.starts.length ? [...own, { field: "starts" as const, message: `Fewer starts than battle ${i} (${prev.starts.length})`, warning: true as const }] : own;
   });
 }
 
-/** Parses and checks a whole levels file. Nothing is accepted unless every level is clean. */
+/** Parses and checks a whole levels file. Nothing is accepted while any level has an error; warnings pass. */
 export function parseLevels(raw: unknown): { ok: true; file: LevelsFile } | { ok: false; errors: string[] } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, errors: ["Not a levels file"] };
   const { version, levels } = raw as Record<string, unknown>;
@@ -103,7 +105,7 @@ export function parseLevels(raw: unknown): { ok: true; file: LevelsFile } | { ok
     return l;
   });
   if (errors.length) return { ok: false, errors };
-  listIssues(parsed as Level[]).forEach((issues, i) => issues.forEach(issue => errors.push(`Level ${i + 1}: ${issue.message}${issue.at ? ` (${issue.at.x},${issue.at.y})` : ""}`)));
+  listIssues(parsed as Level[]).forEach((issues, i) => issues.filter(isError).forEach(issue => errors.push(`Level ${i + 1}: ${issue.message}${issue.at ? ` (${issue.at.x},${issue.at.y})` : ""}`)));
   return errors.length ? { ok: false, errors } : { ok: true, file: { version: 1, levels: parsed as Level[] } };
 }
 

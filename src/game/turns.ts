@@ -23,10 +23,10 @@ export type Run = {
 export type Recruit = "pawn" | "bishop" | "rook";
 export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
+export type Step = { text: string; /** The defender's counter, as logged, when the strike drew one. */ counter?: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
 
-export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
-export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop: 2, knight: 2, pawn: 1 };
+export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 2 };
+export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 2, bishop: 2, knight: 2, pawn: 1 };
 /** The run's battles, in order, from `levels/levels.json` (edited in the studio's level designer; checked by `levels.ts`). */
 export const ENCOUNTERS = levelsFile.levels as unknown as Encounter[];
 /** The battle this run is fighting: a test run's own level, or the run's current encounter. */
@@ -97,7 +97,8 @@ export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
 
 function spawn(g: Run, army: Unit[]): Run {
   const e = levelOf(g);
-  const whites = army.map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
+  // A level with fewer starts than the army (allowed, with a warning) loses the extras.
+  const whites = army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map(([kind, x, y, hp], i) => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black" as const, x, y, hp }));
   return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, log: [] };
 }
@@ -173,16 +174,17 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   // Strikes land from where the striker stands; it never moves onto the target's square.
   let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true }] : [u]);
   const damage = [{ id: v.id, amount: dealt }];
-  let text = `${label(a)} strikes ${label(v).toLowerCase()} −${dealt}${survives ? "" : " · killed"}`;
+  const text = `${label(a)} strikes ${label(v).toLowerCase()} −${dealt}${survives ? "" : " · killed"}`;
+  let counter: string | undefined;
   if (survives && v.defending && reaches({ ...g, units }, v, v, a)) {
     const back = DAMAGE[v.kind], left = a.hp - back;
     units = left > 0 ? units.map(u => (u.id === a.id ? { ...u, hp: left } : u)) : units.filter(u => u.id !== a.id);
     damage.push({ id: a.id, amount: back });
-    text += ` · counter −${back}${left > 0 ? "" : " · killed"}`;
+    counter = `${label(v)} counters −${back}${left > 0 ? "" : " · killed"}`;
   }
-  const run = note({ ...g, units }, text);
+  const struck = note({ ...g, units }, text), run = counter ? note(struck, counter) : struck;
   const killed = g.units.filter(u => !run.units.some(w => w.id === u.id)).map(u => u.id);
-  return { run, step: { text, units: run.units, focus: [{ x: v.x, y: v.y }], damage, actor: a.id, kind: "strike", target: v.id, killed } };
+  return { run, step: { text, counter, units: run.units, focus: [{ x: v.x, y: v.y }], damage, actor: a.id, kind: "strike", target: v.id, killed } };
 }
 
 export function attack(g: Run, id: string, targetId: string): { run: Run; step: Step | null } {
@@ -217,6 +219,30 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
   return { run: finish(run), step };
 }
 
+/** For every square (indexed y * width + x), how many of u's own moves it takes from there to reach a
+ * square it could strike one of `targets` from; Infinity where it can't. Other pieces and walls block;
+ * u's own square doesn't. Kings, knights and sliders move the same both ways, so this searches out from
+ * the strike squares. Not for pawns, which only go forward. */
+function movesToStrike(g: Run, u: Unit, targets: Unit[]): number[] {
+  const e = levelOf(g), W = e.width, H = e.height;
+  const blocked = new Uint8Array(W * H);
+  for (const w of e.walls) blocked[w.y * W + w.x] = 1;
+  for (const v of g.units) if (v.id !== u.id) blocked[v.y * W + v.x] = 1;
+  const dist: number[] = new Array(W * H).fill(Infinity), queue: number[] = [];
+  for (let i = 0; i < W * H; i++) if (!blocked[i] && targets.some(w => reaches(g, u, { x: i % W, y: Math.floor(i / W) }, w))) { dist[i] = 0; queue.push(i); }
+  const dirs = slides(u.kind) ?? (u.kind === "knight" ? LEAPS : [...STRAIGHTS, ...DIAGONALS]), slide = !!slides(u.kind);
+  for (let q = 0; q < queue.length; q++) {
+    const i = queue[q], x = i % W, y = Math.floor(i / W);
+    for (const [dx, dy] of dirs) for (let n = 1; ; n++) {
+      const nx = x + dx * n, ny = y + dy * n, j = ny * W + nx;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || blocked[j]) break;
+      if (dist[j] === Infinity) { dist[j] = dist[i] + 1; queue.push(j); }
+      if (!slide) break;
+    }
+  }
+  return dist;
+}
+
 /** Deterministic enemy policy: every enemy piece may move once, then strike or defend once. The best-scoring
  * action across all pieces goes first, repeated until no piece has anything worth doing. */
 function enemyTurn(g: Run): { run: Run; steps: Step[] } {
@@ -239,9 +265,12 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
         const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0);
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => strike(run, u, t) });
       }
-      // Close in on the king, or on whichever of your pieces is nearest.
+      // Close in on the king, or on whichever of your pieces is nearest: counted in the piece's own
+      // moves around walls and pieces, so a slider behind a wall goes round it instead of freezing.
       const whites = run.units.filter(w => w.side === "white");
-      const dist = (p: Pos) => Math.min(gap(p, king) - 0.5, ...whites.map(w => gap(p, w)));
+      const toKing = u.kind === "pawn" || u.moved || u.acted ? null : movesToStrike(run, u, [king]), toAny = toKing && movesToStrike(run, u, whites);
+      const W = levelOf(run).width, routed = !!toAny && Number.isFinite(toAny[u.y * W + u.x]);
+      const dist = (p: Pos) => routed ? Math.min(toKing![p.y * W + p.x] - 0.5, toAny![p.y * W + p.x]) : Math.min(gap(p, king) - 0.5, ...whites.map(w => gap(p, w)));
       for (const t of moveTargets(run, u)) {
         // Shorter trips break ties.
         const gain = dist(u) - dist(t), travel = gap(u, t) / 10;

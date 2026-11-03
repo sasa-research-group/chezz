@@ -32,6 +32,15 @@ test("level designer: edit a level, see problems inline, and test-run it without
   await height.fill("4");
   await expect(page.getByRole("list", { name: "Problems" })).toHaveCount(0);
 
+  // A design rule broken is only a warning: shown in amber, and Play stays on.
+  await page.getByRole("group", { name: "Tool" }).getByRole("button", { name: "Wall" }).click();
+  await page.getByRole("button", { name: /^b3 empty/ }).click();
+  await expect(page.getByRole("list", { name: "Warnings" })).toContainText("Wall ahead of start");
+  await expect(list.getByRole("button", { name: /Battle 1/ }).getByLabel("1 warnings")).toBeVisible();
+  await expect(page.getByRole("button", { name: "▶ Play" })).toBeEnabled();
+  await page.getByRole("button", { name: /^b3 wall/ }).click();
+  await expect(page.getByRole("list", { name: "Warnings" })).toHaveCount(0);
+
   // Play it: the real game, this level, the test army; then back to the editor.
   await page.getByRole("button", { name: "▶ Play" }).click();
   const testRun = page.getByRole("region", { name: "Test run" });
@@ -41,7 +50,7 @@ test("level designer: edit a level, see problems inline, and test-run it without
   await testRun.getByRole("button", { name: /^b2 empty, move here/ }).click();
   await expect(testRun.getByRole("button", { name: /^b2 white king/ })).toBeVisible();
   await testRun.getByRole("button", { name: "End turn" }).click();
-  await expect(testRun.getByRole("button", { name: "End turn" })).toBeEnabled();
+  await expect(testRun.getByRole("button", { name: /^b2 white king/ })).toBeEnabled({ timeout: 15000 });
   await testRun.getByRole("button", { name: "■ Stop" }).click();
   await expect(testRun).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^d4 enemy rook/ })).toBeVisible();

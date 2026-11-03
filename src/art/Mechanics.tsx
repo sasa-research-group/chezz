@@ -53,7 +53,7 @@ const ENEMY: [string, string][] = [
   ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king − 8×counter − 60 if the counter kills it. Never for 0 damage.`],
   ["Pawn to far row", "30 (then promotes to queen)"],
   ["Step into strike range", "20 − squares travelled ÷ 10, only if it hasn't struck or defended"],
-  ["Close in", "5 × squares gained − squares travelled ÷ 10, toward the king (weighted) or the nearest piece; pawns with targets ahead march (1)"],
+  ["Close in", "5 × moves saved − squares travelled ÷ 10, counting its own moves around walls to a square it could strike the king (weighted) or the nearest piece from; pawns with targets ahead march (1)"],
   ["Brace (defend)", "0.4, only if threatened and the −1 saves it, or it can counter"],
   ["Wait", "Nothing scores above 0"],
 ];
