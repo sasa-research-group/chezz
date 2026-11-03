@@ -25,8 +25,9 @@ npm test            # vitest
 npm run build       # tsc -b + production build
 npm run test:e2e    # Playwright
 ```
-Run them before merging into local `main`. Never run `playwright install`; with a
-preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
+Run `npm test` and the build before merging into local `main`. Run the e2e suite
+before a push, or when a change touches screens or input flow. Never run
+`playwright install`; with a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
 
 ## The art harness lives in this repo
 Someone else must be able to clone this repo and generate the same art, so what
@@ -39,11 +40,12 @@ the art depends on is committed here, not in agent memory or a scratch folder:
   same change.
 
 ## Workflow
-- Local development only: no PRs and no pushes unless the owner asks. Agents
-  commit on a local `claude/*` branch; the lead merges into local `main`.
-  Pushing `main` deploys to GitHub Pages, so it waits for the owner.
+- No PRs. Agents commit on a local `claude/*` branch; the lead merges into local
+  `main` and pushes `main` after each playable change, which deploys to GitHub
+  Pages so the developers can playtest.
 - Keep `docs/HANDOFF.md` current and short.
-- Ask the owner one question at a time, with a recommended option. Keep replies short.
+- Batch independent questions for the owner, each with a recommended default. Keep replies short.
 
-# The project board: item model, CLI and lead rules
-@~/.local/share/workboard/BOARD.md
+## Project board
+The lead session runs the board (workboard) and reads its rules from
+`~/.local/share/workboard/BOARD.md`. Other agents don't need them.
