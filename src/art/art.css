@@ -90,6 +90,9 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
 .exile-cell .start-mark{position:absolute;top:4px;right:4px;z-index:2}
 .level-issues{list-style:none;margin:0 auto;padding:8px 12px;max-width:560px;width:100%;background:#f3d5cf;border:1px solid #c2493c;border-radius:8px;color:#7d1d15;font-size:13px;font-weight:700;display:grid;gap:3px}
 .level-issues li::before{content:"✕ "}.level-issues code{margin-left:6px;font-size:11px}
+.level-issues.warn{background:#f8e7c2;border-color:#c98a1b;color:#6e4a07}.level-issues.warn li::before{content:"! "}
+.level-bad.warn{background:#c98a1b;color:#2f2208}
+.level-board .exile-cell.level-flag.warn{box-shadow:inset 0 0 0 4px #d99a26}
 .level-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
 .levels-area .level-play{background:#396c61;border-color:#396c61;color:#fff7dc;padding:8px 16px}
 .level-status{font-size:12px;font-weight:800;color:#396c61;min-width:60px}.level-status.bad{color:#a3271c}

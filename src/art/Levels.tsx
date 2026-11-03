@@ -2,7 +2,7 @@ import { Suspense, lazy, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { ENCOUNTERS, HP } from "../game/turns";
 import type { Kind, Pos } from "../game/turns";
-import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, listIssues, testArmyOf, typicalArmy } from "../game/levels";
+import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, isError, listIssues, testArmyOf, typicalArmy } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
 
@@ -38,7 +38,10 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
 function LevelBoard({ level, army, issues, onSquare }: { level: Level; army: Kind[]; issues: Issue[]; onSquare: (p: Pos) => void }) {
   const { width: w, height: h } = level;
   const cols = clamp(w, 1, MAX_SIDE), rows = clamp(h, 1, MAX_SIDE);
-  const flagged = (p: Pos) => issues.some(i => i.at && same(i.at, p));
+  const flag = (p: Pos) => {
+    const here = issues.filter(i => i.at && same(i.at, p));
+    return here.some(isError) ? "level-flag" : here.length ? "level-flag warn" : "";
+  };
   const pieces = [
     ...level.spawns.map(([kind, x, y, hp]) => ({ kind, side: "black" as const, x, y, hp, max: HP[kind] })),
     ...level.starts.flatMap((s, i) => army[i] ? [{ kind: army[i], side: "white" as const, x: s.x, y: s.y, hp: HP[army[i]], max: HP[army[i]] }] : []),
@@ -51,7 +54,7 @@ function LevelBoard({ level, army, issues, onSquare }: { level: Level; army: Kin
           const wall = level.walls.some(v => same(v, p)), start = level.starts.findIndex(s => same(s, p));
           const spawn = level.spawns.find(([, x, y]) => same({ x, y }, p));
           const what = [wall && "wall", spawn && `enemy ${spawn[0]} ${spawn[3]} HP`, start >= 0 && (start === 0 ? "king start" : `start ${start + 1}`)].filter(Boolean).join(", ") || "empty";
-          return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${flagged(p) ? "level-flag" : ""}`}
+          return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${flag(p)}`}
             aria-label={`${sq(level, p)} ${what}`} onClick={() => onSquare(p)}>
             <span className="tile-coord">{sq(level, p)}</span>
             {start >= 0 && <span className={`start-mark ${start === 0 ? "king" : ""}`}>{start + 1}</span>}
@@ -65,6 +68,17 @@ function LevelBoard({ level, army, issues, onSquare }: { level: Level; army: Kin
         </div>)}</div>
     </div>
   </div>;
+}
+
+/** A level's badge in the list: red with its error count, or amber with its warning count when it only has warnings. */
+function IssueCount({ issues }: { issues: Issue[] }) {
+  const errors = issues.filter(isError).length, warnings = issues.length - errors;
+  if (errors) return <i className="level-bad" aria-label={`${errors} problems`}>{errors}</i>;
+  return warnings ? <i className="level-bad warn" aria-label={`${warnings} warnings`}>{warnings}</i> : null;
+}
+function IssueList({ level, issues, label }: { level: Level; issues: Issue[]; label: "Problems" | "Warnings" }) {
+  if (!issues.length) return null;
+  return <ul className={`level-issues ${label === "Warnings" ? "warn" : ""}`} aria-label={label}>{issues.map((i, n) => <li key={n}>{i.message}{i.at && <code>{sq(level, i.at)}</code>}</li>)}</ul>;
 }
 
 /** Studio level designer: pick a level on the left, paint it on the board, set its numbers on the right,
@@ -83,7 +97,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   const army = testArmyOf(levels, sel);
   const text = formatLevels(levels);
   const dirty = text !== saved;
-  const broken = issues.some(i => i.length);
+  const broken = issues.some(i => i.some(isError));
 
   const edit = (patch: (l: Level) => Level) => { setLevels(ls => ls.map((l, i) => (i === sel ? patch(l) : l))); setStatus(null); };
   const setList = (ls: Level[], pick: number) => { setLevels(ls); onPick(pick); setStatus(null); };
@@ -119,14 +133,14 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
     } catch { setStatus({ ok: false, text: "Save failed" }); }
   }
 
-  const mine = issues[sel];
+  const mine = issues[sel], errors = mine.filter(isError), warnings = mine.filter(i => !isError(i));
   const typical = typicalArmy(levels, sel);
   return <div className="levels-area">
     <aside className="level-list" aria-label="Levels">
       <ol>{levels.map((l, i) => <li key={i}>
         <button type="button" aria-current={i === sel ? "true" : undefined} onClick={() => onPick(i)}>
           <b>{levelName(l, i)}</b><small>{l.width}×{l.height} · {l.spawns.length}♟ · {l.starts.length}⚑</small>
-          {issues[i].length > 0 && <i className="level-bad" aria-label={`${issues[i].length} problems`}>{issues[i].length}</i>}
+          <IssueCount issues={issues[i]} />
         </button>
       </li>)}</ol>
       <div className="level-list-tools">
@@ -146,9 +160,10 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
         {KINDS.map(k => <button key={k} type="button" aria-pressed={enemy === k} onClick={() => setEnemy(k)}>{k}</button>)}
       </div>}
       <LevelBoard level={level} army={army} issues={mine} onSquare={square} />
-      {mine.length > 0 && <ul className="level-issues" aria-label="Problems">{mine.map((i, n) => <li key={n}>{i.message}{i.at && <code>{sq(level, i.at)}</code>}</li>)}</ul>}
+      <IssueList level={level} issues={errors} label="Problems" />
+      <IssueList level={level} issues={warnings} label="Warnings" />
       <div className="level-actions">
-        <button type="button" className="level-play" disabled={mine.length > 0} onClick={() => setPlaying(sel)}>▶ Play</button>
+        <button type="button" className="level-play" disabled={errors.length > 0} onClick={() => setPlaying(sel)}>▶ Play</button>
         <button type="button" disabled={broken || !dirty} onClick={save}>{import.meta.env.DEV ? "Save" : "Download JSON"}</button>
         <button type="button" disabled={!dirty} onClick={() => { setLevels(JSON.parse(saved).levels); setStatus(null); }}>Revert</button>
         <span className={`level-status ${status && !status.ok ? "bad" : ""}`} role="status">{status?.text ?? (dirty ? "Unsaved" : "")}</span>

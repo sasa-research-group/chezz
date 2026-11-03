@@ -16,8 +16,9 @@ design and piece stats (HP, damage), not from an action budget.
 - Reach: one square in the piece's capture shape. Kings and queens strike any
   adjacent square, rooks the four straight neighbours, bishops the four
   diagonal ones, pawns diagonally forward, knights a knight's jump away.
-- Damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 3, queen 3.
+- Damage by piece: pawn 1, knight 2, bishop 2, king 2, rook 2, queen 3.
   A pawn's strike deals 0 to a defender.
+- Full HP by piece: pawn 2, knight 3, bishop 3, king 5, rook 5, queen 9.
 - The striker stays on its own square, even on a kill.
 - Tap-to-strike: tapping an enemy the piece can't reach yet walks it up to a
   square it can strike from and strikes (`approaches`, `walkAndStrike`),
@@ -28,6 +29,9 @@ design and piece stats (HP, damage), not from an action budget.
   survives, hits each attacker back with its own damage when it can reach the
   attacker's square. The screen shows this as +1 defense (the shield token and
   the defended piece's chip read +1).
+- A counter plays as its own beat: the attacker's blow lands, then the
+  defender swings back, then the attacker takes the hit (and falls if it
+  dies). The log reads it as its own line, e.g. "Enemy rook counters −2".
 
 ## Check
 - Your king is in check when the enemy's next turn could kill him: every enemy
@@ -51,15 +55,17 @@ design and piece stats (HP, damage), not from an action budget.
   pieces goes first, repeated until nothing scores above zero: strikes first
   (kills and the king most, minus any counter, never for 0 damage), then
   stepping onto a square to strike from, a pawn reaching the far row, closing
-  in on your king or nearest piece, and bracing when only the block saves it
-  or it could hit back.
+  in on your king or nearest piece (counted in the piece's own moves around
+  walls and pieces, so sliders go round walls), and bracing when only the
+  block saves it or it could hit back.
 - If no enemy piece acts, the log reads "Enemy waits" and the screen shows an
   ENEMY WAITS ribbon.
 
 ## Run
 - Battles are data in `src/game/levels/levels.json` (`docs/levels.md`), with
   the rebel hideout between them: recruit a pawn, bishop or rook, or heal the
-  king. HP carries over and fallen allies stay gone.
+  king. HP carries over and fallen allies stay gone. If a battle has fewer
+  starts than the army, the pieces past the last start are lost.
 - A studio test run plays one level with a given army and never saves.
 - Jump to battle (☰ menu, Developer) starts a fresh, saved run at battle N
   with that level's test army and the typical run's leftover gold (`startAt`).

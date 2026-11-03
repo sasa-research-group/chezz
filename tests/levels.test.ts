@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
 import * as checks from "../src/game/levels";
-import { formatLevels, levelIssues, parseLevels, testArmyOf, typicalArmy } from "../src/game/levels";
+import { formatLevels, isError, levelIssues, listIssues, parseLevels, testArmyOf, typicalArmy } from "../src/game/levels";
 import type { Level } from "../src/game/levels";
 import { ENCOUNTERS } from "../src/game/turns";
 import { LEVELS_HEADER, levelsHandler, levelsPlugin } from "../vite.levels";
@@ -23,20 +23,25 @@ describe("levels data", () => {
   it("keeps the file in the designer's own format, so a save round-trips without noise", () => {
     expect(formatLevels(ENCOUNTERS)).toBe(readFileSync(FILE, "utf8"));
   });
-  it("flags what would break a level, tied to the square", () => {
+  it("flags what would break a level as errors, tied to the square", () => {
     expect(levelIssues(base)).toEqual([]);
     expect(messages({ width: 9 })).toContain("Size 2–8");
     expect(levelIssues({ ...base, spawns: [["pawn", 4, 0, 1]] })).toContainEqual({ field: "spawns", message: "Enemy pawn off the board", at: { x: 4, y: 0 } });
     expect(messages({ walls: [{ x: 1, y: 3 }] })).toContain("King start on a wall");
-    expect(messages({ walls: [{ x: 2, y: 1 }] })).toContain("Wall ahead of start");
     expect(messages({ spawns: [["pawn", 2, 3, 1]] })).toContain("Start 2 overlaps enemy pawn");
     expect(messages({ spawns: [["rook", 1, 0, 6]] })).toContain("Enemy rook HP 1–5");
     expect(messages({ spawns: [] })).toContain("Needs an enemy");
     expect(messages({ starts: [] })).toContain("Needs a king start");
     expect(messages({ testArmy: ["rook"] })).toContain("Army needs one king, first");
     expect(messages({ testArmy: ["king", "rook", "pawn"] })).toContain("Army 3 > 2 starts");
+    expect(levelIssues({ ...base, width: 9, spawns: [], starts: [], testArmy: ["rook"] }).every(isError)).toBe(true);
+  });
+  it("flags design rules as warnings, which don't block", () => {
+    expect(levelIssues({ ...base, walls: [{ x: 2, y: 1 }] })).toEqual([{ field: "starts", message: "Wall ahead of start", at: { x: 2, y: 3 }, warning: true }]);
     expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 2 })).filter(w => w.x !== 1 && w.x !== 2), spawns: [["pawn", 0, 0, 1]], starts: [{ x: 1, y: 3 }] })).toEqual([]);
-    expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 1 })), spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }] })).toContainEqual({ field: "spawns", message: "Enemy pawn cut off", at: { x: 1, y: 0 } });
+    expect(levelIssues({ ...base, walls: [0, 1, 2, 3].map(x => ({ x, y: 1 })), spawns: [["pawn", 1, 0, 1]], starts: [{ x: 1, y: 3 }] })).toContainEqual({ field: "spawns", message: "Enemy pawn cut off", at: { x: 1, y: 0 }, warning: true });
+    // Survivors carry over, so a later level should have at least as many starts.
+    expect(listIssues([base, { ...base, starts: [{ x: 1, y: 3 }] }])[1]).toEqual([{ field: "starts", message: "Fewer starts than battle 1 (2)", warning: true }]);
   });
   it("rejects files with the wrong shape or any broken level", () => {
     expect(parseLevels({ version: 1, levels: [base] })).toEqual({ ok: true, file: { version: 1, levels: [base] } });
@@ -46,8 +51,9 @@ describe("levels data", () => {
     expect(parseLevels({ version: 1, levels: [{ ...base, spawns: [["dragon", 1, 0, 1]] }] }).ok).toBe(false);
     expect(parseLevels({ version: 1, levels: [{ ...base, width: "4" }] }).ok).toBe(false);
     expect(parseLevels({ version: 1, levels: [base, { ...base, spawns: [] }] })).toEqual({ ok: false, errors: ["Level 2: Needs an enemy"] });
-    // Survivors carry over, so a later level needs at least as many starts.
-    expect(parseLevels({ version: 1, levels: [base, { ...base, starts: [{ x: 1, y: 3 }] }] })).toEqual({ ok: false, errors: ["Level 2: Fewer starts than battle 1 (2)"] });
+    // Warnings alone don't stop a save.
+    const warned = [base, { ...base, walls: [{ x: 2, y: 1 }], starts: [{ x: 2, y: 3 }] }];
+    expect(parseLevels({ version: 1, levels: warned })).toEqual({ ok: true, file: { version: 1, levels: warned } });
   });
   it("gives a test run the king plus the best recruit each hideout's gold affords", () => {
     const three = [{ x: 1, y: 3 }, { x: 2, y: 3 }, { x: 0, y: 3 }];
