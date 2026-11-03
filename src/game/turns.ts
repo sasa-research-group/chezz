@@ -32,6 +32,8 @@ export type Run = {
   levels?: Encounter[];
   /** The side whose acting piece fell to a strikeback this turn: under one move per turn, that side's turn is used up. */
   fell?: Side;
+  /** Defends each side has used this battle (missing: none). */
+  defended?: Partial<Record<Side, number>>;
 };
 /** What a run plays by, when it isn't the shipped files: tests pass fixed data so retuning the files can't move them. */
 export type GameData = { rules?: Rules; levels?: Encounter[] };
@@ -150,7 +152,7 @@ function spawn(g: Run, army: Unit[], placed = false): Run {
   // A level with fewer starts than the army (allowed, with a warning) loses the extras.
   const whites = placed ? army.map(u => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y })) : army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map((s, i) => ({ id: `enemy-${g.encounter}-${i}`, kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rulesOf(g), s) }));
-  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [] };
+  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], defended: undefined };
 }
 /** Deploy phase: move your piece to another start square, swapping places with your piece there. */
 export function deploy(g: Run, id: string, to: Pos): Run {
@@ -215,12 +217,16 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   return note({ ...g, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} → ${coord(g, to)}`);
 }
 
-/** Can this piece still defend this turn? */
-export const canDefend = (g: Run, u: Unit) => !u.acted && !sidelined(g, u);
+/** Defends a side has left this battle, out of the rules' `defends`. */
+export const defendsLeft = (g: Run, side: Side) => Math.max(0, rulesOf(g).defends - (g.defended?.[side] ?? 0));
+/** Can this piece still defend this turn? Not once its side has used up its defends. */
+export const canDefend = (g: Run, u: Unit) => !u.acted && !sidelined(g, u) && defendsLeft(g, u.side) > 0;
+/** u braces: it's done for the turn, and its side spends a defend. */
+const braced = (g: Run, u: Unit): Run => ({ ...g, units: withUnit(g, u.id, { acted: true, defending: true }), defended: { ...g.defended, [u.side]: (g.defended?.[u.side] ?? 0) + 1 } });
 export function defend(g: Run, id: string): Run {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || !u || u.side !== "white" || !canDefend(g, u)) return g;
-  return note({ ...g, units: withUnit(g, id, { acted: true, defending: true }) }, `${label(u)} defends`);
+  return note(braced(g, u), `${label(u)} defends`);
 }
 
 /** Resolves one strike for either side. A target that survives strikes back with its own damage if it
@@ -361,7 +367,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
       const worthIt = whites.some(w => threat(w) && r.damage[w.kind] >= u.hp && r.damage[w.kind] - r.defend < u.hp);
       if (canDefend(run, u) && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
         const text = `${label(u)} defends`;
-        const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);
+        const next = note(braced(run, u), text);
         return { run: next, step: { text, units: next.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "defend", killed: [] } };
       } });
     }
@@ -402,7 +408,7 @@ export function inCheck(g: Run): boolean {
 /** Could anything you still do this turn (moves, strikes, defending) get the king out of check? */
 export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
-  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + (g.fell ?? "");
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + (g.fell ?? "") + defendsLeft(g, "white");
   const visit = (g: Run): boolean => {
     if (g.phase !== "player") return g.phase !== "defeat";
     const k = key(g);
@@ -502,6 +508,7 @@ export function readRun(raw: string | null, data?: GameData): Run | null {
     if ((g.phase === "player" || g.phase === "deploy") && !g.units.some(u => u.side === "black")) return null;
     if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[g.encounter + 1]?.starts.length ?? 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
+    if (g.defended !== undefined && (!g.defended || typeof g.defended !== "object" || Object.entries(g.defended).some(([side, n]) => !["white", "black"].includes(side) || !Number.isInteger(n) || (n as number) < 0))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g.units.some(u => u.hp > r.hp[u.kind]) ? { ...g, units: g.units.map(u => (u.hp > r.hp[u.kind] ? { ...u, hp: r.hp[u.kind] } : u)) } : g;
   } catch { return null; }

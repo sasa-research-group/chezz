@@ -134,6 +134,7 @@ function RulesEditor({ r, onChange }: { r: Rules; onChange: (r: Rules) => void }
     <div className="rules-globals">
       <div className="stage-field"><span>Turn</span><Seg label="Turn" value={r.turn} options={[["one", "One piece"], ["all", "Every piece"]]} onPick={turn => edit({ turn })} /></div>
       <div className="stage-field"><span>Defend</span><Num label="Defend bonus" prefix="+" value={r.defend} range={LIMITS.defend} onChange={defend => edit({ defend })} /></div>
+      <div className="stage-field"><span>Defends</span><Num label="Defends per battle" prefix="×" value={r.defends} range={LIMITS.defends} onChange={defends => edit({ defends })} /></div>
       <div className="stage-field"><span>Strike back</span><Seg label="Strike back" value={r.counter ? "on" : "off"} options={[["on", "On"], ["off", "Off"]]} onPick={v => edit({ counter: v === "on" })} /></div>
       <div className="stage-field"><span>Start gold</span><Num label="Start gold" prefix="✦" value={r.gold} range={LIMITS.gold} onChange={gold => edit({ gold })} /></div>
       <div className="stage-field"><span>Heal</span><Num label="Heal HP" prefix="+♥" value={r.heal} range={LIMITS.heal} onChange={heal => edit({ heal })} /></div>
@@ -171,7 +172,7 @@ export function Mechanics() {
         <tr><th>Move</th><td>Its chess shape, any distance · slides stop at pieces and walls · knights leap · pawns stop at the far row</td></tr>
         <tr><th>Strike</th><td>Next square in the piece's shape · range "Line": any distance along it, stopped by the first piece or wall · striker stays put</td></tr>
         <tr><th>Strike back</th><td>{live.counter ? "A struck piece that survives hits back with its own damage, if it can reach the attacker. Never from range: a ranged strike draws none, and a ranged piece never strikes back from afar" : "Off"}</td></tr>
-        <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn</td></tr>
+        <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn · each side gets {live.defends} per battle, enemy too; each defend spends one</td></tr>
         <tr><th>Enemy</th><td>{one ? "One piece too: its best-scoring action, then that piece's follow-up" : "Every piece may act"}</td></tr>
       </tbody></table>
     </Group>

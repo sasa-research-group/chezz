@@ -355,7 +355,7 @@ for (const size of SIZES) {
     await page.goto("/");
     await page.getByRole("button", { name: /^c1 white king/ }).click();
     expect(await noScroll(page)).toEqual({ tall: 0, wide: 0, out: [] });
-    for (const name of ["Menu", "End turn", "Defend +1"]) await inView(page, name);
+    for (const name of ["Menu", "End turn", "Defend +1 · 3 left"]) await inView(page, name);
     await page.screenshot({ path: `test-results/shell-battle-${size.width}x${size.height}.png` });
     await page.evaluate(run => localStorage.setItem("chezz.turns.v1", run), stored({ ...start, phase: "camp", gold: 12 }));
     await page.reload();

@@ -10,7 +10,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   `RULES` and refuses to start on a broken file.
 - Fields: `turn` (`"one"` or `"all"`), `hp` and `damage` per piece, `range`
   per piece (`1` or `"line"`, below), `defend` (damage a defender blocks per
-  hit), `counter` (strikebacks on or off),
+  hit), `defends` (defends each side gets per battle), `counter` (strikebacks
+  on or off),
   `cost` (hideout prices), `heal` (HP a heal gives back) and `gold` (a new
   run's gold).
 - A studio test run can carry unsaved rules (`Run.rules`); saved runs never do.
@@ -95,6 +96,12 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   (today 1): armour, nothing more (every survivor strikes back anyway). The
   screen shows the block as +N everywhere (the shield token, the defended
   piece's chip, the Rules card).
+- Each side gets `defends` defends per battle (today 3), the enemy too; every
+  defend spends one (`Run.defended` counts them, `defendsLeft`). With none
+  left, that side's pieces can't defend (`canDefend`) and the enemy stops
+  bracing. The count resets when a battle is dealt; a save without it has a
+  full pool. The shield token's corner shows yours (×N); an inspected enemy's
+  card shows the enemy's.
 
 ## Check
 - Your king is in check when the enemy's next turn could kill him

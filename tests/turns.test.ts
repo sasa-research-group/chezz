@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approaches, attack, attackTargets, begin, deploy, buy, campReason, canDefend, canEscape, defend, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, passable, reaches, sidelined, strikeExposesKing, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import { approaches, attack, attackTargets, begin, deploy, buy, campReason, canDefend, canEscape, defend, defendsLeft, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, passable, reaches, sidelined, strikeExposesKing, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import * as turns from "../src/game/turns";
 import type { Encounter, Kind, Placed, Rules, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
@@ -365,6 +365,25 @@ describe("turn-based rules", () => {
     expect(unit(run, "n")!.defending).toBe(true);
     // On 3 HP it survives the hit anyway, so bracing would be wasted.
     expect(unit(endTurn(board([{ ...king, x: 2, y: 1 }, { ...knight, hp: 3 }])).run, "n")!.defending).toBeFalsy();
+    // Bracing spends one of the enemy's defends; with none left it can't brace.
+    expect(defendsLeft(run, "black")).toBe(RULES.defends - 1);
+    const empty = board([{ ...king, x: 2, y: 1 }, knight], { defended: { black: RULES.defends } });
+    expect(unit(endTurn(empty).run, "n")!.defending).toBeFalsy();
+  });
+  it("gives each side a few defends per battle, one spent per defend", () => {
+    const g = board([king, { id: "p", side: "black", kind: "pawn", x: 5, y: 0, hp: 1 }]);
+    const once = defend(g, "king");
+    expect([defendsLeft(once, "white"), defendsLeft(once, "black")]).toEqual([RULES.defends - 1, RULES.defends]);
+    const spent: Run = { ...g, defended: { white: RULES.defends } };
+    expect(canDefend(spent, unit(spent, "king")!)).toBe(false);
+    expect(defend(spent, "king")).toBe(spent);
+    // A save from before the limit carries no count: a full pool.
+    expect(defendsLeft(readRun(stored(newRun()))!, "white")).toBe(RULES.defends);
+  });
+  it("refills both sides' defends when the next battle is dealt", () => {
+    const camp: Run = { ...newRun(), phase: "camp", defended: { white: RULES.defends, black: 1 } };
+    const next = leaveCamp(camp);
+    expect([defendsLeft(next, "white"), defendsLeft(next, "black")]).toEqual([RULES.defends, RULES.defends]);
   });
   it("doesn't march pawns away from every target", () => {
     // King behind the pawn's line on the 6×6 bridge: nothing ahead to chase, and the far row is too far.

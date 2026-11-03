@@ -43,6 +43,11 @@
 .shield-token svg{width:28px;height:30px;fill:#2f5a82;stroke:#2b201b;stroke-width:1.5}
 .shield-token:disabled{opacity:.4;box-shadow:0 2px 0 #2b201b}
 .shield-plus{position:absolute;right:-8px;bottom:-4px;background:#2f5a82;color:#fff;border:2px solid #2b201b;border-radius:9px;padding:1px 5px;font-size:13px;font-weight:900;line-height:1.1}
+.shield-left{position:absolute;left:-8px;top:-6px;background:#f6e3b4;color:#2b201b;border:2px solid #2b201b;border-radius:9px;padding:1px 5px;font-size:13px;font-weight:900;line-height:1.1}
+.shield-left.empty{background:#c2493c;color:#fff}
+.defends-left{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:800;color:#9bbfe0;white-space:nowrap}
+.table-hud .selected-card .defends-left svg{width:11px;height:12px;fill:currentColor;stroke:none}
+.defends-left.empty{color:#f3a094}
 .skip-token{grid-area:shield;width:64px;height:64px;border-radius:50%;padding:0;background:#e8d9b4;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b;display:grid;place-items:center}
 .skip-token svg{width:28px;height:28px;fill:#2b201b}
 .end-turn{grid-area:end;display:flex;align-items:center;gap:8px;height:64px;padding:0 20px 0 12px;border-radius:32px;background:linear-gradient(#ffe58a,#e2a92a);border:4px solid #2b201b;box-shadow:0 6px 0 #2b201b;color:#2b201b;font-weight:900;font-size:17px;white-space:nowrap}

@@ -8,7 +8,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   "all"` brings back every piece acting. No promotion: pawns stop at the far
   row.
 - **Strikes:** every struck piece that survives strikes back if it can reach
-  the attacker (`counter` switch); Defend is only +N armour. Strike range is
+  the attacker (`counter` switch); Defend is only +N armour, and each side
+  gets `defends` (3) per battle, shown as ×N on the shield token. Strike range is
   per kind in `rules.json` (`range`: 1 or `"line"`); bishops are `"line"`:
   they hit any enemy down an open diagonal without moving, drawn as a
   streak. Sliders (rook, bishop, queen) move any distance in both turn
