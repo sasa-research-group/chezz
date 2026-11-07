@@ -6,3 +6,6 @@ test-results/
 .DS_Store
 artifacts/
 *.tsbuildinfo
+
+# a node_modules symlink (worktrees) must stay out too
+node_modules
