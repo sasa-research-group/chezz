@@ -84,12 +84,24 @@ export function dealtTo(g: Run, a: Unit, v: Unit): number {
   return Math.max(0, abilityOf(v)?.incoming?.(g, v, a, d) ?? d);
 }
 
+/** The squares a slide crosses on its way to each target (the bridge tiles that fall behind it), kept
+ * beside the targets rather than on them so a target stays a plain square and price. A leap, hop or
+ * shove crosses nothing. Targets are fresh objects every call, so nothing leaks between positions. */
+const ROUTES = new WeakMap<Target, Pos[]>();
+/** The squares the piece slid across to reach this target. */
+const routeOf = (t: Target): Pos[] => ROUTES.get(t) ?? [];
 /** Empty squares a piece could move to from its square if it moved like `kind`, priced by distance.
  * Targets are where the piece ends up: a burrow sends it out the other mouth (and a slide carries on
  * from there), ice glides it on for free. The same destination reached two ways keeps the cheaper price. */
 function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
   const out = new Map<string, Target>();
-  const add = (dest: Pos, cost: number) => { const k = `${dest.x},${dest.y}`, had = out.get(k); if (!had || had.cost > cost) out.set(k, { x: dest.x, y: dest.y, cost }); };
+  const add = (dest: Pos, cost: number, via: Pos[] = []) => {
+    const k = `${dest.x},${dest.y}`, had = out.get(k);
+    if (had && had.cost <= cost) return;
+    const t: Target = { x: dest.x, y: dest.y, cost };
+    out.set(k, t);
+    if (via.length) ROUTES.set(t, [...via]);
+  };
   /** Enter `p` moving in `dir`: the square to land on (burrow exits, then ice), or undefined when blocked.
    * Both mouths of a burrow must be free: a piece standing on either one blocks the tunnel. */
   const enter = (p: Pos, dir?: [number, number]): Pos | undefined => {
@@ -102,13 +114,15 @@ function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
     for (const [dx, dy] of dirs) {
       // `here` is the square the slide continues from: the piece's own, or a burrow's far mouth.
       let here: Pos = u;
+      const via: Pos[] = [];
       for (let n = 1; n <= energy; n++) {
         const p = { x: here.x + dx, y: here.y + dy };
         const dest = enter(p, [dx, dy]);
         if (!dest) break;
-        add(dest, n);
+        add(dest, n, via);
         // Onto ice, the glide decides where the slide ends: nothing beyond it is on offer.
         if (isIce(g, portalExit(g, p) ?? p)) break;
+        via.push(p);
         here = portalExit(g, p) ?? p;
       }
     }
@@ -206,7 +220,7 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
   if (!t) return g;
-  const next = afterMove(settle(note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`), id, to, u), id, u);
+  const next = afterMove(settle(note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`), id, to, u, routeOf(t)), id, u);
   // A pawn on the far row waits for you to choose what it becomes.
   return u.kind === "pawn" && to.y === lastRank(g, u) && next.units.some(w => w.id === id) ? { ...next, promoting: id } : next;
 }
@@ -369,7 +383,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         if (gain <= 0 && !march && !crowning && !lineUp) continue;
         choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
-          const next = afterMove(settle(note({ ...run, units: withUnit(run, u.id, { moved: true }) }, text), u.id, t, u), u.id, u);
+          const next = afterMove(settle(note({ ...run, units: withUnit(run, u.id, { moved: true }) }, text), u.id, t, u, routeOf(t)), u.id, u);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
       }
@@ -427,7 +441,7 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
         const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? "queen" : u.kind };
         if (!reaches(run, moved, t, king)) continue;
-        const stood = settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u);
+        const stood = settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u, routeOf(t));
         if (stood.units.some(w => w.id === u.id) && mayStrike(stood, moved, king)) search(stood, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
       }
     });

@@ -184,6 +184,16 @@ describe("tiles under abilities and odd routes", () => {
     const tunnel = move(board({ portals: [[sq(2, 3), sq(2, 0)]], crumbling: [sq(2, 1), sq(2, 2)] }, [king(4, 4), rook, sentry]), "r", sq(2, 0));
     expect(unit(tunnel, "r")).toMatchObject({ x: 2, y: 0 });
     expect(tunnel.collapsed).toBeUndefined();
+    // The tiles a slide really crossed fall even when the burrow lands it off the line it slid along...
+    const bent: Unit = { id: "r", side: "white", kind: "rook", x: 3, y: 4, hp: 5 };
+    const round = move(board({ portals: [[sq(0, 4), sq(4, 0)]], crumbling: [sq(3, 4), sq(2, 4), sq(1, 4)] }, [king(4, 4), bent, foe("s", "pawn", 0, 0)]), "r", sq(4, 0));
+    expect(unit(round, "r")).toMatchObject({ x: 4, y: 0 });
+    expect(round.collapsed).toEqual(expect.arrayContaining([sq(3, 4), sq(2, 4), sq(1, 4)]));
+    // ...and only those, even when the exit happens to sit on the piece's own file.
+    const same = move(board({ portals: [[sq(0, 4), sq(3, 0)]], crumbling: [sq(3, 3), sq(3, 2), sq(3, 1), sq(2, 4), sq(1, 4)] }, [king(4, 4), bent, sentry], { energy: 3 }), "r", sq(3, 0));
+    expect(unit(same, "r")).toMatchObject({ x: 3, y: 0 });
+    expect(same.collapsed).toEqual(expect.arrayContaining([sq(3, 4), sq(2, 4), sq(1, 4)]));
+    expect(same.collapsed!.some(c => c.x === 3 && c.y < 4)).toBe(false);
   });
   it("glides into a burrow and comes out the far side", () => {
     const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 2, hp: 5 };

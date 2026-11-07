@@ -103,32 +103,17 @@ export const dirOf = (from: Pos, to: Pos): [number, number] | undefined => {
   if ((dx === 0 && dy === 0) || (dx !== 0 && dy !== 0 && Math.abs(dx) !== Math.abs(dy))) return undefined;
   return [Math.sign(dx), Math.sign(dy)];
 };
-/** The squares a piece slid across between `from` and `to`: the squares on the line between them while
- * they are open floor, up to a burrow mouth (the tunnel skips what lies beyond). Empty for pawns and
- * knights (a hop or a leap crosses nothing), off a line, or when something stands in the way (then it
- * was no slide). */
-export function crossed(g: Run, u: Pick<Unit, "kind">, from: Pos, to: Pos): Pos[] {
-  const dir = dirOf(from, to);
-  if (!dir || u.kind === "pawn" || u.kind === "knight") return [];
-  const out: Pos[] = [];
-  for (let p = { x: from.x + dir[0], y: from.y + dir[1] }; !same(p, to); p = { x: p.x + dir[0], y: p.y + dir[1] }) {
-    if (!onBoard(g, p)) return [];
-    if (portalExit(g, p)) return out;
-    if (!open(g, p)) return [];
-    out.push(p);
-  }
-  return out;
-}
 /** Puts unit `id` on `to` (a landing square from landingOf) and resolves what the board does about
- * it: the crumbling tile it left falls (and every crumbling tile a slide crossed; a leap, hop or shove
- * crosses nothing), a lever it stops on toggles its gates (a gate with a piece in it can't shut), and
- * a pit swallows it (no death hook: a fall leaves nothing). `from` is where it stood. Every move,
- * shove and roll-on goes through here so tiles behave the same for all of them. */
-export function settle(g: Run, id: string, to: Pos, from: Pos): Run {
+ * it: the crumbling tile it left falls (and every crumbling tile in `crossed`, the squares a slide
+ * passed over on its way; a leap, hop, shove or roll-on crosses nothing), a lever it stops on toggles
+ * its gates (a gate with a piece in it can't shut), and a pit swallows it (no death hook: a fall
+ * leaves nothing). `from` is where it stood. Every move, shove and roll-on goes through here so tiles
+ * behave the same for all of them. */
+export function settle(g: Run, id: string, to: Pos, from: Pos, crossed: Pos[] = []): Run {
   const u = g.units.find(x => x.id === id);
   if (!u) return g;
   let run: Run = { ...g, units: g.units.map(x => (x.id === id ? { ...x, x: to.x, y: to.y } : x)) };
-  const left: Pos[] = [{ x: from.x, y: from.y }, ...crossed(run, u, from, to)];
+  const left: Pos[] = [{ x: from.x, y: from.y }, ...crossed];
   const falling = left.filter(p => isCrumbling(run, p) && !at(run, p));
   if (falling.length) run = note({ ...run, collapsed: [...(run.collapsed ?? []), ...falling] }, falling.length === 1 ? `The tile at ${coord(g, falling[0])} crumbles away.` : `The tiles at ${falling.map(p => coord(g, p)).join(", ")} crumble away.`);
   if (isHole(run, to)) return note({ ...run, units: run.units.filter(x => x.id !== id) }, `${label(u)} falls into the pit at ${coord(g, to)}!`);
