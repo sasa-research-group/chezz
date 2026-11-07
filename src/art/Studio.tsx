@@ -8,10 +8,10 @@ import { Tooling } from "./Tooling";
 import { Studio as StudioCtx } from "./kit";
 
 const AREAS = [
-  { id: "catalog", label: "Art catalog", toc: [["cast", "Cast × state"], ["cast-pairs", "Pairs"], ["sequences", "Sequences"], ["board", "Board"], ["markers", "Markers"], ["effects", "Effects"], ["banners", "Banners"], ["hub", "Hideout"], ["ui", "UI"], ["icons", "Icons"], ["legacy", "Legacy"]] },
+  { id: "catalog", label: "Art catalog", toc: [["sprite-cast", "Sprite cast"], ["cast", "Cast × state"], ["cast-pairs", "Pairs"], ["sequences", "Sequences"], ["board", "Board"], ["markers", "Markers"], ["effects", "Effects"], ["banners", "Banners"], ["hub", "Hideout"], ["ui", "UI"], ["icons", "Icons"], ["legacy", "Legacy"]] },
   { id: "mechanics", label: "Mechanics", toc: [["turn", "Turn"], ["pieces", "Pieces"], ["check", "Check"], ["strike", "Tap to strike"], ["knight", "Knight"], ["promotion", "Promotion"], ["enemy", "Enemy"], ["battles", "Battles"], ["hideout", "Hideout"], ["gold", "Gold"], ["run", "Run"]] },
   { id: "guide", label: "Style guide", toc: [["palette", "Palette"], ["type", "Type"], ["construction", "Construction"], ["sides", "Side markers"], ["timing", "Timing"], ["a11y", "Accessibility"], ["doc-diffs", "vs doc"]] },
-  { id: "tooling", label: "Tooling", toc: [["made", "How it's made"], ["fonts", "Fonts"], ["not-used", "Not used"], ["adding", "Adding art"]] },
+  { id: "tooling", label: "Tooling", toc: [["sprites", "Sprite pipeline"], ["made", "How it's made"], ["fonts", "Fonts"], ["not-used", "Not used"], ["adding", "Adding art"]] },
 ] as const;
 type AreaId = typeof AREAS[number]["id"];
 const areaOf = (hash: string): AreaId => AREAS.find(a => hash === `#${a.id}` || a.toc.some(([id]) => hash === `#${id}`))?.id ?? "catalog";

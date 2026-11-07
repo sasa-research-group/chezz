@@ -68,3 +68,18 @@
 }
 .studio-fill{width:100%}.studio-modal{max-width:none;padding:18px}.studio-modal h1{font-family:Georgia,serif;font-size:26px;margin:0 0 12px}
 .loop-rig.held .rig,.loop-rig.held .rig *{animation-play-state:paused!important}.matrix td{overflow:hidden}
+/* Sprite cast: the character-select portraits (public/art/cast) and their state matrix. */
+.entries>.sprite-cast,.entries>h4{grid-column:1/-1}
+.sprite-cast h4{margin:8px 0 6px}
+.sprite-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.portrait{margin:0;background:#fbf6e8;border:1px solid #cabc9e;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.portrait-art{background:#e9d6ae;border-radius:8px;padding:8px 10px 2px;display:grid;place-items:end center}
+.portrait-art .sprite{max-width:120px}
+.portrait figcaption{display:grid;gap:2px;font-size:11px;line-height:1.35}.portrait figcaption b{font-size:12px}.portrait figcaption b::first-letter{text-transform:uppercase}
+.portrait figcaption small{font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:800;color:#766a58}
+.portrait figcaption span{color:#766a58}.portrait figcaption .todo{font-style:italic;color:#a3271c}
+.portrait figcaption code{font-size:9px;color:#948571;overflow-wrap:anywhere}
+.loop-rig.held .sprite,.loop-rig.held .sprite *{animation-play-state:paused!important}
+.sprite-matrix tbody th code{display:block;font-size:9px;color:#948571;text-transform:none}
+.sprite-matrix tbody tr.rebel td{background:#e9d6ae55}.sprite-matrix tbody tr.royal td{background:#d6e0ea66}.sprite-matrix tbody tr.misfit td{background:#dfe4cc66}
+@media(max-width:700px){.sprite-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.portrait{padding:6px}}

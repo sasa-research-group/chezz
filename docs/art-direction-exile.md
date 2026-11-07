@@ -1,5 +1,38 @@
 # Escape from Exile: art and animation direction
 
+## Sprite cast (Nov 2026)
+
+The current look is Wesley's **character-select sheet**: 18 portraits, one per
+variant and kind (rows rebels / royals / misfits, columns pawn, knight, bishop,
+rook, queen, king), each a framed tile on a beige backdrop with a label box.
+The game shows these, not the SVG rig, wherever a piece is drawn.
+
+Pipeline (details on the studio's Tooling tab, `art.html`):
+- The sheet is sliced once, offline, by `scripts/slice-cast.py <sheet.png>
+  public/art/cast` (python3 with Pillow and numpy). It finds the beige tiles
+  on the sheet's regular grid (378 px tiles on a 415 px column pitch, rows
+  about 497 px apart), flood-fills the backdrop to transparent, trims the
+  label sliver and writes `public/art/cast/<variant>-<kind>.png` at 256 px
+  wide, and nothing else there, because vite ships all of `public/`: the
+  inspection files (framed tokens, a contact sheet, `_meta.json`) go to a
+  fresh temporary directory it prints, or to `--aids-dir`. A sheet that does
+  not detect as the expected grid stops it before anything is written.
+- `src/components/PieceSprite.tsx` loads one PNG by name and `src/sprite.css`
+  animates it with the rig's action names (idle, move, attack, defend, hit,
+  death, cheer, leap, leap-back, mate, morph-out, morph-in), so `App.tsx` can
+  drive either art; its durations fit `RIG_MS`.
+- Names and abilities per character live in `src/game/abilities.ts`; the studio
+  catalog ("Character select") shows the grid with abilities and a sprite ×
+  state matrix. A fourth variant is a fourth sheet row, `--variants` on the
+  slicer, a `Variant` entry with abilities, a label in `Catalog.tsx`
+  `VARIANT_LABEL`, a row shade in `art.css`, and the two 18s in
+  `tests/browser/studio.spec.ts` (portraits and matrix rows) becoming 24; the
+  Tooling tab has the recipe.
+
+The rig below (`PieceRig.tsx`, `rig.css`) stays as the fallback and the source
+of the action vocabulary and timings. The principles, timings, side markers
+and accessibility rules in this doc still apply to the sprites.
+
 Status (Oct 10 2026): partly superseded. Wesley chose a **cast of misfit
 humans** (one character per piece and side, costumes echoing chess shapes) with
 **Pizza Tower energy** (toon eyes, big mouths, line boil, extreme squash and

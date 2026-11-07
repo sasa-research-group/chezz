@@ -2,13 +2,64 @@ import type { CSSProperties, ReactNode } from "react";
 import { PieceRig, RIG_MS } from "../components/PieceRig";
 import type { RigAction, RigKind, RigSide } from "../components/PieceRig";
 import { PieceArt } from "../components/PieceArt";
+import { PieceSprite } from "../components/PieceSprite";
 import { BattleBanner, GuardBadge } from "../components/BoardArt";
 import type { BannerKind } from "../components/BoardArt";
 import { H, PLACES, PlaceArt, START, W, blocked, onPath } from "../components/Hub";
 import { COST, DAMAGE, ENCOUNTERS, HP, STRIKE_COST } from "../game/turns";
-import { Entry, Group, LoopRig, MiniBoard, usePhase, useStudio } from "./kit";
+import type { Kind } from "../game/turns";
+import { ABILITIES, VARIANTS } from "../game/abilities";
+import type { Variant } from "../game/abilities";
+import { Entry, Group, LoopRig, LoopSprite, MiniBoard, usePhase, useStudio } from "./kit";
 
 export const KINDS: RigKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
+
+/** The character-select sheet, column by column (left to right) and row by row (top to bottom). */
+const SHEET_KINDS: Kind[] = ["pawn", "knight", "bishop", "rook", "queen", "king"];
+const VARIANT_LABEL: Record<Variant, string> = { rebel: "Rebels", royal: "Royals", misfit: "Misfits" };
+/** The side a variant plays for unless a unit says otherwise (variantOf in abilities.ts): royals are the patrol. */
+const sideOf = (v: Variant): RigSide => v === "royal" ? "black" : "white";
+/** The portrait's path, with a break opportunity after each slash so a phone wraps it at the slashes, not mid-word. */
+const castFile = (v: Variant, k: Kind) => <>public/<wbr />art/<wbr />cast/<wbr />{v}-{k}.png</>;
+const SPRITE_ACTIONS: RigAction[] = ["idle", "move", "attack", "defend", "hit", "death", "cheer", "leap", "leap-back", "mate", "morph-out", "morph-in"];
+/** What sprite.css runs each action in (ms at 1x). They fit inside the rig's RIG_MS; only the hop is shorter
+ * (sp-hop .38s, where the rig takes 480ms), except for the knight's flip-hop (sp-flip-hop .48s). */
+const SPRITE_MS: Record<RigAction, number> = { ...RIG_MS, move: 380 };
+const KNIGHT_MOVE_MS = 480;
+const spriteMs = (a: RigAction) => a === "idle" ? "loop" : a === "move" ? `${SPRITE_MS.move}ms · knight ${KNIGHT_MOVE_MS}` : `${SPRITE_MS[a]}ms`;
+/** Where the slicing pipeline is documented: the Tooling area (its "Sprite pipeline" section, #sprites, once Studio.tsx lists it in the toc). */
+const PIPELINE_HREF = "#tooling";
+
+/** The sheet as a grid: one portrait per variant and kind, with the character's ability where one is designed. */
+function SpriteCast() {
+  return <div className="sprite-cast">{VARIANTS.map((variant, row) => <div key={variant}>
+    <h4>{VARIANT_LABEL[variant]} · sheet row {row + 1} · {variant === "royal" ? "the patrol" : "your side"}</h4>
+    <div className="sprite-row">{SHEET_KINDS.map(kind => {
+      const ab = ABILITIES[`${variant}-${kind}`];
+      return <figure key={kind} className="portrait">
+        <div className="portrait-art"><PieceSprite kind={kind} variant={variant} side={sideOf(variant)} seed={`${variant}-${kind}`} /></div>
+        <figcaption>
+          <b>{ab?.name ?? `${variant} ${kind}`}</b>
+          <small>{variant} · {kind}</small>
+          {ab ? <span><strong>{ab.ability}.</strong> {ab.sentence}</span> : <span className="todo">ability: to be designed</span>}
+          <code>{castFile(variant, kind)}</code>
+        </figcaption>
+      </figure>;
+    })}</div>
+  </div>)}</div>;
+}
+/** Every sprite in every rig action, on the studio clock: the sprite cast's CastMatrix. */
+function SpriteMatrix() {
+  return <div className="matrix-wrap" tabIndex={0} aria-label="Sprite cast by state (scrolls sideways)">
+    <table className="matrix sprite-matrix">
+      <thead><tr><th scope="col">Sprite</th>{SPRITE_ACTIONS.map(a => <th key={a} scope="col">{a}<small>{spriteMs(a)}</small></th>)}</tr></thead>
+      <tbody>{VARIANTS.flatMap(variant => SHEET_KINDS.map(kind => <tr key={`${variant}-${kind}`} className={variant}>
+        <th scope="row">{variant} {kind}<small>{ABILITIES[`${variant}-${kind}`]?.name ?? (variant === "royal" ? "patrol" : "your side")}</small><code>{variant}-{kind}.png</code></th>
+        {SPRITE_ACTIONS.map(a => <td key={a}><LoopSprite kind={kind} variant={variant} side={sideOf(variant)} action={a} /></td>)}
+      </tr>))}</tbody>
+    </table>
+  </div>;
+}
 const SIDES: { side: RigSide; name: string }[] = [{ side: "white", name: "Rebel" }, { side: "black", name: "Patrol" }];
 type State = { label: string; action: RigAction; wounded?: boolean; defending?: boolean; used: (k: RigKind, s: RigSide) => boolean };
 const all = () => true;
@@ -119,6 +170,13 @@ export function Catalog() {
   const { hue } = useStudio();
   const fav = `${import.meta.env.BASE_URL}favicon.svg`;
   return <div className="catalog">
+    <Group id="sprite-cast" title="Character select (sprite cast)" intro={<>Wesley's character-select sheet is the current look. Each portrait is one PNG sliced from the sheet (<code>public/art/cast/&lt;variant&gt;-&lt;kind&gt;.png</code>, <a href={PIPELINE_HREF}>see Tooling</a>), drawn by <code>components/PieceSprite.tsx</code> and animated by <code>sprite.css</code> with the rig's action names, so the game can drive either art. Names and abilities come from <code>game/abilities.ts</code>.</>}>
+      <SpriteCast />
+      <h4>Sprite × state</h4>
+      <p className="fine">Every sprite in every action, looping on the studio clock (speed control above). Source: <code>public/art/cast/…</code> · <code>components/PieceSprite.tsx</code> · <code>sprite.css</code>. The column headers are the sprite's own durations from <code>sprite.css</code>; they fit inside the rig's RIG_MS, which the loop waits for (the hop is 380ms against the rig's 480; the knight's flip-hop is 480).</p>
+      <SpriteMatrix />
+    </Group>
+
     <Group id="cast" title="Cast × state">
       <CastMatrix />
     </Group>

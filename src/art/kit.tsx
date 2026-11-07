@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { PieceRig, RIG_MS } from "../components/PieceRig";
 import type { PatrolHue, RigAction, RigKind, RigSide } from "../components/PieceRig";
+import { PieceSprite } from "../components/PieceSprite";
+import type { Variant } from "../game/abilities";
 
 /** Studio-wide playback: the speed scale the game uses (--spd) and the patrol colour. */
 export const Studio = createContext<{ spd: number; hue: PatrolHue }>({ spd: 1, hue: "blue" });
@@ -31,12 +33,25 @@ export function usePhase(marks: number[], period: number) {
 
 /** Actions whose last frame is empty or squashed flat: the loop freezes on a readable pose this far in instead. */
 const HOLD: Partial<Record<RigAction, number>> = { death: .5, mate: .3, "morph-out": .35 };
-/** One rig replaying an action on a loop. */
-export function LoopRig({ kind, side, action, wounded, defending, pause = 700, facing }: { kind: RigKind; side: RigSide; action: RigAction; wounded?: boolean; defending?: boolean; pause?: number; facing?: 1 | -1 }) {
-  const { hue } = useStudio();
+/** The replay clock LoopRig and LoopSprite share: one cycle per RIG_MS[action] plus a pause, or a hold on a
+ * readable pose for actions that end flat; idle runs free. Remount the art on `cycle`; `held` pauses it. */
+function useLoop(action: RigAction, pause: number) {
   const hold = HOLD[action] && RIG_MS[action] * HOLD[action]!;
   const { ref, cycle, phase } = usePhase(hold ? [0, hold] : [0], action === "idle" ? Infinity : hold ? hold + 1200 : RIG_MS[action] + pause);
-  return <div ref={ref} className={`loop-rig ${hold && phase ? "held" : ""}`}><PieceRig key={cycle} kind={kind} side={side} hue={hue} action={action} wounded={wounded} defending={defending ?? action === "defend"} facing={facing ?? (side === "white" ? 1 : -1)} seed={`${kind}${side}${action}`} /></div>;
+  return { ref, cycle, held: !!hold && phase > 0 };
+}
+type LoopProps = { kind: RigKind; side: RigSide; action: RigAction; wounded?: boolean; defending?: boolean; pause?: number; facing?: 1 | -1 };
+/** One rig replaying an action on a loop. */
+export function LoopRig({ kind, side, action, wounded, defending, pause = 700, facing }: LoopProps) {
+  const { hue } = useStudio();
+  const { ref, cycle, held } = useLoop(action, pause);
+  return <div ref={ref} className={`loop-rig ${held ? "held" : ""}`}><PieceRig key={cycle} kind={kind} side={side} hue={hue} action={action} wounded={wounded} defending={defending ?? action === "defend"} facing={facing ?? (side === "white" ? 1 : -1)} seed={`${kind}${side}${action}`} /></div>;
+}
+/** One character-select sprite replaying an action on a loop: LoopRig for PieceSprite. The sprite's
+ * keyframes (sprite.css) fit inside the rig's RIG_MS, so the same clock and holds apply. */
+export function LoopSprite({ kind, variant, side, action, wounded, defending, pause = 700, facing }: LoopProps & { variant: Variant }) {
+  const { ref, cycle, held } = useLoop(action, pause);
+  return <div ref={ref} className={`loop-rig loop-sprite ${held ? "held" : ""}`}><PieceSprite key={cycle} kind={kind} variant={variant} side={side} action={action} wounded={wounded} defending={defending ?? action === "defend"} facing={facing ?? (side === "white" ? 1 : -1)} seed={`${variant}${kind}${side}${action}`} /></div>;
 }
 
 /** A labelled specimen: what it is, where it lives, and the art itself. */
