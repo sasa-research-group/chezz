@@ -65,8 +65,9 @@ export type Ability = {
   moveTargets?: (g: Run, u: Unit, base: Target[], ctx: HookContext) => Target[];
   /** Overrides whether u, standing on `from`, could strike `target`; `base` is the kind's answer. */
   reaches?: (g: Run, u: Unit, from: Pos, target: Pos, base: boolean) => boolean;
-  /** Vetoes a strike target (Her Wigness won't strike pawns). */
-  canStrike?: (g: Run, u: Unit, v: Unit) => boolean;
+  /** Vetoes a strike target (Her Wigness won't strike pawns; the Warden won't sweep his own king down).
+   * `dealt(a, x)` is the rules' damage calculation, abilities and blocks included, for weighing a blow. */
+  canStrike?: (g: Run, u: Unit, v: Unit, dealt: (a: Unit, x: Unit) => number) => boolean;
   /** Cost of this piece's strike right now (Sir Lance charges for 1 after jumping). */
   strikeCost?: (g: Run, u: Unit) => number;
   /** Outgoing damage before the defender's block; `base` is the kind's damage. */

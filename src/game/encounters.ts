@@ -1,7 +1,7 @@
 /** The road: every battle the player fights, in order. Board shape, walls, enemy spawns (kind, x, y,
  * hp, optional variant) and where the player's army starts. Data only, so abilities and the board
  * helpers can read it without importing the rules. */
-import type { Encounter } from "./turns";
+import type { Encounter, Pos } from "./turns";
 
 export const ENCOUNTERS: Encounter[] = [
   { title: "The roadside patrol", story: "Two royal lackeys. One very annoyed former king. Clear the road.", reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
@@ -11,4 +11,30 @@ export const ENCOUNTERS: Encounter[] = [
 
 /** The Grandmaster's Guild: puzzles on boards the road never shows. Each hands you a fixed army and a
  * turn limit; the solver (src/game/solver.ts) checks that every one has a forced win in that many turns. */
-export const PUZZLES: Encounter[] = [];
+const sq = (x: number, y: number): Pos => ({ x, y });
+export const PUZZLES: Encounter[] = [
+  {
+    title: "Rabbit Holes", story: "Two burrows, one tunnel. The long way round is the short way.", goal: "Fell King Gilt this turn.", win: "king", reward: 0, enemyEnergy: 3, width: 5, height: 5, turns: 1,
+    walls: [sq(1, 1), sq(3, 1), sq(1, 3), sq(3, 3)], portals: [[sq(0, 4), sq(4, 0)]],
+    spawns: [["pawn", 1, 0, 1, "royal"], ["king", 2, 0, 3, "royal"]], starts: [],
+    army: [["king", 2, 2, 5, "rebel"], ["rook", 1, 4, 5, "rebel"]],
+  },
+  {
+    title: "Frozen Lake", story: "Step onto the ice and you keep going. The extra squares are free; the stopping is the hard part.", goal: "Fell King Gilt within two turns.", win: "king", reward: 0, enemyEnergy: 3, width: 5, height: 5, turns: 2,
+    walls: [], ice: [sq(1, 2), sq(2, 2), sq(3, 2), sq(1, 3), sq(2, 3), sq(3, 3)],
+    spawns: [["pawn", 4, 0, 1, "royal"], ["king", 4, 1, 5, "royal"]], starts: [],
+    army: [["rook", 0, 2, 5, "misfit"], ["king", 2, 4, 5, "rebel"]],
+  },
+  {
+    title: "The Portcullis", story: "A lever opens the gate. A knight leaps walls. Two keys, one mate.", goal: "Fell King Gilt within two turns.", win: "king", reward: 0, enemyEnergy: 3, width: 5, height: 5, turns: 2,
+    walls: [sq(0, 1), sq(1, 1), sq(3, 1), sq(4, 1)], gates: [{ at: sq(2, 1), group: "gate" }], levers: [{ at: sq(4, 2), group: "gate" }],
+    spawns: [["king", 2, 0, 3, "royal"], ["knight", 3, 0, 3, "royal"]], starts: [],
+    army: [["rook", 2, 4, 5, "rebel"], ["king", 3, 4, 5, "rebel"]],
+  },
+  {
+    title: "The Sinkhole Road", story: "Pits swallow whatever is knocked into them, and the bridge falls away behind whoever crosses it.", goal: "Clear the road before the bridge is gone.", reward: 0, enemyEnergy: 3, width: 5, height: 5, turns: 5,
+    walls: [], holes: [sq(0, 1)], crumbling: [sq(0, 3), sq(1, 3), sq(2, 3), sq(3, 3), sq(4, 3)],
+    spawns: [["king", 2, 0, 5, "royal"], ["pawn", 2, 1, 1, "royal"], ["knight", 1, 2, 3, "royal"]], starts: [],
+    army: [["bishop", 1, 4, 3, "misfit"], ["king", 2, 4, 5, "rebel"]],
+  },
+];

@@ -32,6 +32,8 @@ export type Encounter = {
   title: string; story: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: Placement[]; starts: Pos[];
   holes?: Pos[]; crumbling?: Pos[]; portals?: [Pos, Pos][]; ice?: Pos[]; gates?: Gate[]; levers?: Lever[];
   army?: Placement[]; turns?: number; goal?: string;
+  /** How the battle is won: clear the board (default), or fell the enemy king. */
+  win?: "clear" | "king";
 };
 export type Run = {
   version: 2; encounter: number; turn: number;
@@ -129,7 +131,7 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
   const cost = strikeCostOf(g, u);
   if (cost > energy) return [];
   const veto = abilityOf(u)?.canStrike;
-  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v) && (!veto || veto(g, u, v))).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
+  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v) && (!veto || veto(g, u, v, (a, w) => dealtTo(g, a, w)))).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
 /** Squares u could step to and then strike the target from this turn, priced move + strike. For your
@@ -174,9 +176,10 @@ export function startPuzzle(i: number): Run {
 
 function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["The crown fell. Your rebellion ends here.", ...g.log] };
-  if (!g.units.some(u => u.side === "black")) {
+  const e = boardOf(g);
+  if (!g.units.some(u => u.side === "black") || (e.win === "king" && !g.units.some(u => u.side === "black" && u.kind === "king"))) {
     if (g.puzzle !== undefined) return { ...g, phase: "victory", log: ["Solved! The Grandmaster nods.", ...g.log] };
-    const last = g.encounter === ENCOUNTERS.length - 1, reward = boardOf(g).reward;
+    const last = g.encounter === ENCOUNTERS.length - 1, reward = e.reward;
     return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Across the bridge. Your rebellion has begun." : `Road cleared. +${reward} gold.`, ...g.log] };
   }
   return g;
@@ -261,7 +264,9 @@ export function alt(g: Run, id: string, actionId: string, target?: Pos): { run: 
 function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   const named = g.units.find(u => u.id === t.id)!;
   const v = abilityOf(named)?.intercept?.(g, a, named, reaches) ?? named;
-  const victims = [v, ...(abilityOf(a)?.splash?.(g, a, v) ?? [])].filter((x, i, all) => x.id !== a.id && all.findIndex(y => y.id === x.id) === i);
+  // Splashed pieces may hand their share to a bodyguard too; a guard caught twice is hit once.
+  const splashed = (abilityOf(a)?.splash?.(g, a, v) ?? []).map(x => abilityOf(x)?.intercept?.(g, a, x, reaches) ?? x);
+  const victims = [v, ...splashed].filter((x, i, all) => x.id !== a.id && all.findIndex(y => y.id === x.id) === i);
   const dealt = new Map(victims.map(x => [x.id, dealtTo(g, a, x)]));
   // Strikes land from where the striker stands; it never moves onto the target's square.
   let units = g.units.map(u => (dealt.has(u.id) ? { ...u, hp: u.hp - dealt.get(u.id)! } : u.id === a.id ? { ...u, acted: true } : u));
@@ -334,7 +339,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         // A sweep hits the neighbours too: foes are worth what a strike on them would be, friends count double against.
         const splash = (abilityOf(u)?.splash?.(run, u, v) ?? []).filter(x => x.id !== v.id && x.id !== u.id);
         const worth = (x: Unit) => dealtTo(run, u, x) * 10 + (dealtTo(run, u, x) >= x.hp ? 50 : 0);
-        const splashScore = splash.reduce((s, x) => s + (x.side === u.side ? -2 * worth(x) : worth(x)), 0);
+        const splashScore = splash.reduce((s, x) => s + (x.side === u.side ? -2 * worth(x) - (dealtTo(run, u, x) >= x.hp ? 100 : 0) : worth(x)), 0);
         // A surviving defender counters if it can reach the striker's square.
         const counterBase = !!v.defending && reaches(run, v, v, u);
         const countered = dealt < v.hp && (abilityOf(v)?.counters?.(run, v, u, counterBase) ?? counterBase) ? dealtTo(run, v, u) : 0;
@@ -399,12 +404,15 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
     left.forEach((u, i) => {
       const rest = left.filter((_, j) => j !== i);
       const standing = strikeCostOf(run, u);
-      if (pool >= standing && reaches(run, u, u, king) && (abilityOf(u)?.canStrike?.(run, u, king) ?? true)) search(run, pool - standing, rest, damage + hit(run, u), [...ids, u.id]);
+      const may = (r: Run, w: Unit) => abilityOf(w)?.canStrike?.(r, w, king, (a, x) => dealtTo(r, a, x)) ?? true;
+      if (pool >= standing && reaches(run, u, u, king) && may(run, u)) search(run, pool - standing, rest, damage + hit(run, u), [...ids, u.id]);
       const stepped = strikeCostOf(run, { ...u, moved: true });
       for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - stepped)) {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
         const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? "queen" : u.kind };
-        if (reaches(run, moved, t, king)) search(settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u), pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
+        if (!reaches(run, moved, t, king)) continue;
+        const stood = settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u);
+        if (stood.units.some(w => w.id === u.id) && may(stood, moved)) search(stood, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
       }
     });
   };
