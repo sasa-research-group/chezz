@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { coord, newRun } from "../../src/game/turns";
+import { PUZZLES, coord, newRun } from "../../src/game/turns";
 import type { Run } from "../../src/game/turns";
 import { nextAction } from "../turns-strategy";
 
@@ -247,7 +247,8 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   await expect(armory).toBeHidden();
   await page.getByRole("button", { name: /^Grandmaster.s Guild/ }).click();
   const guild = page.getByRole("dialog", { name: "Grandmaster's Guild" });
-  await expect(guild.getByRole("button")).toHaveCount(1);
+  // The Guild lists every puzzle.
+  await expect(guild.getByRole("button", { name: /^Attempt / })).toHaveCount(PUZZLES.length);
   await page.screenshot({ path: "test-results/hub-guild.png" });
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Barracks/ }).click();
@@ -261,6 +262,46 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   await page.getByRole("button", { name: "March out" }).click();
   await expect.poll(async () => (await saved(page)).units.filter(u => u.side === "white").map(u => u.kind)).toEqual(["king", "pawn", "bishop"]);
   await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
+});
+
+test("a Guild puzzle: through the burrow, fell the king, back to the hideout untouched", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, phase: "camp" as const, gold: 7, units: [{ ...start.units[0], hp: 4 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Grandmaster.s Guild/ }).click();
+  await page.getByRole("dialog", { name: "Grandmaster's Guild" }).getByRole("button", { name: "Attempt Rabbit Holes" }).click();
+  await expect(page.getByRole("heading", { name: "Rabbit Holes" })).toBeVisible();
+  // Brick slides into the burrow at a1, pops out at e5 and carries on to d5, beside King Gilt.
+  await page.getByRole("button", { name: /^b1 white rook/ }).click();
+  await page.getByRole("button", { name: /^d5 empty, move for 2/ }).click();
+  await page.getByRole("button", { name: /^c5 black king, 3 HP, strike for 2/ }).click();
+  const banner = page.getByRole("button", { name: /Solved!/ });
+  await expect(banner).toBeVisible();
+  await banner.click();
+  const solved = page.getByRole("dialog", { name: "Puzzle solved" });
+  await expect(solved).toBeVisible();
+  await page.screenshot({ path: "test-results/puzzle-solved.png" });
+  // The campaign was never touched: the autosave still holds the camp with the wounded king and the gold.
+  await expect.poll(async () => (await saved(page)).phase).toBe("camp");
+  await solved.getByRole("button", { name: "Back to the hideout" }).click();
+  await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toBeVisible();
+  await expect.poll(async () => { const r = await saved(page); return [r.gold, r.units[0].hp]; }).toEqual([7, 4]);
+});
+
+test("an ability button: Brother Ash hexes a queen down the diagonal", async ({ page }) => {
+  const start = newRun();
+  const g = { ...start, units: [start.units[0], { id: "ally-1", side: "white" as const, kind: "bishop" as const, variant: "rebel" as const, x: 0, y: 3, hp: 3 }, { id: "enemy-0-0", side: "black" as const, kind: "queen" as const, x: 3, y: 0, hp: 9 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^a1 white bishop/ }).click();
+  await expect(page.getByText(/Hex: Instead of striking/)).toBeVisible();
+  await page.getByRole("button", { name: /^Hex/ }).click();
+  await page.getByRole("button", { name: /^d4 black queen/ }).click();
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "enemy-0-0")?.mods).toMatchObject({ hexed: true });
+  await expect.poll(async () => (await saved(page)).energy).toBe(2);
+  await expect(page.locator(".status-badges")).toBeVisible();
+  await page.screenshot({ path: "test-results/exile-hex.png" });
 });
 
 test("compact layout fits an iPhone screen without scrolling", async ({ page }) => {
