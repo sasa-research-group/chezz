@@ -167,7 +167,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave, onPuzzle }: { run: Run; 
             const r = recruitOf(choice), ab = r && abilityOf({ side: "white", variant: r.variant, kind: r.kind });
             return <button key={r ? `${r.variant}-${r.kind}` : "heal"} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
               <div className="offer-art">{r ? <PieceSprite kind={r.kind} variant={r.variant} side="white" /> : <span>♥</span>}</div>
-              <h2>{!r ? "Mend the king" : ab ? `Recruit ${ab.name}` : `Recruit a ${r.kind}`}</h2>
+              <h2>{!r ? "Mend the king" : ab ? `Recruit ${ab.name} the ${r.kind}` : `Recruit a ${r.kind}`}</h2>
               <p>{!r ? `Restore 2 king HP, up to ${HP.king}.` : `${maxHp({ side: "white", variant: r.variant, kind: r.kind })} HP, hits for ${DAMAGE[r.kind]}. ${ab ? `${ab.ability}: ${ab.sentence}` : BLURB[r.kind]}`}</p>
               <strong>{campReason(run, choice) || `${costOf(choice)} gold →`}</strong></button>;
           })}</div>

@@ -253,9 +253,9 @@ test("the hideout: walk to the barracks, recruit, peek at placeholders, take the
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Barracks/ }).click();
   const barracks = page.getByRole("dialog", { name: "Barracks" });
-  await barracks.getByRole("button", { name: /Recruit a pawn/ }).click();
-  await barracks.getByRole("button", { name: /Recruit a bishop/ }).click();
-  await expect(barracks.getByRole("button", { name: /Recruit a pawn/ })).toBeDisabled();
+  await barracks.getByRole("button", { name: /Recruit Pip the pawn/ }).click();
+  await barracks.getByRole("button", { name: /Recruit Brother Ash the bishop/ }).click();
+  await expect(barracks.getByRole("button", { name: /Recruit Pip the pawn/ })).toBeDisabled();
   await page.screenshot({ path: "test-results/hub-barracks.png" });
   await barracks.getByRole("button", { name: "Back to the hideout" }).click();
   await page.getByRole("button", { name: /^Road out/ }).click();
@@ -336,7 +336,7 @@ test("complete the exile run through browser controls", async ({ page }) => {
       const king = g.units.find(u => u.id === "king")!;
       await page.getByRole("button", { name: /^Barracks/ }).click();
       const barracks = page.getByRole("dialog", { name: "Barracks" });
-      await barracks.getByRole("button", { name: king.hp < 3 ? /Mend the king/ : g.gold >= 8 ? /Recruit a rook/ : /Recruit a bishop/ }).click();
+      await barracks.getByRole("button", { name: king.hp < 3 ? /Mend the king/ : g.gold >= 8 ? /Recruit Brick the rook/ : /Recruit Brother Ash the bishop/ }).click();
       await barracks.getByRole("button", { name: "Back to the hideout" }).click();
       await page.getByRole("button", { name: /^Road out/ }).click();
       await page.getByRole("button", { name: "March out" }).click();
