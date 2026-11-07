@@ -197,7 +197,7 @@ test("Haystack rolls onto the piece it eats and shows the meal", async ({ page }
   await page.goto("/");
   await expect(page.locator(".sprite.sp-misfit.sp-rook")).toHaveCount(1);
   await page.getByRole("button", { name: /^a1 white rook/ }).click();
-  await expect(page.getByText(/Consume: When its strike kills/)).toBeVisible();
+  await expect(page.getByText(/Consume: Haystack strikes by rolling/)).toBeVisible();
   await page.getByRole("button", { name: /^a2 black knight, 3 HP, strike for 2/ }).click();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 2, mods: { absorbed: "knight" } });
   await expect(page.locator(".absorb-badge")).toHaveText(/knight/);
