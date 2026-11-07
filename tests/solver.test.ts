@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ENCOUNTERS, HP, attack, defend, endTurn, move, newRun, promote, walkAndStrike } from "../src/game/turns";
+import { ENCOUNTERS, ENERGY, HP, attack, defend, endTurn, move, newRun, promote, walkAndStrike } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
-import { boardKey, lineToText, playerOutcomes, replay, solve } from "../src/game/solver";
+import { boardKey, lineToText, makeBound, playerOutcomes, replay, solve } from "../src/game/solver";
 import type { Action } from "../src/game/solver";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: HP.king };
@@ -111,9 +111,51 @@ describe("solver", () => {
     console.log(`bridge: ${r.nodes} nodes, ${Math.round(performance.now() - t0)}ms`, r.won ? { turns: r.turns, unique: r.unique, winningFirstMoves: r.winningFirstMoves } : r);
     expect(r.won).toBe(true);
     if (!r.won) return;
-    expect(replayWithRules(g, r.line).phase).toBe("camp");
+    // The bridge is the last road: clearing it wins the run.
+    expect(replayWithRules(g, r.line).phase).toBe("victory");
     const text = lineToText(g, r.line);
     console.log(text.join("\n"));
     expect(text).toHaveLength(r.turns);
+  });
+  it("agrees with an exhaustive search on small positions, so the pruning never hides a win", () => {
+    // Positions a random cross-check once disagreed on: a counter that only wounds, a brace already paid
+    // for, a pawn racing to promote, a rook that must come to the braced king.
+    const positions: Run[] = [
+      board([{ ...king, hp: 3, x: 4, y: 3 }, { id: "r", side: "black", kind: "rook", hp: 3, x: 5, y: 0 }], { encounter: 1, energy: 3 }),
+      board([{ ...king, hp: 5, x: 3, y: 2 }, { id: "p", side: "white", kind: "pawn", hp: 1, x: 0, y: 3 }, { id: "r", side: "black", kind: "rook", hp: 2, x: 2, y: 3 }], { energy: 3 }),
+      board([{ ...king, hp: 2, x: 0, y: 3 }, { id: "q", side: "white", kind: "queen", hp: 9, x: 1, y: 2 }, { id: "p", side: "black", kind: "pawn", hp: 2, x: 4, y: 1 }], { encounter: 1, energy: 3 }),
+      board([{ ...king, hp: 5, x: 1, y: 3 }, { id: "n", side: "white", kind: "knight", hp: 3, x: 4, y: 0 }, { id: "r", side: "black", kind: "rook", hp: 2, x: 2, y: 0 }], { encounter: 1 }),
+    ];
+    const sig = (r: ReturnType<typeof solve>) => (r.won ? `won in ${r.turns}, ${r.winningFirstMoves} first moves` : r.reason);
+    for (const g of positions) {
+      const full = solve(g, { maxTurns: 3, exhaustive: true }), pruned = solve(g, { maxTurns: 3 });
+      expect(full.won).toBe(true);
+      expect(sig(pruned)).toBe(sig(full));
+      expect(pruned.nodes).toBeLessThanOrEqual(full.nodes);
+    }
+  });
+
+  it("never rules out a position on a winning line", () => {
+    // The bound only prunes positions it can prove hopeless, so every position along a proven line must pass it.
+    for (const start of [newRun(), bridge()]) {
+      const r = solve(start, { maxTurns: 6 });
+      expect(r.won).toBe(true);
+      if (!r.won) continue;
+      const feasible = makeBound();
+      let g = start;
+      r.line.forEach((turn, i) => {
+        const left = r.turns - i;
+        expect(feasible(g, left, g.energy + ENERGY * (left - 1), left - 1)).toBe(true);
+        const acts = turn.filter(a => a.type !== "end");
+        for (let n = 1; n <= acts.length; n++) {
+          const mid = replay(g, [acts.slice(0, n)]);
+          if (mid.phase === "player") expect(feasible(mid, left, mid.energy + ENERGY * (left - 1), left - 1)).toBe(true);
+        }
+        const end = replay(g, [acts]);
+        if (end.phase === "player") expect(feasible(end, left - 1, ENERGY * (left - 1), left - 1)).toBe(true);
+        g = turn.some(a => a.type === "end") ? endTurn(end).run : end;
+      });
+      expect(["camp", "victory"]).toContain(g.phase);
+    }
   });
 });

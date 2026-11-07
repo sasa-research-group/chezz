@@ -33,16 +33,17 @@ export function boardKey(g: Run): string {
 /** What the enemy's reply can see: the board without your pool, moved and acted flags, which it ignores. */
 const replyKey = (g: Run, defends: boolean) => g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${defends && u.defending ? "d" : ""}{${modsKey(u)}}`).sort().join("|");
 
-/** Every distinct position the player can reach this turn, the "do nothing" position included, each
- * with the actions that reach it. Only what the rules allow: a refused action goes nowhere. A walk the
- * rules refuse on its own (it would expose the king) is still tried as a tap, walk-and-strike in one
- * move, when a strike from that square is affordable. A pending promotion is never an outcome: it has
- * to be resolved (all four kinds are tried) before the turn can end. */
-export function playerOutcomes(start: Run): Outcome[] {
+/** Hooks the solver uses to keep the turn's enumeration small. `prune` drops a position and everything
+ * after it (only sound when nothing reachable from it can win); `defenders` limits who may defend. */
+type Hooks = { prune?: (g: Run) => boolean; defenders?: (g: Run) => Set<string> | null };
+/** Within one turn the units array keeps its order (the rules only map and filter it), so the key can skip the sort. */
+const turnKey = (g: Run) => `${g.phase}|${g.energy}|${g.promoting ?? ""}|` + g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}{${modsKey(u)}}`).join("|");
+function enumerate(start: Run, hooks: Hooks): Outcome[] {
   const seen = new Map<string, Outcome>();
   const visit = (g: Run, plan: Action[]) => {
-    const k = boardKey(g);
+    const k = turnKey(g);
     if (seen.has(k)) return;
+    if (hooks.prune?.(g)) { seen.set(k, { run: g, plan: [] }); return; }
     seen.set(k, { run: g, plan });
     if (g.phase !== "player") return;
     const step = (next: Run, ...actions: Action[]) => { if (next !== g) visit(next, [...plan, ...actions]); };
@@ -52,6 +53,7 @@ export function playerOutcomes(start: Run): Outcome[] {
     // tap is judged as one move), so that's the one case where a walk the rules allow still needs the tap path.
     const taps = g.energy > STRIKE_COST;
     const check = taps && inCheck(g);
+    const defenders = g.energy >= 1 ? hooks.defenders?.(g) ?? null : null;
     for (const u of g.units) {
       if (u.side !== "white") continue;
       const refused: Target[] = [];
@@ -69,12 +71,18 @@ export function playerOutcomes(start: Run): Outcome[] {
           if (tap) step(tap.run, { type: "move", id: u.id, to: { x: t.x, y: t.y } }, { type: "attack", id: u.id, targetId: v.id });
         }
       }
-      step(defend(g, u.id), { type: "defend", id: u.id });
+      if (!defenders || defenders.has(u.id)) step(defend(g, u.id), { type: "defend", id: u.id });
     }
   };
   visit(start, []);
-  return [...seen.values()].filter(o => !o.run.promoting);
+  return [...seen.values()].filter(o => !o.run.promoting && (o.plan.length > 0 || o.run === start));
 }
+/** Every distinct position the player can reach this turn, the "do nothing" position included, each
+ * with the actions that reach it. Only what the rules allow: a refused action goes nowhere. A walk the
+ * rules refuse on its own (it would expose the king) is still tried as a tap, walk-and-strike in one
+ * move, when a strike from that square is affordable. A pending promotion is never an outcome: it has
+ * to be resolved (all four kinds are tried) before the turn can end. */
+export const playerOutcomes = (start: Run): Outcome[] => enumerate(start, {});
 
 // ---- A lower bound on what clearing the board still costs, to prune hopeless positions. ----
 // Optimistic everywhere, so it never prunes a real win: pieces never block, enemies come as close as
@@ -87,13 +95,16 @@ const LEAP = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1
 const OFFSETS = [...STRAIGHT, ...DIAGONAL, ...LEAP];
 /** What a white piece may strike as: a pawn could promote into anything that reaches further. */
 const strikeKinds = (w: Unit): Unit[] => (w.kind === "pawn" ? [{ ...w, kind: "queen" }, { ...w, kind: "knight" }] : [w]);
-/** Could `w`, defending, survive a hit from `e` and hit back from where `e` would strike? */
-function canCounter(g: Run, e: Unit, w: Unit): boolean {
+/** reaches() only looks at the pieces' kinds and sides, so the geometry below needs no run. */
+const NO_RUN = null as unknown as Run;
+/** Could `w`, defending, survive a hit from `e` and hit back from where `e` would strike? Then every
+ * hit on `e` may come from a counter, which costs a defend (1) rather than a strike (2). */
+function canCounter(e: Unit, w: Unit): boolean {
   const dealt = DAMAGE[e.kind] - 1;
   if (dealt <= 0 || w.hp <= dealt) return false;
-  return strikeKinds(w).some(wk => DAMAGE[wk.kind] >= e.hp && OFFSETS.some(([dx, dy]) => {
+  return strikeKinds(w).some(wk => OFFSETS.some(([dx, dy]) => {
     const p = { x: e.x + dx, y: e.y + dy };
-    return reaches(g, e, e, p) && reaches(g, wk, p, e);
+    return reaches(NO_RUN, e, e, p) && reaches(NO_RUN, wk, p, e);
   }));
 }
 /** The least energy and moves for `w` to stand on `q`, ignoring every piece and wall. */
@@ -135,36 +146,56 @@ function approach(g: Run, w: Unit, roam: Pos[]): { energy: number; moves: number
   }
   return best;
 }
-/** Energy and turns the player must still spend to clear the board, at the least, when the enemy
- * gets `replies` turns before the player's last one. */
-function needs(g: Run, replies: number): { energy: number; turns: number } {
-  const whites = g.units.filter(u => u.side === "white");
-  if (!whites.length) return { energy: Infinity, turns: Infinity };
-  const maxDmg = Math.max(...whites.map(w => DAMAGE[w.kind === "pawn" ? "queen" : w.kind]));
-  const strikers = Math.min(whites.length, Math.floor(ENERGY / STRIKE_COST));
-  let energy = 0, turns = 0, hits = 0, needDefend = false;
-  for (const b of g.units) {
-    if (b.side !== "black") continue;
-    if (whites.some(w => canCounter(g, b, w))) { if (!whites.some(w => w.defending && canCounter(g, b, w))) needDefend = true; continue; }
-    const h = Math.ceil(b.hp / maxDmg);
-    hits += h;
-    const roam = roamOf(g, b, replies);
-    let least = Infinity, soonest = Infinity;
-    for (const w of whites) {
-      const t = roam ? approach(g, w, roam) : { energy: 0, moves: 0 };
-      least = Math.min(least, t.energy);
-      soonest = Math.min(soonest, Math.max(t.moves, Math.ceil((t.energy + STRIKE_COST) / ENERGY)));
+/** The bound, with its geometry memoised for one battle (one encounter, so walls never change).
+ * Returns `feasible(g, turns, energy, replies)`: could the player still clear the board within
+ * `turns` more turns, with `energy` to spend over them, when the enemy gets `replies` turns before
+ * the player's last one? With no turns left only the coming reply can win, by counters alone: every
+ * enemy must be one a braced piece would kill on the rebound. */
+export function makeBound() {
+  const approaches = new Map<string, { energy: number; moves: number }>(), counters = new Map<string, boolean>();
+  const counter = (e: Unit, w: Unit) => {
+    const k = `${e.kind}${e.side}${e.hp}|${w.kind}${w.side}${w.hp}`;
+    let v = counters.get(k);
+    if (v === undefined) { v = canCounter(e, w); counters.set(k, v); }
+    return v;
+  };
+  const cost = (g: Run, w: Unit, b: Unit, replies: number) => {
+    const k = `${w.kind}${w.side}${w.mods ? "+" : ""}@${w.x},${w.y}|${b.kind}${b.side}${b.mods ? "+" : ""}@${b.x},${b.y}|${replies}`;
+    let v = approaches.get(k);
+    if (v === undefined) { const roam = roamOf(g, b, replies); v = roam ? approach(g, w, roam) : { energy: 0, moves: 0 }; approaches.set(k, v); }
+    return v;
+  };
+  /** Energy and turns the player must still spend to clear the board, at the least, when the enemy
+   * gets `replies` turns before the player's last one. Enemies a counter could hit are the cheap case:
+   * one defend (shared by all of them, since one braced piece counters every attacker) and one turn. */
+  const needs = (g: Run, replies: number): { energy: number; turns: number } => {
+    const whites = g.units.filter(u => u.side === "white");
+    if (!whites.length) return { energy: Infinity, turns: Infinity };
+    const maxDmg = Math.max(...whites.map(w => DAMAGE[w.kind === "pawn" ? "queen" : w.kind]));
+    const strikers = Math.min(whites.length, Math.floor(ENERGY / STRIKE_COST));
+    let energy = 0, turns = 0, hits = 0, needDefend = false;
+    for (const b of g.units) {
+      if (b.side !== "black") continue;
+      // A counter needs a braced piece: one defend covers every counter, and a brace already up is paid for.
+      if (whites.some(w => counter(b, w))) { turns = Math.max(turns, 1); if (!whites.some(w => w.defending && counter(b, w))) needDefend = true; continue; }
+      const h = Math.ceil(b.hp / maxDmg);
+      hits += h;
+      let least = Infinity, soonest = Infinity;
+      for (const w of whites) {
+        const t = cost(g, w, b, replies);
+        least = Math.min(least, t.energy);
+        soonest = Math.min(soonest, Math.max(t.moves, Math.ceil((t.energy + STRIKE_COST) / ENERGY)));
+      }
+      energy += least + STRIKE_COST * h;
+      turns = Math.max(turns, soonest);
     }
-    energy += least + STRIKE_COST * h;
-    turns = Math.max(turns, soonest);
-  }
-  return { energy: energy + (needDefend ? 1 : 0), turns: Math.max(turns, Math.ceil(hits / strikers)) };
-}
-/** Could the player still clear the board in `turns` more turns, starting with `energy` in the pool this turn? */
-function feasible(g: Run, turns: number, energy: number): boolean {
-  if (turns <= 0 && energy <= 0) return needs(g, 0).energy <= 0;
-  const n = needs(g, Math.max(0, turns - 1));
-  return n.turns <= turns && n.energy <= energy;
+    return { energy: energy + (needDefend ? 1 : 0), turns: Math.max(turns, Math.ceil(hits / strikers)) };
+  };
+  return (g: Run, turns: number, energy: number, replies: number): boolean => {
+    if (turns <= 0) return g.units.every(b => b.side !== "black" || g.units.some(w => w.side === "white" && w.defending && DAMAGE[w.kind] >= b.hp && counter(b, w)));
+    const n = needs(g, replies);
+    return n.turns <= turns && n.energy <= energy;
+  };
 }
 
 /** Candidate order, best first: a win, then kills, then damage, then closing the distance to the
@@ -183,18 +214,23 @@ function rank(before: Run, o: Outcome): number {
   return kills * 1000 + hurt * 100 - gap * 10 - o.plan.length;
 }
 
-/** Your pieces some enemy could strike in its reply (stepping in first if its pool allows; a pawn
- * reaching the far row strikes as a queen). The reply ignores a defend on any other piece. */
+/** Your pieces some enemy could strike in its reply: from where it stands, or after a step its pool can
+ * pay for alongside the strike (a pawn reaching the far row strikes as a queen). Each enemy is tried on
+ * a board holding only it and its target, so nothing another piece might clear out of the way is missed.
+ * The reply ignores a defend on any other piece. */
 function exposed(g: Run): Set<string> {
   const e = ENCOUNTERS[g.encounter], whites = g.units.filter(u => u.side === "white"), out = new Set<string>();
   for (const b of g.units) {
     if (b.side !== "black") continue;
     const fresh: Unit = { ...b, moved: false, acted: false, defending: false };
-    for (const w of whites) if (reaches(g, fresh, fresh, w)) out.add(w.id);
-    if (e.enemyEnergy < STRIKE_COST) continue;
-    for (const t of moveTargets(g, fresh, e.enemyEnergy - STRIKE_COST)) {
-      const moved: Unit = b.kind === "pawn" && t.y === e.height - 1 ? { ...fresh, kind: "queen" } : fresh;
-      for (const w of whites) if (reaches(g, moved, t, w)) out.add(w.id);
+    for (const w of whites) {
+      if (reaches(g, fresh, fresh, w)) { out.add(w.id); continue; }
+      if (e.enemyEnergy < STRIKE_COST + 1) continue;
+      const clear: Run = { ...g, units: [fresh, w] };
+      for (const t of moveTargets(clear, fresh, e.enemyEnergy - STRIKE_COST)) {
+        const moved: Unit = b.kind === "pawn" && t.y === e.height - 1 ? { ...fresh, kind: "queen" } : fresh;
+        if (reaches(g, moved, t, w)) { out.add(w.id); break; }
+      }
     }
   }
   return out;
@@ -235,29 +271,43 @@ function replies(outs: Outcome[]): (o: Outcome) => Run | null {
  * the enemy's reply. `nodes` counts turn-start positions expanded; past `nodeBudget` (default
  * 200000) the search stops with reason "budget". At the winning depth every first-turn outcome is
  * tried, so `winningFirstMoves` counts the distinct ones (by board key; all immediate wins count as
- * one, since how the last blow lands isn't a second solution) and `unique` says it's one. */
-export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number }): SolveResult {
-  const budget = opts.nodeBudget ?? 200000;
+ * one, since how the last blow lands isn't a second solution) and `unique` says it's one.
+ * `exhaustive` turns the pruning off (every outcome, every reply): slow, for checking the bound. */
+export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number; exhaustive?: boolean }): SolveResult {
+  const budget = opts.nodeBudget ?? 200000, exhaustive = opts.exhaustive ?? false;
   let nodes = 0;
   if (isWin(start)) return { won: true, turns: 0, line: [], nodes, unique: true, winningFirstMoves: 1 };
   const OUT_OF_BUDGET = Symbol("budget");
+  const feasible = makeBound();
   /** Positions proven not to win within this many turns, and positions with a known winning line. */
   const failed = new Map<string, number>(), wins = new Map<string, Action[][]>();
   type Cand = { o: Outcome; reply: () => Run | null };
-  const candidates = (g: Run): Cand[] => {
+  /** The turn's outcomes with `depth` turns left (this one included), best first. Mid-turn positions the
+   * bound rules out are dropped with everything after them. Off the root, a defend on a piece no enemy
+   * can reach is skipped too: the reply ignores it and the flag is gone by the next turn, so the outcome
+   * is a duplicate of the same turn without it (reached in another order if the piece gets exposed
+   * later in the turn). Not the king's: his defend changes what counts as check, so defending first can
+   * allow a move that would be refused after it. The root keeps every defend so winningFirstMoves
+   * counts every distinct board. */
+  const candidates = (g: Run, depth: number, root = false): Cand[] => {
     if (++nodes > budget) throw OUT_OF_BUDGET;
-    const outs = playerOutcomes(g).filter(o => o.run.phase !== "defeat");
+    const later = ENERGY * (depth - 1);
+    const outs = enumerate(g, {
+      prune: s => s.phase === "defeat" || (!exhaustive && s.phase === "player" && !feasible(s, depth, s.energy + later, depth - 1)),
+      defenders: root || exhaustive ? undefined : s => (inCheck(s) ? null : exposed(s).add("king")),
+    });
     const replyOf = replies(outs);
     return outs.map(o => ({ o, score: rank(g, o) })).sort((a, b) => b.score - a.score).map(({ o }) => ({ o, reply: () => replyOf(o) }));
   };
   const search = (g: Run, depth: number): Action[][] | null => {
     if (isWin(g)) return [];
-    if (depth <= 0 || !feasible(g, depth, g.energy + ENERGY * (depth - 1))) return null;
+    // With `depth` turns left the enemy replies before all but the last of them.
+    if (depth <= 0 || (!exhaustive && !feasible(g, depth, g.energy + ENERGY * (depth - 1), depth - 1))) return null;
     const key = boardKey(g);
     const known = wins.get(key);
     if (known && known.length <= depth) return known;
     if ((failed.get(key) ?? 0) >= depth) return null;
-    for (const c of candidates(g)) {
+    for (const c of candidates(g, depth)) {
       const line = follow(c, depth);
       if (line) { wins.set(key, line); return line; }
     }
@@ -267,8 +317,9 @@ export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number 
   /** The line through one outcome, or null if it can't force a win within `depth` turns (this one included). */
   const follow = (c: Cand, depth: number): Action[][] | null => {
     if (isWin(c.o.run)) return [c.o.plan];
-    // What's left in the pool is lost at the turn's end; only the turns after the reply count.
-    if (!feasible(c.o.run, depth - 1, ENERGY * (depth - 1))) return null;
+    // What's left in the pool is lost at the turn's end; only the turns after the reply count, and the
+    // enemy moves once now and before each of those turns but the last.
+    if (!exhaustive && !feasible(c.o.run, depth - 1, ENERGY * (depth - 1), depth - 1)) return null;
     const after = c.reply();
     if (!after) return null;
     if (isWin(after)) return [[...c.o.plan, END]];
@@ -276,10 +327,13 @@ export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number 
     return rest && [[...c.o.plan, END], ...rest];
   };
   try {
-    const first = candidates(start);
+    let first: Cand[] | null = null;
     for (let depth = 1; depth <= opts.maxTurns; depth++) {
       let line: Action[][] | null = null;
       const winners = new Set<string>();
+      // The root is enumerated once per depth: the bound prunes more of it as the horizon shrinks, so
+      // the cheap early depths are cheap, and the node count stays one per expansion.
+      first = candidates(start, depth, true);
       for (const c of first) {
         const found = follow(c, depth);
         if (!found) continue;
