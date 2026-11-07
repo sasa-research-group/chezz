@@ -2,14 +2,16 @@
  * reach in one turn (playerOutcomes), plays the deterministic enemy reply (endTurn) and searches,
  * shortest line first, for a win against this AI (solve). Built for proving puzzle encounters in
  * tests; see docs/solver.md. Pure like turns.ts: no DOM, no randomness, inputs are never mutated. */
-import { DAMAGE, ENCOUNTERS, ENERGY, HP, STRIKE_COST, abilityOf, approaches, attack, attackTargets, coord, defend, endTurn, inCheck, move, moveTargets, passable, promote, reaches, walkAndStrike } from "./turns";
+import { DAMAGE, ENERGY, HP, STRIKE_COST, abilityOf, alt, altActions, approaches, attack, attackTargets, boardOf, coord, defend, endTurn, inCheck, move, moveTargets, passable, promote, reaches, walkAndStrike } from "./turns";
 import type { Pos, PromoteTo, Run, Step, Target, Unit } from "./turns";
+import type { Ability } from "./abilities";
 
 export type Action =
   | { type: "move"; id: string; to: Pos }
   | { type: "attack"; id: string; targetId: string }
   | { type: "defend"; id: string }
   | { type: "promote"; id: string; kind: PromoteTo }
+  | { type: "alt"; id: string; action: string; target?: Pos }
   | { type: "end" };
 /** A position you can reach this turn and the actions that get there (no "end": the turn is still open). */
 export type Outcome = { run: Run; plan: Action[] };
@@ -74,6 +76,7 @@ function enumerate(start: Run, hooks: Hooks): Outcome[] {
           if (tap) step(tap.run, { type: "move", id: u.id, to: { x: t.x, y: t.y } }, { type: "attack", id: u.id, targetId: v.id });
         }
       }
+      for (const a of altActions(g, u, g.energy)) for (const t of a.targets.length ? a.targets : [undefined]) step(alt(g, u.id, a.id, t).run, { type: "alt", id: u.id, action: a.id, target: t && { x: t.x, y: t.y } });
       if (!defenders || defenders.has(u.id)) step(defend(g, u.id), { type: "defend", id: u.id });
     }
   };
@@ -133,7 +136,7 @@ function travel(w: Unit, q: Pos): { energy: number; moves: number } {
 function roamOf(g: Run, b: Unit, replies: number): Pos[] | null {
   if (replies === 0) return [b];
   if (b.kind !== "pawn" || abilityOf(b)?.moveTargets) return null;
-  const far = ENCOUNTERS[g.encounter].height - 1, out: Pos[] = [b];
+  const far = boardOf(g).height - 1, out: Pos[] = [b];
   for (let i = 1; i <= replies; i++) {
     const p = { x: b.x, y: b.y + i };
     if (!passable(g, p)) break;
@@ -230,7 +233,7 @@ function rank(before: Run, o: Outcome): number {
  * a board holding only it and its target, so nothing another piece might clear out of the way is missed.
  * The reply ignores a defend on any other piece. */
 function exposed(g: Run): Set<string> {
-  const e = ENCOUNTERS[g.encounter], whites = g.units.filter(u => u.side === "white"), out = new Set<string>();
+  const e = boardOf(g), whites = g.units.filter(u => u.side === "white"), out = new Set<string>();
   for (const b of g.units) {
     if (b.side !== "black") continue;
     const fresh: Unit = { ...b, moved: false, acted: false, defending: false };
@@ -294,7 +297,9 @@ function replies(outs: Outcome[]): (o: Outcome) => Run | null {
  * where the piece stands; two squares the rook could go to are two. `unique` says there is one core.
  * `exhaustive` turns the pruning off (every outcome, every reply): slow, for checking the bound. */
 export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number; exhaustive?: boolean }): SolveResult {
-  const budget = opts.nodeBudget ?? 200000, exhaustive = opts.exhaustive ?? false;
+  // The bound only knows the plain rules: with tiles on the board or abilities in play it isn't sound, so
+  // such battles are searched exhaustively whatever the caller asked.
+  const budget = opts.nodeBudget ?? 200000, exhaustive = (opts.exhaustive ?? false) || !plainRules(start);
   let nodes = 0;
   if (isWin(start)) return { won: true, turns: 0, line: [], nodes, unique: true, winningFirstMoves: 1, countComplete: true };
   // A finished run has nothing to search.
@@ -389,7 +394,15 @@ export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number;
   return { won: false, reason: "no-win-within", nodes };
 }
 const actionKey = (a: Action): string =>
-  a.type === "move" ? `${a.id}>${a.to.x},${a.to.y}` : a.type === "attack" ? `${a.id}x${a.targetId}` : a.type === "defend" ? `${a.id}!` : a.type === "promote" ? `${a.id}=${a.kind}` : "end";
+  a.type === "move" ? `${a.id}>${a.to.x},${a.to.y}` : a.type === "attack" ? `${a.id}x${a.targetId}` : a.type === "defend" ? `${a.id}!` : a.type === "promote" ? `${a.id}=${a.kind}` : a.type === "alt" ? `${a.id}*${a.action}${a.target ? `${a.target.x},${a.target.y}` : ""}` : "end";
+/** Does an ability change how the battle plays (anything beyond a name and HP)? */
+const hasHooks = (a: Ability | undefined) => !!a && Object.values(a).some(v => typeof v === "function");
+/** The plain rules: no tiles on the board and no piece with an ability that hooks the rules. */
+export function plainRules(g: Run): boolean {
+  const e = boardOf(g);
+  if (e.holes?.length || e.crumbling?.length || e.portals?.length || e.ice?.length || e.gates?.length || e.levers?.length) return false;
+  return !g.units.some(u => hasHooks(abilityOf(u)));
+}
 
 /** Plays the action at `i` with the real rules and says how many actions it used, or null when the
  * rules refuse it. A move the rules refuse on its own is retried as a tap with the strike that
@@ -407,6 +420,7 @@ function tryPlay(g: Run, actions: Action[], i: number): { run: Run; used: 1 | 2;
     case "attack": { const { run } = attack(g, a.id, a.targetId); return run === g ? null : { run, used: 1 }; }
     case "defend": { const run = defend(g, a.id); return run === g ? null : { run, used: 1 }; }
     case "promote": { const { run } = promote(g, a.id, a.kind); return run === g ? null : { run, used: 1 }; }
+    case "alt": { const { run } = alt(g, a.id, a.action, a.target); return run === g ? null : { run, used: 1 }; }
     case "end": { const r = endTurn(g); return r.run === g ? null : { run: r.run, used: 1, steps: r.steps }; }
   }
 }
@@ -449,6 +463,7 @@ function enemyText(g: Run, steps: Step[]): string {
     const text = s.kind === "move" ? `${actor?.kind} →${coord(g, s.focus[0])}`
       : s.kind === "strike" ? `${actor?.kind} strikes ${target?.kind} ${coord(g, s.focus[0])}${s.killed.includes(s.target!) ? " (kill)" : ""}${s.killed.includes(s.actor) ? ", falls to the counter" : ""}`
       : s.kind === "defend" ? `${actor?.kind} defends`
+      : s.kind === "alt" ? `${actor?.kind} ${s.text}`
       : `${s.from ?? "pawn"} becomes a ${s.units.find(u => u.id === s.actor)?.kind}`;
     units = s.units;
     return text;
@@ -479,6 +494,7 @@ export function lineToText(start: Run, line: Action[][]): string[] {
           if (used === 2) add(a.id, head, strikeText(g, run, (turn[i + 1] as { targetId: string }).targetId, a.id));
         } else if (a.type === "attack") add(a.id, head, strikeText(g, run, a.targetId, a.id));
         else if (a.type === "defend") add(a.id, head, "defends");
+        else if (a.type === "alt") add(a.id, head, `${a.action}${a.target ? ` ${coord(g, a.target)}` : ""}`);
         else add(a.id, head, `becomes a ${a.kind}`);
       }
       g = run; i += used;

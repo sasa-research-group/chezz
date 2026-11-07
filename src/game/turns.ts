@@ -8,11 +8,11 @@ import { ABILITIES, VARIANTS, abilityOf, variantOf } from "./abilities";
 import type { AltAction, Variant } from "./abilities";
 import { expireMods, isDazed, isHexed } from "./status";
 import type { Mods } from "./status";
-import { ENCOUNTERS } from "./encounters";
-import { DIAGONALS, LEAPS, STRAIGHTS, at, coord, energyOf, forward, label, lastRank, note, passable, same, shapeReaches, slides, withUnit } from "./board";
+import { ENCOUNTERS, PUZZLES } from "./encounters";
+import { DIAGONALS, LEAPS, STRAIGHTS, at, boardOf, coord, energyOf, forward, label, landingOf, lastRank, note, open, passable, portalExit, same, settle, shapeReaches, slides, withUnit } from "./board";
 export type { AltAction, Variant } from "./abilities";
 export type { Mods } from "./status";
-export { ABILITIES, abilityOf, variantOf, ENCOUNTERS, same, coord, at, label, passable };
+export { ABILITIES, abilityOf, variantOf, ENCOUNTERS, PUZZLES, boardOf, same, coord, at, label, passable };
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
@@ -20,7 +20,19 @@ export type Pos = { x: number; y: number };
  * for the patrol; see variantOf). `mods` is flat ability state, such as what a Haystack has eaten. */
 export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; variant?: Variant; mods?: Mods; moved?: boolean; acted?: boolean; defending?: boolean };
 export type Target = Pos & { cost: number; id?: string };
-export type Encounter = { title: string; story: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: [Kind, number, number, number, Variant?][]; starts: Pos[] };
+/** A piece to put on the board: kind, x, y, hp and (optionally) which cast it belongs to. */
+export type Placement = [Kind, number, number, number, Variant?];
+/** A gate is a wall while shut and floor while open; a lever toggles every gate in its group. */
+export type Gate = { at: Pos; group: string; open?: boolean };
+export type Lever = { at: Pos; group: string };
+/** A board. The road's battles place your army on `starts`; a Guild puzzle hands you a fixed `army`
+ * instead and may set a turn limit. Tiles are optional: holes (pits), crumbling bridge tiles,
+ * burrow pairs (portals), ice, gates and levers. */
+export type Encounter = {
+  title: string; story: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: Placement[]; starts: Pos[];
+  holes?: Pos[]; crumbling?: Pos[]; portals?: [Pos, Pos][]; ice?: Pos[]; gates?: Gate[]; levers?: Lever[];
+  army?: Placement[]; turns?: number; goal?: string;
+};
 export type Run = {
   version: 2; encounter: number; turn: number;
   phase: "player" | "camp" | "victory" | "defeat";
@@ -33,6 +45,10 @@ export type Run = {
   walls?: Pos[]; broken?: Pos[];
   /** Run-level ability state for this battle (King Redcape's one dub). */
   flags?: Record<string, number | boolean>;
+  /** Set when this run is a Guild puzzle (an index into PUZZLES) rather than the road. */
+  puzzle?: number;
+  /** Crumbling tiles that have fallen this battle (pits now), and the gates standing open. */
+  collapsed?: Pos[]; gatesOpen?: Pos[];
 };
 export type RecruitKind = "pawn" | "bishop" | "rook";
 export const RECRUIT_KINDS: RecruitKind[] = ["pawn", "bishop", "rook"];
@@ -66,31 +82,45 @@ export function dealtTo(g: Run, a: Unit, v: Unit): number {
   return Math.max(0, abilityOf(v)?.incoming?.(g, v, a, d) ?? d);
 }
 
-/** Empty squares a piece could move to from its square if it moved like `kind`, priced by distance. */
+/** Empty squares a piece could move to from its square if it moved like `kind`, priced by distance.
+ * Targets are where the piece ends up: a burrow sends it out the other mouth (and a slide carries on
+ * from there), ice glides it on for free. The same destination reached two ways keeps the cheaper price. */
 function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
-  const out: Target[] = [];
-  const open = (p: Pos) => passable(g, p) && !at(g, p);
+  const out = new Map<string, Target>();
+  const add = (dest: Pos, cost: number) => { const k = `${dest.x},${dest.y}`, had = out.get(k); if (!had || had.cost > cost) out.set(k, { x: dest.x, y: dest.y, cost }); };
+  /** Enter `p` moving in `dir`: the square to land on (burrow exits, then ice), or undefined when blocked. */
+  const enter = (p: Pos, dir?: [number, number]): Pos | undefined => {
+    const exit = portalExit(g, p);
+    if (exit ? !open(g, exit) : !open(g, p)) return undefined;
+    return landingOf(g, p, dir);
+  };
   const dirs = slides(kind);
   if (dirs) {
-    for (const [dx, dy] of dirs) for (let n = 1; n <= energy; n++) {
-      const p = { x: u.x + dx * n, y: u.y + dy * n };
-      if (!open(p)) break;
-      out.push({ ...p, cost: n });
+    for (const [dx, dy] of dirs) {
+      // `here` is the square the slide continues from: the piece's own, or a burrow's far mouth.
+      let here: Pos = u;
+      for (let n = 1; n <= energy; n++) {
+        const p = { x: here.x + dx, y: here.y + dy };
+        const dest = enter(p, [dx, dy]);
+        if (!dest) break;
+        add(dest, n);
+        here = portalExit(g, p) ?? p;
+      }
     }
   } else if (kind === "knight") {
-    if (energy >= 2) for (const [dx, dy] of LEAPS) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) out.push({ ...p, cost: 2 }); }
+    if (energy >= 2) for (const [dx, dy] of LEAPS) { const dest = enter({ x: u.x + dx, y: u.y + dy }); if (dest) add(dest, 2); }
   } else if (energy >= 1) {
-    const steps = kind === "king" ? [...STRAIGHTS, ...DIAGONALS] : [[0, forward(u)]];
-    for (const [dx, dy] of steps) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) out.push({ ...p, cost: 1 }); }
+    const steps: [number, number][] = kind === "king" ? [...STRAIGHTS, ...DIAGONALS] : [[0, forward(u)]];
+    for (const [dx, dy] of steps) { const dest = enter({ x: u.x + dx, y: u.y + dy }, [dx, dy]); if (dest) add(dest, 1); }
   }
-  return out;
+  return [...out.values()];
 }
 /** Empty squares a piece can move to this turn, priced by distance. Its variant's ability may add or remove some. */
 export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
   if (u.moved || u.acted || isDazed(u, g.turn)) return [];
   const base = shapeTargets(g, u, u.kind, energy);
   const hook = abilityOf(u)?.moveTargets;
-  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => passable(g, p) && !at(g, p), passable: p => passable(g, p) }) : base;
+  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => open(g, p), passable: p => passable(g, p) }) : base;
 }
 
 /** Enemies a piece can strike this turn: the next square along its capture shape (a knight's jump). */
@@ -120,22 +150,33 @@ export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
 }
 
 function spawn(g: Run, army: Unit[]): Run {
-  const e = ENCOUNTERS[g.encounter];
+  const e = boardOf(g);
   // Battle state (moves, braces, meals) doesn't carry over; the piece and its cast do.
   const whites = army.map((u, i): Unit => ({ id: u.id, side: u.side, kind: u.kind, variant: variantOf(u), hp: u.hp, ...e.starts[i] }));
   // An enemy spawn without a named cast is a plain piece (royal costume, no ability): the road's patrol.
   const enemies = e.spawns.map(([kind, x, y, hp, variant], i): Unit => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black", variant, x, y, hp }));
-  return { ...g, promoting: undefined, walls: undefined, broken: undefined, flags: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
+  const gatesOpen = e.gates?.filter(x => x.open).map(x => x.at);
+  return { ...g, promoting: undefined, walls: undefined, broken: undefined, flags: undefined, collapsed: undefined, gatesOpen: gatesOpen?.length ? gatesOpen : undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
 }
 export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
   return spawn(g, [{ id: "king", side: "white", kind: "king", variant: "rebel", hp: HP.king, x: 0, y: 0 }]);
 }
+/** A Guild puzzle: a fixed army on a fixed board, no gold, no road. Solve it or lose it; the campaign run is untouched. */
+export function startPuzzle(i: number): Run {
+  const e = PUZZLES[i];
+  const g: Run = { version: 2, encounter: 0, puzzle: i, turn: 1, phase: "player", gold: 0, energy: ENERGY, units: [], log: [], history: [`Puzzle: ${e.title}`], nextId: 1 };
+  const army = (e.army ?? []).map(([kind, x, y, hp, variant], n): Unit => ({ id: kind === "king" ? "king" : `ally-${n}`, side: "white", kind, variant: variant ?? "rebel", hp, x, y }));
+  const spawned = spawn({ ...g, units: army }, army);
+  // Puzzle armies stand where the puzzle puts them, not on the road's starts.
+  return { ...spawned, units: [...army, ...spawned.units.filter(u => u.side === "black")] };
+}
 
 function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["The crown fell. Your rebellion ends here.", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
-    const last = g.encounter === ENCOUNTERS.length - 1, reward = ENCOUNTERS[g.encounter].reward;
+    if (g.puzzle !== undefined) return { ...g, phase: "victory", log: ["Solved! The Grandmaster nods.", ...g.log] };
+    const last = g.encounter === ENCOUNTERS.length - 1, reward = boardOf(g).reward;
     return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Across the bridge. Your rebellion has begun." : `Road cleared. +${reward} gold.`, ...g.log] };
   }
   return g;
@@ -156,9 +197,9 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
   if (!t) return g;
-  const next = afterMove(note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`), id, u);
+  const next = afterMove(settle(note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`), id, to, u), id, u);
   // A pawn on the far row waits for you to choose what it becomes.
-  return u.kind === "pawn" && to.y === lastRank(g, u) ? { ...next, promoting: id } : next;
+  return u.kind === "pawn" && to.y === lastRank(g, u) && next.units.some(w => w.id === id) ? { ...next, promoting: id } : next;
 }
 /** Lets every piece with an onAnyMove hook react to `id` having moved from `from`. */
 function afterMove(g: Run, id: string, from: Pos): Run {
@@ -210,7 +251,8 @@ export function alt(g: Run, id: string, actionId: string, target?: Pos): { run: 
   if (!action || (action.targets.length > 0 && !(target && action.targets.some(t => same(t, target))))) return { run: g, step: null };
   const { run, step } = action.apply({ ...g, energy: g.energy - action.cost, units: withUnit(g, id, { acted: true }) }, target);
   const done = finish(removeDead(run));
-  return intoCheck(g, done) ? { run: g, step: null } : { run: done, step };
+  const killed = g.units.filter(w => !done.units.some(x => x.id === w.id)).map(w => w.id);
+  return intoCheck(g, done) ? { run: g, step: null } : { run: done, step: { ...step, units: done.units, killed } };
 }
 
 /** Resolves one strike for either side. The named target may hand the blow to a bodyguard, the
@@ -276,7 +318,7 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
  * nothing scores above zero or the pool is spent. */
 function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   let run = startOfTurn({ ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) }, "black", g.turn);
-  let energy = ENCOUNTERS[g.encounter].enemyEnergy;
+  let energy = boardOf(g).enemyEnergy;
   const steps: Step[] = [];
   const pool = energy;
   for (let guard = 0; guard < 20 && energy > 0 && run.phase === "player"; guard++) {
@@ -315,7 +357,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         if (gain <= 0 && !march && !crowning && !lineUp) continue;
         choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
-          const next = afterMove(note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text), u.id, u);
+          const next = afterMove(settle(note({ ...run, units: withUnit(run, u.id, { moved: true }) }, text), u.id, t, u), u.id, u);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
       }
@@ -362,11 +404,11 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
       for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - stepped)) {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
         const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? "queen" : u.kind };
-        if (reaches(run, moved, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, kind: moved.kind }) }, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
+        if (reaches(run, moved, t, king)) search(settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u), pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
       }
     });
   };
-  search(g, ENCOUNTERS[g.encounter].enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
+  search(g, boardOf(g).enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
   const damage = Math.max(0, ...combos.map(c => c.damage));
   const bar = Math.min(damage, king.hp);
   const attackers = [...new Set(combos.filter(c => damage > 0 && c.damage >= bar).flatMap(c => c.ids))];
@@ -407,6 +449,8 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   const { run, steps, spent } = enemyTurn(endOfTurn(g, "white"));
   if (run.phase !== "player") return { run, steps, spent };
   const turn = run.turn + 1;
+  const limit = boardOf(run).turns;
+  if (limit !== undefined && turn > limit) return { run: { ...run, phase: "defeat", log: ["Out of moves. The Grandmaster resets the board.", ...run.log] }, steps, spent };
   const units = run.units.map((u): Unit => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, variant: u.variant, hp: u.hp, x: u.x, y: u.y, mods: u.mods } : u));
   const fresh = finish(startOfTurn({ ...run, units, energy: ENERGY, turn }, "white", turn));
   return { run: fresh, steps, spent };
@@ -467,6 +511,7 @@ export function readRun(raw: string | null): Run | null {
   try {
     const g = JSON.parse(raw ?? "null") as Run | null;
     if (!g || g.version !== 2 || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !ENCOUNTERS[g.encounter] || !["player", "camp", "victory", "defeat"].includes(g.phase)) return null;
+    if (g.puzzle !== undefined && (!Number.isInteger(g.puzzle) || !PUZZLES[g.puzzle] || g.phase === "camp")) return null;
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;
@@ -476,7 +521,9 @@ export function readRun(raw: string | null): Run | null {
     const okMods = (m: unknown) => m === undefined || (!!m && typeof m === "object" && !Array.isArray(m) && Object.values(m as object).every(v => ["string", "number", "boolean"].includes(typeof v)));
     if (g.units.some(u => (u.variant !== undefined && !VARIANTS.includes(u.variant)) || !okMods(u.mods))) return null;
     const okPosList = (l: unknown) => l === undefined || (Array.isArray(l) && l.every(p => p && Number.isInteger(p.x) && Number.isInteger(p.y)));
-    if (!okPosList(g.walls) || !okPosList(g.broken) || !okMods(g.flags)) return null;
+    if (!okPosList(g.walls) || !okPosList(g.broken) || !okPosList(g.collapsed) || !okPosList(g.gatesOpen) || !okMods(g.flags)) return null;
+    const e = boardOf(g);
+    if (g.collapsed?.some(c => !e.crumbling?.some(t => same(t, c))) || g.gatesOpen?.some(p => !e.gates?.some(x => same(x.at, p)))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > maxHp(u))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;
