@@ -192,7 +192,7 @@ describe("tiles under abilities and odd routes", () => {
     // ...and only those, even when the exit happens to sit on the piece's own file.
     const same = move(board({ portals: [[sq(0, 4), sq(3, 0)]], crumbling: [sq(3, 3), sq(3, 2), sq(3, 1), sq(2, 4), sq(1, 4)] }, [king(4, 4), bent, sentry], { energy: 3 }), "r", sq(3, 0));
     expect(unit(same, "r")).toMatchObject({ x: 3, y: 0 });
-    expect(same.collapsed).toEqual(expect.arrayContaining([sq(3, 4), sq(2, 4), sq(1, 4)]));
+    expect(same.collapsed).toEqual([sq(2, 4), sq(1, 4)]);
     expect(same.collapsed!.some(c => c.x === 3 && c.y < 4)).toBe(false);
   });
   it("glides into a burrow and comes out the far side", () => {
