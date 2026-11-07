@@ -4,10 +4,15 @@
  * square in its shape (2) or defend (1). Pure and
  * deterministic: no DOM, no randomness, inputs are never mutated. Piece variants and their
  * abilities live in abilities.ts and hook in here. */
-import { ABILITIES, VARIANTS, abilityOf, expireMods, isDazed, isHexed, variantOf } from "./abilities";
-import type { AltAction, Mods, Variant } from "./abilities";
-export type { AltAction, Variant, Mods } from "./abilities";
-export { ABILITIES, abilityOf, variantOf };
+import { ABILITIES, VARIANTS, abilityOf, variantOf } from "./abilities";
+import type { AltAction, Variant } from "./abilities";
+import { expireMods, isDazed, isHexed } from "./status";
+import type { Mods } from "./status";
+import { ENCOUNTERS } from "./encounters";
+import { DIAGONALS, LEAPS, STRAIGHTS, at, coord, energyOf, forward, label, lastRank, note, passable, same, shapeReaches, slides, withUnit } from "./board";
+export type { AltAction, Variant } from "./abilities";
+export type { Mods } from "./status";
+export { ABILITIES, abilityOf, variantOf, ENCOUNTERS, same, coord, at, label, passable };
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
@@ -42,27 +47,12 @@ export const ENERGY = 4;
 export const STRIKE_COST = 2;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
 export const DAMAGE: Record<Kind, number> = { king: 2, queen: 3, rook: 3, bishop: 2, knight: 2, pawn: 1 };
-export const ENCOUNTERS: Encounter[] = [
-  { title: "The roadside patrol", story: "Two royal lackeys. One very annoyed former king. Clear the road.", reward: 8, enemyEnergy: 2, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] },
-  { title: "The first follower", story: "The old toll gate is closed. Find a way around, and bring everyone home.", reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
-  { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
-];
 /** What the barracks sells: a kind (a rebel), a specific recruit, or a heal. */
 export type CampChoice = RecruitKind | Recruit | "heal";
 export const COST: Record<RecruitKind | "heal", number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
 export const recruitOf = (choice: CampChoice): Recruit | null => choice === "heal" ? null : typeof choice === "string" ? { kind: choice, variant: "rebel" } : choice;
 export const costOf = (choice: CampChoice) => COST[choice === "heal" ? "heal" : recruitOf(choice)!.kind];
 
-export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
-export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (ENCOUNTERS[g.encounter].height - p.y);
-export const at = (g: Run, p: Pos) => g.units.find(u => same(u, p));
-export const label = (u: Unit) => `${u.side === "white" ? "Your" : "Enemy"} ${u.kind}`;
-export function passable(g: Run, p: Pos) {
-  const e = ENCOUNTERS[g.encounter];
-  if (p.x < 0 || p.y < 0 || p.x >= e.width || p.y >= e.height) return false;
-  if (g.walls?.some(w => same(w, p))) return false;
-  return !e.walls.some(w => same(w, p) && !g.broken?.some(b => same(b, p)));
-}
 /** A piece's full health: its kind's, unless its variant says otherwise. */
 export const maxHp = (u: Pick<Unit, "side" | "variant" | "kind">) => abilityOf(u)?.hp ?? HP[u.kind];
 /** What this piece's strike costs right now (Sir Lance charges cheaply after a jump). */
@@ -75,12 +65,6 @@ export function dealtTo(g: Run, a: Unit, v: Unit): number {
   d = Math.max(0, Math.max(0, d) - (v.defending ? 1 : 0));
   return Math.max(0, abilityOf(v)?.incoming?.(g, v, a, d) ?? d);
 }
-const DIAGONALS = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
-const STRAIGHTS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const LEAPS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
-const slides = (k: Kind) => k === "rook" ? STRAIGHTS : k === "bishop" ? DIAGONALS : k === "queen" ? [...STRAIGHTS, ...DIAGONALS] : null;
-const forward = (u: Unit) => u.side === "white" ? -1 : 1;
-const energyOf = (g: Run, side: Side) => side === "white" ? g.energy : ENCOUNTERS[g.encounter].enemyEnergy;
 
 /** Empty squares a piece could move to from its square if it moved like `kind`, priced by distance. */
 function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
@@ -134,14 +118,6 @@ export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
   const hook = abilityOf(u)?.reaches;
   return hook ? hook(g, u, from, target, shapeReaches(u, from, target)) : shapeReaches(u, from, target);
 }
-function shapeReaches(u: Unit, from: Pos, target: Pos): boolean {
-  const dx = target.x - from.x, dy = target.y - from.y, ax = Math.abs(dx), ay = Math.abs(dy);
-  if (u.kind === "pawn") return ax === 1 && dy === forward(u);
-  if (u.kind === "knight") return ax * ay === 2;
-  if (Math.max(ax, ay) !== 1) return false;
-  const diagonal = ax === 1 && ay === 1;
-  return u.kind === "rook" ? !diagonal : u.kind === "bishop" ? diagonal : true;
-}
 
 function spawn(g: Run, army: Unit[]): Run {
   const e = ENCOUNTERS[g.encounter];
@@ -155,7 +131,6 @@ export function newRun(): Run {
   return spawn(g, [{ id: "king", side: "white", kind: "king", variant: "rebel", hp: HP.king, x: 0, y: 0 }]);
 }
 
-const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => (u.id === id ? { ...u, ...patch } : u));
 function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["The crown fell. Your rebellion ends here.", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
@@ -164,7 +139,6 @@ function finish(g: Run): Run {
   }
   return g;
 }
-const note = (g: Run, text: string): Run => ({ ...g, log: [text, ...g.log].slice(0, 30), history: [...g.history, text] });
 
 /** True when an action would take your king from safe to in check, which the rules forbid. Once
  * he's already in check you may act freely; he just has to be safe before the turn ends. Getting him
@@ -185,7 +159,6 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   // A pawn on the far row waits for you to choose what it becomes.
   return u.kind === "pawn" && to.y === lastRank(g, u) ? { ...next, promoting: id } : next;
 }
-const lastRank = (g: Run, u: Unit) => (u.side === "white" ? 0 : ENCOUNTERS[g.encounter].height - 1);
 /** Lets every piece with an onAnyMove hook react to `id` having moved from `from`. */
 function afterMove(g: Run, id: string, from: Pos): Run {
   let run = g;
@@ -244,7 +217,7 @@ export function alt(g: Run, id: string, actionId: string, target?: Pos): { run: 
  * then deaths and the striker's after-strike hook resolve. */
 function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   const named = g.units.find(u => u.id === t.id)!;
-  const v = abilityOf(named)?.intercept?.(g, a, named) ?? named;
+  const v = abilityOf(named)?.intercept?.(g, a, named, reaches) ?? named;
   const victims = [v, ...(abilityOf(a)?.splash?.(g, a, v) ?? [])].filter((x, i, all) => x.id !== a.id && all.findIndex(y => y.id === x.id) === i);
   const dealt = new Map(victims.map(x => [x.id, dealtTo(g, a, x)]));
   // Strikes land from where the striker stands; it never moves onto the target's square.
@@ -315,10 +288,14 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const v = run.units.find(w => w.id === t.id)!;
         const dealt = dealtTo(run, u, v);
         if (dealt === 0) continue;
+        // A sweep hits the neighbours too: foes are worth what a strike on them would be, friends count double against.
+        const splash = (abilityOf(u)?.splash?.(run, u, v) ?? []).filter(x => x.id !== v.id && x.id !== u.id);
+        const worth = (x: Unit) => dealtTo(run, u, x) * 10 + (dealtTo(run, u, x) >= x.hp ? 50 : 0);
+        const splashScore = splash.reduce((s, x) => s + (x.side === u.side ? -2 * worth(x) : worth(x)), 0);
         // A surviving defender counters if it can reach the striker's square.
         const counterBase = !!v.defending && reaches(run, v, v, u);
         const countered = dealt < v.hp && (abilityOf(v)?.counters?.(run, v, u, counterBase) ?? counterBase) ? dealtTo(run, v, u) : 0;
-        const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0) - t.cost;
+        const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) + splashScore - countered * 8 - (countered >= u.hp ? 60 : 0) - t.cost;
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => ({ ...strike(run, u, t), cost: t.cost }) });
       }
       // Close in on the king, or on whichever of your pieces is nearest.
@@ -363,7 +340,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
       run = p.run; steps.push(p.step);
     }
   }
-  return { run, steps, spent: pool - energy };
+  return { run: endOfTurn(run, "black"), steps, spent: pool - energy };
 }
 
 /** The most damage the enemy's next turn could deal your king, within its pool: each enemy piece may
@@ -426,12 +403,21 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   if (g.phase !== "player" || g.promoting) return { run: g, steps: [], spent: 0 };
   // In check you must get the king safe first, unless nothing this turn can.
   if (inCheck(g) && canEscape(g)) return { run: g, steps: [], spent: 0 };
-  const { run, steps, spent } = enemyTurn(g);
+  const { run, steps, spent } = enemyTurn(endOfTurn(g, "white"));
   if (run.phase !== "player") return { run, steps, spent };
   const turn = run.turn + 1;
   const units = run.units.map((u): Unit => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, variant: u.variant, hp: u.hp, x: u.x, y: u.y, mods: u.mods } : u));
   const fresh = finish(startOfTurn({ ...run, units, energy: ENERGY, turn }, "white", turn));
   return { run: fresh, steps, spent };
+}
+/** The end of `side`'s turn: each of its pieces' endTurn hooks run (Marmalade dozes off again). */
+function endOfTurn(g: Run, side: Side): Run {
+  let run = g;
+  for (const u of g.units.filter(u => u.side === side)) {
+    const hook = abilityOf(u)?.endTurn, now = run.units.find(x => x.id === u.id);
+    if (hook && now) run = hook(run, now);
+  }
+  return run;
 }
 /** The start of `side`'s turn number `turn`: timed statuses expire, burning pieces take 1, and each
  * piece's startTurn hook runs (Wick burns down). Pieces that drop to 0 are removed. */
