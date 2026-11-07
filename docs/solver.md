@@ -69,8 +69,13 @@ hand) through the bound.
   smarter enemy or a changed scoring rule can unsolve a puzzle.
 - The bound leans on three facts: no move covers more than one square per
   energy, a piece moves once a turn, and the enemy never strikes for 0 (so a
-  pawn never hits a braced piece). An ability that breaks one needs the bound
-  revisited; `exhaustive` mode is the safety net.
+  pawn never hits a braced piece). Tiles (ice, burrows) and abilities (Sir
+  Lance's 3, the Warden's sweep, shoves into pits, fire) break them, so
+  `solve` switches itself to exhaustive mode whenever the board has tiles or
+  any piece has an ability with hooks (`plainRules`), and in that mode it
+  also stops sharing enemy replies between outcomes (the sharing rule,
+  `exposed`, knows only plain strike costs). Alternative actions are
+  enumerated like moves (`{ type: "alt", id, action, target? }`).
 - Branching: a three-piece army has about 400 outcomes a turn, roughly 100
   distinct replies. Without the bound a four-turn proof takes hours; with it
   the bridge (encounter 2, full army) takes about 1000 nodes (turn-start
@@ -85,6 +90,12 @@ hand) through the bound.
   forced first turn.
 
 ## Puzzle encounters in tests
+`tests/puzzles.test.ts` runs every Guild puzzle (`PUZZLES`) through `solve`
+with its turn limit and a node budget (`PUZZLE_NODES`, default 60000 so
+`npm test` stays quick: the proof is cheap, the count of first moves is what
+costs) and writes each winning line to `PUZZLE_LOG` when set. The four
+boards solve in 1, 101, 68 and about 2000 nodes.
+
 A puzzle test builds the encounter's starting run, calls `solve` with the
 intended turn count, and asserts `won`, `turns` (not shorter than intended),
 `countComplete`, `unique` where the design wants one key idea, and replays the
