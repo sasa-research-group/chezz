@@ -14,7 +14,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   unit has a `variant` (rebel/royal/misfit); abilities are pure hooks in
   `src/game/abilities.ts` (Haystack = Consume). The board, hub and pickers
   render Wesley's character-select sheet sliced to `public/art/cast/*.png`
-  via `PieceSprite.tsx` + `sprite.css` (same action names as the rig).
+  via `PieceSprite.tsx` + `sprite.css` (same action names as the rig). Sheet
+  slicer: `scripts/slice-cast.py` (Pillow + numpy); the studio's Art catalog
+  opens with the 18 portraits and a sprite × state matrix.
 - **Studio** (`art.html` → `src/art/`, `claude/art-studio`): every piece of
   art rendered live, the implemented mechanics computed from `turns.ts`, a
   style guide (swatches checked against the source) and tooling notes. Seed
