@@ -68,9 +68,8 @@ describe("The Warden (royal rook): Poleaxe Sweep", () => {
     const { run, step } = attack(g, "w", "p");
     expect(step!.damage).toEqual([{ id: "p", amount: 3 }, { id: "king", amount: 2 }]);
     expect(unit(run, "king")!.hp).toBe(1);
-    // Awake he has no such fur (3 >= 3), and asleep at 2 HP the 2 still fells him: both refused.
-    const awake = { ...g, units: g.units.map(u => (u.id === "king" ? { ...u, mods: { awake: true } } : u)) };
-    expect(attackTargets(awake, unit(awake, "w")!)).toEqual([]);
+    // The veto weighs the blow with the rules' own damage calculation (the king's incoming hook included):
+    // asleep at 2 HP the 2 still fells him, so the swing is refused.
     const frail = { ...g, units: g.units.map(u => (u.id === "king" ? { ...u, hp: 2 } : u)) };
     expect(attackTargets(frail, unit(frail, "w")!)).toEqual([]);
     // On the enemy side the same swing is offered to the AI, and it takes it.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY, PUZZLES, attack, endTurn, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
+import { ENERGY, PUZZLES, alt, attack, endTurn, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
 import type { Encounter, Run, Unit } from "../src/game/turns";
 import { isHole, isWall, landingOf } from "../src/game/board";
 
@@ -163,6 +163,21 @@ describe("gates and levers", () => {
     // what strikes the king, each attacker stepping in and striking by itself (docs/variants.md).
     const helper = { ...g, units: [...g.units, foe("k", "king", 3, 3, 5)] };
     expect(kingThreat(helper).damage).toBe(2);
+  });
+});
+
+describe("Brick and gates", () => {
+  it("demolishes a shut gate into floor for good: the lever no longer shuts it", () => {
+    const brick: Unit = { id: "r", side: "white", kind: "rook", variant: "rebel", x: 2, y: 3, hp: 5 };
+    const g = board({ gates: [{ at: sq(2, 2), group: "g" }], levers: [{ at: sq(4, 3), group: "g" }], walls: [sq(0, 2), sq(1, 2), sq(3, 2), sq(4, 2)] }, [king(4, 4), brick, sentry]);
+    const smashed = alt(g, "r", "demolish", sq(2, 2)).run;
+    expect(smashed).not.toBe(g);
+    expect(isWall(smashed, sq(2, 2))).toBe(false);
+    expect(smashed.broken).toEqual([sq(2, 2)]);
+    // Pulling the lever afterwards changes nothing: there is no gate left.
+    const pulled = move({ ...smashed, energy: ENERGY }, "king", sq(4, 3));
+    expect(isWall(pulled, sq(2, 2))).toBe(false);
+    expect(readRun(JSON.stringify(pulled))).not.toBeNull();
   });
 });
 

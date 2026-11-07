@@ -17,6 +17,10 @@ export const wick: Ability = {
     const hp = u.hp - 1;
     return note({ ...g, units: withUnit(g, u.id, { hp }) }, `${label(u)} ${hp > 0 ? "burns down" : "gutters out"}.`);
   },
+  // Candles are cheap: back at the hideout she is relit to full.
+  atCamp: (u, max) => ({ ...u, hp: max }),
+  // The fire she would light ticks before the victim can act: check counts it (once; a burning piece is already counted).
+  lingering: (_g, _a, v, dealt) => (dealt >= 1 && !(typeof v.mods?.burning === "number" && v.mods.burning > 0) ? 1 : 0),
   afterStrike: (g, _striker, victim) => {
     const v = g.units.find(u => u.id === victim.id);
     // A blow that dealt nothing (or killed) lights nothing: `victim` is the piece before the blow.

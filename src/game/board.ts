@@ -45,6 +45,8 @@ export const portalExit = (g: Run, p: Pos): Pos | undefined => {
 export const passable = (g: Run, p: Pos) => onBoard(g, p) && !isWall(g, p) && !isHole(g, p);
 /** Passable and empty. */
 export const open = (g: Run, p: Pos) => passable(g, p) && !at(g, p);
+/** A piece may be shoved here: on the board, not a wall, nobody on it. A pit counts (the piece falls in). */
+export const shoveable = (g: Run, p: Pos) => onBoard(g, p) && !isWall(g, p) && !at(g, p);
 export const forward = (u: Pick<Unit, "side">) => (u.side === "white" ? -1 : 1);
 export const lastRank = (g: Run, u: Pick<Unit, "side">) => (u.side === "white" ? 0 : boardOf(g).height - 1);
 export const energyOf = (g: Run, side: Side) => (side === "white" ? g.energy : boardOf(g).enemyEnergy);

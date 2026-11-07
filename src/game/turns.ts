@@ -182,7 +182,7 @@ function finish(g: Run): Run {
     if (g.puzzle !== undefined) return { ...g, phase: "victory", log: ["Solved! The Grandmaster nods.", ...g.log] };
     const last = g.encounter === ENCOUNTERS.length - 1, reward = e.reward;
     // Back at the hideout, pieces with a camp hook recover (a candle is relit for free).
-    const units = last ? g.units : g.units.map(u => (u.side === "white" ? abilityOf(u)?.atCamp?.(u) ?? u : u));
+    const units = last ? g.units : g.units.map(u => (u.side === "white" ? abilityOf(u)?.atCamp?.(u, maxHp(u)) ?? u : u));
     return { ...g, units, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Across the bridge. Your rebellion has begun." : `Road cleared. +${reward} gold.`, ...g.log] };
   }
   return g;
@@ -404,7 +404,7 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   // The enemy's flags from its last turn (moved, acted, braced) are reset before it acts again.
   const start: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) };
   const burn = typeof king.mods?.burning === "number" && king.mods.burning > 0 ? 1 : 0;
-  const hit = (run: Run, u: Unit) => dealtTo(run, u, king);
+  const hit = (run: Run, u: Unit) => { const d = dealtTo(run, u, king); return d + (abilityOf(u)?.lingering?.(run, u, king, d) ?? 0); };
   const combos: { damage: number; ids: string[] }[] = [{ damage: burn, ids: [] }];
   const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
     if (damage > 0) combos.push({ damage, ids });

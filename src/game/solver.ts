@@ -254,10 +254,11 @@ function exposed(g: Run): Set<string> {
  * one reply. Null when the rules refuse the ending (check with a way out) or the reply loses. In
  * check the pool does matter (a way out may need the energy), so there the reply is cached by board
  * and pool together: a 0-damage strike leaves the board as it was with two energy fewer. */
-function replies(outs: Outcome[]): (o: Outcome) => Run | null {
+function replies(outs: Outcome[], share = true): (o: Outcome) => Run | null {
   const reply = (g: Run): Run | null => { const after = endTurn(g).run; return after === g || after.phase === "defeat" ? null : after; };
   const bases = new Map<string, Outcome>();
-  for (const o of outs) if (!o.run.units.some(u => u.side === "white" && u.defending)) bases.set(replyKey(o.run, false), o);
+  // Sharing leans on exposed(), which knows only the plain rules: with abilities in play every outcome gets its own reply.
+  if (share) for (const o of outs) if (!o.run.units.some(u => u.side === "white" && u.defending)) bases.set(replyKey(o.run, false), o);
   const done = new Map<string, Run | null>(), reach = new Map<string, Set<string> | null>();
   return o => {
     const key = `${replyKey(o.run, true)}|${o.run.energy}`;
@@ -323,7 +324,7 @@ export function solve(start: Run, opts: { maxTurns: number; nodeBudget?: number;
       prune: s => s.phase === "defeat" || (!exhaustive && s.phase === "player" && !feasible(s, depth, s.energy + later, depth - 1)),
       defenders: root || exhaustive ? undefined : s => (inCheck(s) ? null : exposed(s).add("king")),
     });
-    const replyOf = replies(outs);
+    const replyOf = replies(outs, !exhaustive);
     return outs.map(o => ({ o, score: rank(g, o) })).sort((a, b) => b.score - a.score).map(({ o }) => ({ o, reply: () => replyOf(o) }));
   };
   const search = (g: Run, depth: number): Action[][] | null => {

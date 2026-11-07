@@ -4,7 +4,7 @@
 import type { Kind, Run } from "../turns";
 import type { Ability } from "../abilities";
 import type { Mods } from "../status";
-import { coord, label, note, same } from "../board";
+import { coord, label, note, same, settle } from "../board";
 
 /** What the haystack has eaten, while the meal lasts. */
 export const digesting = (u: { mods?: Mods }, turn: number): Kind | undefined => {
@@ -26,7 +26,8 @@ export const haystack: Ability = {
     if (!killed || !g.units.some(u => u.id === striker.id)) return g;
     const p = { x: victim.x, y: victim.y };
     const mods: Mods = { ...(striker.mods ?? {}), absorbed: victim.kind, absorbedUntil: g.turn + 2 };
-    const rolled: Run = { ...g, units: g.units.map(u => (u.id === striker.id ? { ...u, ...p, mods } : u)) };
+    const me = g.units.find(u => u.id === striker.id)!;
+    const rolled: Run = settle({ ...g, units: g.units.map(u => (u.id === striker.id ? { ...u, mods } : u)) }, striker.id, p, me);
     // The victim's death may have raised a wall where it stood (Nobody's empty suit, from onDeath,
     // which runs before this hook). The hay rolls over it: the suit is crushed and the square stays floor.
     if (!g.walls?.some(w => same(w, p))) return rolled;

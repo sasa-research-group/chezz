@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attack, endTurn, newRun, readRun } from "../../src/game/turns";
+import { attack, endTurn, inCheck, kingThreat, newRun, readRun } from "../../src/game/turns";
 import type { Run, Unit } from "../../src/game/turns";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 0, y: 3, hp: 5 };
@@ -70,10 +70,19 @@ describe("Wick (misfit queen): Candlelight", () => {
     expect(theirs.run.phase).toBe("camp");
   });
 
-  // The spec wants kingThreat to count fire as unavoidable damage, and today it ignores it entirely:
-  // a burning king at 1 HP is not in check, and a 4-HP king beside an enemy Wick is not in check
-  // either, though her 3 plus the first tick (which lands before he acts) kills him. kingThreat
-  // only prices enemy strikes; see missing_hooks in the build report.
-  it.todo("counts a pending burn tick on your king as unavoidable damage in kingThreat");
-  it.todo("puts a 4-HP king in check when an enemy Wick stands beside him: 3 now, 1 before he acts");
+  it("counts a pending burn tick on your king as unavoidable damage in kingThreat", () => {
+    const g = board([{ ...king, hp: 1, mods: { burning: 1 } }, { ...wick, id: "e", side: "black", x: 3, y: 0 }]);
+    expect(kingThreat(g)).toEqual({ damage: 1, attackers: [] });
+    expect(inCheck(g)).toBe(true);
+    expect(endTurn(g).run.phase).toBe("defeat");
+  });
+  it("puts a 4-HP king in check when an enemy Wick stands beside him: 3 now, 1 before he acts", () => {
+    const beside = board([{ ...king, hp: 4 }, { ...wick, id: "e", side: "black", x: king.x + 1, y: king.y }]);
+    expect(kingThreat(beside)).toEqual({ damage: 4, attackers: ["e"] });
+    expect(inCheck(beside)).toBe(true);
+    // Already alight, the tick is counted once: her blow adds only its 3.
+    const lit = board([{ ...king, hp: 4, mods: { burning: 2 } }, { ...wick, id: "e", side: "black", x: king.x + 1, y: king.y }]);
+    expect(kingThreat(lit).damage).toBe(4);
+    expect(inCheck(board([{ ...king, hp: 5 }, { ...wick, id: "e", side: "black", x: king.x + 1, y: king.y }]))).toBe(false);
+  });
 });

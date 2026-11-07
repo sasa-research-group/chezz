@@ -5,7 +5,7 @@
  * so a braced survivor counters from its original square and is shoved afterwards; the shove lands
  * even if that counter felled Pip (the fork hit first). See docs/variants.md. */
 import type { Ability } from "../abilities";
-import { coord, label, note, open } from "../board";
+import { coord, label, landingOf, note, settle, shoveable } from "../board";
 
 export const pip: Ability = {
   id: "rebel-pawn", variant: "rebel", kind: "pawn", name: "Pip", ability: "Heave",
@@ -18,8 +18,10 @@ export const pip: Ability = {
     const dx = Math.sign(live.x - striker.x), dy = Math.sign(live.y - striker.y);
     if (!dx && !dy) return g;
     const to = { x: live.x + dx, y: live.y + dy };
-    if (!open(g, to)) return g;
-    const units = g.units.map(u => (u.id === live.id ? { ...u, x: to.x, y: to.y } : u));
-    return note({ ...g, units }, `${label(live)} is shoved to ${coord(g, to)}.`);
+    if (!shoveable(g, to)) return g;
+    // A shove is a directed displacement: it may drop the piece in a pit, send it through a burrow or skid it over ice.
+    const dest = landingOf(g, to, [dx, dy]);
+    if (!shoveable(g, dest)) return g;
+    return settle(note(g, `${label(live)} is shoved to ${coord(g, dest)}.`), live.id, dest, live);
   },
 };

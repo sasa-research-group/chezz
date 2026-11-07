@@ -4,15 +4,16 @@
  * passable() reads both, so the gap is open to either side from then on. */
 import type { Ability, AltAction } from "../abilities";
 import type { Pos, Run, Unit } from "../turns";
-import { boardOf, coord, isWall, label, note, same, straightNeighbours } from "../board";
+import { boardOf, gateAt, coord, isWall, label, note, same, straightNeighbours } from "../board";
 
 /** Knocks the wall on `p` down, whatever raised it: an ability wall is forgotten and an unbroken
  * encounter wall is marked broken, both in one swing, so isWall() is false afterwards even when a
  * crafted save stacks the two on one square. */
 function knockDown(g: Run, p: Pos): Run {
   const walls = g.walls?.filter(w => !same(w, p));
-  const encounter = boardOf(g).walls.some(w => same(w, p)) && !g.broken?.some(b => same(b, p));
-  return { ...g, walls: walls?.length ? walls : undefined, broken: encounter ? [...(g.broken ?? []), { x: p.x, y: p.y }] : g.broken };
+  // What the board drew there (a wall, or a shut gate) is smashed for good: run.broken makes it floor.
+  const drawn = (boardOf(g).walls.some(w => same(w, p)) || !!gateAt(g, p)) && !g.broken?.some(b => same(b, p));
+  return { ...g, walls: walls?.length ? walls : undefined, broken: drawn ? [...(g.broken ?? []), { x: p.x, y: p.y }] : g.broken };
 }
 
 function demolish(g: Run, u: Unit): AltAction[] {
