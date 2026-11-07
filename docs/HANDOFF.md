@@ -42,6 +42,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   placeholders to build out.
 - Difficulty needs tuning from Wesley's play; encounter 2 now punishes
   letting a pawn promote.
+- **Solver** (`src/game/solver.ts`, `docs/solver.md`): proves a position wins
+  in N turns vs the patrol and counts distinct winning first-turn cores.
 - Research: `reports/Simultaneous chess tactics design.md`; puzzle design
   (principles, taxonomy, 10 concepts, verification): `docs/puzzle-design.md`.
 
