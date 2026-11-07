@@ -100,3 +100,19 @@
 @keyframes guard-in{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 @media(max-width:700px){.guard-badge{top:30%;font-size:9px;padding:0 3px 0 1px}.guard-badge svg{width:10px;height:11px}}
 .exile-footer a{color:inherit}
+/* The sprite cast takes the same glows as the rig (selected, spent, strike target, defending). */
+.exile-piece.selected .sprite img{filter:drop-shadow(0 0 3px #fff9d7) drop-shadow(0 0 5px #397869)}
+.exile-piece.spent .sprite img{filter:grayscale(.55) brightness(.92)}
+.exile-piece .sprite img{overflow:visible}
+.exile-piece.targetable .sprite img{filter:drop-shadow(0 0 2px #fff3d9) drop-shadow(0 0 5px #d2402f)}
+.exile-piece.guarded .sprite img{filter:drop-shadow(0 0 2px #e8f3ff) drop-shadow(0 0 6px #3f78a8)}
+.exile-piece.guarded.spent .sprite img{filter:grayscale(.55) brightness(.92) drop-shadow(0 0 5px #3f78a8)}
+.exile-piece.guarded.selected .sprite img{filter:drop-shadow(0 0 3px #fff9d7) drop-shadow(0 0 5px #397869) drop-shadow(0 0 7px #3f78a8)}
+.exile-piece.guarded.targetable .sprite img{filter:drop-shadow(0 0 2px #fff3d9) drop-shadow(0 0 5px #d2402f) drop-shadow(0 0 8px #3f78a8)}
+.exile-piece.has-sprite{transform:translate(-50%,-62%) rotateX(-19deg) rotateZ(3deg) translateZ(16px)}
+.exile-piece .sprite{width:100%}
+/* A Haystack's meal: what it ate and that it moves like it. */
+.absorb-badge{position:absolute;bottom:26%;right:-12%;background:#e7ba58;color:#382f2e;border:2px solid #382f2e;border-radius:8px;box-shadow:0 2px 0 #382f2e;padding:1px 5px;font-size:10px;font-weight:900;white-space:nowrap;z-index:2;pointer-events:none;text-transform:capitalize}
+.camp-offers{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.selected-card .sprite{width:52px;flex-shrink:0;align-self:center}
+.hub-army i .sprite{width:100%}

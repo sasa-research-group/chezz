@@ -10,7 +10,7 @@ const cell = (page: Page, g: Run, p: { x: number; y: number }) => page.getByRole
 test("move, end turn, watch the enemy, and resume after reload", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Begin the rebellion" }).click();
-  await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
+  await expect(page.locator(".piece-layer .sprite")).toHaveCount(3);
   await page.getByRole("button", { name: /^b1 white king/ }).click();
   await expect(page.getByRole("button", { name: /^b2 empty, move for 1/ })).toBeVisible();
   await page.getByRole("button", { name: /^b2 empty/ }).click();
@@ -69,7 +69,7 @@ test("a knight flips over to strike for 2 and lands back home", async ({ page })
   // The stunt ends with the knight home and the fallen pawn gone from the board.
   await expect(page.locator(".exile-piece.lunging")).toHaveCount(0);
   await expect(page.locator(".exile-piece.ghost")).toHaveCount(0);
-  await expect(page.locator(".piece-layer svg.rig")).toHaveCount(3);
+  await expect(page.locator(".piece-layer .sprite")).toHaveCount(3);
 });
 
 test("with several squares to strike from, you pick one", async ({ page }) => {
@@ -119,7 +119,7 @@ test("checkmate plays a finale before the defeat screen", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("No way out");
   await page.getByRole("button", { name: "End turn" }).click();
   await expect(page.locator(".board-camera.mate-zoom")).toHaveCount(1, { timeout: 10000 });
-  await expect(page.locator(".rig.act-mate")).toHaveCount(1);
+  await expect(page.locator(".sprite.act-mate")).toHaveCount(1);
   const banner = page.getByRole("button", { name: /Checkmate!/ });
   await expect(banner).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: "test-results/exile-checkmate.png" });
@@ -143,7 +143,7 @@ test("a king felled by a counter on your own turn still gets the finale", async 
   await page.getByRole("button", { name: /Checkmate!/ }).click();
   await expect(page.getByRole("dialog", { name: "Rebellion ended" })).toBeVisible();
   // He stays flattened on his square, not standing idle.
-  await expect(page.locator(".exile-piece.white .rig.act-mate")).toHaveCount(1);
+  await expect(page.locator(".exile-piece.white .sprite.act-mate")).toHaveCount(1);
 });
 
 test("moves that would put your own king in check are blocked", async ({ page }) => {
@@ -187,6 +187,21 @@ test("in check, an offered walk-up strike lands in full", async ({ page }) => {
   await page.getByRole("button", { name: /^c4 black rook.*strike for/ }).click();
   await expect.poll(async () => (await saved(page)).units.find(u => u.id === "enemy-1-0")?.hp ?? 0).toBeLessThan(5);
   await expect(page.getByRole("status")).toHaveCount(0);
+});
+
+test("Haystack rolls onto the piece it eats and shows the meal", async ({ page }) => {
+  const start = newRun();
+  // A misfit rook next to a 3-HP knight: its 3-damage strike kills, so it eats the knight and takes its square.
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, variant: "misfit" as const, x: 0, y: 3, hp: 5 }, { id: "enemy-0-0", side: "black" as const, kind: "knight" as const, x: 0, y: 2, hp: 3 }, { id: "enemy-0-1", side: "black" as const, kind: "pawn" as const, x: 3, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), JSON.stringify(g));
+  await page.goto("/");
+  await expect(page.locator(".sprite.sp-misfit.sp-rook")).toHaveCount(1);
+  await page.getByRole("button", { name: /^a1 white rook/ }).click();
+  await expect(page.getByText(/Consume: When its strike kills/)).toBeVisible();
+  await page.getByRole("button", { name: /^a2 black knight, 3 HP, strike for 2/ }).click();
+  await expect.poll(async () => (await saved(page)).units.find(u => u.id === "ally-1")).toMatchObject({ x: 0, y: 2, mods: { absorbed: "knight" } });
+  await expect(page.locator(".absorb-badge")).toHaveText(/knight/);
+  await page.screenshot({ path: "test-results/exile-haystack.png" });
 });
 
 test("a pawn on the far row lets you pick its promotion", async ({ page }) => {

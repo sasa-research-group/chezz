@@ -2,13 +2,20 @@
  * spends a per-turn energy pool. Each piece may move once (1 energy per
  * square in its chess shape; a knight's jump costs 2), then strike the next
  * square in its shape (2) or defend (1). Pure and
- * deterministic: no DOM, no randomness, inputs are never mutated. */
+ * deterministic: no DOM, no randomness, inputs are never mutated. Piece variants and their
+ * abilities live in abilities.ts and hook in here. */
+import { ABILITIES, VARIANTS, abilityOf, expireMods, variantOf } from "./abilities";
+import type { Mods, Variant } from "./abilities";
+export type { Variant, Mods } from "./abilities";
+export { ABILITIES, abilityOf, variantOf };
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
-export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean; defending?: boolean };
+/** `variant` is which of the three casts the piece belongs to (rebel by default for your side, royal
+ * for the patrol; see variantOf). `mods` is flat ability state, such as what a Haystack has eaten. */
+export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; variant?: Variant; mods?: Mods; moved?: boolean; acted?: boolean; defending?: boolean };
 export type Target = Pos & { cost: number; id?: string };
-export type Encounter = { title: string; story: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: [Kind, number, number, number][]; starts: Pos[] };
+export type Encounter = { title: string; story: string; reward: number; enemyEnergy: number; width: number; height: number; walls: Pos[]; spawns: [Kind, number, number, number, Variant?][]; starts: Pos[] };
 export type Run = {
   version: 2; encounter: number; turn: number;
   phase: "player" | "camp" | "victory" | "defeat";
@@ -18,7 +25,10 @@ export type Run = {
   /** Recruits bought at the hub, waiting in the barracks until you take the road. */
   recruits?: Recruit[];
 };
-export type Recruit = "pawn" | "bishop" | "rook";
+export type RecruitKind = "pawn" | "bishop" | "rook";
+export const RECRUIT_KINDS: RecruitKind[] = ["pawn", "bishop", "rook"];
+/** A recruit waiting in the barracks: a kind in one of the three casts. */
+export type Recruit = { kind: RecruitKind; variant: Variant };
 export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
 export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
@@ -33,8 +43,11 @@ export const ENCOUNTERS: Encounter[] = [
   { title: "The first follower", story: "The old toll gate is closed. Find a way around, and bring everyone home.", reward: 8, enemyEnergy: 3, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["pawn", 5, 0, 1]], starts: [{ x: 1, y: 3 }, { x: 0, y: 3 }, { x: 5, y: 3 }] },
   { title: "The narrow crossing", story: "A battered knight holds the bridge. Your little rebellion has somewhere to be.", reward: 0, enemyEnergy: 3, width: 6, height: 6, walls: [2, 3].flatMap(y => [0, 1, 4, 5].map(x => ({ x, y }))), spawns: [["knight", 3, 0, 2], ["pawn", 1, 1, 1], ["pawn", 4, 1, 1]], starts: [{ x: 2, y: 5 }, { x: 3, y: 5 }, { x: 3, y: 4 }] },
 ];
-export type CampChoice = Recruit | "heal";
-export const COST: Record<CampChoice, number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
+/** What the barracks sells: a kind (a rebel), a specific recruit, or a heal. */
+export type CampChoice = RecruitKind | Recruit | "heal";
+export const COST: Record<RecruitKind | "heal", number> = { pawn: 3, bishop: 6, rook: 8, heal: 4 };
+export const recruitOf = (choice: CampChoice): Recruit | null => choice === "heal" ? null : typeof choice === "string" ? { kind: choice, variant: "rebel" } : choice;
+export const costOf = (choice: CampChoice) => COST[choice === "heal" ? "heal" : recruitOf(choice)!.kind];
 
 export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (ENCOUNTERS[g.encounter].height - p.y);
@@ -51,25 +64,31 @@ const slides = (k: Kind) => k === "rook" ? STRAIGHTS : k === "bishop" ? DIAGONAL
 const forward = (u: Unit) => u.side === "white" ? -1 : 1;
 const energyOf = (g: Run, side: Side) => side === "white" ? g.energy : ENCOUNTERS[g.encounter].enemyEnergy;
 
-/** Empty squares a piece can move to this turn, priced by distance. */
-export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
-  if (u.moved || u.acted) return [];
+/** Empty squares a piece could move to from its square if it moved like `kind`, priced by distance. */
+function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
   const out: Target[] = [];
   const open = (p: Pos) => passable(g, p) && !at(g, p);
-  const dirs = slides(u.kind);
+  const dirs = slides(kind);
   if (dirs) {
     for (const [dx, dy] of dirs) for (let n = 1; n <= energy; n++) {
       const p = { x: u.x + dx * n, y: u.y + dy * n };
       if (!open(p)) break;
       out.push({ ...p, cost: n });
     }
-  } else if (u.kind === "knight") {
+  } else if (kind === "knight") {
     if (energy >= 2) for (const [dx, dy] of LEAPS) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) out.push({ ...p, cost: 2 }); }
   } else if (energy >= 1) {
-    const steps = u.kind === "king" ? [...STRAIGHTS, ...DIAGONALS] : [[0, forward(u)]];
+    const steps = kind === "king" ? [...STRAIGHTS, ...DIAGONALS] : [[0, forward(u)]];
     for (const [dx, dy] of steps) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) out.push({ ...p, cost: 1 }); }
   }
   return out;
+}
+/** Empty squares a piece can move to this turn, priced by distance. Its variant's ability may add or remove some. */
+export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
+  if (u.moved || u.acted) return [];
+  const base = shapeTargets(g, u, u.kind, energy);
+  const hook = abilityOf(u)?.moveTargets;
+  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => passable(g, p) && !at(g, p) }) : base;
 }
 
 /** Enemies a piece can strike this turn: the next square along its capture shape (a knight's jump). */
@@ -103,13 +122,14 @@ export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
 
 function spawn(g: Run, army: Unit[]): Run {
   const e = ENCOUNTERS[g.encounter];
-  const whites = army.map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
-  const enemies = e.spawns.map(([kind, x, y, hp], i) => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black" as const, x, y, hp }));
+  // Battle state (moves, braces, meals) doesn't carry over; the piece and its cast do.
+  const whites = army.map((u, i): Unit => ({ id: u.id, side: u.side, kind: u.kind, variant: variantOf(u), hp: u.hp, ...e.starts[i] }));
+  const enemies = e.spawns.map(([kind, x, y, hp, variant], i): Unit => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black", variant: variant ?? "royal", x, y, hp }));
   return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
 }
 export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
-  return spawn(g, [{ id: "king", side: "white", kind: "king", hp: HP.king, x: 0, y: 0 }]);
+  return spawn(g, [{ id: "king", side: "white", kind: "king", variant: "rebel", hp: HP.king, x: 0, y: 0 }]);
 }
 
 const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => (u.id === id ? { ...u, ...patch } : u));
@@ -177,7 +197,10 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
     damage.push({ id: a.id, amount: back });
     text += ` The defender counters for ${back}${left > 0 ? "" : ", defeating it"}.`;
   }
-  const run = note({ ...g, units }, text);
+  let run = note({ ...g, units }, text);
+  // The striker's ability may act on the result: a Haystack rolls onto what it kills.
+  const after = abilityOf(a)?.afterStrike;
+  if (after) run = after(run, a, v, !survives);
   const killed = g.units.filter(u => !run.units.some(w => w.id === u.id)).map(u => u.id);
   return { run, step: { text, units: run.units, focus: [{ x: v.x, y: v.y }], damage, actor: a.id, kind: "strike", target: v.id, killed } };
 }
@@ -210,7 +233,7 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
 /** Deterministic enemy policy: take the best-scoring affordable action until
  * nothing scores above zero or the pool is spent. */
 function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
-  let run: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) };
+  let run: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false, mods: expireMods(u, g.turn) } : u)) };
   let energy = ENCOUNTERS[g.encounter].enemyEnergy;
   const steps: Step[] = [];
   const pool = energy;
@@ -308,7 +331,7 @@ export function inCheck(g: Run): boolean {
 /** Could anything you still do this turn (moves, strikes, defending) get the king out of check? */
 export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
-  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + g.energy;
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}${u.mods ? JSON.stringify(u.mods) : ""}`).join("|") + g.energy;
   const visit = (g: Run): boolean => {
     // Try every promotion: a knight's reach might be the only way out.
     if (g.promoting) return (["queen", "rook", "bishop", "knight"] as const).some(kind => visit(promote(g, g.promoting!, kind).run));
@@ -333,13 +356,14 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   if (inCheck(g) && canEscape(g)) return { run: g, steps: [], spent: 0 };
   const { run, steps, spent } = enemyTurn(g);
   if (run.phase !== "player") return { run, steps, spent };
-  const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : u));
-  return { run: { ...run, units, energy: ENERGY, turn: run.turn + 1 }, steps, spent };
+  const turn = run.turn + 1;
+  const units = run.units.map((u): Unit => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, variant: u.variant, hp: u.hp, x: u.x, y: u.y, mods: expireMods(u, turn) } : u));
+  return { run: { ...run, units, energy: ENERGY, turn }, steps, spent };
 }
 
 export function campReason(g: Run, choice: CampChoice): string {
   if (g.phase !== "camp") return "Camp is closed";
-  if (g.gold < COST[choice]) return "Not enough gold";
+  if (g.gold < costOf(choice)) return "Not enough gold";
   if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= HP.king) return "King at full health";
   const army = g.units.filter(u => u.side === "white").length + (g.recruits?.length ?? 0);
   if (choice !== "heal" && army >= (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0)) return "No room on the next road";
@@ -348,15 +372,16 @@ export function campReason(g: Run, choice: CampChoice): string {
 /** Spend gold at the hub: mend the king now, or add a recruit to the barracks. You can buy as often as gold and room allow. */
 export function buy(g: Run, choice: CampChoice): Run {
   if (campReason(g, choice)) return g;
-  const paid = { ...g, gold: g.gold - COST[choice], history: [...g.history, `Camp: ${choice}`] };
-  if (choice === "heal") return { ...paid, units: g.units.map(u => (u.id === "king" ? { ...u, hp: Math.min(HP.king, u.hp + 2) } : u)) };
-  return { ...paid, recruits: [...(g.recruits ?? []), choice] };
+  const recruit = recruitOf(choice);
+  const paid = { ...g, gold: g.gold - costOf(choice), history: [...g.history, `Camp: ${!recruit ? "heal" : recruit.variant === "rebel" ? recruit.kind : `${recruit.variant} ${recruit.kind}`}`] };
+  if (!recruit) return { ...paid, units: g.units.map(u => (u.id === "king" ? { ...u, hp: Math.min(HP.king, u.hp + 2) } : u)) };
+  return { ...paid, recruits: [...(g.recruits ?? []), recruit] };
 }
 /** Take the road: the army and any recruits march into the next battle. */
 export function leaveCamp(g: Run): Run {
   if (g.phase !== "camp") return g;
   const recruits = g.recruits ?? [];
-  const army = [...g.units.filter(u => u.side === "white"), ...recruits.map((kind, i): Unit => ({ id: `ally-${g.nextId + i}`, side: "white", kind, hp: HP[kind], x: 0, y: 0 }))];
+  const army = [...g.units.filter(u => u.side === "white"), ...recruits.map((r, i): Unit => ({ id: `ally-${g.nextId + i}`, side: "white", kind: r.kind, variant: r.variant, hp: HP[r.kind], x: 0, y: 0 }))];
   return spawn({ ...g, encounter: g.encounter + 1, nextId: g.nextId + recruits.length, recruits: undefined, history: [...g.history, "Camp: road"] }, army);
 }
 
@@ -367,8 +392,11 @@ export function readRun(raw: string | null): Run | null {
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId) || !Number.isInteger(g.energy) || g.energy < 0 || g.energy > ENERGY) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if (g.phase === "player" && !g.units.some(u => u.side === "black")) return null;
-    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0))) return null;
+    const isRecruit = (r: unknown): r is Recruit => !!r && typeof r === "object" && RECRUIT_KINDS.includes((r as Recruit).kind) && VARIANTS.includes((r as Recruit).variant);
+    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || !g.recruits.every(isRecruit) || g.units.filter(u => u.side === "white").length + g.recruits.length > (ENCOUNTERS[g.encounter + 1]?.starts.length ?? 0))) return null;
     if (g.promoting !== undefined && (g.phase !== "player" || !g.units.some(u => u.id === g.promoting && u.side === "white" && u.kind === "pawn" && u.y === 0))) return null;
+    const okMods = (m: unknown) => m === undefined || (!!m && typeof m === "object" && !Array.isArray(m) && Object.values(m as object).every(v => ["string", "number", "boolean"].includes(typeof v)));
+    if (g.units.some(u => (u.variant !== undefined && !VARIANTS.includes(u.variant)) || !okMods(u.mods))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;

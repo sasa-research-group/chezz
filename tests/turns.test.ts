@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, walkAndStrike } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
+import { abilityOf, variantOf } from "../src/game/abilities";
 import { playTurn } from "./turns-strategy";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
@@ -339,7 +340,7 @@ describe("turn-based rules", () => {
     expect(unit(healed, "king")!.hp).toBe(4);
     const shopped = buy(buy(healed, "pawn"), "bishop");
     expect(shopped.gold).toBe(20 - COST.heal - COST.pawn - COST.bishop);
-    expect(shopped.recruits).toEqual(["pawn", "bishop"]);
+    expect(shopped.recruits).toEqual([{ kind: "pawn", variant: "rebel" }, { kind: "bishop", variant: "rebel" }]);
     // Recruits wait in the barracks (off the board) until you leave, so saves stay valid.
     expect(readRun(JSON.stringify(shopped))).toEqual(shopped);
     expect(readRun(JSON.stringify({ ...shopped, recruits: ["queen"] }))).toBeNull();
@@ -382,5 +383,62 @@ describe("turn-based rules", () => {
       expect(new Set(g.units.map(u => `${u.x},${u.y}`)).size).toBe(g.units.length);
     }
     expect(g.phase).toBe("victory");
+  });
+});
+
+describe("piece variants", () => {
+  const haystack: Unit = { id: "h", side: "white", kind: "rook", variant: "misfit", hp: 5, x: 1, y: 3 };
+  it("gives every piece a variant: rebels for you, royals for the patrol, carried through recruits and saves", () => {
+    const g = newRun();
+    expect(unit(g, "king")!.variant).toBe("rebel");
+    expect(g.units.filter(u => u.side === "black").every(u => variantOf(u) === "royal")).toBe(true);
+    // The barracks can sell a misfit: Haystack is a rook that plays differently.
+    const camp = { ...g, phase: "camp" as const, gold: 20 };
+    const bought = buy(camp, { kind: "rook", variant: "misfit" });
+    expect(bought.recruits).toEqual([{ kind: "rook", variant: "misfit" }]);
+    expect(bought.gold).toBe(20 - COST.rook);
+    const next = leaveCamp(bought);
+    expect(next.units.find(u => u.kind === "rook")).toMatchObject({ side: "white", variant: "misfit" });
+    expect(readRun(JSON.stringify(next))).toEqual(next);
+    // Saves from before variants existed still load, as rebels and royals.
+    const old = { ...g, units: g.units.map(({ variant: _v, ...u }) => u) };
+    expect(readRun(JSON.stringify(old))).toEqual(old);
+    expect(readRun(JSON.stringify({ ...g, units: g.units.map(u => ({ ...u, variant: "elf" })) }))).toBeNull();
+    expect(readRun(JSON.stringify({ ...bought, recruits: [{ kind: "rook", variant: "elf" }] }))).toBeNull();
+  });
+  it("Haystack (misfit rook) rolls onto what it kills and moves like it for two turns", () => {
+    const knight: Unit = { id: "n", side: "black", kind: "knight", x: 1, y: 2, hp: 3 };
+    const far: Unit = { id: "f", side: "black", kind: "pawn", x: 3, y: 0, hp: 1 };
+    const g = board([{ ...king, x: 0, y: 3 }, haystack, knight, far]);
+    expect(abilityOf(haystack)?.ability).toBe("Consume");
+    const { run } = attack(g, "h", "n");
+    expect(unit(run, "n")).toBeUndefined();
+    // It ate the knight: it now stands on the knight's square and remembers the meal.
+    expect(unit(run, "h")).toMatchObject({ x: 1, y: 2, acted: true, mods: { absorbed: "knight", absorbedUntil: g.turn + 2 } });
+    expect(readRun(JSON.stringify(run))).toEqual(run);
+    // Next turn it can leap like a knight (2 energy) as well as slide like a rook.
+    const fresh = { ...run, turn: run.turn + 1, energy: ENERGY, units: run.units.map(u => (u.id === "h" ? { ...u, acted: false, moved: false } : u)) };
+    const moves = moveTargets(fresh, unit(fresh, "h")!);
+    expect(moves).toContainEqual({ x: 3, y: 3, cost: 2 });
+    expect(moves).toContainEqual({ x: 2, y: 0, cost: 2 });
+    expect(moves).toContainEqual({ x: 1, y: 1, cost: 1 });
+    // Three turns later the meal has worn off.
+    const later = { ...fresh, turn: run.turn + 3 };
+    expect(moveTargets(later, unit(later, "h")!)).not.toContainEqual({ x: 3, y: 3, cost: 2 });
+  });
+  it("a Haystack strike that doesn't kill is an ordinary strike", () => {
+    const tough: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
+    const g = board([{ ...king, x: 0, y: 3 }, haystack, tough]);
+    const { run } = attack(g, "h", "r");
+    expect(unit(run, "r")!.hp).toBe(5 - DAMAGE.rook);
+    expect(unit(run, "h")).toMatchObject({ x: 1, y: 3 });
+    expect(unit(run, "h")!.mods).toBeUndefined();
+  });
+  it("keeps a meal through the enemy turn and forgets it after it wears off", () => {
+    const g = board([{ ...king, x: 0, y: 3 }, { ...haystack, mods: { absorbed: "knight", absorbedUntil: 2 } }, { id: "f", side: "black", kind: "pawn", x: 3, y: 0, hp: 1 }]);
+    const t2 = endTurn(g).run;
+    expect(unit(t2, "h")).toMatchObject({ variant: "misfit", mods: { absorbed: "knight", absorbedUntil: 2 } });
+    const t3 = endTurn({ ...t2, units: t2.units.map(u => (u.side === "black" ? { ...u, x: 3, y: 0 } : u)) }).run;
+    expect(unit(t3, "h")!.mods).toBeUndefined();
   });
 });

@@ -10,14 +10,18 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Art:** a cast of misfit characters (rebels vs a blue royal patrol) with
   Pizza Tower-style animations (`PieceRig.tsx`, `rig.css`). Wesley calls it
   placeholder while mechanics settle.
+- **Variants + sprite cast** (`claude/variants`, on the studio branch): every
+  unit has a `variant` (rebel/royal/misfit); abilities are pure hooks in
+  `src/game/abilities.ts` (Haystack = Consume). The board, hub and pickers
+  render Wesley's character-select sheet sliced to `public/art/cast/*.png`
+  via `PieceSprite.tsx` + `sprite.css` (same action names as the rig).
 - **Studio** (`art.html` → `src/art/`, `claude/art-studio`): every piece of
   art rendered live, the implemented mechanics computed from `turns.ts`, a
   style guide (swatches checked against the source) and tooling notes. Seed
   of the art pipeline: add new art to `Catalog.tsx`.
 - **Phone layout + busier enemy** (#9): the game fits an
   iPhone screen (height-fitted board, bottom action bar); the enemy closes in
-  on any of your pieces, pawns march toward targets and race to promote, pieces brace only when it helps; a battle ends with a celebration
-  banner before the menu.
+  on your pieces, pawns race to promote; a celebration banner ends a battle.
 - **Promotion** (#10): pawns on the far row promote (you pick; enemy becomes
   a queen) with a morph animation; the barracks sells a 3-gold pawn.
 - **Next-square strikes** (#11): sliders must travel next to a target to hit it.

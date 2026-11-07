@@ -56,6 +56,22 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   flat, and a CHECKMATE! banner (with a joke) slams in before the defeat screen.
   Presentation only (`stage.mating`, the `mate` rig action).
 
+## Variants
+- Every piece belongs to one of three casts from the character-select sheet:
+  rebels (your army by default), royals (the patrol) and misfits. A unit's
+  `variant` says which; saves and tests may omit it (`variantOf`: white →
+  rebel, black → royal). Enemy spawns may name a variant.
+- Each cast gives a kind its own ability (`src/game/abilities.ts`). Abilities
+  are small pure hooks the rules call: `moveTargets` (change where the piece
+  may move) and `afterStrike` (act on the result of its strike). Ability state
+  lives in the unit's flat `mods` bag and is validated by `readRun`.
+- **Haystack** (misfit rook), *Consume*: when its strike kills, it rolls onto
+  the victim's square, eats it, and may also move like the eaten kind for its
+  next two turns (`mods.absorbed`, `mods.absorbedUntil = turn + 2`). It still
+  strikes like a rook. The board shows a 🍴 badge while the meal lasts.
+- The barracks sells rebels by kind and Haystack as the first misfit; recruits
+  are `{ kind, variant }`.
+
 ## Promotion
 - A pawn that moves onto the far row promotes at full health of its new
   piece. Yours pauses play for a picker (queen, rook, bishop or knight) and

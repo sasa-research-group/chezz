@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { COST, DAMAGE, ENCOUNTERS, HP, campReason } from "../game/turns";
+import { DAMAGE, ENCOUNTERS, HP, abilityOf, campReason, costOf, recruitOf, variantOf } from "../game/turns";
 import type { CampChoice, Pos, Run } from "../game/turns";
-import { PieceRig } from "./PieceRig";
+import { PieceSprite } from "./PieceSprite";
 import "../hub.css";
 
 /** The hub between battles: a small village the king walks around. Presentation only; the rules
@@ -22,7 +22,9 @@ export const START: Pos = { x: 3, y: 2 };
 export const blocked = (p: Pos) => PLACES.some(b => p.x >= b.at.x && p.x < b.at.x + b.size.x && p.y >= b.at.y && p.y < b.at.y + b.size.y);
 // A dirt road from the square out front to every door.
 export const onPath = (p: Pos) => p.y === 2 || PLACES.some(b => b.door.x === p.x && b.door.y === p.y) || (p.x === 5 && p.y > 2);
-const OFFERS: CampChoice[] = ["pawn", "bishop", "rook", "heal"];
+/** What the barracks sells: the rebel kinds, plus Haystack, the first misfit. */
+const OFFERS: CampChoice[] = ["pawn", "bishop", "rook", { kind: "rook", variant: "misfit" }, "heal"];
+const BLURB = { pawn: "Reach the far row to promote it.", bishop: "Strikes diagonal neighbours.", rook: "Strikes straight neighbours." };
 
 /** Shortest walk between two village squares, around the buildings. */
 export function walkPath(from: Pos, to: Pos): Pos[] {
@@ -132,9 +134,9 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
       <div className="hub-stats">
         <span>✦ <b>{run.gold}</b><small>GOLD</small></span>
         <span>♛ <b>{kingUnit?.hp ?? 0} / {HP.king}</b><small>KING HEALTH</small></span>
-        <span className="hub-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(k => `${k} (recruit)`)].join(", ")}`}>
-          {army.map(u => <i key={u.id}><PieceRig kind={u.kind} side="white" /></i>)}
-          {recruits.map((k, i) => <i key={`r${i}`} className="new"><PieceRig kind={k} side="white" /></i>)}
+        <span className="hub-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(r => `${r.variant} ${r.kind} (recruit)`)].join(", ")}`}>
+          {army.map(u => <i key={u.id}><PieceSprite kind={u.kind} variant={variantOf(u)} side="white" /></i>)}
+          {recruits.map((r, i) => <i key={`r${i}`} className="new"><PieceSprite kind={r.kind} variant={r.variant} side="white" /></i>)}
           <small>ARMY</small></span>
       </div>
     </header>
@@ -151,7 +153,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
         <PlaceArt id={b.id} /><span className="hub-sign"><b>{b.name}</b><small>{b.tagline}</small></span>
       </button>)}
       <div className={`hub-king ${walking ? "walking" : ""}`} aria-hidden="true" style={{ left: left(king.x + .5), top: top(king.y + .5), transitionDuration: `${stepMs}ms` }}>
-        <PieceRig kind="king" side="white" action={walking ? "move" : "idle"} seed="king" />
+        <PieceSprite kind="king" variant="rebel" side="white" action={walking ? "move" : "idle"} seed="king" />
       </div>
     </div>
     </div>
@@ -161,11 +163,14 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
           <p className="kicker">THE BARRACKS</p><h1>New blood, warm soup.</h1>
           <p>Recruits join in the next battle. Buy as many as your gold and the next road allow ({next?.starts.length ?? 0} squares).</p>
           <div className="camp-gold">✦ {run.gold} gold</div>
-          <div className="camp-offers">{OFFERS.map(choice => <button key={choice} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
-            <div className="offer-art">{choice === "heal" ? <span>♥</span> : <PieceRig kind={choice} side="white" />}</div>
-            <h2>{choice === "heal" ? "Mend the king" : `Recruit a ${choice}`}</h2>
-            <p>{choice === "pawn" ? `${HP.pawn} HP, hits for ${DAMAGE.pawn}. Reach the far row to promote it.` : choice === "bishop" ? `${HP.bishop} HP, hits for ${DAMAGE.bishop}. Strikes diagonal neighbours.` : choice === "rook" ? `${HP.rook} HP, hits for ${DAMAGE.rook}. Strikes straight neighbours.` : `Restore 2 king HP, up to ${HP.king}.`}</p>
-            <strong>{campReason(run, choice) || `${COST[choice]} gold →`}</strong></button>)}</div>
+          <div className="camp-offers">{OFFERS.map(choice => {
+            const r = recruitOf(choice), ab = r && abilityOf({ side: "white", variant: r.variant, kind: r.kind });
+            return <button key={r ? `${r.variant}-${r.kind}` : "heal"} disabled={!!campReason(run, choice)} onClick={() => onBuy(choice)}>
+              <div className="offer-art">{r ? <PieceSprite kind={r.kind} variant={r.variant} side="white" /> : <span>♥</span>}</div>
+              <h2>{!r ? "Mend the king" : ab ? `Recruit ${ab.name}` : `Recruit a ${r.kind}`}</h2>
+              <p>{!r ? `Restore 2 king HP, up to ${HP.king}.` : `${HP[r.kind]} HP, hits for ${DAMAGE[r.kind]}. ${ab ? `${ab.ability}: ${ab.sentence}` : BLURB[r.kind]}`}</p>
+              <strong>{campReason(run, choice) || `${costOf(choice)} gold →`}</strong></button>;
+          })}</div>
         </> : place.id === "road" ? <>
           <p className="kicker">THE ROAD OUT · BATTLE {run.encounter + 2} / {ENCOUNTERS.length}</p><h1>{next?.title ?? "Onward"}</h1>
           <p>{next?.story} Your army marches as it is{recruits.length ? `, with ${recruits.length} new recruit${recruits.length > 1 ? "s" : ""}` : ""}.</p>
