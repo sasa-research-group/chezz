@@ -9,7 +9,7 @@ import type { AltAction, Variant } from "./abilities";
 import { expireMods, isDazed, isHexed } from "./status";
 import type { Mods } from "./status";
 import { ENCOUNTERS, PUZZLES } from "./encounters";
-import { DIAGONALS, LEAPS, STRAIGHTS, at, boardOf, coord, energyOf, forward, isHole, label, landingOf, lastRank, note, open, passable, portalExit, same, settle, shapeReaches, slides, withUnit } from "./board";
+import { DIAGONALS, LEAPS, STRAIGHTS, at, boardOf, coord, energyOf, forward, isHole, isIce, label, landingOf, lastRank, note, open, passable, portalExit, same, settle, shapeReaches, slides, withUnit } from "./board";
 export type { AltAction, Variant } from "./abilities";
 export type { Mods } from "./status";
 export { ABILITIES, abilityOf, variantOf, ENCOUNTERS, PUZZLES, boardOf, same, coord, at, label, passable };
@@ -107,6 +107,8 @@ function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
         const dest = enter(p, [dx, dy]);
         if (!dest) break;
         add(dest, n);
+        // Onto ice, the glide decides where the slide ends: nothing beyond it is on offer.
+        if (isIce(g, portalExit(g, p) ?? p)) break;
         here = portalExit(g, p) ?? p;
       }
     }
@@ -326,7 +328,8 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
 /** Deterministic enemy policy: take the best-scoring affordable action until
  * nothing scores above zero or the pool is spent. */
 function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
-  let run = startOfTurn({ ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) }, "black", g.turn);
+  // A burn tick or a guttering candle at the enemy's turn start may already decide the battle.
+  let run = finish(startOfTurn({ ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) }, "black", g.turn));
   let energy = boardOf(g).enemyEnergy;
   const steps: Step[] = [];
   const pool = energy;
@@ -443,7 +446,8 @@ export function inCheck(g: Run): boolean {
 /** Could anything you still do this turn (moves, strikes, defending) get the king out of check? */
 export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
-  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}${u.mods ? JSON.stringify(u.mods) : ""}`).join("|") + g.energy;
+  // Everything the rules read: units, the pool, and the board state abilities and tiles change.
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}${u.mods ? JSON.stringify(u.mods) : ""}`).join("|") + g.energy + JSON.stringify([g.walls, g.broken, g.collapsed, g.gatesOpen, g.flags]);
   const visit = (g: Run): boolean => {
     // Try every promotion: a knight's reach might be the only way out.
     if (g.promoting) return (["queen", "rook", "bishop", "knight"] as const).some(kind => visit(promote(g, g.promoting!, kind).run));

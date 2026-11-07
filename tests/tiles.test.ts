@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY, PUZZLES, alt, attack, endTurn, inCheck, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
+import { ENERGY, PUZZLES, alt, attack, canEscape, endTurn, inCheck, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
 import type { Encounter, Run, Unit } from "../src/game/turns";
 import { isHole, isWall, landingOf } from "../src/game/board";
 
@@ -106,6 +106,9 @@ describe("ice", () => {
     expect(moveTargets(g, rook)).toEqual(expect.arrayContaining([{ x: 3, y: 2, cost: 1 }]));
     const edge = board({ ice: [sq(1, 2), sq(2, 2), sq(3, 2), sq(4, 2)] }, [king(2, 4), rook]);
     expect(moveTargets(edge, rook)).toEqual(expect.arrayContaining([{ x: 4, y: 2, cost: 1 }]));
+    // Once a slide is on the ice the glide decides where it ends: the squares beyond are not for sale.
+    const beyond = board({ ice: [sq(1, 2), sq(2, 2)] }, [king(2, 4), rook]);
+    expect(moveTargets(beyond, rook).filter(t => t.y === 2)).toEqual([{ x: 3, y: 2, cost: 1 }]);
     // Leapers land where they land.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 4, hp: 3 };
     const leap = board({ ice }, [king(4, 4), knight]);
@@ -210,6 +213,28 @@ describe("tiles under abilities and odd routes", () => {
     expect(unit(run, "p")).toBeUndefined();
     expect(step!.killed).toEqual(["p"]);
     expect(run.log.some(l => /falls into the pit/.test(l))).toBe(true);
+  });
+});
+
+describe("run-level state the rules must see", () => {
+  it("ends the battle when the enemy's own turn start decides it: a burning king gutters before his rook can strike", () => {
+    const e: Encounter = { title: "t", story: "", reward: 0, enemyEnergy: 4, width: 5, height: 5, walls: [], spawns: [], starts: [], win: "king", turns: 3 };
+    const puzzle = PUZZLES.push(e) - 1;
+    const g: Run = { version: 2, encounter: 0, puzzle, turn: 1, phase: "player", gold: 0, energy: 0, log: [], history: [], nextId: 1,
+      units: [{ id: "king", side: "white", kind: "king", x: 0, y: 4, hp: 3 }, { id: "gilt", side: "black", kind: "king", variant: "royal", x: 4, y: 0, hp: 1, mods: { burning: 2 } }, { id: "r", side: "black", kind: "rook", x: 0, y: 1, hp: 5 }] };
+    const after = endTurn(g).run;
+    expect(after.phase).toBe("victory");
+    expect(unit(after, "king")!.hp).toBe(3);
+  });
+  it("finds an escape that needs a demolished wall: canEscape tells two demolishes apart", () => {
+    // Boxed in by walls, the king's only way out of the rook's file is through the wall Brick can smash.
+    const brick: Unit = { id: "brick", side: "white", kind: "rook", variant: "rebel", x: 2, y: 4, hp: 5 };
+    const g = board({ walls: [sq(1, 4), sq(1, 3), sq(3, 4)], enemyEnergy: 4 }, [{ ...king(0, 4), hp: 2 }, brick, foe("r", "rook", 0, 1, 5)], { energy: 3 });
+    expect(inCheck(g)).toBe(true);
+    const smashed = alt(g, "brick", "demolish", sq(1, 4)).run;
+    expect(inCheck(move(smashed, "king", sq(1, 4)))).toBe(false);
+    expect(canEscape(g)).toBe(true);
+    expect(endTurn(g).run).toBe(g);
   });
 });
 
