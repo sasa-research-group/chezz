@@ -42,7 +42,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   placeholders to build out.
 - Difficulty needs tuning from Wesley's play; encounter 2 now punishes
   letting a pawn promote.
-- Research report: `reports/Simultaneous chess tactics design.md`.
+- Research: `reports/Simultaneous chess tactics design.md`; puzzle design
+  (principles, taxonomy, 10 concepts, verification): `docs/puzzle-design.md`.
 
 ## History (merged PRs)
 - #2 foundation pass; #3 research + lab Duel; #4–#5 simultaneous-engine rule
@@ -57,9 +58,6 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - The test player (`tests/turns-strategy.ts`) is a two-turn lookahead search, not a person.
 - Enemy intent isn't shown before it acts.
 - App debt: `App.tsx` is dense; modals lack Escape and a focus trap.
-- Dead-end/loop audit (Oct 11), waiting on Wesley's play to pick fixes:
-  0-damage strikes (pawn vs defender) only get your piece countered; the
-  battle-3 knight parks beside its target and never strikes; no turn limit,
-  so stalling is endless (battle 2 has frozen pawn pairs); a king already in
-  check can strike himself to death on a counter. No insufficient-material
-  draws; End turn is never impossible.
+- Dead-end audit (Oct 11), fixes await Wesley's play: 0-damage pawn strikes,
+  the battle-3 knight never striking, no turn limit (battle 2 has frozen pawn
+  pairs), a king in check striking himself to death. No material draws.
