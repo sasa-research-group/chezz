@@ -9,7 +9,7 @@ import type { AltAction, Variant } from "./abilities";
 import { expireMods, isDazed, isHexed } from "./status";
 import type { Mods } from "./status";
 import { ENCOUNTERS, PUZZLES } from "./encounters";
-import { DIAGONALS, LEAPS, STRAIGHTS, at, boardOf, coord, energyOf, forward, label, landingOf, lastRank, note, open, passable, portalExit, same, settle, shapeReaches, slides, withUnit } from "./board";
+import { DIAGONALS, LEAPS, STRAIGHTS, at, boardOf, coord, energyOf, forward, isHole, label, landingOf, lastRank, note, open, passable, portalExit, same, settle, shapeReaches, slides, withUnit } from "./board";
 export type { AltAction, Variant } from "./abilities";
 export type { Mods } from "./status";
 export { ABILITIES, abilityOf, variantOf, ENCOUNTERS, PUZZLES, boardOf, same, coord, at, label, passable };
@@ -90,10 +90,11 @@ export function dealtTo(g: Run, a: Unit, v: Unit): number {
 function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
   const out = new Map<string, Target>();
   const add = (dest: Pos, cost: number) => { const k = `${dest.x},${dest.y}`, had = out.get(k); if (!had || had.cost > cost) out.set(k, { x: dest.x, y: dest.y, cost }); };
-  /** Enter `p` moving in `dir`: the square to land on (burrow exits, then ice), or undefined when blocked. */
+  /** Enter `p` moving in `dir`: the square to land on (burrow exits, then ice), or undefined when blocked.
+   * Both mouths of a burrow must be free: a piece standing on either one blocks the tunnel. */
   const enter = (p: Pos, dir?: [number, number]): Pos | undefined => {
     const exit = portalExit(g, p);
-    if (exit ? !open(g, exit) : !open(g, p)) return undefined;
+    if (!open(g, p) || (exit && !open(g, exit))) return undefined;
     return landingOf(g, p, dir);
   };
   const dirs = slides(kind);
@@ -404,7 +405,13 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   // The enemy's flags from its last turn (moved, acted, braced) are reset before it acts again.
   const start: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) };
   const burn = typeof king.mods?.burning === "number" && king.mods.burning > 0 ? 1 : 0;
-  const hit = (run: Run, u: Unit) => { const d = dealtTo(run, u, king); return d + (abilityOf(u)?.lingering?.(run, u, king, d) ?? 0); };
+  // A blow that would shove the king into a pit is as good as a kill.
+  const hit = (run: Run, u: Unit) => {
+    const d = dealtTo(run, u, king);
+    const pushed = abilityOf(u)?.displaces?.(run, u, king);
+    if (pushed && isHole(run, pushed)) return king.hp;
+    return d + (abilityOf(u)?.lingering?.(run, u, king, d) ?? 0);
+  };
   const combos: { damage: number; ids: string[] }[] = [{ damage: burn, ids: [] }];
   const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
     if (damage > 0) combos.push({ damage, ids });

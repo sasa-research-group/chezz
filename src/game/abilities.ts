@@ -77,6 +77,9 @@ export type Ability = {
   /** Damage `v` will take before it can act again because `a`'s blow (dealing `dealt`) landed: Wick's
    * fire ticks at the victim's turn start. Check adds it to the blow. */
   lingering?: (g: Run, a: Unit, v: Unit, dealt: number) => number;
+  /** Where `a`'s blow would shove a surviving `v` (Pip's heave), or undefined when it stays put. Check
+   * treats a shove into a pit as a kill. */
+  displaces?: (g: Run, a: Unit, v: Unit) => Pos | undefined;
   /** Extra pieces a strike on `v` also hits (the Warden's sweep). They take the same damage. */
   splash?: (g: Run, a: Unit, v: Unit) => Unit[];
   /** Another piece takes the blow aimed at this one (King Gilt's bodyguards). `reaches` is the rules'

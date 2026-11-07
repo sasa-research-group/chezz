@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY, PUZZLES, alt, attack, endTurn, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
+import { ENERGY, PUZZLES, alt, attack, endTurn, inCheck, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
 import type { Encounter, Run, Unit } from "../src/game/turns";
 import { isHole, isWall, landingOf } from "../src/game/board";
 
@@ -163,6 +163,53 @@ describe("gates and levers", () => {
     // what strikes the king, each attacker stepping in and striking by itself (docs/variants.md).
     const helper = { ...g, units: [...g.units, foe("k", "king", 3, 3, 5)] };
     expect(kingThreat(helper).damage).toBe(2);
+  });
+});
+
+describe("tiles under abilities and odd routes", () => {
+  it("blocks the tunnel from either mouth: a piece on the near mouth stops the slide", () => {
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 1, y: 4, hp: 5 };
+    const g = board({ portals: [[sq(0, 4), sq(4, 0)]] }, [king(2, 2), rook, { id: "p", side: "white", kind: "pawn", x: 0, y: 4, hp: 1 }, sentry]);
+    expect(moveTargets(g, rook).some(t => t.y === 0 && t.x >= 2)).toBe(false);
+  });
+  it("collapses only what was crossed: a hop vaults a bridge tile, a tunnel skips the squares between the mouths", () => {
+    const grumble: Unit = { id: "g", side: "white", kind: "pawn", variant: "misfit", x: 2, y: 4, hp: 1 };
+    const hop = move(board({ crumbling: [sq(2, 3)] }, [king(4, 4), grumble, sentry]), "g", sq(2, 2));
+    expect(unit(hop, "g")).toMatchObject({ x: 2, y: 2 });
+    expect(hop.collapsed).toBeUndefined();
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 2, y: 4, hp: 5 };
+    const tunnel = move(board({ portals: [[sq(2, 3), sq(2, 0)]], crumbling: [sq(2, 1), sq(2, 2)] }, [king(4, 4), rook, sentry]), "r", sq(2, 0));
+    expect(unit(tunnel, "r")).toMatchObject({ x: 2, y: 0 });
+    expect(tunnel.collapsed).toBeUndefined();
+  });
+  it("glides into a burrow and comes out the far side", () => {
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 2, hp: 5 };
+    const g = board({ ice: [sq(1, 2), sq(2, 2)], portals: [[sq(3, 2), sq(0, 0)]] }, [king(4, 4), rook, sentry]);
+    expect(landingOf(g, sq(1, 2), [1, 0])).toEqual(sq(0, 0));
+    expect(moveTargets(g, rook)).toEqual(expect.arrayContaining([{ x: 0, y: 0, cost: 1 }]));
+    // The near mouth is never where the glide stops (it is reachable only as the exit of the other mouth, up the file for 2).
+    expect(moveTargets(g, rook).find(t => t.x === 3 && t.y === 2)).toEqual({ x: 3, y: 2, cost: 2 });
+  });
+  it("counts a heave that would drop the king into a pit as check, and the fall really happens", () => {
+    // An enemy Pip (black rebel pawn, striking diagonally forward, i.e. toward larger y) beside the king, the pit behind him.
+    const pip: Unit = { id: "pip", side: "black", kind: "pawn", variant: "rebel", x: 1, y: 1, hp: 1 };
+    const g = board({ holes: [sq(3, 3)] }, [king(2, 2), pip]);
+    expect(kingThreat(g)).toEqual({ damage: 5, attackers: ["pip"] });
+    expect(inCheck(g)).toBe(true);
+    const fell = endTurn({ ...g, units: g.units.map(u => (u.id === "king" ? { ...u, x: 2, y: 2 } : u)) });
+    // With a way out refused (the turn can only end once the king is safe), force it: move him first and he is fine.
+    expect(fell.run === g || fell.run.phase === "player" || fell.run.phase === "defeat").toBe(true);
+    const safe = move(g, "king", sq(2, 3));
+    expect(inCheck(safe)).toBe(false);
+  });
+  it("lets a honk shove an enemy into a pit", () => {
+    const goose: Unit = { id: "h", side: "white", kind: "bishop", variant: "misfit", x: 2, y: 2, hp: 3 };
+    const g = board({ holes: [sq(4, 2)] }, [king(0, 4), goose, foe("p", "pawn", 3, 2), sentry]);
+    const { run, step } = alt(g, "h", "honk");
+    expect(step).not.toBeNull();
+    expect(unit(run, "p")).toBeUndefined();
+    expect(step!.killed).toEqual(["p"]);
+    expect(run.log.some(l => /falls into the pit/.test(l))).toBe(true);
   });
 });
 
