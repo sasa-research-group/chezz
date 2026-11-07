@@ -125,13 +125,14 @@ export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
   return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => open(g, p), passable: p => passable(g, p) }) : base;
 }
 
+/** Would u's ability let it strike v at all (reach and energy aside)? Her Wigness won't touch pawns. */
+const mayStrike = (g: Run, u: Unit, v: Unit) => abilityOf(u)?.canStrike?.(g, u, v, (a, w) => dealtTo(g, a, w)) ?? true;
 /** Enemies a piece can strike this turn: the next square along its capture shape (a knight's jump). */
 export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Target[] {
   if (u.acted) return [];
   const cost = strikeCostOf(g, u);
   if (cost > energy) return [];
-  const veto = abilityOf(u)?.canStrike;
-  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v) && (!veto || veto(g, u, v, (a, w) => dealtTo(g, a, w)))).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
+  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v) && mayStrike(g, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
 /** Squares u could step to and then strike the target from this turn, priced move + strike. For your
@@ -139,7 +140,7 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
  * u can already strike it where it stands (no walk needed) or the pool can't cover both. */
 export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
-  if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
+  if (!u || !v || u.acted || v.side === u.side || !mayStrike(g, u, v) || attackTargets(g, u).some(t => t.id === v.id)) return [];
   const energy = energyOf(g, u.side);
   const strikeCost = strikeCostOf(g, { ...u, moved: true });
   return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || walkAndStrike(g, id, t, targetId) !== null)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
@@ -180,7 +181,9 @@ function finish(g: Run): Run {
   if (!g.units.some(u => u.side === "black") || (e.win === "king" && !g.units.some(u => u.side === "black" && u.kind === "king"))) {
     if (g.puzzle !== undefined) return { ...g, phase: "victory", log: ["Solved! The Grandmaster nods.", ...g.log] };
     const last = g.encounter === ENCOUNTERS.length - 1, reward = e.reward;
-    return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Across the bridge. Your rebellion has begun." : `Road cleared. +${reward} gold.`, ...g.log] };
+    // Back at the hideout, pieces with a camp hook recover (a candle is relit for free).
+    const units = last ? g.units : g.units.map(u => (u.side === "white" ? abilityOf(u)?.atCamp?.(u) ?? u : u));
+    return { ...g, units, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Across the bridge. Your rebellion has begun." : `Road cleared. +${reward} gold.`, ...g.log] };
   }
   return g;
 }
@@ -358,7 +361,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const march = u.kind === "pawn" && gain <= 0 && ahead ? 1 : 0;
         // Strikes only reach the next square, so a square to strike from is worth a step.
         const strikeCost = strikeCostOf(run, { ...u, moved: true });
-        const lineUp = !u.acted && energy - t.cost >= strikeCost && whites.some(w => reaches(run, u, t, w));
+        const lineUp = !u.acted && energy - t.cost >= strikeCost && whites.some(w => reaches(run, u, t, w) && mayStrike(run, u, w));
         if (gain <= 0 && !march && !crowning && !lineUp) continue;
         choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
@@ -393,33 +396,36 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
 
 /** The most damage the enemy's next turn could deal your king, within its pool: each enemy piece may
  * step in (if it can afford to; a pawn reaching your back row becomes a queen first) and strike him once.
- * Attackers are every piece in a combination that would kill him (or, if none would, deal the most). */
+ * A fire already burning on the king ticks before he can act, so it counts as damage too. Attackers are
+ * every piece in a combination that would kill him (or, if none would, deal the most). */
 export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const king = g.units.find(u => u.id === "king");
   if (!king) return { damage: 0, attackers: [] };
+  // The enemy's flags from its last turn (moved, acted, braced) are reset before it acts again.
+  const start: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) };
+  const burn = typeof king.mods?.burning === "number" && king.mods.burning > 0 ? 1 : 0;
   const hit = (run: Run, u: Unit) => dealtTo(run, u, king);
-  const combos: { damage: number; ids: string[] }[] = [];
+  const combos: { damage: number; ids: string[] }[] = [{ damage: burn, ids: [] }];
   const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
     if (damage > 0) combos.push({ damage, ids });
     left.forEach((u, i) => {
       const rest = left.filter((_, j) => j !== i);
       const standing = strikeCostOf(run, u);
-      const may = (r: Run, w: Unit) => abilityOf(w)?.canStrike?.(r, w, king, (a, x) => dealtTo(r, a, x)) ?? true;
-      if (pool >= standing && reaches(run, u, u, king) && may(run, u)) search(run, pool - standing, rest, damage + hit(run, u), [...ids, u.id]);
+      if (pool >= standing && reaches(run, u, u, king) && mayStrike(run, u, king)) search(run, pool - standing, rest, damage + hit(run, u), [...ids, u.id]);
       const stepped = strikeCostOf(run, { ...u, moved: true });
       for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - stepped)) {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
         const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? "queen" : u.kind };
         if (!reaches(run, moved, t, king)) continue;
         const stood = settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u);
-        if (stood.units.some(w => w.id === u.id) && may(stood, moved)) search(stood, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
+        if (stood.units.some(w => w.id === u.id) && mayStrike(stood, moved, king)) search(stood, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
       }
     });
   };
-  search(g, boardOf(g).enemyEnergy, g.units.filter(u => u.side === "black"), 0, []);
+  search(start, boardOf(g).enemyEnergy, start.units.filter(u => u.side === "black"), burn, []);
   const damage = Math.max(0, ...combos.map(c => c.damage));
   const bar = Math.min(damage, king.hp);
-  const attackers = [...new Set(combos.filter(c => damage > 0 && c.damage >= bar).flatMap(c => c.ids))];
+  const attackers = [...new Set(combos.filter(c => c.damage > burn && c.damage >= bar).flatMap(c => c.ids))];
   return { damage, attackers };
 }
 /** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */

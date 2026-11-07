@@ -92,6 +92,8 @@ export type Ability = {
   startTurn?: (g: Run, u: Unit) => Run;
   /** Runs at the end of this piece's side's turn, before the other side acts. */
   endTurn?: (g: Run, u: Unit) => Run;
+  /** Runs on this surviving piece when your army reaches the hideout (Wick is relit for free). */
+  atCamp?: (u: Unit) => Unit;
   /** Runs after any piece (either side) finishes a move; `mover` is already on its new square. */
   onAnyMove?: (g: Run, u: Unit, mover: Unit, from: Pos) => Run;
   /** Actions this piece may take instead of striking, given the current run. */

@@ -118,10 +118,11 @@
 .hub-army i .sprite{width:100%}
 /* Board tiles. Each is drawn over the sand/grass floor so the rim keeps the floor's colour. */
 /* A pit: a dark hole with a shadowed lip; sliders stop before it, anything shoved in is gone. */
-.exile-cell.hole{background-image:radial-gradient(ellipse 34% 30% at 50% 55%,#110c0a 0 62%,#2a1f1a 78%,#453530 100%),radial-gradient(ellipse 44% 40% at 50% 53%,#3a2d27 60%,#5c4b3f 76%,#0000 100%),radial-gradient(ellipse 48% 44% at 50% 50%,#0000 70%,#382f2e2a 88%,#0000 100%)}
-.exile-cell.hole::after{content:"";position:absolute;left:26%;right:26%;top:34%;height:14%;border-radius:50%;background:radial-gradient(ellipse at 50% 100%,#0000 40%,#000a 100%);pointer-events:none}
+.exile-cell.hole{background-image:radial-gradient(ellipse 36% 32% at 50% 54%,#0e0a08 0 56%,#241a16 74%,#4a3a32 90%,#0000 100%),radial-gradient(ellipse 46% 42% at 50% 56%,#0000 74%,#382f2e40 88%,#0000 100%)}
+.exile-cell.hole::after{content:"";position:absolute;left:20%;right:20%;top:24%;height:34%;border-radius:50%;background:radial-gradient(ellipse at 50% 100%,#0000 45%,#000c 100%);pointer-events:none}
 /* Crumbling bridge planks: tan boards with cracks running through them. */
-.exile-cell.crumbling{background-color:#d8b47c;background-image:linear-gradient(118deg,#0000 44%,#5a4030 45.5%,#5a4030 47%,#0000 48.5%,#0000 60%,#5a4030 61%,#5a4030 62.5%,#0000 64%),linear-gradient(62deg,#0000 30%,#5a4030 31%,#5a4030 32.5%,#0000 34%),repeating-linear-gradient(180deg,#e4c48c 0 22%,#a9834f 22% 25%);box-shadow:inset 0 0 0 2px #a9834f88}
+.exile-cell.crumbling{background-color:#d8b47c;background-image:linear-gradient(112deg,#0000 47%,#5a4030 48.2%,#5a4030 49.6%,#0000 50.8%),linear-gradient(28deg,#0000 24%,#5a4030 25%,#5a4030 26.4%,#0000 27.4%,#0000 70%),repeating-linear-gradient(180deg,#e6c78f 0 23%,#b08a55 23% 25%);background-size:100% 100%,70% 60%,100% 100%;background-position:0 0,100% 100%,0 0;background-repeat:no-repeat,no-repeat,repeat;box-shadow:inset 0 0 0 2px #a9834f88}
+.exile-cell.crumbling.grass{background-image:linear-gradient(68deg,#0000 42%,#5a4030 43.2%,#5a4030 44.6%,#0000 45.8%),linear-gradient(150deg,#0000 20%,#5a4030 21%,#5a4030 22.4%,#0000 23.4%,#0000 70%),repeating-linear-gradient(180deg,#dcbd84 0 23%,#a7824d 23% 25%);background-position:0 0,0 100%,0 0}
 .exile-cell.crumbling .tile-coord{opacity:.6}
 /* A burrow mouth: a ring of dug earth around a dark tunnel. */
 .exile-cell.burrow{background-image:radial-gradient(circle at 50% 54%,#1a110d 0 19%,#3a2618 22% 30%,#6b4a30 33% 42%,#8a6744 44% 48%,#0000 52%),radial-gradient(ellipse 36% 14% at 50% 76%,#5c3f2a 50%,#0000 100%)}

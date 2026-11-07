@@ -386,6 +386,28 @@ describe("turn-based rules", () => {
   });
 });
 
+describe("statuses the rules read", () => {
+  it("counts a fire already burning on the king toward check: at 1 HP he is in check with no attacker to mark", () => {
+    const burning: Unit = { ...king, hp: 1, mods: { burning: 1 } };
+    const far: Unit = { id: "p", side: "black", kind: "pawn", x: 0, y: 0, hp: 1 };
+    const g = board([burning, far], { encounter: 2 });
+    expect(kingThreat(g)).toEqual({ damage: 1, attackers: [] });
+    expect(inCheck(g)).toBe(true);
+    expect(canEscape(g)).toBe(false);
+    // With 2 HP the fire only hurts: a pawn beside him would make up the rest and be the one marked.
+    const two = board([{ ...burning, hp: 2 }, { ...far, x: 0, y: 2 }], { encounter: 2 });
+    expect(kingThreat(two)).toEqual({ damage: 2, attackers: ["p"] });
+    expect(inCheck(two)).toBe(true);
+    // The tick lands at the start of his turn and ends the run.
+    expect(endTurn(g).run.phase).toBe("defeat");
+  });
+  it("judges the enemy's next turn with its flags reset: a braced or spent enemy still threatens", () => {
+    const spent: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5, moved: true, acted: true, defending: true };
+    const g = board([king, spent]);
+    expect(kingThreat(g)).toEqual({ damage: 3, attackers: ["r"] });
+  });
+});
+
 describe("piece variants", () => {
   const haystack: Unit = { id: "h", side: "white", kind: "rook", variant: "misfit", hp: 5, x: 1, y: 3 };
   it("gives every piece a variant: rebels for you, royals for the patrol, carried through recruits and saves", () => {

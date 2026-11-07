@@ -373,8 +373,9 @@ export default function App() {
     setSelectedId(null); setNotice(""); setPicking(null);
     // Commit the enemy's result at once (autosave included); playback only shows it.
     setRun(result.run);
+    // The checkmate finale is for a king who fell; a puzzle lost to its turn limit leaves him standing.
     const fallen = run.units.find(u => u.id === "king");
-    if (result.run.phase === "defeat" && fallen) setFall({ king: fallen, by: [...new Set(result.steps.filter(st => st.target === "king").map(st => st.actor))] });
+    if (result.run.phase === "defeat" && fallen && !result.run.units.some(u => u.id === "king")) setFall({ king: fallen, by: [...new Set(result.steps.filter(st => st.target === "king").map(st => st.actor))] });
     if (result.steps.length) setPlayback({ steps: result.steps, before: run, index: 0 });
   };
   /** Drops whatever is on the board (animations, playback, the finale) so a different run can take it. */
