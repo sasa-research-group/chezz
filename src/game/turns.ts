@@ -123,7 +123,8 @@ function spawn(g: Run, army: Unit[]): Run {
   const e = ENCOUNTERS[g.encounter];
   // Battle state (moves, braces, meals) doesn't carry over; the piece and its cast do.
   const whites = army.map((u, i): Unit => ({ id: u.id, side: u.side, kind: u.kind, variant: variantOf(u), hp: u.hp, ...e.starts[i] }));
-  const enemies = e.spawns.map(([kind, x, y, hp, variant], i): Unit => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black", variant: variant ?? "royal", x, y, hp }));
+  // An enemy spawn without a named cast is a plain piece (royal costume, no ability): the road's patrol.
+  const enemies = e.spawns.map(([kind, x, y, hp, variant], i): Unit => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black", variant, x, y, hp }));
   return { ...g, promoting: undefined, walls: undefined, broken: undefined, flags: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
 }
 export function newRun(): Run {

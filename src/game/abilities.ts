@@ -99,7 +99,10 @@ export type Ability = {
 
 /** The variant a unit plays as. Saves and tests may omit it: your pieces are rebels, the patrol royals. */
 export const variantOf = (u: Pick<Unit, "side" | "variant">): Variant => u.variant ?? (u.side === "white" ? "rebel" : "royal");
-export const abilityOf = (u: Pick<Unit, "side" | "variant" | "kind">): Ability | undefined => ABILITIES[`${variantOf(u)}-${u.kind}`];
+/** The ability a unit plays with. Only a piece whose cast is named has one: a unit with no `variant`
+ * is a plain piece in its side's default costume (the road's old patrol, saves from before variants).
+ * New encounters and Guild puzzles name the cast of every spawn to switch its ability on. */
+export const abilityOf = (u: Pick<Unit, "side" | "variant" | "kind">): Ability | undefined => (u.variant ? ABILITIES[`${u.variant}-${u.kind}`] : undefined);
 
 export const ABILITIES: Partial<Record<`${Variant}-${Kind}`, Ability>> = {
   [pip.id]: pip,
