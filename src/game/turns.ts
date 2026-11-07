@@ -4,9 +4,9 @@
  * square in its shape (2) or defend (1). Pure and
  * deterministic: no DOM, no randomness, inputs are never mutated. Piece variants and their
  * abilities live in abilities.ts and hook in here. */
-import { ABILITIES, VARIANTS, abilityOf, expireMods, variantOf } from "./abilities";
-import type { Mods, Variant } from "./abilities";
-export type { Variant, Mods } from "./abilities";
+import { ABILITIES, VARIANTS, abilityOf, expireMods, isDazed, isHexed, variantOf } from "./abilities";
+import type { AltAction, Mods, Variant } from "./abilities";
+export type { AltAction, Variant, Mods } from "./abilities";
 export { ABILITIES, abilityOf, variantOf };
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
@@ -24,6 +24,10 @@ export type Run = {
   promoting?: string;
   /** Recruits bought at the hub, waiting in the barracks until you take the road. */
   recruits?: Recruit[];
+  /** Walls abilities added this battle (Nobody's empty suit) and encounter walls they removed (Brick). */
+  walls?: Pos[]; broken?: Pos[];
+  /** Run-level ability state for this battle (King Redcape's one dub). */
+  flags?: Record<string, number | boolean>;
 };
 export type RecruitKind = "pawn" | "bishop" | "rook";
 export const RECRUIT_KINDS: RecruitKind[] = ["pawn", "bishop", "rook"];
@@ -31,7 +35,7 @@ export const RECRUIT_KINDS: RecruitKind[] = ["pawn", "bishop", "rook"];
 export type Recruit = { kind: RecruitKind; variant: Variant };
 export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote"; target?: string; killed: string[]; from?: Kind };
+export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote" | "alt"; target?: string; killed: string[]; from?: Kind };
 
 export const ENERGY = 4;
 /** Every strike costs the same, knights included: a knight can jump (2) and strike (2) in one turn. */
@@ -55,7 +59,21 @@ export const at = (g: Run, p: Pos) => g.units.find(u => same(u, p));
 export const label = (u: Unit) => `${u.side === "white" ? "Your" : "Enemy"} ${u.kind}`;
 export function passable(g: Run, p: Pos) {
   const e = ENCOUNTERS[g.encounter];
-  return p.x >= 0 && p.y >= 0 && p.x < e.width && p.y < e.height && !e.walls.some(w => same(w, p));
+  if (p.x < 0 || p.y < 0 || p.x >= e.width || p.y >= e.height) return false;
+  if (g.walls?.some(w => same(w, p))) return false;
+  return !e.walls.some(w => same(w, p) && !g.broken?.some(b => same(b, p)));
+}
+/** A piece's full health: its kind's, unless its variant says otherwise. */
+export const maxHp = (u: Pick<Unit, "side" | "variant" | "kind">) => abilityOf(u)?.hp ?? HP[u.kind];
+/** What this piece's strike costs right now (Sir Lance charges cheaply after a jump). */
+export const strikeCostOf = (g: Run, u: Unit) => abilityOf(u)?.strikeCost?.(g, u) ?? STRIKE_COST;
+/** Damage `a` deals `v` with one blow: the kind's damage through the attacker's ability and hex,
+ * then the defender's block and its own ability. Never below 0. */
+export function dealtTo(g: Run, a: Unit, v: Unit): number {
+  let d = abilityOf(a)?.damage?.(g, a, v, DAMAGE[a.kind]) ?? DAMAGE[a.kind];
+  if (isHexed(a, g.turn)) d -= 1;
+  d = Math.max(0, Math.max(0, d) - (v.defending ? 1 : 0));
+  return Math.max(0, abilityOf(v)?.incoming?.(g, v, a, d) ?? d);
 }
 const DIAGONALS = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
 const STRAIGHTS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -85,18 +103,19 @@ function shapeTargets(g: Run, u: Unit, kind: Kind, energy: number): Target[] {
 }
 /** Empty squares a piece can move to this turn, priced by distance. Its variant's ability may add or remove some. */
 export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
-  if (u.moved || u.acted) return [];
+  if (u.moved || u.acted || isDazed(u, g.turn)) return [];
   const base = shapeTargets(g, u, u.kind, energy);
   const hook = abilityOf(u)?.moveTargets;
-  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => passable(g, p) && !at(g, p) }) : base;
+  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => passable(g, p) && !at(g, p), passable: p => passable(g, p) }) : base;
 }
 
 /** Enemies a piece can strike this turn: the next square along its capture shape (a knight's jump). */
 export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Target[] {
   if (u.acted) return [];
-  const cost = STRIKE_COST;
+  const cost = strikeCostOf(g, u);
   if (cost > energy) return [];
-  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
+  const veto = abilityOf(u)?.canStrike;
+  return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v) && (!veto || veto(g, u, v))).map(v => ({ x: v.x, y: v.y, cost, id: v.id }));
 }
 
 /** Squares u could step to and then strike the target from this turn, priced move + strike. For your
@@ -105,13 +124,17 @@ export function attackTargets(g: Run, u: Unit, energy = energyOf(g, u.side)): Ta
 export function approaches(g: Run, id: string, targetId: string): Target[] {
   const u = g.units.find(v => v.id === id), v = g.units.find(w => w.id === targetId);
   if (!u || !v || u.acted || v.side === u.side || attackTargets(g, u).some(t => t.id === v.id)) return [];
-  const strikeCost = STRIKE_COST;
   const energy = energyOf(g, u.side);
+  const strikeCost = strikeCostOf(g, { ...u, moved: true });
   return moveTargets(g, u, energy).filter(t => t.cost + strikeCost <= energy && reaches(g, u, t, v) && (u.side !== "white" || walkAndStrike(g, id, t, targetId) !== null)).map(t => ({ x: t.x, y: t.y, cost: t.cost + strikeCost }));
 }
 
 /** Could u, standing on `from`, strike `target` (ignoring energy)? Strikes reach one step in the piece's shape. */
 export function reaches(g: Run, u: Unit, from: Pos, target: Pos): boolean {
+  const hook = abilityOf(u)?.reaches;
+  return hook ? hook(g, u, from, target, shapeReaches(u, from, target)) : shapeReaches(u, from, target);
+}
+function shapeReaches(u: Unit, from: Pos, target: Pos): boolean {
   const dx = target.x - from.x, dy = target.y - from.y, ax = Math.abs(dx), ay = Math.abs(dy);
   if (u.kind === "pawn") return ax === 1 && dy === forward(u);
   if (u.kind === "knight") return ax * ay === 2;
@@ -125,7 +148,7 @@ function spawn(g: Run, army: Unit[]): Run {
   // Battle state (moves, braces, meals) doesn't carry over; the piece and its cast do.
   const whites = army.map((u, i): Unit => ({ id: u.id, side: u.side, kind: u.kind, variant: variantOf(u), hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map(([kind, x, y, hp, variant], i): Unit => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black", variant: variant ?? "royal", x, y, hp }));
-  return { ...g, promoting: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
+  return { ...g, promoting: undefined, walls: undefined, broken: undefined, flags: undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
 }
 export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
@@ -158,14 +181,32 @@ function moveUnchecked(g: Run, id: string, to: Pos): Run {
   if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return g;
   const t = moveTargets(g, u).find(t => same(t, to));
   if (!t) return g;
-  const next = note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`);
+  const next = afterMove(note({ ...g, energy: g.energy - t.cost, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} moves to ${coord(g, to)} (${t.cost} energy).`), id, u);
   // A pawn on the far row waits for you to choose what it becomes.
   return u.kind === "pawn" && to.y === lastRank(g, u) ? { ...next, promoting: id } : next;
 }
 const lastRank = (g: Run, u: Unit) => (u.side === "white" ? 0 : ENCOUNTERS[g.encounter].height - 1);
+/** Lets every piece with an onAnyMove hook react to `id` having moved from `from`. */
+function afterMove(g: Run, id: string, from: Pos): Run {
+  let run = g;
+  for (const w of g.units) {
+    const hook = abilityOf(w)?.onAnyMove;
+    const mover = run.units.find(u => u.id === id), watcher = run.units.find(u => u.id === w.id);
+    if (hook && mover && watcher) run = hook(run, watcher, mover, from);
+  }
+  return run;
+}
+/** Removes pieces at 0 HP and lets their abilities react (Nobody leaves a wall). */
+function removeDead(g: Run): Run {
+  const dead = g.units.filter(u => u.hp <= 0);
+  if (!dead.length) return g;
+  let run = { ...g, units: g.units.filter(u => u.hp > 0) };
+  for (const d of dead) run = abilityOf(d)?.onDeath?.(run, d) ?? run;
+  return run;
+}
 function promoted(g: Run, u: Unit, kind: PromoteTo): { run: Run; step: Step } {
   const text = `${label(u)} reaches the far row and becomes a ${kind}!`;
-  const run = note({ ...g, units: withUnit(g, u.id, { kind, hp: HP[kind] }) }, text);
+  const run = note({ ...g, units: withUnit(g, u.id, { kind, hp: maxHp({ ...u, kind }) }) }, text);
   return { run, step: { text, units: run.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "promote", killed: [], from: u.kind } };
 }
 /** Completes your pending promotion. The new piece keeps its turn: it has moved, but can still strike or defend. */
@@ -178,29 +219,56 @@ export function promote(g: Run, id: string, kind: PromoteTo): { run: Run; step: 
 
 export function defend(g: Run, id: string): Run {
   const u = g.units.find(u => u.id === id);
-  if (g.phase !== "player" || g.promoting || !u || u.side !== "white" || u.acted || g.energy < 1) return g;
+  if (g.phase !== "player" || g.promoting || !u || u.side !== "white" || u.acted || g.energy < 1 || !canDefend(g, u)) return g;
   return note({ ...g, energy: g.energy - 1, units: withUnit(g, id, { acted: true, defending: true }) }, `${label(u)} defends (1 energy).`);
 }
+export const canDefend = (g: Run, u: Unit) => abilityOf(u)?.canDefend?.(g, u) ?? true;
+/** Actions the piece may take instead of striking, affordable now. */
+export function altActions(g: Run, u: Unit, energy = energyOf(g, u.side)): AltAction[] {
+  if (u.acted) return [];
+  return (abilityOf(u)?.altActions?.(g, u) ?? []).filter(a => a.cost <= energy);
+}
+/** Takes an alternative action (hex, honk, demolish, dub...). Refused like a move if it would put your king in check. */
+export function alt(g: Run, id: string, actionId: string, target?: Pos): { run: Run; step: Step | null } {
+  const u = g.units.find(u => u.id === id);
+  if (g.phase !== "player" || g.promoting || !u || u.side !== "white") return { run: g, step: null };
+  const action = altActions(g, u, g.energy).find(a => a.id === actionId);
+  if (!action || (action.targets.length > 0 && !(target && action.targets.some(t => same(t, target))))) return { run: g, step: null };
+  const { run, step } = action.apply({ ...g, energy: g.energy - action.cost, units: withUnit(g, id, { acted: true }) }, target);
+  const done = finish(removeDead(run));
+  return intoCheck(g, done) ? { run: g, step: null } : { run: done, step };
+}
 
-/** Resolves one strike for either side; `energy` is what the striker's side has. */
+/** Resolves one strike for either side. The named target may hand the blow to a bodyguard, the
+ * striker's ability may splash it onto neighbours, every surviving victim that counters hits back,
+ * then deaths and the striker's after-strike hook resolve. */
 function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
-  const v = g.units.find(u => u.id === t.id)!;
-  const dealt = Math.max(0, DAMAGE[a.kind] - (v.defending ? 1 : 0));
-  const survives = v.hp > dealt;
+  const named = g.units.find(u => u.id === t.id)!;
+  const v = abilityOf(named)?.intercept?.(g, a, named) ?? named;
+  const victims = [v, ...(abilityOf(a)?.splash?.(g, a, v) ?? [])].filter((x, i, all) => x.id !== a.id && all.findIndex(y => y.id === x.id) === i);
+  const dealt = new Map(victims.map(x => [x.id, dealtTo(g, a, x)]));
   // Strikes land from where the striker stands; it never moves onto the target's square.
-  let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true }] : [u]);
-  const damage = [{ id: v.id, amount: dealt }];
-  let text = `${label(a)} strikes ${label(v)} for ${dealt}${survives ? "" : ", defeating it"}.`;
-  if (survives && v.defending && reaches({ ...g, units }, v, v, a)) {
-    const back = DAMAGE[v.kind], left = a.hp - back;
-    units = left > 0 ? units.map(u => (u.id === a.id ? { ...u, hp: left } : u)) : units.filter(u => u.id !== a.id);
+  let units = g.units.map(u => (dealt.has(u.id) ? { ...u, hp: u.hp - dealt.get(u.id)! } : u.id === a.id ? { ...u, acted: true } : u));
+  const damage = victims.map(x => ({ id: x.id, amount: dealt.get(x.id)! }));
+  const fell = (x: Unit) => units.find(u => u.id === x.id)!.hp <= 0;
+  let text = `${label(a)} strikes ${label(v)} for ${dealt.get(v.id)}${fell(v) ? ", defeating it" : ""}.`;
+  if (victims.length > 1) text += ` The blow also hits ${victims.slice(1).map(x => `${label(x)} for ${dealt.get(x.id)}${fell(x) ? " (defeated)" : ""}`).join(", ")}.`;
+  if (v.id !== named.id) text = `${label(v)} takes the blow meant for ${label(named)}. ` + text;
+  // Survivors hit back: a braced piece that can reach the striker, or one whose ability says so.
+  for (const x of victims) {
+    const me = units.find(u => u.id === x.id), striker = units.find(u => u.id === a.id);
+    if (!me || me.hp <= 0 || !striker || striker.hp <= 0) continue;
+    const base = !!me.defending && reaches({ ...g, units }, me, me, striker);
+    if (!(abilityOf(me)?.counters?.({ ...g, units }, me, striker, base) ?? base)) continue;
+    const back = dealtTo({ ...g, units }, me, striker), left = striker.hp - back;
+    units = units.map(u => (u.id === a.id ? { ...u, hp: left } : u));
     damage.push({ id: a.id, amount: back });
-    text += ` The defender counters for ${back}${left > 0 ? "" : ", defeating it"}.`;
+    text += ` ${label(me)} counters for ${back}${left > 0 ? "" : ", defeating it"}.`;
   }
-  let run = note({ ...g, units }, text);
+  let run = removeDead(note({ ...g, units }, text));
   // The striker's ability may act on the result: a Haystack rolls onto what it kills.
   const after = abilityOf(a)?.afterStrike;
-  if (after) run = after(run, a, v, !survives);
+  if (after) run = after(run, a, v, fell(v));
   const killed = g.units.filter(u => !run.units.some(w => w.id === u.id)).map(u => u.id);
   return { run, step: { text, units: run.units, focus: [{ x: v.x, y: v.y }], damage, actor: a.id, kind: "strike", target: v.id, killed } };
 }
@@ -233,7 +301,7 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
 /** Deterministic enemy policy: take the best-scoring affordable action until
  * nothing scores above zero or the pool is spent. */
 function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
-  let run: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false, mods: expireMods(u, g.turn) } : u)) };
+  let run = startOfTurn({ ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) }, "black", g.turn);
   let energy = ENCOUNTERS[g.encounter].enemyEnergy;
   const steps: Step[] = [];
   const pool = energy;
@@ -245,10 +313,11 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
     for (const u of run.units.filter(u => u.side === "black")) {
       for (const t of attackTargets(run, u, energy)) {
         const v = run.units.find(w => w.id === t.id)!;
-        const dealt = Math.max(0, DAMAGE[u.kind] - (v.defending ? 1 : 0));
+        const dealt = dealtTo(run, u, v);
         if (dealt === 0) continue;
         // A surviving defender counters if it can reach the striker's square.
-        const countered = v.defending && dealt < v.hp && reaches(run, v, v, u) ? DAMAGE[v.kind] : 0;
+        const counterBase = !!v.defending && reaches(run, v, v, u);
+        const countered = dealt < v.hp && (abilityOf(v)?.counters?.(run, v, u, counterBase) ?? counterBase) ? dealtTo(run, v, u) : 0;
         const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0) - t.cost;
         choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => ({ ...strike(run, u, t), cost: t.cost }) });
       }
@@ -263,21 +332,21 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
         const ahead = whites.some(w => (w.y - u.y) * forward(u) > 0);
         const march = u.kind === "pawn" && gain <= 0 && ahead ? 1 : 0;
         // Strikes only reach the next square, so a square to strike from is worth a step.
-        const strikeCost = STRIKE_COST;
+        const strikeCost = strikeCostOf(run, { ...u, moved: true });
         const lineUp = !u.acted && energy - t.cost >= strikeCost && whites.some(w => reaches(run, u, t, w));
         if (gain <= 0 && !march && !crowning && !lineUp) continue;
         choices.push({ score: crowning ? 30 : lineUp ? 20 - t.cost : march || gain * 5 - t.cost, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} moves to ${coord(run, t)}.`;
-          const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
+          const next = afterMove(note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text), u.id, u);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] }, cost: t.cost };
         } });
       }
       // Brace only when it matters (a threat it survives only thanks to the block, or one it
       // could hit back), and only when no move is worth making.
       // A threat is one of your pieces that can strike u next turn, stepping in first if its pool allows.
-      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + STRIKE_COST <= ENERGY && reaches(run, w, t, u));
-      const worthIt = whites.some(w => threat(w) && ((DAMAGE[w.kind] >= u.hp && DAMAGE[w.kind] - 1 < u.hp) || reaches(run, u, u, w)));
-      if (!u.acted && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
+      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }, ENERGY).some(t => t.cost + strikeCostOf(run, { ...w, moved: true }) <= ENERGY && reaches(run, w, t, u));
+      const worthIt = whites.some(w => threat(w) && ((dealtTo(run, w, u) >= u.hp && dealtTo(run, w, { ...u, defending: true }) < u.hp) || reaches(run, u, u, w)));
+      if (!u.acted && worthIt && canDefend(run, u)) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
         const text = `${label(u)} braces to defend.`;
         const next = note({ ...run, units: withUnit(run, u.id, { acted: true, defending: true }) }, text);
         return { run: next, step: { text, units: next.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "defend", killed: [] }, cost: 1 };
@@ -303,17 +372,19 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
 export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const king = g.units.find(u => u.id === "king");
   if (!king) return { damage: 0, attackers: [] };
-  const hit = (u: Unit) => Math.max(0, DAMAGE[u.kind] - (king.defending ? 1 : 0));
+  const hit = (run: Run, u: Unit) => dealtTo(run, u, king);
   const combos: { damage: number; ids: string[] }[] = [];
   const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
     if (damage > 0) combos.push({ damage, ids });
     left.forEach((u, i) => {
       const rest = left.filter((_, j) => j !== i);
-      if (pool >= STRIKE_COST && reaches(run, u, u, king)) search(run, pool - STRIKE_COST, rest, damage + hit(u), [...ids, u.id]);
-      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - STRIKE_COST)) {
+      const standing = strikeCostOf(run, u);
+      if (pool >= standing && reaches(run, u, u, king) && (abilityOf(u)?.canStrike?.(run, u, king) ?? true)) search(run, pool - standing, rest, damage + hit(run, u), [...ids, u.id]);
+      const stepped = strikeCostOf(run, { ...u, moved: true });
+      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - stepped)) {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
-        const moved = { ...u, x: t.x, y: t.y, kind: crowned ? "queen" as const : u.kind };
-        if (reaches(run, moved, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, kind: moved.kind }) }, pool - t.cost - STRIKE_COST, rest, damage + hit(moved), [...ids, u.id]);
+        const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? "queen" : u.kind };
+        if (reaches(run, moved, t, king)) search({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, kind: moved.kind }) }, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
       }
     });
   };
@@ -343,6 +414,7 @@ export function canEscape(start: Run): boolean {
     for (const u of g.units.filter(u => u.side === "white")) {
       for (const t of moveTargets(g, u)) if (visit(move(g, u.id, t))) return true;
       for (const t of attackTargets(g, u)) if (visit(attack(g, u.id, t.id!).run)) return true;
+      for (const a of altActions(g, u, g.energy)) for (const t of a.targets.length ? a.targets : [undefined]) if (visit(alt(g, u.id, a.id, t).run)) return true;
       if (!u.acted && g.energy >= 1 && visit(defend(g, u.id))) return true;
     }
     return false;
@@ -357,8 +429,27 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   const { run, steps, spent } = enemyTurn(g);
   if (run.phase !== "player") return { run, steps, spent };
   const turn = run.turn + 1;
-  const units = run.units.map((u): Unit => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, variant: u.variant, hp: u.hp, x: u.x, y: u.y, mods: expireMods(u, turn) } : u));
-  return { run: { ...run, units, energy: ENERGY, turn }, steps, spent };
+  const units = run.units.map((u): Unit => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, variant: u.variant, hp: u.hp, x: u.x, y: u.y, mods: u.mods } : u));
+  const fresh = finish(startOfTurn({ ...run, units, energy: ENERGY, turn }, "white", turn));
+  return { run: fresh, steps, spent };
+}
+/** The start of `side`'s turn number `turn`: timed statuses expire, burning pieces take 1, and each
+ * piece's startTurn hook runs (Wick burns down). Pieces that drop to 0 are removed. */
+function startOfTurn(g: Run, side: Side, turn: number): Run {
+  let run: Run = { ...g, units: g.units.map(u => (u.side === side ? { ...u, mods: expireMods(u, turn) } : u)) };
+  for (const u of g.units.filter(u => u.side === side)) {
+    const me = run.units.find(x => x.id === u.id);
+    if (!me) continue;
+    const burning = typeof me.mods?.burning === "number" ? me.mods.burning : 0;
+    if (burning > 0) {
+      const mods: Mods = { ...me.mods }; if (burning > 1) mods.burning = burning - 1; else delete mods.burning;
+      run = note({ ...run, units: withUnit(run, me.id, { hp: me.hp - 1, mods: Object.keys(mods).length ? mods : undefined }) }, `${label(me)} burns for 1.`);
+    }
+    const hook = abilityOf(me)?.startTurn;
+    const now = run.units.find(x => x.id === u.id);
+    if (hook && now && now.hp > 0) run = hook(run, now);
+  }
+  return removeDead(run);
 }
 
 export function campReason(g: Run, choice: CampChoice): string {
@@ -381,7 +472,7 @@ export function buy(g: Run, choice: CampChoice): Run {
 export function leaveCamp(g: Run): Run {
   if (g.phase !== "camp") return g;
   const recruits = g.recruits ?? [];
-  const army = [...g.units.filter(u => u.side === "white"), ...recruits.map((r, i): Unit => ({ id: `ally-${g.nextId + i}`, side: "white", kind: r.kind, variant: r.variant, hp: HP[r.kind], x: 0, y: 0 }))];
+  const army = [...g.units.filter(u => u.side === "white"), ...recruits.map((r, i): Unit => ({ id: `ally-${g.nextId + i}`, side: "white", kind: r.kind, variant: r.variant, hp: maxHp({ side: "white", variant: r.variant, kind: r.kind }), x: 0, y: 0 }))];
   return spawn({ ...g, encounter: g.encounter + 1, nextId: g.nextId + recruits.length, recruits: undefined, history: [...g.history, "Camp: road"] }, army);
 }
 
@@ -397,7 +488,9 @@ export function readRun(raw: string | null): Run | null {
     if (g.promoting !== undefined && (g.phase !== "player" || !g.units.some(u => u.id === g.promoting && u.side === "white" && u.kind === "pawn" && u.y === 0))) return null;
     const okMods = (m: unknown) => m === undefined || (!!m && typeof m === "object" && !Array.isArray(m) && Object.values(m as object).every(v => ["string", "number", "boolean"].includes(typeof v)));
     if (g.units.some(u => (u.variant !== undefined && !VARIANTS.includes(u.variant)) || !okMods(u.mods))) return null;
-    if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > HP[u.kind])) return null;
+    const okPosList = (l: unknown) => l === undefined || (Array.isArray(l) && l.every(p => p && Number.isInteger(p.x) && Number.isInteger(p.y)));
+    if (!okPosList(g.walls) || !okPosList(g.broken) || !okMods(g.flags)) return null;
+    if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > maxHp(u))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g;
   } catch { return null; }
