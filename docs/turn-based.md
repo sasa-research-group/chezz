@@ -59,18 +59,62 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 ## Variants
 - Every piece belongs to one of three casts from the character-select sheet:
   rebels (your army by default), royals (the patrol) and misfits. A unit's
-  `variant` says which; saves and tests may omit it (`variantOf`: white →
-  rebel, black → royal). Enemy spawns may name a variant.
-- Each cast gives a kind its own ability (`src/game/abilities.ts`). Abilities
-  are small pure hooks the rules call: `moveTargets` (change where the piece
-  may move) and `afterStrike` (act on the result of its strike). Ability state
-  lives in the unit's flat `mods` bag and is validated by `readRun`.
-- **Haystack** (misfit rook), *Consume*: when its strike kills, it rolls onto
-  the victim's square, eats it, and may also move like the eaten kind for its
-  next two turns (`mods.absorbed`, `mods.absorbedUntil = turn + 2`). It still
-  strikes like a rook. The board shows a 🍴 badge while the meal lasts.
-- The barracks sells rebels by kind and Haystack as the first misfit; recruits
-  are `{ kind, variant }`.
+  `variant` names its cast; the art falls back to the side's default
+  (`variantOf`: white → rebel, black → royal) when it is missing. Only a piece
+  whose cast is named has an ability: unlabeled enemy spawns (the road's
+  patrol, old saves) are plain pieces in royal costume, so the tuned road
+  keeps its balance; new encounters and Guild puzzles name every spawn's cast.
+- Each cast gives a kind its own ability: one file per ability under
+  `src/game/abilities/`, registered in `abilities.ts`, full spec and puzzle
+  hooks in `docs/variants.md`. Abilities are small pure hooks the rules call
+  (move targets, reach, strike cost, damage dealt and taken, splash,
+  bodyguard intercept, counters, defend permission, after-strike, death,
+  turn start and end, any-move, alternative actions). Ability state lives in
+  the unit's flat `mods` bag and run-level state in `run.walls`, `run.broken`
+  and `run.flags`; `readRun` validates all of it.
+- **Alternative actions** (hex, honk, demolish, dub) replace the strike: they
+  cost energy, mark the piece acted, may follow a move, and are refused like
+  any move if they would leave your king in check. The sidebar offers them as
+  buttons; targeted ones highlight their squares.
+- **Statuses** (`src/game/status.ts`) expire by `<status>Until` turn numbers.
+  Turn numbers tick when your pool refills, so the enemy's turn N follows your
+  turn N; `nextTurn(g, side)` gives the right expiry for a status that should
+  last through the target's next turn. *Dazed*: no moves (may still strike,
+  defend or use an action). *Hexed*: deals 1 less (min 0). *Burning N*: takes 1
+  at the start of its side's turn, ignoring defend, for N turns; a fire on
+  your king counts toward check (he takes it before he can act).
+- The barracks sells rebels and misfits by kind; recruits are `{ kind, variant }`.
+
+## Boards and tiles
+- Encounters may add tiles (`src/game/board.ts` reads them; `settle()` applies
+  them to every move, shove and roll-on so they behave alike):
+  **pits** (holes, and crumbling tiles that have fallen): nothing stands
+  there, sliders stop before them, leapers pass over, anything shoved onto
+  one is lost (no death hook; a shove that would drop your own king in is
+  refused); **crumbling** tiles fall when a piece leaves them, every tile a
+  slide crossed included; **burrows** come in pairs: moving into one mouth
+  lands on the other (a slide carries on from there; a leap or step too), the
+  tunnel is blocked while a piece stands on the far mouth, and a piece can
+  stand on a mouth it came out of; **ice**: a piece entering it keeps gliding
+  in the same direction for free until the first dry empty square, stopping
+  on the last ice square before anything else (leapers don't glide, units
+  standing on ice act normally); **gates** are walls while shut and floor
+  while open, and a piece ending a move on a **lever** toggles every gate in
+  its group (a gate with a piece in it cannot shut; Brick's Demolish turns a
+  gate into floor for good).
+- `moveTargets` returns destinations (the burrow's exit, the end of a glide),
+  so what the board offers is where the piece ends up. Check reads tile state
+  but never multi-piece set-ups: a lever pull that opens a file for another
+  piece is not check.
+
+## Guild puzzles
+- `PUZZLES` (`src/game/encounters.ts`) are boards with a fixed `army`, a
+  `turns` limit and a `goal`; `startPuzzle(i)` plays one without touching the
+  campaign run (the hub's Grandmaster's Guild lists them). The win is the
+  board's `win`: clear every enemy (default) or fell the enemy king. Running
+  past the turn limit is a defeat. `tests/puzzles.test.ts` proves each puzzle
+  has a forced win within its limit with the solver (`docs/solver.md`), which
+  searches exhaustively whenever tiles or abilities are in play.
 
 ## Promotion
 - A pawn that moves onto the far row promotes at full health of its new
