@@ -99,7 +99,7 @@ Shared rules the abilities lean on:
 
 > Instead of striking, Brother Ash fixes his glowing eyes on an enemy anywhere along a clear diagonal and hexes it: it deals 1 less damage until his next turn.
 
-**Rules.** altAction 'hex': cost 2, counts as acted; he may move first. Target: the first piece along any of his four diagonals with no piece or wall between, any distance, if it is an enemy. Effect: mods.hexed = true, hexedUntil = turn + 1; the damage hook subtracts 1 (min 0) from everything the target deals (strikes, counters, sweeps, charges, burn is unaffected); expireMods drops it at the start of Ash's side's next turn, so it covers the whole enemy turn. No damage, no counter drawn; stacks with your defend (-1 each). Check: kingThreat.hit reads hexed, so a hex can lift check without touching a piece; '!' marks recompute. His adjacent peck is a normal 2-damage bishop strike. Tap: an enemy on a clear diagonal shows an eye badge (2). AI: enemy Ash hexes your highest-damage piece that could strike one of his next turn; score 15 + damage prevented.
+**Rules.** altAction 'hex': cost 2, counts as acted; he may move first. Target: the first piece along any of his four diagonals with no piece or wall between, any distance, if it is an enemy. Effect: mods.hexed = true, hexedUntil = nextTurn(g, target.side) (status.ts); the damage calculation subtracts 1 (min 0) from everything the target deals (strikes, counters, sweeps, charges; burn is unaffected); it covers the whole of the target's next turn and expireMods clears it when that side's following turn starts. No damage, no counter drawn; stacks with your defend (-1 each). Check: kingThreat.hit reads hexed, so a hex can lift check without touching a piece; '!' marks recompute. His adjacent peck is a normal 2-damage bishop strike. Tap: an enemy on a clear diagonal shows an eye badge (2). AI: enemy Ash hexes your highest-damage piece that could strike one of his next turn; score 15 + damage prevented.
 
 **Downside.** No damage, a hex lasts one turn so holding it costs 2 every turn, and the eyes look only along diagonals: a piece on his file is safe.
 
@@ -113,7 +113,7 @@ Shared rules the abilities lean on:
 
 **Downside.** No brace means full hits, and he only sees diagonally: strike him from a rank or file (a rook, a king's straight step) and he just blinks.
 
-**Puzzle hook.** Who kills the bishop? Your knight needs two hits and dies to the second counter; your pawn dies to the first; your rook deals 3 from the side with no counter, but its lane opens only after the pawn steps. Order of operations in 4 energy.
+**Puzzle hook.** Who kills the bishop? Your own bishop needs two hits and dies to the second counter; your pawn dies to the first; your rook deals 3 from the side with no counter, but its lane opens only after the pawn steps. Order of operations in 4 energy.
 
 #### Honkington — *HONK* (misfit bishop, `misfit-bishop.ts`)
 
