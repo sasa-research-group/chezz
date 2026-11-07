@@ -54,8 +54,8 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   #10 promotion; #11 next-square strikes; #12 hideout hub; #13 tap to strike.
 
 ## Open items
-- `exile-preview.yml` is redundant now that `main` deploys. Delete it.
-- `prototype/familiar-opening` is unmerged and still on the old engine.
+- `exile-preview.yml` is redundant (`main` deploys). `prototype/familiar-opening`
+  is unmerged, old engine.
 - Phone landscape still gets the desktop layout (scrolls).
 - The test player (`tests/turns-strategy.ts`) is a two-turn lookahead search, not a person.
 - Enemy intent isn't shown before it acts.
