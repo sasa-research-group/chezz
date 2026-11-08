@@ -258,9 +258,12 @@ function promoted(g: Run, u: Unit, kind: PromoteTo): { run: Run; step: Step } {
   return { run, step: { text, units: run.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "promote", killed: [], from: u.kind } };
 }
 /** Completes your pending promotion. The new piece keeps its turn: it has moved, but can still strike or defend. */
+/** The one piece this pawn may become, when its ability fixes it (Grumble: a knight); undefined means any. */
+export const crownOf = (u: Unit): PromoteTo | undefined => abilityOf(u)?.crown;
 export function promote(g: Run, id: string, kind: PromoteTo): { run: Run; step: Step | null } {
   const u = g.units.find(u => u.id === id);
   if (g.phase !== "player" || g.promoting !== id || !u || !["queen", "rook", "bishop", "knight"].includes(kind)) return { run: g, step: null };
+  if (crownOf(u) && crownOf(u) !== kind) return { run: g, step: null };
   const { run, step } = promoted({ ...g, promoting: undefined }, u, kind);
   return { run, step };
 }
@@ -415,7 +418,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
     run = finish(done.run); energy -= done.cost; steps.push(done.step);
     const mover = run.units.find(x => x.id === done.step.actor);
     if (done.step.kind === "move" && mover?.kind === "pawn" && mover.y === lastRank(run, mover)) {
-      const p = promoted(run, mover, "queen");
+      const p = promoted(run, mover, crownOf(mover) ?? "queen");
       run = p.run; steps.push(p.step);
     }
   }
@@ -449,7 +452,7 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
       const stepped = strikeCostOf(run, { ...u, moved: true });
       for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool - stepped)) {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
-        const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? "queen" : u.kind };
+        const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? crownOf(u) ?? "queen" : u.kind };
         if (!reaches(run, moved, t, king)) continue;
         const stood = settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u, routeOf(t));
         if (stood.units.some(w => w.id === u.id) && mayStrike(stood, moved, king)) search(stood, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);

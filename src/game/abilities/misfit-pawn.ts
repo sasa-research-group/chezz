@@ -14,5 +14,6 @@ export const grumble: Ability = {
     if (ctx.energy < 2 || !ctx.open(landing) || base.some(t => same(t, landing))) return base;
     return [...base, { ...landing, cost: 2 }];
   },
+  crown: "knight",
   canDefend: () => false,
 };

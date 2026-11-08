@@ -52,13 +52,15 @@ describe("Grumble (misfit pawn): Hop", () => {
     expect(hopped.promoting).toBe("g");
     expect(unit(hopped, "g")).toMatchObject({ x: 2, y: 0, kind: "pawn" });
     expect(readRun(JSON.stringify(hopped))).toEqual(hopped);
+    // Grumble always crowns a knight: no other choice is taken.
+    for (const kind of ["queen", "rook", "bishop"] as const) expect(promote(hopped, "g", kind).run).toBe(hopped);
     // The cast carries through promotion: a misfit pawn crowned a knight is Nobody, at Nobody's HP.
     const { run } = promote(hopped, "g", "knight");
     expect(unit(run, "g")).toMatchObject({ kind: "knight", variant: "misfit", hp: maxHp({ side: "white", variant: "misfit", kind: "knight" }) });
     expect(run.promoting).toBeUndefined();
   });
 
-  it("an enemy Grumble hops over your piece onto the far row and is crowned", () => {
+  it("an enemy Grumble hops over your piece onto the far row and is crowned a knight (Nobody)", () => {
     const foe: Unit = { id: "e", side: "black", kind: "pawn", variant: "misfit", x: 2, y: 1, hp: 1 };
     const mine: Unit = { id: "r", side: "white", kind: "rook", variant: "rebel", x: 2, y: 2, hp: 5 };
     const g = board([king, mine, foe]);
@@ -67,7 +69,7 @@ describe("Grumble (misfit pawn): Hop", () => {
     expect(moveTargets(g, foe, 2)).toEqual([{ x: 2, y: 3, cost: 2 }]);
     const { run, steps } = endTurn(g);
     expect(steps.map(s => s.kind)).toEqual(["move", "promote"]);
-    expect(unit(run, "e")).toMatchObject({ x: 2, y: 3, kind: "queen", hp: 9 });
+    expect(unit(run, "e")).toMatchObject({ x: 2, y: 3, kind: "knight", variant: "misfit", hp: 2 });
     expect(run.turn).toBe(2);
   });
 });

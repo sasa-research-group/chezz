@@ -85,6 +85,10 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   your king counts toward check (he takes it before he can act).
 - The barracks sells rebels and misfits by kind; recruits are `{ kind, variant }`.
 
+- A pawn whose ability fixes its crown (Grumble, the misfit pawn: always a
+  knight, so Nobody) promotes into that piece on either side; your picker
+  offers only it. Promotion keeps the cast.
+
 ## Stall clock
 - `run.quiet` counts full turns in a row in which no piece lost HP to a blow,
   a burn or a fall (`run.mark` holds each piece's HP when the count was last

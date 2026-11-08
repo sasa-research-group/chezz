@@ -61,6 +61,8 @@ export type Ability = {
   sentence: string;
   /** Overrides the kind's starting HP (Nobody has 2). */
   hp?: number;
+  /** A pawn that always promotes into this kind, either side, no picker (Grumble crowns a knight). */
+  crown?: "queen" | "rook" | "bishop" | "knight";
   /** Extends or filters the empty squares the piece may move to. */
   moveTargets?: (g: Run, u: Unit, base: Target[], ctx: HookContext) => Target[];
   /** Overrides whether u, standing on `from`, could strike `target`; `base` is the kind's answer. */
