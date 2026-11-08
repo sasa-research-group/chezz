@@ -1,0 +1,28 @@
+{
+  "id": "paint-prop-launcher",
+  "description": "Spear trap launcher on the board's left edge (src/assets/props/launcher.webp); then tools/art/prop.mjs. See docs/art/PROPS.md.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "paint",
+      "aspect_ratio": "1:1",
+      "images": [
+        "docs/art/sheet-armour-talks.webp"
+      ],
+      "prompt": "Game prop sprite, painted as one single whole image, in the exact art style of the first image (a character select sheet): bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlight ticks on metal. SUBJECT: a wall-mounted spear launcher trap, seen from the side, facing RIGHT. A chunky squat box of dark wooden planks (#5f3f2c with lighter #865637 plank faces) bound with two thick iron bands with round rivets, a fat coiled iron spring on top showing it is wound up, and a short iron muzzle tube on its right face. The steel leaf-shaped tip of a loaded spear pokes out of the muzzle to the right, pointing right. About as tall as it is wide. Simple chunky shapes and few interior lines, so it reads clearly at 32 pixels. No wall behind it. A VERY thick black outer outline all the way round. One object only, centred, filling most of the frame with a small margin, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-prop-launcher.png",
+  "prop": {
+    "file": "src/assets/props/launcher.webp",
+    "flags": "--height 160 --outline 5"
+  }
+}

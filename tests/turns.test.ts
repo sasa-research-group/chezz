@@ -578,6 +578,35 @@ describe("switches and spear traps", () => {
     const g = deal({ ...TRAP, spawns: [["pawn", 2, 1], ["pawn", 4, 2]] });
     expect(turns.stepOnto(g, "king", { x: 0, y: 4 }).run.phase).toBe("victory");
   });
+  describe("enemies and switches", () => {
+    // A rook can slide straight down onto the switch at d3; your king and two pawns stand on the bottom rank.
+    const level = (rows: number[], damage = 2): Encounter => ({ reward: 5, width: 6, height: 6, walls: [], switches: [{ type: "spears", x: 3, y: 3, rows, damage }], spawns: [["rook", 3, 0]], starts: [{ x: 0, y: 5 }, { x: 2, y: 5 }, { x: 4, y: 5 }] });
+    const placed: Placed[] = [{ kind: "king", x: 0, y: 5 }, { kind: "pawn", x: 2, y: 5 }, { kind: "pawn", x: 4, y: 5 }];
+    const rookOf = (g: Run) => g.units.find(u => u.side === "black")!.id;
+    it("steps on a switch when the spears hurt your side, and shows it in its intent", () => {
+      const g = deal(level([5]), placed);
+      const intent = intentOf(g, enemyPlan(g), rookOf(g));
+      expect(intent?.to).toEqual({ x: 3, y: 3 });
+      expect(intent?.spears?.hits.map(h => h.id).sort()).toEqual(["ally-1", "ally-2", "king"]);
+      const { run, steps } = endTurn(g);
+      expect(steps.map(s => s.kind)).toEqual(["move", "spring"]);
+      expect(unit(run, "king")?.hp).toBe(HP.king - 2);
+      expect(run.units.filter(u => u.side === "white")).toHaveLength(1);
+      expect(run.sprung).toEqual([0]);
+    });
+    it("never steps on a switch whose spears would only hit its own side", () => {
+      const g = deal(level([3]), placed);
+      const { run, steps } = endTurn(g);
+      expect(steps.some(s => s.kind === "spring")).toBe(false);
+      expect(run.units.some(u => u.side === "black" && u.x === 3 && u.y === 3)).toBe(false);
+      expect(run.sprung).toBeUndefined();
+    });
+    it("counts spears that could kill your king as check", () => {
+      const g = deal(level([5], 9), placed);
+      expect(inCheck(g)).toBe(true);
+      expect(kingThreat(g).attackers).toEqual([rookOf(g)]);
+    });
+  });
   it("is saved as sprung, and a bad switch index won't load", () => {
     const fired = { ...turns.stepOnto(deal(), "king", { x: 0, y: 4 }).run, level: undefined, encounter: 0 };
     const data = { rules: ONE, levels: [TRAP, TRAP] };

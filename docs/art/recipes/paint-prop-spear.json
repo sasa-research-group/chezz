@@ -1,0 +1,28 @@
+{
+  "id": "paint-prop-spear",
+  "description": "The spear in flight (src/assets/props/spear.webp). 16:9, because at 21:9 the model copies the reference sheet; then tools/art/prop.mjs. See docs/art/PROPS.md.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "paint",
+      "aspect_ratio": "16:9",
+      "images": [
+        "docs/art/sheet-armour-talks.webp"
+      ],
+      "prompt": "Using ONLY the art style of the attached character select sheet (do not copy its layout, characters, panels or text), paint a brand-new single game prop sprite: one long medieval throwing spear lying perfectly horizontal, pointing to the RIGHT. Style: bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlight ticks on metal. A straight thick light-brown wooden shaft (#a57952) with a darker flat wood shadow stripe along its underside, a leather grip wrap near the back end, two short red cloth streamers tied behind the head, and at the right end a big leaf-shaped steel spearhead (#8a9094) with a hard darker shadow half and one crisp white highlight tick, on a short iron socket. Chunky proportions: the spearhead is large and bold, the shaft thick enough to read at small size. No motion lines, no hands, no people. A VERY thick black outer outline all the way round. One object only, centred, spanning the width of the image with a small margin, on a plain flat light grey background (#d8d8d8) that fills the whole image, no ground, no cast shadow, no text, no labels, no frame, no panels."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-prop-spear.png",
+  "prop": {
+    "file": "src/assets/props/spear.webp",
+    "flags": "--width 640 --outline 5"
+  }
+}

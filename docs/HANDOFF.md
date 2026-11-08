@@ -41,13 +41,17 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   the bag. Icons: `src/assets/items/`, `docs/art/PROPS.md`. No shop or battle
   rewards for items yet.
 - **Switches (battle 2):** a floor switch fires a one-shot spear trap along
-  set rows, hitting every piece on them, yours too (`switches` in
-  `levels.json`; `stepOnto`, `spring` in `turns.ts`). Battle 2 teaches it:
-  rank 4 full of enemies, switch at a1, spears on ranks 4 and 3 for 2. The
-  studio's Switch tool places them; each has a `type` (only `"spears"`), so
-  a new kind of switch adds a type to `SwitchType`/`SWITCH_TYPES` and a case
-  where `spring` resolves it.
-  Painted switch, launcher and spear art: `docs/art/PROPS.md`.
+  set rows, hitting every piece on them, either side (`switches` in
+  `levels.json`; `stepOnto`, `spring`, `volleyAt` in `turns.ts`). Any piece
+  fires it; the enemy steps on one only when the spears hurt you more than
+  it, and check counts a volley that would kill the king. Battle 2 teaches
+  it: switch at a1, spears on ranks 4 and 3 for 2. Tapping a switch once
+  (or hovering) lights the rows and the damage per piece; the volley plays
+  in `components/SpearTrap.tsx`. The studio's Switch tool places them
+  (hover one in the list to light its ranks); each has a `type` (only
+  `"spears"`), so a new kind of switch adds a type to
+  `SwitchType`/`SWITCH_TYPES` and a case where `spring` resolves it.
+  Art from recipes `docs/art/recipes/paint-prop-*.json` (`docs/art/PROPS.md`).
 - **Tutorial:** the five levels are the tutorial (`tutorial` block in
   `levels.json`: preset army; optional `handout: { items }` hook, unused so far). A new player plays
   them linearly with preset armies, no hideout or gold; a loss retries the
