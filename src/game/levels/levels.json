@@ -13,18 +13,37 @@
       "reward": 12,
       "width": 6,
       "height": 5,
-      "walls": [{ "x": 2, "y": 2 }, { "x": 3, "y": 2 }],
-      "spawns": [["pawn", 2, 1, 2], ["pawn", 3, 1, 2], ["bishop", 5, 1, 3]],
-      "starts": [{ "x": 1, "y": 4 }, { "x": 2, "y": 4 }, { "x": 3, "y": 4 }, { "x": 4, "y": 4 }],
-      "testArmy": [{ "kind": "king", "x": 1, "y": 4 }, { "kind": "bishop", "x": 2, "y": 4 }, { "kind": "pawn", "x": 4, "y": 4 }]
+      "walls": [],
+      "spawns": [["pawn", 2, 1], ["pawn", 3, 1], ["knight", 2, 0], ["pawn", 1, 1]],
+      "starts": [{ "x": 2, "y": 4 }, { "x": 3, "y": 4 }],
+      "testArmy": [{ "kind": "king", "x": 2, "y": 4 }, { "kind": "pawn", "x": 3, "y": 4 }]
     },
     {
       "reward": 0,
       "width": 6,
       "height": 6,
       "walls": [{ "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 4, "y": 2 }, { "x": 5, "y": 2 }, { "x": 0, "y": 3 }, { "x": 5, "y": 3 }],
-      "spawns": [["rook", 1, 0, 5], ["queen", 3, 0, 6], ["knight", 4, 0, 3], ["pawn", 2, 2, 2], ["pawn", 3, 2, 2]],
-      "starts": [{ "x": 2, "y": 5 }, { "x": 3, "y": 5 }, { "x": 3, "y": 4 }]
+      "spawns": [["pawn", 1, 1], ["pawn", 4, 1], ["bishop", 4, 0], ["bishop", 1, 0], ["knight", 2, 0], ["knight", 3, 0], ["pawn", 2, 1], ["pawn", 3, 1]],
+      "starts": [{ "x": 2, "y": 5 }, { "x": 1, "y": 5 }, { "x": 3, "y": 5 }, { "x": 4, "y": 5 }],
+      "testArmy": [{ "kind": "king", "x": 2, "y": 5 }, { "kind": "pawn", "x": 1, "y": 5 }, { "kind": "knight", "x": 3, "y": 5 }, { "kind": "bishop", "x": 4, "y": 5 }]
+    },
+    {
+      "reward": 0,
+      "width": 3,
+      "height": 6,
+      "walls": [],
+      "spawns": [["queen", 1, 0], ["pawn", 1, 1], ["pawn", 0, 0], ["pawn", 2, 0]],
+      "starts": [{ "x": 0, "y": 5 }, { "x": 1, "y": 5 }, { "x": 2, "y": 5 }],
+      "testArmy": [{ "kind": "king", "x": 0, "y": 5 }, { "kind": "rook", "x": 1, "y": 5 }, { "kind": "knight", "x": 2, "y": 5 }]
+    },
+    {
+      "reward": 0,
+      "width": 6,
+      "height": 7,
+      "walls": [{ "x": 0, "y": 0 }, { "x": 0, "y": 1 }, { "x": 5, "y": 0 }, { "x": 5, "y": 1 }, { "x": 1, "y": 3 }, { "x": 4, "y": 3 }, { "x": 0, "y": 5 }, { "x": 0, "y": 6 }, { "x": 5, "y": 5 }, { "x": 5, "y": 6 }],
+      "spawns": [["king", 2, 0], ["queen", 3, 0], ["bishop", 4, 0], ["bishop", 1, 0], ["pawn", 2, 1], ["pawn", 3, 1], ["pawn", 4, 1], ["pawn", 1, 1]],
+      "starts": [{ "x": 2, "y": 5 }, { "x": 1, "y": 5 }, { "x": 3, "y": 5 }, { "x": 4, "y": 5 }, { "x": 4, "y": 6 }, { "x": 3, "y": 6 }, { "x": 2, "y": 6 }, { "x": 1, "y": 6 }],
+      "testArmy": [{ "kind": "pawn", "x": 2, "y": 5 }, { "kind": "pawn", "x": 1, "y": 5 }, { "kind": "pawn", "x": 3, "y": 5 }, { "kind": "pawn", "x": 4, "y": 5 }, { "kind": "bishop", "x": 4, "y": 6 }, { "kind": "queen", "x": 3, "y": 6 }, { "kind": "king", "x": 2, "y": 6 }, { "kind": "bishop", "x": 1, "y": 6 }]
     }
   ]
 }
