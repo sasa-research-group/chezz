@@ -14,7 +14,7 @@ const readRun = (raw: string | null) => turns.readRun(raw, FIXED);
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
 function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), phase: "player", units, ...extra }; }
-const ONE: Rules = { ...RULES, turn: "one" }, ALL: Rules = { ...RULES, turn: "all" };
+const ONE: Rules = { ...RULES, turn: 1 }, ALL: Rules = { ...RULES, turn: "all" };
 const unit = (g: Run, id: string) => g.units.find(u => u.id === id);
 // Fixed boards, so these rules don't move when the shipped battles are retuned.
 const WALLED: Encounter = { reward: 0, width: 6, height: 4, walls: [{ x: 3, y: 1 }, { x: 3, y: 2 }], spawns: [], starts: [] };

@@ -92,14 +92,21 @@ test("studio: the Mechanics stats edit live and revert", async ({ page }) => {
   await editor.getByRole("spinbutton", { name: "Heal HP" }).fill("100");
   await expect(editor.getByRole("list", { name: "Problems" })).toContainText("heal: 0–99");
   await expect(editor.getByRole("button", { name: "Save" })).toBeDisabled();
-  await editor.getByRole("group", { name: "Turn" }).getByRole("button", { name: "Every piece" }).click();
+  const dev = page.getByRole("group", { name: "Developer toggles" });
+  await dev.getByRole("group", { name: "Moves per turn" }).getByRole("button", { name: "Unlimited" }).click();
   await expect(page.locator("#turn")).toContainText("One piece per side");
   await editor.getByRole("spinbutton", { name: "Heal HP" }).fill("2");
   await expect(page.locator("#turn")).toContainText("Every piece, every turn");
+  // Tactics movement shows its numbers per piece and redraws the rules.
+  await expect(dev.getByRole("spinbutton", { name: "queen walk" })).toHaveCount(0);
+  await dev.getByRole("group", { name: "Movement" }).getByRole("button", { name: "Tactics" }).click();
+  await expect(dev.getByRole("spinbutton", { name: "queen walk" })).toBeVisible();
+  await expect(page.locator("#turn")).toContainText("Tactics: walks up to its walk number");
   await editor.getByRole("button", { name: "Revert" }).click();
   await expect(rook).toContainText("2 dmg");
   await expect(editor.getByRole("list", { name: "Problems" })).toHaveCount(0);
   await expect(page.locator("#turn")).toContainText("One piece per side");
+  await expect(dev.getByRole("spinbutton", { name: "queen walk" })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

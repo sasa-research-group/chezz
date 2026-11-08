@@ -1,13 +1,14 @@
-/** Escape from Exile, turn-based: you act, then the enemy acts. A piece moves once in its chess
- * shape (sliding any distance), then strikes along its shape (the next square, or any distance for a
- * ranged kind). A struck piece that survives strikes back if it can reach the attacker. The rules
- * file says whether one piece per side acts each turn or every piece does. Pure and
- * deterministic: no DOM, no randomness, inputs are never mutated. */
+/** Escape from Exile, turn-based: you act, then the enemy acts. A piece moves once, then strikes:
+ * under chess movement along its chess shape (sliding any distance; striking the next square, or any
+ * distance for a ranged kind), under tactics movement by walking a few squares and striking within a
+ * distance. A struck piece that survives strikes back if it can reach the attacker. The rules file says
+ * how many pieces per side act each turn. Pure and deterministic: no DOM, no randomness, inputs are
+ * never mutated. */
 import levelsFile from "./levels/levels.json" with { type: "json" };
 import rulesFile from "./rules.json" with { type: "json" };
-import { ITEMS, parseRules } from "./rules";
+import { ITEMS, actsPerTurn, parseRules } from "./rules";
 import type { Item, Rules } from "./rules";
-export type { Item, Reach, Rules, TurnMode } from "./rules";
+export type { Item, Movement, Reach, Rules, TurnMode } from "./rules";
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
@@ -43,8 +44,11 @@ export type Run = {
   rules?: Rules;
   /** A battle list in place of `levels/levels.json` (tests play fixed battles). Never saved. */
   levels?: Encounter[];
-  /** The side whose acting piece fell to a strikeback this turn: under one move per turn, that side's turn is used up. */
+  /** The side whose acting piece fell to a strikeback this turn: the fallen piece still counts toward
+   * that side's pieces per turn. */
   fell?: Side;
+  /** How many of `fell`'s acting pieces fell this turn (missing: 1). */
+  fallen?: number;
   /** Switches (indexes into the level's `switches`) already sprung this battle (missing: none). */
   sprung?: number[];
   /** The team's bag of one-use items (missing: empty). */
@@ -109,9 +113,13 @@ const forward = (u: Unit) => u.side === "white" ? -1 : 1;
 /** Damage a strike from `a` deals to `v`. */
 const hitFor = (g: Run, a: Unit) => rulesOf(g).damage[a.kind];
 
-/** Under one move per turn: another piece on u's side has already moved or acted this turn, so u can't. */
+const tactics = (g: Run) => rulesOf(g).movement === "tactics";
+/** How many of a side's pieces have moved or struck this turn, the fallen ones included. */
+const actorsUsed = (g: Run, side: Side, except?: string) =>
+  g.units.filter(v => v.side === side && v.id !== except && (v.moved || v.acted)).length + (g.fell === side ? g.fallen ?? 1 : 0);
+/** The side has already used up its pieces per turn on other pieces, so u can't act. */
 export function sidelined(g: Run, u: Unit): boolean {
-  return rulesOf(g).turn === "one" && (g.fell === u.side || g.units.some(v => v.side === u.side && v.id !== u.id && (v.moved || v.acted)));
+  return actorsUsed(g, u.side, u.id) >= actsPerTurn(rulesOf(g));
 }
 
 /** Empty squares a piece can move to this turn. */
@@ -120,7 +128,20 @@ export function moveTargets(g: Run, u: Unit): Target[] {
   const out: Target[] = [];
   const open = (p: Pos) => passable(g, p) && !at(g, p);
   const dirs = slides(u.kind);
-  if (dirs) {
+  if (tactics(g)) {
+    // A walk: up to `move` straight steps, turning freely, through empty squares only.
+    const seen = new Set([`${u.x},${u.y}`]);
+    let edge: Pos[] = [u];
+    for (let n = 0; n < rulesOf(g).tactics.move[u.kind]; n++) {
+      edge = edge.flatMap(q => STRAIGHTS.map(([dx, dy]) => ({ x: q.x + dx, y: q.y + dy }))).filter(p => {
+        const k = `${p.x},${p.y}`;
+        if (seen.has(k) || !open(p)) return false;
+        seen.add(k);
+        return true;
+      });
+      out.push(...edge);
+    }
+  } else if (dirs) {
     for (const [dx, dy] of dirs) for (let n = 1; ; n++) {
       const p = { x: u.x + dx * n, y: u.y + dy * n };
       if (!open(p)) break;
@@ -156,11 +177,17 @@ const strikeSteps = (u: Unit) => u.kind === "pawn" ? [[1, forward(u)], [-1, forw
  * and a ranged piece never strikes back from afar. */
 export const strikesBack = (g: Run, attacker: Unit, target: Unit) =>
   rulesOf(g).counter && !target.decoy && reaches(g, attacker, attacker, target, true) && reaches(g, target, target, attacker, true);
-/** Could u, standing on `from`, strike `target`? A strike reaches one step in the piece's capture shape,
- * or, for a kind whose range is "line", any number of steps along it as long as every square between is
- * open: the first piece or wall in the way stops it. u's own square never blocks (it may have moved). */
+/** Could u, standing on `from`, strike `target`? Under chess movement a strike reaches one step in the
+ * piece's capture shape, or, for a kind whose range is "line", any number of steps along it as long as
+ * every square between is open: the first piece or wall in the way stops it. u's own square never blocks
+ * (it may have moved). Under tactics movement it reaches any square within the kind's `reach` in
+ * king steps, over pieces and walls. `near`: only from one step away. */
 export function reaches(g: Run, u: Unit, from: Pos, target: Pos, near = false): boolean {
   const dx = target.x - from.x, dy = target.y - from.y;
+  if (tactics(g)) {
+    const d = Math.max(Math.abs(dx), Math.abs(dy));
+    return d >= 1 && d <= (near ? 1 : rulesOf(g).tactics.reach[u.kind]);
+  }
   const line = !near && rulesOf(g).range[u.kind] === "line";
   for (const [sx, sy] of strikeSteps(u)) {
     const n = sx ? dx / sx : dy / sy;
@@ -324,7 +351,7 @@ function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   if (survives && strikesBack({ ...g, units }, a, v)) {
     const back = rulesOf(g).damage[v.kind], left = a.hp - back;
     units = left > 0 ? units.map(u => (u.id === a.id ? { ...u, hp: left } : u)) : units.filter(u => u.id !== a.id);
-    if (left <= 0) g = { ...g, fell: a.side };
+    if (left <= 0) g = { ...g, fell: a.side, fallen: (g.fell === a.side ? g.fallen ?? 1 : 0) + 1 };
     damage.push({ id: a.id, amount: back });
     counter = `${label(v)} counters −${back}${left > 0 ? "" : " · killed"}`;
   }
@@ -425,8 +452,8 @@ function useUnchecked(g: Run, item: Item, target: Pos): { run: Run; step: Step |
 
 /** For every square (indexed y * width + x), how many of u's own moves it takes from there to reach a
  * square it could strike one of `targets` from; Infinity where it can't. Other pieces and walls block;
- * u's own square doesn't. Kings, knights and sliders move the same both ways, so this searches out from
- * the strike squares. Not for pawns, which only go forward. */
+ * u's own square doesn't. Kings, knights, sliders and tactics walks move the same both ways, so this
+ * searches out from the strike squares. Not for chess pawns, which only go forward. */
 function movesToStrike(g: Run, u: Unit, targets: Unit[]): number[] {
   const e = levelOf(g), W = e.width, H = e.height;
   const blocked = new Uint8Array(W * H);
@@ -434,7 +461,7 @@ function movesToStrike(g: Run, u: Unit, targets: Unit[]): number[] {
   for (const v of g.units) if (v.id !== u.id) blocked[v.y * W + v.x] = 1;
   const dist: number[] = new Array(W * H).fill(Infinity), queue: number[] = [];
   for (let i = 0; i < W * H; i++) if (!blocked[i] && targets.some(w => reaches(g, u, { x: i % W, y: Math.floor(i / W) }, w))) { dist[i] = 0; queue.push(i); }
-  const dirs = slides(u.kind) ?? (u.kind === "knight" ? LEAPS : [...STRAIGHTS, ...DIAGONALS]), slide = !!slides(u.kind);
+  const walk = tactics(g), dirs = walk ? STRAIGHTS : slides(u.kind) ?? (u.kind === "knight" ? LEAPS : [...STRAIGHTS, ...DIAGONALS]), slide = !walk && !!slides(u.kind);
   for (let q = 0; q < queue.length; q++) {
     const i = queue[q], x = i % W, y = Math.floor(i / W);
     for (const [dx, dy] of dirs) for (let n = 1; ; n++) {
@@ -444,15 +471,17 @@ function movesToStrike(g: Run, u: Unit, targets: Unit[]): number[] {
       if (!slide) break;
     }
   }
+  // A walk counts single steps; a move covers up to `move` of them, so a partial move still counts as progress.
+  if (walk) { const per = Math.max(1, rulesOf(g).tactics.move[u.kind]); return dist.map(d => d / per); }
   return dist;
 }
 
-/** Deterministic enemy policy: each enemy piece may move once, then strike once (under one
- * move per turn, only the piece that acts first). The best-scoring action across the pieces that may
+/** Deterministic enemy policy: each enemy piece may move once, then strike once (only as many pieces
+ * as the pieces per turn allow, the first to act). The best-scoring action across the pieces that may
  * still act goes first, repeated until nothing is worth doing. */
 function enemyTurn(g: Run): { run: Run; steps: Step[] } {
   const r = rulesOf(g);
-  let run: Run = { ...g, fell: undefined, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false } : u)) };
+  let run: Run = { ...g, fell: undefined, fallen: undefined, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false } : u)) };
   const steps: Step[] = [];
   const gap = (p: Pos, w: Pos) => Math.max(Math.abs(p.x - w.x), Math.abs(p.y - w.y));
   const limit = 2 * run.units.filter(u => u.side === "black").length + 1;
@@ -474,7 +503,8 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
       // Close in on the king, or on whichever of your pieces is nearest: counted in the piece's own
       // moves around walls and pieces, so a slider behind a wall goes round it instead of freezing.
       const whites = run.units.filter(w => w.side === "white");
-      const toKing = u.kind === "pawn" || u.moved || u.acted ? null : movesToStrike(run, u, [king]), toAny = toKing && movesToStrike(run, u, whites);
+      const marches = u.kind === "pawn" && !tactics(run);
+      const toKing = marches || u.moved || u.acted ? null : movesToStrike(run, u, [king]), toAny = toKing && movesToStrike(run, u, whites);
       const W = levelOf(run).width, routed = !!toAny && Number.isFinite(toAny[u.y * W + u.x]);
       const dist = (p: Pos) => routed ? Math.min(toKing![p.y * W + p.x] - 0.5, toAny![p.y * W + p.x]) : Math.min(gap(p, king) - 0.5, ...whites.map(w => gap(p, w)));
       const walk = (t: Pos) => {
@@ -502,7 +532,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
         const gain = dist(u) - dist(t), travel = gap(u, t) / 10;
         // Pawns keep marching toward pieces still ahead of them.
         const ahead = whites.some(w => (w.y - u.y) * forward(u) > 0);
-        const march = u.kind === "pawn" && gain <= 0 && ahead ? 1 : 0;
+        const march = marches && gain <= 0 && ahead ? 1 : 0;
         // A square to strike from is worth a step.
         const lineUp = !u.acted && whites.some(w => reaches(run, u, t, w));
         if (gain <= 0 && !march && !lineUp) continue;
@@ -519,9 +549,9 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
 }
 
 /** The damage the enemy's next turn could deal your king. Each enemy piece that could strike him, in
- * place or after its one move, hits him once: under one move per turn only the hardest single hit
- * counts, otherwise every hit adds up. `attackers` are the pieces whose hit makes up that threat.
- * Each piece is judged on the board as it stands. */
+ * place or after its one move, hits him once, and the hardest hits add up, as many as the pieces per
+ * turn (under one move per turn, only the hardest single hit). `attackers` are the pieces whose hit
+ * makes up that threat. Each piece is judged on the board as it stands. */
 export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const king = g.units.find(u => u.id === "king");
   if (!king) return { damage: 0, attackers: [] };
@@ -535,11 +565,12 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
     const hit = Math.max(can ? hitFor(fresh, u) : 0, spears);
     if (hit > 0) hits.push({ id: u.id, hit });
   }
-  if (rulesOf(g).turn === "all") return { damage: hits.reduce((s, h) => s + h.hit, 0), attackers: hits.map(h => h.id) };
-  const top = Math.max(0, ...hits.map(h => h.hit));
-  // Every piece that could finish him alone is a checker; short of that, the hardest hitters.
-  const bar = Math.min(top, king.hp);
-  return { damage: top, attackers: hits.filter(h => h.hit >= bar).map(h => h.id) };
+  const n = actsPerTurn(rulesOf(g));
+  if (hits.length <= n) return { damage: hits.reduce((s, h) => s + h.hit, 0), attackers: hits.map(h => h.id) };
+  const top = hits.map(h => h.hit).sort((a, b) => b - a).slice(0, n);
+  // Every piece that could finish him alone is a checker; short of that, the hardest hitters (ties included).
+  const bar = Math.min(top[n - 1], king.hp);
+  return { damage: top.reduce((s, h) => s + h, 0), attackers: hits.filter(h => h.hit >= bar).map(h => h.id) };
 }
 /** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */
 export function inCheck(g: Run): boolean {
@@ -549,7 +580,7 @@ export function inCheck(g: Run): boolean {
 /** Could anything you still do this turn (moves, strikes and an item) get the king out of check? */
 export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
-  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}`).join("|") + (g.fell ?? "") + (g.itemUsed ? "!" : (g.items ?? []).join());
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}`).join("|") + (g.fell ?? "") + (g.fallen ?? "") + (g.itemUsed ? "!" : (g.items ?? []).join());
   const visit = (g: Run): boolean => {
     if (g.phase !== "player") return g.phase !== "defeat";
     const k = key(g);
@@ -565,21 +596,20 @@ export function canEscape(start: Run): boolean {
   };
   return visit(start);
 }
-/** Under one move per turn, has your piece done all it usefully can, so the turn should pass on its
- * own? True once it has struck, or once it has moved and has nothing safe to strike. Always false when
- * every piece acts. */
+/** Under a set number of pieces per turn, have your pieces done all they usefully can, so the turn
+ * should pass on its own? True once the count is used up (or every piece has acted) and each piece
+ * that acted has struck, or has moved and has nothing safe to strike. Always false when every piece acts. */
 export function turnSpent(g: Run): boolean {
-  if (g.phase !== "player" || rulesOf(g).turn !== "one") return false;
+  const n = actsPerTurn(rulesOf(g));
+  if (g.phase !== "player" || !Number.isFinite(n)) return false;
   // An item you could still use waits for End turn: items work before or after the piece acts.
   if ((g.items ?? []).some(item => !itemReason(g, item))) return false;
-  const whites = g.units.filter(u => u.side === "white");
-  if (g.fell === "white" || whites.some(u => u.acted)) return true;
-  const mover = whites.find(u => u.moved);
-  if (!mover) return false;
-  return !attackTargets(g, mover).some(t => !strikeExposesKing(g, mover.id, t.id!));
+  const whites = g.units.filter(u => u.side === "white" && !u.decoy), used = whites.filter(u => u.moved || u.acted);
+  if (actorsUsed(g, "white") < n && used.length < whites.length) return false;
+  return used.every(u => u.acted || !attackTargets(g, u).some(t => !strikeExposesKing(g, u.id, t.id!)));
 }
 /** Your pieces' moves are spent. */
-const handOver = (g: Run): Run => ({ ...g, fell: undefined, units: g.units.map(u => (u.side === "white" ? { ...u, moved: false, acted: false } : u)) });
+const handOver = (g: Run): Run => ({ ...g, fell: undefined, fallen: undefined, units: g.units.map(u => (u.side === "white" ? { ...u, moved: false, acted: false } : u)) });
 /** What the enemy would do if you ended your turn now, step by step: its turn computed from the board
  * as it stands (a previewed move included). Nothing is changed; only End turn makes it happen. */
 export function enemyPlan(g: Run): Step[] {
@@ -615,7 +645,7 @@ export function endTurn(g: Run): { run: Run; steps: Step[] } {
   const run = steps.length ? acted : note(acted, "Enemy waits");
   if (run.phase !== "player") return { run, steps };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y, ...(u.decoy && { decoy: true as const }) } : { ...u, moved: false, acted: false }));
-  return { run: { ...run, fell: undefined, itemUsed: undefined, units, turn: run.turn + 1 }, steps };
+  return { run: { ...run, fell: undefined, fallen: undefined, itemUsed: undefined, units, turn: run.turn + 1 }, steps };
 }
 
 export function campReason(g: Run, choice: CampChoice): string {

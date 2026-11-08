@@ -1,9 +1,14 @@
 {
   "version": 1,
-  "turn": "one",
+  "turn": 1,
+  "movement": "chess",
   "hp": { "king": 5, "queen": 9, "rook": 5, "bishop": 3, "knight": 3, "pawn": 2 },
   "damage": { "king": 2, "queen": 3, "rook": 2, "bishop": 2, "knight": 2, "pawn": 1 },
   "range": { "king": 1, "queen": 1, "rook": 1, "bishop": "line", "knight": 1, "pawn": 1 },
+  "tactics": {
+    "move": { "king": 2, "queen": 4, "rook": 3, "bishop": 3, "knight": 3, "pawn": 2 },
+    "reach": { "king": 1, "queen": 1, "rook": 1, "bishop": 3, "knight": 1, "pawn": 1 }
+  },
   "counter": true,
   "cost": { "pawn": 3, "bishop": 6, "rook": 8, "heal": 4 },
   "heal": 2,

@@ -8,6 +8,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   (removed for both sides). `"turn":
   "all"` brings back every piece acting. No promotion: pawns stop at the far
   row.
+- **Developer toggles** (studio Mechanics tab, top "Developer" group; saved
+  in `rules.json`): `movement` chess or tactics (walk N orthogonal squares
+  around blockers, strike within a Chebyshev reach; numbers per kind in
+  `tactics`), and moves per turn `turn` 1, 2, 3 or `"all"` for both sides.
+  Defaults are today's game (chess, 1). Rules in `docs/turn-based.md`
+  (Turns, Movement).
 - **Strikes:** every struck piece that survives strikes back if it can reach
   the attacker (`counter` switch). Strike range is
   per kind in `rules.json` (`range`: 1 or `"line"`); bishops are `"line"`:

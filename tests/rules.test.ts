@@ -20,7 +20,7 @@ describe("rules data", () => {
   it("lists every problem in a broken file", () => {
     expect(parseRules([]).ok).toBe(false);
     const bad = { ...RULES, turn: "some", hp: { ...RULES.hp, king: 0 }, damage: { ...RULES.damage, pawn: 1.5 }, heal: -1, counter: "yes", extra: 1 };
-    expect(parseRules(bad)).toEqual({ ok: false, errors: ["Unknown field extra", 'turn must be "one" or "all"', "hp king: 1–99", "damage pawn: 0–99", "heal: 0–99", "counter must be true or false"] });
+    expect(parseRules(bad)).toEqual({ ok: false, errors: ["Unknown field extra", 'turn must be 1–9 or "all"', "hp king: 1–99", "damage pawn: 0–99", "heal: 0–99", "counter must be true or false"] });
     const { queen: _, ...noQueen } = RULES.hp;
     expect(parseRules({ ...RULES, hp: noQueen })).toEqual({ ok: false, errors: ["hp needs king, queen, rook, bishop, knight, pawn"] });
   });
@@ -29,6 +29,11 @@ describe("rules data", () => {
     expect(parseRules(older)).toEqual({ ok: true, rules: RULES });
     expect(parseRules({ ...RULES, slots: 12, items: { ...RULES.items, bomb: { damage: 1, area: 0 } } })).toEqual({ ok: false, errors: ["slots: 0–9", "items bomb area: 1–8"] });
     expect(parseRules({ ...RULES, items: { bomb: RULES.items.bomb } }).ok).toBe(false);
+  });
+  it("loads an older file's turn \"one\" and missing movement fields as today's game, and checks the new numbers", () => {
+    const { movement: _, tactics: __, ...older } = RULES;
+    expect(parseRules({ ...older, turn: "one" })).toEqual({ ok: true, rules: RULES });
+    expect(parseRules({ ...RULES, turn: 0, movement: "hex", tactics: { ...RULES.tactics, reach: { ...RULES.tactics.reach, bishop: 0 } } })).toEqual({ ok: false, errors: ['turn must be 1–9 or "all"', 'movement must be "chess" or "tactics"', "tactics reach bishop: 1–9"] });
   });
   it("reads past the retired defend fields of an older rules file, and drops them", () => {
     expect(parseRules({ ...RULES, defend: 1, defends: 3 })).toEqual({ ok: true, rules: RULES });
