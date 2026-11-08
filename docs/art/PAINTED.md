@@ -68,13 +68,13 @@ webp files are the canonical art; a re-run gives a similar character.
   ```
   svg.rig
   ├ ground: .rig-shadow (ellipse rebel, diamond patrol), .fx-dust, .fx-lines
-  ├ .flip › .hop › .squash › image.sprite + .shield
+  ├ .flip › .hop › .squash › image.sprite
   ├ .fx-side › .fx-burst, .fx-stars, .fx-crown (king)
   └ .fx-pop, .fx-smoke
   ```
   `.flip` mirrors the patrol to face left; `.hop` carries jumps, the hit flash and knight
   flips; `.squash` carries squash, lean, lunge, knockback and fall.
-- `src/rig.css`: pivots, shield, shared effects, knight flips, reduced motion.
+- `src/rig.css`: pivots, shared effects, knight flips, reduced motion.
   `src/sprite.css` (loaded after): whole-sprite keyframes per action and skin quirks.
 - One-shot lengths at 1× are `RIG_MS` in `PieceRig.tsx`; every duration is
   `calc(<ms> * var(--spd,1))`. The game sets `--spd` to 1, 0.3 (fast) or 0.1 (reduced
@@ -85,10 +85,9 @@ webp files are the canonical art; a re-run gives a similar character.
 | Action | Motion | Effects |
 |---|---|---|
 | idle | breathing squash with a small bob | — |
-| wounded / guarding | reddish tint and tremble / braced lower | shield |
+| wounded | reddish tint and tremble | — |
 | move | crouch, hop arc, squash on landing | lines, dust |
 | attack | lean back, lunge 26 units, snap back | burst, stars, lines |
-| defend | brace squash | flash, shield |
 | hit | white flash, knockback, settle | damage pop |
 | death | flash, hop, tips over, lies flat, fades | smoke, dust, stars |
 | cheer | two jumps | sparkles |

@@ -19,9 +19,9 @@ function Swatch({ hex, name }: { hex: string; name: string }) {
 }
 const PALETTES: { title: string; colors: [string, string][] }[] = [
   { title: "Ink and paper", colors: [[INK, "Ink"], ["#f3ead7", "Parchment page"], ["#fbf6e8", "Panel"], ["#cabc9e", "Rule / border"], ["#766a58", "Muted text"]] },
-  { title: "Table", colors: [["#8a6a50", "Table light"], ["#5a4434", "Table mid"], ["#3a2b22", "Table edge"], ["#2b201b", "Plaque"], ["#a8865f", "Brass rim"], ["#f6e3b4", "Plaque text"], ["#7a5c44", "Board frame (game)"], ["#e2a92a", "Bell brass"], ["#cfe2f3", "Shield token"]] },
+  { title: "Table", colors: [["#8a6a50", "Table light"], ["#5a4434", "Table mid"], ["#3a2b22", "Table edge"], ["#2b201b", "Plaque"], ["#a8865f", "Brass rim"], ["#f6e3b4", "Plaque text"], ["#7a5c44", "Board frame (game)"], ["#e2a92a", "Bell brass"]] },
   { title: "Board", colors: [["#e9d6ae", "Sand square"], ["#9aaf87", "Grass square"], ["#695c51", "Wall"], ["#675448", "Frame"], ["#483b34", "Frame shadow"], ["#e7b66d", "Impact"]] },
-  { title: "Signals", colors: [["#396c61", "Action teal"], ["#2d6755", "Move dot"], ["#c2493c", "Strike"], ["#a3271c", "Check"], ["#355f88", "Guard ring"], ["#2f5a82", "Guard chip"], ["#8d2c27", "Damage"], ["#fcf5de", "HP badge rebel"], ["#764950", "HP badge patrol"], ["#437d72", "Focus ring"]] },
+  { title: "Signals", colors: [["#396c61", "Action teal"], ["#2d6755", "Move dot"], ["#c2493c", "Strike"], ["#a3271c", "Check"], ["#8d2c27", "Damage"], ["#fcf5de", "HP badge rebel"], ["#764950", "HP badge patrol"], ["#437d72", "Focus ring"]] },
   { title: "Banners", colors: [["#ffd34d", "Battle won"], ["#7fd38c", "Victory"], ["#4b3f3a", "Defeat"], ["#a3271c", "Checkmate"]] },
   { title: "Hideout", colors: [["#a3b78f", "Grass alt"], ["#e3cfa3", "Path"], ["#b9a77f", "Lot"], ["#c4553f", "Flag / roof red"], ["#e8c784", "Straw"], ["#5b4a72", "Guild roof"]] },
 ];
@@ -47,7 +47,6 @@ const EASE = rigCss.match(/--ease-[a-z]+:cubic-bezier\([^)]*\)/g) ?? [];
 const SIDE_MARKERS: [string, string, string][] = [
   ["Colours", "Earthy, patched, one accent", "Royal blue, white, gold"],
   ["Ground shadow", "Ellipse", "Diamond"],
-  ["Shield", "Round wooden buckler", "Blue kite shield, gold cross"],
   ["HP badge", "Cream", "Plum"],
   ["Facing", "Right", "Left (mirrored)"],
 ];
@@ -55,14 +54,14 @@ const CONSTRUCTION: [string, string][] = [
   ["Source", "One painted webp per piece, 480px tall, 12px ink outline · src/assets/sprites/"],
   ["Canvas", "viewBox 0 0 100 120 · feet on y 108 · inside x 18–82"],
   ["Height", "Pawn 84 · knight, rook 98 · bishop, queen, king 102 (viewBox units)"],
-  ["Groups", ".flip › .hop › .squash › image.sprite + .shield"],
+  ["Groups", ".flip › .hop › .squash › image.sprite"],
   ["Moves", "Whole sprite only: hop, squash, lean, flip, fade"],
   ["Effects", "Dust, lines, burst, stars, smoke, pop, crown"],
   ["Facing", "Painted right; the patrol is mirrored"],
 ];
 const A11Y: [string, string][] = [
   ["prefers-reduced-motion", "Animations and transitions cut to .01ms, except hit flash .3s and death fade .2s. Enemy step 90ms; JS timings ×0.1."],
-  ["Side not by colour alone", "Shadow shape, shield shape, HP badge, facing"],
+  ["Side not by colour alone", "Shadow shape, HP badge, facing"],
   ["Flashing", "Hit flash: one brightness pulse per hit. Pulsing highlights (strike, CHECK, strike dots): .9–1.2s"],
   ["Screen readers", "All art aria-hidden; squares carry aria-labels; banner text in a live region"],
   ["Focus", "3px #437d72 outline, 4px offset"],

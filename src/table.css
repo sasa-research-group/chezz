@@ -39,29 +39,16 @@
 .team-king{display:flex;align-items:center;gap:4px;flex-shrink:0}
 .team-face{width:22px;height:28px;display:block;flex-shrink:0}.team-face svg{width:100%;height:100%;display:block}
 .hearts{display:flex;gap:1px}.hearts i{font-style:normal;font-size:15px;line-height:1;color:#f6e3b433}.hearts i.full{color:#ef5a4c}
-.defend-badges{display:flex;gap:4px;flex-shrink:0}
-.defend-badge{width:20px;height:22px;overflow:visible}
-.defend-badge path{fill:#9bbfe0;stroke:#f6e3b4;stroke-width:1.6;stroke-linejoin:round}
-.defend-badge .crack{fill:none;stroke:none}
-.defend-badge.spent path{fill:#00000040;stroke:#a8865f88;stroke-dasharray:2.5 2}
-.defend-badge.spent .crack{stroke:#a8865faa;stroke-width:1.3;stroke-dasharray:none;stroke-linecap:round}
-.defend-badge.breaking{animation:badge-break .6s ease-out}
-@keyframes badge-break{0%{transform:scale(1)}25%{transform:scale(1.45) rotate(-8deg);filter:brightness(2.2)}60%{transform:scale(.8) rotate(6deg)}100%{transform:none}}
-@media(prefers-reduced-motion:reduce){.defend-badge.breaking{animation:none}}
 
-/* HUD strip: the selected piece's card, the shield token and the End turn pill. */
-.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". cancel shield end";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
+/* HUD strip: the selected piece's card, Cancel, Skip (during playback) and the End turn pill. */
+.table-hud{grid-area:hud;display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"info info info info" ". cancel skip end";align-items:center;gap:6px 10px;padding:4px 12px 10px;background:linear-gradient(#0000,#0000004d)}
 .hud-info{grid-area:info;display:flex;align-items:center;gap:10px;min-height:48px;min-width:0}
 .table-hud .selected-card{margin:0;padding:3px 10px 3px 4px;gap:6px;background:#2b201b;border:2px solid #a8865f;border-radius:10px;min-height:46px;flex-shrink:0;color:#f6e3b4}
 .table-hud .selected-card svg:not(.strike-icon){width:30px}
 .table-hud .selected-card>div{gap:2px 8px}
 .table-hud .unit-stats{color:#f6e3b4}
 .table-hud .action-pips i{background:#2b201b;border-color:#9fd1bf}.table-hud .action-pips i.full{background:#9fd1bf}
-.shield-token{grid-area:shield;position:relative;width:64px;height:64px;border-radius:50%;padding:0;background:#cfe2f3;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b,inset 0 -5px 0 #9bbfe0;display:grid;place-items:center}
-.shield-token svg{width:28px;height:30px;fill:#2f5a82;stroke:#2b201b;stroke-width:1.5}
-.shield-token:disabled{opacity:.4;box-shadow:0 2px 0 #2b201b}
-.shield-plus{position:absolute;right:-8px;bottom:-4px;background:#2f5a82;color:#fff;border:2px solid #2b201b;border-radius:9px;padding:1px 5px;font-size:13px;font-weight:900;line-height:1.1}
-.skip-token{grid-area:shield;width:64px;height:64px;border-radius:50%;padding:0;background:#e8d9b4;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b;display:grid;place-items:center}
+.skip-token{grid-area:skip;width:64px;height:64px;border-radius:50%;padding:0;background:#e8d9b4;border:4px solid #2b201b;box-shadow:0 5px 0 #2b201b;display:grid;place-items:center}
 .skip-token svg{width:28px;height:28px;fill:#2b201b}
 .end-turn{grid-area:end;display:flex;align-items:center;gap:8px;height:64px;padding:0 20px 0 12px;border-radius:32px;background:linear-gradient(#ffe58a,#e2a92a);border:4px solid #2b201b;box-shadow:0 6px 0 #2b201b;color:#2b201b;font-weight:900;font-size:17px;white-space:nowrap}
 .end-turn-icon{width:32px;height:32px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;font-size:19px;background:#2b201b;color:#ffe58a}
@@ -74,7 +61,6 @@
 .cancel-move svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .cancel-move:active{transform:translateY(2px);box-shadow:0 2px 0 #1c1512}
 .table-hud .enemy-card{border-color:#c2493c}
-.table-hud .enemy-card .unit-stats .guard{color:#9bbfe0}
 .intent-line{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#f3a094;white-space:nowrap}
 .intent-line .strike-icon{width:12px;height:12px}
 .table-hud button:focus-visible,.top-bar button:focus-visible,.pause-menu :focus-visible{outline-color:#ffe08a}
@@ -99,9 +85,9 @@
 
 /* Small phones (under 375px): shrink the table objects so the strip and the bar still fit. */
 @media(orientation:portrait) and (max-width:374px){
-  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:13px}.defend-badge{width:17px;height:19px}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
+  .top-bar{gap:5px;padding:6px 6px 2px}.plaque{padding:2px 5px;gap:4px}.hearts i{font-size:13px}.coins{font-size:16px;gap:4px}.coins i{width:22px;height:22px}
   .table-hud{gap:6px;padding:4px 8px 8px}
-  .shield-token,.skip-token{width:52px;height:52px}.end-turn{height:56px;font-size:15px;padding:0 14px 0 10px}
+  .skip-token{width:52px;height:52px}.end-turn{height:56px;font-size:15px;padding:0 14px 0 10px}
   .cancel-move{padding:0 12px}.cancel-label{display:none}
 }
 @media(orientation:landscape){
@@ -110,7 +96,7 @@
   .menu-button{order:-1}
   .battle-plaque{flex-direction:column;padding:6px 4px;gap:4px}
   .coins{margin:0;flex-direction:column;gap:2px;font-size:18px}
-  .table-hud{width:196px;grid-template-columns:1fr;grid-template-areas:"info" "cancel" "shield" "end";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
+  .table-hud{width:196px;grid-template-columns:1fr;grid-template-areas:"info" "cancel" "skip" "end";align-content:center;justify-items:center;padding:8px 10px;gap:10px 6px;background:linear-gradient(90deg,#0000,#0000004d)}
   .hud-info{flex-direction:column;align-items:stretch;min-height:0}
   .table-hud .selected-card{align-self:center}
   .cancel-move{justify-self:center}
@@ -118,13 +104,11 @@
   .end-turn{width:100%;justify-content:center;font-size:15px;padding:0 10px;white-space:normal;line-height:1.1}
 }
 @media(orientation:landscape) and (max-height:500px){
-  .shield-token{width:56px;height:56px}
   .end-turn{height:52px}
 }
 @media(orientation:landscape) and (min-width:1100px) and (min-height:600px){
   .top-bar{padding:16px 14px}
   .table-hud{width:270px;padding:16px 20px 16px 10px}
-  .shield-token{width:76px;height:76px}.shield-token svg{width:34px;height:36px}
   .end-turn{height:76px;font-size:18px}
   .exile-field .board-camera{--pt:36px;--pb:44px;--px:16px}
 }

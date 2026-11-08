@@ -62,20 +62,9 @@
 @media(prefers-reduced-motion:reduce){.board-camera.mate-zoom{transform:none}}
 /* A move that would put your own king in check: shown, but blocked. */
 .exile-cell .unsafe-dot{background:#f3d5cf;border-color:#a3271c;border-style:dashed;box-shadow:none}.unsafe-dot .cost-label{color:#a3271c;font-size:12px}
-/* Defending: a shield chip by the HP badge, a steel-blue ring on the tile and a cool glow on the piece. */
-/* Red strike/aim rings win over the blue one; the chip and glow still say "defending". */
-.exile-cell.guarded-tile:not(.strikeable):not(.aimed){box-shadow:inset 0 0 0 4px #355f88;background-image:linear-gradient(#7fb0d633,#7fb0d633)}
-.exile-piece.guarded .rig{filter:drop-shadow(0 0 2px #e8f3ff) drop-shadow(0 0 6px #3f78a8)}
-.exile-piece.guarded.spent .rig{filter:grayscale(.55) brightness(.92) drop-shadow(0 0 5px #3f78a8)}
-.exile-piece.guarded.selected .rig{filter:drop-shadow(0 0 3px #fff9d7) drop-shadow(0 0 5px #397869) drop-shadow(0 0 7px #3f78a8)}
-.exile-piece.guarded.targetable .rig{filter:drop-shadow(0 0 2px #fff3d9) drop-shadow(0 0 5px #d2402f) drop-shadow(0 0 8px #3f78a8)}
-.guard-badge{position:absolute;top:40%;left:-6%;display:flex;align-items:center;gap:1px;background:#2f5a82;color:#fff;border:2px solid #382f2e;border-radius:8px;box-shadow:0 2px 0 #382f2e;padding:1px 4px 1px 2px;font-size:11px;font-weight:900;line-height:1;z-index:2;pointer-events:none;animation:guard-in .3s cubic-bezier(.34,1.56,.64,1) both}
-.guard-badge svg{width:13px;height:14px;fill:#dbe9f6;stroke:#382f2e;stroke-width:2}
-@keyframes guard-in{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
-@media(max-width:700px){.guard-badge{top:30%;font-size:9px;padding:0 3px 0 1px}.guard-badge svg{width:10px;height:11px}}
 .exile-cell.in-reach::after{content:"";position:absolute;inset:9%;pointer-events:none;--t:#c2493cb0;background:linear-gradient(var(--t) 0 0) 0 0/24% 3px,linear-gradient(var(--t) 0 0) 0 0/3px 24%,linear-gradient(var(--t) 0 0) 100% 0/24% 3px,linear-gradient(var(--t) 0 0) 100% 0/3px 24%,linear-gradient(var(--t) 0 0) 0 100%/24% 3px,linear-gradient(var(--t) 0 0) 0 100%/3px 24%,linear-gradient(var(--t) 0 0) 100% 100%/24% 3px,linear-gradient(var(--t) 0 0) 100% 100%/3px 24%;background-repeat:no-repeat}
 .strike-badge.unsafe{background:#f3d5cf;color:#a3271c;border-style:dashed;animation:none}
-/* Action pips: the first is the move, the second the strike or defend. */
+/* Action pips: the first is the move, the second the strike. */
 .action-pips{display:inline-flex;gap:3px}.action-pips i{width:7px;height:7px;border-radius:50%;border:1.5px solid #396c61;background:#fcf5de}.action-pips i.full{background:#396c61}
 .exile-piece>.action-pips{position:absolute;left:50%;bottom:-11px;transform:translateX(-50%);pointer-events:none}
 .selected-card>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.unit-stats{font-size:12px;font-weight:800;color:#4f5d4b}
@@ -104,10 +93,8 @@
 .intent-chips{position:absolute;inset:0;pointer-events:none;z-index:5;transform-style:preserve-3d}
 .intent-chip{position:absolute;transform:translate(-50%,-50%) rotateX(-8deg) translateZ(40px);display:flex;align-items:center;gap:1px;border:2px solid #382f2e;border-radius:8px;box-shadow:0 2px 0 #382f2e;padding:1px 6px;font-size:13px;font-weight:900;line-height:1.1;white-space:nowrap}
 .intent-chip.hit{background:#fff7dc;color:#a3271c}.intent-chip.hit.kills{background:#a3271c;color:#fff7dc}
-.intent-chip.brace{background:#dbe9f6;color:#2f5a82;border-style:dashed;margin-left:-28%;padding:1px 4px 1px 2px;font-size:11px}
-.intent-chip.brace svg{width:13px;height:14px;fill:#2f5a82;stroke:#382f2e;stroke-width:2}
 .intent-chip.idle{background:#2b201b;color:#f6e3b4;font-size:10px;letter-spacing:.5px;padding:0 6px;border-color:#a8865f;box-shadow:none}
-@media(max-width:700px){.intent-chip{font-size:11px;padding:0 4px}.intent-chip.idle{font-size:9px}.intent-chip.brace svg{width:10px;height:11px}}
+@media(max-width:700px){.intent-chip{font-size:11px;padding:0 4px}.intent-chip.idle{font-size:9px}}
 .exile-piece.inspected .rig{filter:drop-shadow(0 0 3px #fff3d9) drop-shadow(0 0 5px #c2493c)}
 .exile-cell.start-square::before{content:"";position:absolute;inset:30%;border:2px dashed #2b201b66;border-radius:50%;pointer-events:none}
 .strike-bolt{position:absolute;left:var(--fx);top:var(--fy);width:calc(80% / var(--cols));height:7px;border-radius:4px;background:linear-gradient(90deg,#ffd36a00,#ffd36a 55%,#fffbe8);box-shadow:0 0 9px #ffcf5a,0 0 3px #fff;transform-origin:100% 50%;transform:translateZ(40px) translate(-100%,-50%) rotate(var(--a));animation:bolt-fly calc(var(--ms) * var(--spd,1)) cubic-bezier(.4,0,.8,1) both;pointer-events:none;z-index:400}

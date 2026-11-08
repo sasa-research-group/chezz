@@ -19,7 +19,7 @@ describe("painted sprites", () => {
   for (const id of PAINTED_SKINS) it(`skin ${id} has its recipe and image`, () => expectRecipeAndImage(`skin-${id}`));
   it("moves only the root groups", () => {
     const html = renderToStaticMarkup(createElement(PieceRig, { kind: "king", side: "white" }));
-    for (const group of ["flip", "hop", "squash", "shield", "fx-crown"]) expect(html, group).toContain(group);
+    for (const group of ["flip", "hop", "squash", "fx-crown"]) expect(html, group).toContain(group);
     for (const part of ["arm-front", "arm-back", 'class="prop', "head-tilt", "eyes"]) expect(html, part).not.toContain(part);
   });
 });

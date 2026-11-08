@@ -11,8 +11,6 @@ import { inkBox } from "./ink-bounds";
  * (`--rim` in exile.css) is sized so ink down to y 0 on the top row stays on the frame.
  * Sprites are trimmed to their ink, so a sprite's box is its ink. */
 const BOUNDS = { left: 18, right: 82, top: 0 };
-/** Hidden at rest: the defend shield. */
-const AT_REST_HIDDEN = ["shield"];
 
 const CAST = [
   ...SPRITE_IDS.map(id => {
@@ -27,7 +25,7 @@ describe("painted sprites stay inside the figure contract", () => {
   for (const { name, props } of CAST) it(name, () => {
     const html = renderToStaticMarkup(createElement(PieceRig, props));
     expect(html.match(/<image/g), "draws one whole sprite").toHaveLength(1);
-    const ink = inkBox(html, { within: "flip", skip: AT_REST_HIDDEN });
+    const ink = inkBox(html, { within: "flip", skip: [] });
     expect(ink.top, "topmost ink (a top-row crest would cross the board's frame)").toBeGreaterThanOrEqual(BOUNDS.top);
     expect(ink.left, "leftmost ink").toBeGreaterThanOrEqual(BOUNDS.left);
     expect(ink.right, "rightmost ink").toBeLessThanOrEqual(BOUNDS.right);
