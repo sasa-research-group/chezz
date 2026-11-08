@@ -42,7 +42,7 @@ as one move + defend chip; #20 handoff audit.
 
 ## Open items (Wesley's calls, see docs/variants.md "Open design questions")
 - Stall clock shipped (tire after 3 quiet turns, retreat after 8). Grumble always crowns a knight; enemy royal pawns crown Her
-  Wigness. Still open: Nobody's suit toppled vs timed;
+  Wigness. Any piece can topple Nobody's suit for 2. Still open:
   modelling an enemy Marmalade's wake-up nudge in check.
 - The enemy AI takes no alt actions and has no per-ability scoring.
 - Known gaps: a Sir Lance that moved then braced counters for 3; shoves

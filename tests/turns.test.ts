@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, walkAndStrike } from "../src/game/turns";
+import { COST, DAMAGE, ENCOUNTERS, ENERGY, HP, alt, altActions, approaches, attack, attackTargets, buy, campReason, canEscape, defend, endTurn, exposesKing, inCheck, kingThreat, leaveCamp, move, moveTargets, newRun, promote, reaches, readRun, strikeExposesKing, walkAndStrike } from "../src/game/turns";
 import type { Run, Unit } from "../src/game/turns";
 import { abilityOf, variantOf } from "../src/game/abilities";
 import { playTurn } from "./turns-strategy";
@@ -405,6 +405,28 @@ describe("statuses the rules read", () => {
     const spent: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5, moved: true, acted: true, defending: true };
     const g = board([king, spent]);
     expect(kingThreat(g)).toEqual({ damage: 3, attackers: ["r"] });
+  });
+});
+
+describe("toppling a suit", () => {
+  // Nobody's empty suit is a wall in run.walls. Any piece beside it may knock it over for 2 instead of striking.
+  const rook: Unit = { id: "r", side: "white", kind: "rook", x: 1, y: 2, hp: 5 };
+  const enemy: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 0, hp: 1 };
+  it("is offered to any piece beside the suit, diagonals included, and clears it for 2", () => {
+    const g = board([king, rook, enemy], { walls: [{ x: 2, y: 1 }] });
+    const topple = altActions(g, rook).find(a => a.id === "topple");
+    expect(topple).toMatchObject({ cost: 2, targets: [{ x: 2, y: 1 }] });
+    const { run, step } = alt(g, "r", "topple", { x: 2, y: 1 });
+    expect(step).not.toBeNull();
+    expect(run.walls).toBeUndefined();
+    expect(run.energy).toBe(ENERGY - 2);
+    expect(unit(run, "r")!.acted).toBe(true);
+    expect(readRun(JSON.stringify(run))).not.toBeNull();
+  });
+  it("is not offered for the board's own walls, from afar, or without the energy", () => {
+    expect(altActions(board([king, rook, enemy], { encounter: 1, walls: [] }), { ...rook, x: 2, y: 2 }).some(a => a.id === "topple")).toBe(false);
+    expect(altActions(board([king, rook, enemy], { walls: [{ x: 3, y: 2 }] }), rook).some(a => a.id === "topple")).toBe(false);
+    expect(altActions(board([king, rook, enemy], { walls: [{ x: 2, y: 1 }], energy: 1 }), rook, 1).some(a => a.id === "topple")).toBe(false);
   });
 });
 

@@ -274,10 +274,26 @@ export function defend(g: Run, id: string): Run {
   return note({ ...g, energy: g.energy - 1, units: withUnit(g, id, { acted: true, defending: true }) }, `${label(u)} defends (1 energy).`);
 }
 export const canDefend = (g: Run, u: Unit) => abilityOf(u)?.canDefend?.(g, u) ?? true;
-/** Actions the piece may take instead of striking, affordable now. */
+/** Toppling a suit: any piece beside a wall an ability raised (Nobody's empty armour) may knock it
+ * over for 2 instead of striking. The board's own walls don't topple; that takes Brick's hammer. */
+export const TOPPLE_COST = 2;
+function topple(g: Run, u: Unit): AltAction[] {
+  const suits = (g.walls ?? []).filter(w => Math.max(Math.abs(w.x - u.x), Math.abs(w.y - u.y)) === 1);
+  if (!suits.length) return [];
+  return [{
+    id: "topple", label: `Topple (${TOPPLE_COST})`, cost: TOPPLE_COST, targets: suits,
+    apply: (run, target) => {
+      const p = target!, walls = (run.walls ?? []).filter(w => !same(w, p));
+      const text = `${label(u)} topples the empty suit at ${coord(run, p)}.`;
+      const next = note({ ...run, walls: walls.length ? walls : undefined }, text);
+      return { run: next, step: { text, units: next.units, focus: [{ x: p.x, y: p.y }], damage: [], actor: u.id, kind: "alt", killed: [] } };
+    },
+  }];
+}
+/** Actions the piece may take instead of striking, affordable now: its ability's, and toppling a suit beside it. */
 export function altActions(g: Run, u: Unit, energy = energyOf(g, u.side)): AltAction[] {
   if (u.acted) return [];
-  return (abilityOf(u)?.altActions?.(g, u) ?? []).filter(a => a.cost <= energy);
+  return [...(abilityOf(u)?.altActions?.(g, u) ?? []), ...topple(g, u)].filter(a => a.cost <= energy);
 }
 /** Takes an alternative action (hex, honk, demolish, dub...). Refused like a move if it would put your king in check. */
 export function alt(g: Run, id: string, actionId: string, target?: Pos): { run: Run; step: Step | null } {

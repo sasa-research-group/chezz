@@ -72,6 +72,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   turn start and end, any-move, alternative actions). Ability state lives in
   the unit's flat `mods` bag and run-level state in `run.walls`, `run.broken`
   and `run.flags`; `readRun` validates all of it.
+- **Toppling a suit**: any piece beside a wall an ability raised (Nobody's
+  empty armour) may knock it over for 2 instead of striking; the board's own
+  walls only fall to Brick.
 - **Alternative actions** (hex, honk, demolish, dub) replace the strike: they
   cost energy, mark the piece acted, may follow a move, and are refused like
   any move if they would leave your king in check. The sidebar offers them as
