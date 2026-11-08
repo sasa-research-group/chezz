@@ -408,6 +408,23 @@ describe("statuses the rules read", () => {
   });
 });
 
+describe("check sees an enemy Marmalade woken by a nudge", () => {
+  // Encounter 1 (6x4, enemy pool 3). The enemy's Marmalade (misfit king) sleeps beside your 2-HP king.
+  const cat: Unit = { id: "cat", side: "black", kind: "king", variant: "misfit", x: 1, y: 2, hp: 5 };
+  const nudger: Unit = { id: "p", side: "black", kind: "pawn", x: 2, y: 0, hp: 1 };
+  const weak: Unit = { ...king, x: 0, y: 3, hp: 2 };
+  it("asleep and alone he threatens nothing", () => {
+    expect(kingThreat(board([weak, cat], { encounter: 1 })).damage).toBe(0);
+  });
+  it("a friend stepping beside him (1) wakes him to strike (2): that is check, and both are marked", () => {
+    const g = board([weak, cat, nudger], { encounter: 1 });
+    const threat = kingThreat(g);
+    expect(threat.damage).toBe(2);
+    expect(threat.attackers).toEqual(expect.arrayContaining(["cat", "p"]));
+    expect(inCheck(g)).toBe(true);
+  });
+});
+
 describe("toppling a suit", () => {
   // Nobody's empty suit is a wall in run.walls. Any piece beside it may knock it over for 2 instead of striking.
   const rook: Unit = { id: "r", side: "white", kind: "rook", x: 1, y: 2, hp: 5 };

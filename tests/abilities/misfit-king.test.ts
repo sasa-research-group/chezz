@@ -48,10 +48,11 @@ describe("Marmalade (misfit king): Catnap", () => {
     expect(unit(run, "m")).toMatchObject({ x: 5, y: 2 });
     expect(unit(run, "m").mods).toBeUndefined();
     expect(run.log.some(l => l.includes("naps again"))).toBe(true);
-    // Asleep beside your king he is no part of the threat on him; awake he would be.
-    expect(kingThreat(run).attackers).not.toContain("m");
-    const awake = { ...run, units: run.units.map(u => (u.id === "m" ? { ...u, mods: { awake: true } } : u)) };
-    expect(kingThreat(awake).attackers).toContain("m");
+    // Asleep beside your king he still threatens him: the pawn can step beside him again (1) and wake him to strike (2).
+    expect(kingThreat(run).attackers).toEqual(expect.arrayContaining(["m", "bp"]));
+    // With no friend left to nudge him he is harmless.
+    const alone = { ...run, units: run.units.filter(u => u.id !== "bp") };
+    expect(kingThreat(alone).attackers).not.toContain("m");
     expect(readRun(JSON.stringify(run))).toEqual(run);
   });
   it("as your king: a nudge gives him queen moves, a strike and a brace for the turn", () => {

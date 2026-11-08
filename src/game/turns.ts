@@ -459,10 +459,21 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
     return d + (abilityOf(u)?.lingering?.(run, u, king, d) ?? 0);
   };
   const combos: { damage: number; ids: string[] }[] = [{ damage: burn, ids: [] }];
+  /** A piece whose move would wake a sleeping friend beside it (Marmalade): the one two-piece set-up check counts. */
+  const sleeperBeside = (run: Run, u: Unit, p: Pos) => run.units.some(w => w.side === u.side && w.id !== u.id && !!abilityOf(w)?.onAnyMove && Math.max(Math.abs(w.x - p.x), Math.abs(w.y - p.y)) === 1);
   const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
     if (damage > 0) combos.push({ damage, ids });
-    left.forEach((u, i) => {
+    left.forEach((stale, i) => {
+      // Read the piece as the board has it now: an earlier move in this line may have woken it.
+      const u = run.units.find(w => w.id === stale.id);
+      if (!u) return;
       const rest = left.filter((_, j) => j !== i);
+      // A nudge: step beside a sleeping friend without striking, so it can act (it strikes later in the line).
+      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool)) {
+        if (!sleeperBeside(run, u, t)) continue;
+        const woke = afterMove(settle(run, u.id, t, u, routeOf(t)), u.id, u);
+        if (woke.units.some(w => w.id === u.id)) search(woke, pool - t.cost, rest, damage, [...ids, `nudge:${u.id}`]);
+      }
       const standing = strikeCostOf(run, u);
       if (pool >= standing && reaches(run, u, u, king) && mayStrike(run, u, king)) search(run, pool - standing, rest, damage + hit(run, u), [...ids, u.id]);
       const stepped = strikeCostOf(run, { ...u, moved: true });
@@ -478,7 +489,10 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   search(start, boardOf(g).enemyEnergy, start.units.filter(u => u.side === "black"), burn, []);
   const damage = Math.max(0, ...combos.map(c => c.damage));
   const bar = Math.min(damage, king.hp);
-  const attackers = [...new Set(combos.filter(c => c.damage > burn && c.damage >= bar).flatMap(c => c.ids))];
+  // A nudger is marked only when the friend it woke is one of the line's attackers.
+  const sleepers = new Set(g.units.filter(u => u.side === "black" && abilityOf(u)?.onAnyMove).map(u => u.id));
+  const marked = (ids: string[]) => ids.some(id => sleepers.has(id)) ? ids.map(id => id.replace(/^nudge:/, "")) : ids.filter(id => !id.startsWith("nudge:"));
+  const attackers = [...new Set(combos.filter(c => c.damage > burn && c.damage >= bar).flatMap(c => marked(c.ids)))];
   return { damage, attackers };
 }
 /** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */

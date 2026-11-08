@@ -322,4 +322,4 @@ The ideation panel's final pass raised these; the prototype ships the simplest r
 - ~~Grumble's crown~~: shipped (Wesley, Nov 8): he always crowns a knight, either side, no picker; with the cast kept that is Nobody.
 - ~~Enemy crown~~: shipped (Wesley, Nov 8): promotion keeps the cast, so an enemy royal pawn crowns Her Wigness; the road's plain pawns still crown a plain queen.
 - ~~Nobody's suit~~: shipped (Wesley, Nov 8): any piece beside the suit (diagonals too) may topple it for 2 instead of striking (`topple` in turns.ts); Brick still smashes it too. The enemy AI doesn't topple yet.
-- Enemy Marmalade: model the friendly nudge inside kingThreat (the one two-piece set-up the search ever credits) or keep him player-only for the prototype? Recommended: model it, because the CHECK tag otherwise lies the first time the Royals field a cat; player-only is the fallback if it slips the build.
+- ~~Enemy Marmalade~~: shipped (Wesley, Nov 8): check counts a friend stepping beside a sleeping enemy Marmalade to wake him, then his strike; the nudger is marked ! only when the cat is in the killing line.

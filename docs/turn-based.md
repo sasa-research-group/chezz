@@ -122,8 +122,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   gate into floor for good).
 - `moveTargets` returns destinations (the burrow's exit, the end of a glide),
   so what the board offers is where the piece ends up. Check reads tile state
-  but never multi-piece set-ups: a lever pull that opens a file for another
-  piece is not check.
+  but never multi-piece set-ups (a lever pull that opens a file for another
+  piece is not check), with one exception: an enemy piece stepping beside a
+  sleeping enemy Marmalade to wake him, then his strike, is counted.
 
 ## Guild puzzles
 - `PUZZLES` (`src/game/encounters.ts`) are boards with a fixed `army`, a
