@@ -34,6 +34,9 @@ function jumpRun(index: number) {
   return startAt(index, testArmyOf(ENCOUNTERS, index), typicalStart(ENCOUNTERS, index).gold);
 }
 const HAS_TUTORIAL = tutorialCourse(ENCOUNTERS).length > 0;
+/** The game is only the tutorial for now: the roguelike run stays in the code but nothing in the game starts it. */
+const ROGUELIKE_OPEN = false;
+const TUTORIAL_ONLY = HAS_TUTORIAL && !ROGUELIKE_OPEN;
 /** Choosing which square to walk to before striking a target (when there's more than one). */
 type Picking = { target: Unit; options: Pos[] };
 /** A piece being dragged in the deploy phase: where the pointer is, in fractional board squares, and the square under it. */
@@ -178,10 +181,11 @@ function TutorialNext({ run, battle, battles, onGo }: { run: Run; battle: number
 export default function App({ test }: { test?: TestLevel } = {}) {
   const [meta, setMeta] = useState(() => loadMeta(() => localStorage, SKINS));
   // Until the tutorial is done, a new game is the tutorial.
-  const tutorialNext = !test && HAS_TUTORIAL && !meta.tutorialDone;
+  const tutorialNext = !test && HAS_TUTORIAL && (TUTORIAL_ONLY || !meta.tutorialDone);
   const fresh = () => test ? testRun(test.level, test.army, test.index, test.rules) : tutorialNext ? tutorialRun() : newRun();
-  const [run, setRun] = useState<Run>(() => (test ? null : saved()) ?? fresh());
-  const [intro, setIntro] = useState(() => !test && !saved());
+  const resumable = () => { const s = test ? null : saved(); return s && (!TUTORIAL_ONLY || s.tutorial) ? s : null; };
+  const [run, setRun] = useState<Run>(() => resumable() ?? fresh());
+  const [intro, setIntro] = useState(() => !test && !resumable());
   // End-of-battle sequence: let the last blow land, celebrate (or mourn), then show the menu.
   const [outroDone, setOutroDone] = useState(() => outroKey(run));
   const [banner, setBanner] = useState<"" | "cleared" | "victory" | "defeat" | "checkmate">("");
@@ -599,15 +603,16 @@ export default function App({ test }: { test?: TestLevel } = {}) {
         : <>{playback && <SkipToken onClick={skip} />}
       <EndTurnButton state={playback ? "waiting" : checkLocked ? "locked" : "ready"} disabled={locked || checkLocked} onClick={finishTurn} /></>}
     </section>
-    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div>{tutorialNext && <p className="kicker">Tutorial</p>}<h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && HAS_TUTORIAL && !tutorialNext && <button className="text-button" onClick={() => start(tutorialRun())}>Tutorial</button>}{!test && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
+    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div>{tutorialNext && <p className="kicker">Tutorial</p>}<h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && HAS_TUTORIAL && !TUTORIAL_ONLY && !tutorialNext && <button className="text-button" onClick={() => start(tutorialRun())}>Tutorial</button>}{!test && resumable() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
     {!intro && !playback && !outro && run.phase === "camp" && run.tutorial && <TutorialNext run={run} battle={battle} battles={battles} onGo={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && run.phase === "camp" && !run.tutorial && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
     {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}>{run.tutorial && <p className="kicker">Tutorial</p>}<h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${r.hp.king}` : `Battle ${battle} of ${battles} · turn ${run.turn}`}</p>
       {!run.tutorial || test ? <button className="primary-button" onClick={() => start()}>Play again<span>→</span></button>
         : run.phase === "defeat" ? <button className="primary-button" onClick={() => start(retry(run))}>Retry<span>→</span></button>
+        : TUTORIAL_ONLY ? <button className="primary-button" onClick={() => start(tutorialRun())}>Play again<span>→</span></button>
         : <button className="primary-button" onClick={() => start(newRun())}>Roguelike<span>→</span></button>}</section></div>}
     {phaseBanner && <PhaseBanner key={phaseBanner.n} kind={phaseBanner.kind} total={phaseTiming(fast, reduced).total} onDone={() => setPhaseBanner(b => b?.n === phaseBanner.n ? null : b)} />}
     {menu && <PauseMenu rules={r} log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onClose={() => setMenu(false)} battles={ENCOUNTERS.length} onJump={test ? undefined : index => { setMenu(false); start(jumpRun(index)); }}
-      tutorial={test || !HAS_TUTORIAL ? undefined : { done: !!meta.tutorialDone, onToggle: () => { setMeta(m => markTutorial(m, !m.tutorialDone)); setMenu(false); setIntro(true); } }} />}
+      tutorial={test || !HAS_TUTORIAL || TUTORIAL_ONLY ? undefined : { done: !!meta.tutorialDone, onToggle: () => { setMeta(m => markTutorial(m, !m.tutorialDone)); setMenu(false); setIntro(true); } }} />}
   </main>;
 }

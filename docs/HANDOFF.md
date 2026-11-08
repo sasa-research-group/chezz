@@ -46,6 +46,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   battle; finishing sets `tutorialDone` in the meta and unlocks the roguelike
   (hub, recruits, gold), which for now replays the same levels. Developer menu:
   Skip / Reset tutorial. Studio: "Tutorial level" box and preset army.
+  **For now the game is only the tutorial** (owner, Nov 8): `ROGUELIKE_OPEN = false`
+  in `App.tsx` hides every way into the roguelike (finishing offers Play again,
+  no Skip/Reset rows, saved roguelike runs aren't resumed); its code stays.
 - **Deploy phase:** every battle opens with your pieces on the start squares;
   drag (or tap, tap) to move or swap them, then Begin (`deploy`, `begin` in
   `turns.ts`).

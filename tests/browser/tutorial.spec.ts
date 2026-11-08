@@ -52,33 +52,18 @@ test("losing a tutorial battle retries it", async ({ page }) => {
   expect((await saved(page)).encounter).toBe(1);
 });
 
-test("finishing the tutorial marks it done and offers the roguelike from then on", async ({ page }) => {
+test("the game is only the tutorial for now: finishing it marks it done and starts it again", async ({ page }) => {
   const last = begin(tutorialRun(DATA, 1));
   await withTutorial(page, { ...last, phase: "victory", units: last.units.filter(u => u.side === "white") });
   await page.goto("/");
   const victory = page.getByRole("dialog", { name: "Victory" });
   await expect.poll(async () => (await meta(page)).tutorialDone).toBe(true);
-  await victory.getByRole("button", { name: "Roguelike" }).click();
-  await expect(page.getByRole("img", { name: "Battle 1 of 1" })).toBeVisible();
-  await expect(page.getByRole("img", { name: /^Gold/ })).toBeVisible();
-  expect((await saved(page)).tutorial).toBeUndefined();
-  await page.getByRole("button", { name: "Menu" }).click();
-  await page.getByRole("dialog", { name: "Menu" }).getByRole("button", { name: "New run" }).click();
-  await expect(page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Tutorial" })).toBeVisible();
-});
-
-test("Developer: skip the tutorial, then reset it", async ({ page }) => {
-  await withTutorial(page);
-  await page.goto("/");
-  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
-  const menu = page.getByRole("dialog", { name: "Menu" });
-  await page.getByRole("button", { name: "Menu" }).click();
-  await menu.getByRole("button", { name: "Skip tutorial" }).click();
-  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
-  await expect(page.getByRole("img", { name: "Battle 1 of 1" })).toBeVisible();
-  await page.getByRole("button", { name: "Menu" }).click();
-  await menu.getByRole("button", { name: "Reset tutorial" }).click();
-  await expect.poll(async () => (await meta(page)).tutorialDone).toBeUndefined();
-  await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
+  await expect(victory.getByRole("button", { name: "Roguelike" })).toHaveCount(0);
+  await victory.getByRole("button", { name: "Play again" }).click();
   await expect(page.getByRole("img", { name: "Tutorial battle 1 of 2" })).toBeVisible();
+  await page.getByRole("button", { name: "Menu" }).click();
+  const menu = page.getByRole("dialog", { name: "Menu" });
+  await expect(menu.getByRole("button", { name: /tutorial/i })).toHaveCount(0);
+  await menu.getByRole("button", { name: "New run" }).click();
+  await expect(page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Tutorial" })).toHaveCount(0);
 });
