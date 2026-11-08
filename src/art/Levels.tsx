@@ -56,7 +56,8 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
 }
 
 /** The board as the game draws it (tilted plane, painted stills), with each square a button for the current tool. */
-function LevelBoard({ level, rules, army, issues, picked, onSquare }: { level: Level; rules: Rules; army: Placed[]; issues: Issue[]; picked: Pos | null; onSquare: (p: Pos) => void }) {
+function LevelBoard({ level, rules, army, issues, picked, lit, onSquare }: { level: Level; rules: Rules; army: Placed[]; issues: Issue[]; picked: Pos | null; lit: number | null; onSquare: (p: Pos) => void }) {
+  const litRows = lit === null ? [] : level.switches?.[lit]?.rows ?? [];
   const { width: w, height: h } = level;
   const cols = clamp(w, 1, MAX_SIDE), rows = clamp(h, 1, MAX_SIDE);
   const flag = (p: Pos) => {
@@ -76,11 +77,11 @@ function LevelBoard({ level, rules, army, issues, picked, onSquare }: { level: L
           const spawn = level.spawns.find(([, x, y]) => same({ x, y }, p)), unit = army.find(a => same(a, p));
           const trap = level.switches?.find(s => same(s, p)), lane = level.switches?.some(s => s.rows.includes(p.y));
           const what = [wall && "wall", trap && `${trap.type} switch`, lane && "in a spear lane", spawn && `enemy ${spawn[0]} ${spawnHp(rules, spawn)} HP`, start >= 0 && `start ${start + 1} ${unit ? `with ${unit.kind}` : "empty"}`].filter(Boolean).join(", ") || "empty";
-          return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${lane ? "spear-lane" : ""} ${flag(p)} ${picked && same(picked, p) ? "picked" : ""}`}
+          return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${lane ? "spear-lane" : ""} ${litRows.includes(p.y) ? "primed" : ""} ${flag(p)} ${picked && same(picked, p) ? "picked" : ""}`}
             aria-label={`${sq(level, p)} ${what}`} aria-pressed={picked ? same(picked, p) : undefined} onClick={() => onSquare(p)}>
             <span className="tile-coord">{sq(level, p)}</span>
             {start >= 0 && <span className={`start-mark ${start === 0 ? "king" : ""}`}>{start + 1}</span>}
-            {trap && <span className="floor-switch" />}
+            {trap && <><span className="floor-switch" /><b className="switch-badge" title={`Spears on ranks ${trap.rows.map(r => level.height - r).join(", ")}, −${trap.damage} each`}>−{trap.damage}</b></>}
             {p.x === 0 && lane && <span className="spear-launcher" />}
           </button>;
         })}
@@ -113,6 +114,8 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   const { levels, ids } = state;
   const [saved, setSaved] = useState(() => formatLevels(ENCOUNTERS));
   const [tool, setTool] = useState<Tool>("wall");
+  // The switch whose ranks the board lights up: hovered or focused in the Switches list.
+  const [litSwitch, setLitSwitch] = useState<number | null>(null);
   const [enemy, setEnemy] = useState<Kind>("pawn");
   const [picked, setPicked] = useState<Pos | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -237,7 +240,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
         </div>
         : <p className="level-hint">Click a square to make it a start; click a start to choose its unit.</p>)}
       {tool === "switch" && <p className="level-hint">Click a square to place a switch; click it again to remove it. Pick its ranks and damage on the right.</p>}
-      <LevelBoard level={level} rules={rules} army={army} issues={mine} picked={pick} onSquare={square} />
+      <LevelBoard level={level} rules={rules} army={army} issues={mine} picked={pick} lit={litSwitch} onSquare={square} />
       <IssueList level={level} issues={errors} label="Problems" />
       <IssueList level={level} issues={warnings} label="Warnings" />
       <div className="level-actions">
@@ -277,7 +280,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
 
       <div className="stage-field"><span>Switches</span>
         {!level.switches?.length && <small className="level-note plain">None. Use the Switch tool to place one.</small>}
-        <ul className="level-rows level-switches">{(level.switches ?? []).map((s, i) => <li key={`${s.x},${s.y}`}>
+        <ul className="level-rows level-switches" onMouseLeave={() => setLitSwitch(null)} onBlur={() => setLitSwitch(null)}>{(level.switches ?? []).map((s, i) => <li key={`${s.x},${s.y}`} onMouseEnter={() => setLitSwitch(i)} onFocus={() => setLitSwitch(i)}>
           <span className="switch-icon" aria-hidden="true" /><code>{sq(level, s)}</code>
           <select aria-label={`Switch ${sq(level, s)} type`} value={s.type} onChange={e => setSwitch(i, t => ({ ...t, type: e.target.value as SwitchType }))}>
             {SWITCH_TYPES.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
@@ -288,7 +291,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
             {Array.from({ length: level.height }, (_, y) => <button key={y} type="button" aria-pressed={s.rows.includes(y)} onClick={() => setSwitch(i, t => toggleRow(t, y))}>{level.height - y}</button>)}
           </div>
         </li>)}</ul>
-        <small className="level-note plain">Ranks: spears fly along them when your piece steps on the switch, hitting every piece there, yours too. Once per battle.</small>
+        <small className="level-note plain">Ranks: spears fly along them when any piece steps on the switch, hitting every piece there, either side. Enemies step on it only when it hurts you more than them. Once per battle. Hover a switch to light its ranks.</small>
       </div>
 
       <label className="level-toggle"><input type="checkbox" checked={!!level.tutorial} disabled={!minimum.length} onChange={e => edit(l => withTutorial(l, e.target.checked, army))} />Tutorial level</label>

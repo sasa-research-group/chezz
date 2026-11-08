@@ -19,8 +19,8 @@ export type Target = Pos & { id?: string };
 export type Spawn = [Kind, number, number] | [Kind, number, number, number];
 /** What a switch does when pressed. Only spears today; new kinds of switch add a type here. */
 export type SwitchType = "spears";
-/** A switch on the floor and the trap it springs. "spears": once one of your pieces steps onto it, spears
- * shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
+/** A switch on the floor and the trap it springs. "spears": once any piece, yours or the enemy's, steps onto
+ * it, spears shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
 export type Trap = Pos & { type: SwitchType; rows: number[]; damage: number };
 export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[]; tutorial?: TutorialStop; handout?: Handout };
 /** What a level hands the player when it starts. A level that lists items replaces the bag with them
@@ -58,7 +58,7 @@ export type Recruit = "pawn" | "bishop" | "rook";
 /** A piece placed on a given square: a studio test army. */
 export type Placed = Pos & { kind: Kind };
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring" | "item"; target?: string; killed: string[]; /** The item used, for an "item" step. */ item?: Item; /** The squares a bomb blasted. */ area?: Pos[] };
+export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept, and which switch (index into the level's switches) sprang it. */ rows?: number[]; trap?: number; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring" | "item"; target?: string; killed: string[]; /** The item used, for an "item" step. */ item?: Item; /** The squares a bomb blasted. */ area?: Pos[] };
 
 const loaded = parseRules(rulesFile);
 if (!loaded.ok) throw new Error(`src/game/rules.json: ${loaded.errors.join("; ")}`);
@@ -254,16 +254,18 @@ const note = (g: Run, text: string): Run => ({ ...g, log: [text, ...g.log].slice
  * he's already in check you may act freely; he just has to be safe before the turn ends. Getting him
  * killed outright (a counter) counts too. */
 const intoCheck = (before: Run, after: Run) => after !== before && !inCheck(before) && (inCheck(after) || (after.phase === "defeat" && before.phase !== "defeat"));
+/** A move is refused if it takes the king into check, or if its spears kill him, even when he's already in check. */
+const badMove = (before: Run, after: Run) => intoCheck(before, after) || (after.phase === "defeat" && before.phase !== "defeat");
 export function move(g: Run, id: string, to: Pos): Run {
   const next = moveUnchecked(g, id, to);
-  return intoCheck(g, next) ? g : next;
+  return badMove(g, next) ? g : next;
 }
 /** Would this move put your own king in check? */
-export function exposesKing(g: Run, id: string, to: Pos): boolean { return intoCheck(g, moveUnchecked(g, id, to)); }
+export function exposesKing(g: Run, id: string, to: Pos): boolean { return badMove(g, moveUnchecked(g, id, to)); }
 /** A move that also reports the spear trap it springs, if it ends on an armed switch. */
 export function stepOnto(g: Run, id: string, to: Pos): { run: Run; step: Step | null } {
   const result = moveWithTrap(g, id, to);
-  return intoCheck(g, result.run) ? { run: g, step: null } : result;
+  return badMove(g, result.run) ? { run: g, step: null } : result;
 }
 const moveUnchecked = (g: Run, id: string, to: Pos): Run => moveWithTrap(g, id, to).run;
 function moveWithTrap(g: Run, id: string, to: Pos): { run: Run; step: Step | null } {
@@ -280,6 +282,17 @@ function moveWithTrap(g: Run, id: string, to: Pos): { run: Run; step: Step | nul
 export function armedSwitch(g: Run, p: Pos): number {
   return (levelOf(g).switches ?? []).findIndex((s, i) => same(s, p) && !g.sprung?.includes(i));
 }
+/** What pressing the armed switch on square p would do right now: the rows it sweeps and every piece it would
+ * hit (the presser included, if it stands on a row once there), or null when p has no armed switch. */
+export function volleyAt(g: Run, p: Pos, presser?: string): Volley | null {
+  const i = armedSwitch(g, p);
+  if (i < 0) return null;
+  const trap = levelOf(g).switches![i];
+  const units = presser ? g.units.map(u => (u.id === presser ? { ...u, x: p.x, y: p.y } : u)) : g.units;
+  const hits = units.filter(u => trap.rows.includes(u.y)).map(u => ({ id: u.id, side: u.side, at: { x: u.x, y: u.y }, kills: u.hp <= trap.damage }));
+  return { rows: trap.rows, damage: trap.damage, hits };
+}
+export type Volley = { rows: number[]; damage: number; hits: { id: string; side: Side; at: Pos; kills: boolean }[] };
 /** Rows the level's armed switches would sweep with spears. */
 export const armedRows = (g: Run): number[] => [...new Set((levelOf(g).switches ?? []).flatMap((s, i) => (g.sprung?.includes(i) ? [] : s.rows)))];
 /** Springs switch `i`, pressed by piece `by`: spears fly along its rows and hit every piece on them, yours
@@ -291,8 +304,10 @@ function spring(g: Run, i: number, by: string): { run: Run; step: Step } {
   const killed = hit.filter(u => u.hp <= trap.damage).map(u => u.id);
   const units = g.units.flatMap(u => killed.includes(u.id) ? [] : hit.includes(u) ? [{ ...u, hp: u.hp - trap.damage }] : [u]);
   const text = `Spears −${trap.damage}${hit.length ? ` × ${hit.length}` : ""}${killed.length ? ` · ${killed.length} killed` : ""}`;
-  const run = finish(note({ ...g, units: units.map(u => (u.id === by ? { ...u, acted: true } : u)), sprung: [...(g.sprung ?? []), i] }, text));
-  return { run, step: { text, units: run.units, focus: hit.map(u => ({ x: u.x, y: u.y })), damage, actor: by, kind: "spring", rows: trap.rows, killed } };
+  // A presser killed by its own spears still used up its side's turn.
+  const fell = killed.includes(by) ? g.units.find(u => u.id === by)!.side : g.fell;
+  const run = finish(note({ ...g, fell, units: units.map(u => (u.id === by ? { ...u, acted: true } : u)), sprung: [...(g.sprung ?? []), i] }, text));
+  return { run, step: { text, units: run.units, focus: hit.map(u => ({ x: u.x, y: u.y })), damage, actor: by, kind: "spring", rows: trap.rows, trap: i, killed } };
 }
 
 /** Resolves one strike for either side. A target that survives strikes back with its own damage if it
@@ -444,7 +459,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
   for (let guard = 0; guard < limit && run.phase === "player"; guard++) {
     const king = run.units.find(u => u.id === "king");
     if (!king) break;
-    type Choice = { score: number; key: string; apply: () => { run: Run; step: Step } };
+    type Choice = { score: number; key: string; apply: () => { run: Run; steps: Step[] } };
     const choices: Choice[] = [];
     for (const u of run.units.filter(u => u.side === "black")) {
       for (const t of attackTargets(run, u)) {
@@ -454,7 +469,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
         // A target that survives strikes back, unless either side strikes from range.
         const countered = dealt < v.hp && strikesBack(run, u, v) ? r.damage[v.kind] : 0;
         const score = 100 + dealt * 10 + (dealt >= v.hp ? 50 : 0) + (v.id === "king" ? 30 : 0) - countered * 8 - (countered >= u.hp ? 60 : 0);
-        choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => strike(run, u, t) });
+        choices.push({ score, key: `a${u.id}${t.x}${t.y}`, apply: () => { const done = strike(run, u, t); return { run: done.run, steps: [done.step] }; } });
       }
       // Close in on the king, or on whichever of your pieces is nearest: counted in the piece's own
       // moves around walls and pieces, so a slider behind a wall goes round it instead of freezing.
@@ -462,7 +477,27 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
       const toKing = u.kind === "pawn" || u.moved || u.acted ? null : movesToStrike(run, u, [king]), toAny = toKing && movesToStrike(run, u, whites);
       const W = levelOf(run).width, routed = !!toAny && Number.isFinite(toAny[u.y * W + u.x]);
       const dist = (p: Pos) => routed ? Math.min(toKing![p.y * W + p.x] - 0.5, toAny![p.y * W + p.x]) : Math.min(gap(p, king) - 0.5, ...whites.map(w => gap(p, w)));
+      const walk = (t: Pos) => {
+        const text = `${label(u)} → ${coord(run, t)}`;
+        const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
+        return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move" as const, killed: [] } };
+      };
       for (const t of moveTargets(run, u)) {
+        // An armed switch fires under whoever steps on it: worth it only if the spears hurt your side more than
+        // the enemy's (the presser counts too). Otherwise the square is avoided.
+        const trap = armedSwitch(run, t);
+        if (trap >= 0) {
+          const volley = volleyAt(run, t, u.id)!;
+          const worth = volley.hits.reduce((sum, h) => {
+            const v = run.units.find(w => w.id === h.id)!, value = Math.min(volley.damage, v.hp) * 10 + (h.kills ? 50 : 0) + (h.id === "king" ? 30 : 0);
+            return sum + (h.side === "white" ? value : -value);
+          }, 0);
+          if (worth > 0) choices.push({ score: 90 + worth, key: `s${u.id}${t.x}${t.y}`, apply: () => {
+            const walked = walk(t), sprung = spring(walked.run, trap, u.id);
+            return { run: sprung.run, steps: [walked.step, sprung.step] };
+          } });
+          continue;
+        }
         // Shorter trips break ties.
         const gain = dist(u) - dist(t), travel = gap(u, t) / 10;
         // Pawns keep marching toward pieces still ahead of them.
@@ -471,18 +506,14 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
         // A square to strike from is worth a step.
         const lineUp = !u.acted && whites.some(w => reaches(run, u, t, w));
         if (gain <= 0 && !march && !lineUp) continue;
-        choices.push({ score: lineUp ? 20 - travel : march || gain * 5 - travel, key: `m${u.id}${t.x}${t.y}`, apply: () => {
-          const text = `${label(u)} → ${coord(run, t)}`;
-          const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
-          return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] } };
-        } });
+        choices.push({ score: lineUp ? 20 - travel : march || gain * 5 - travel, key: `m${u.id}${t.x}${t.y}`, apply: () => { const done = walk(t); return { run: done.run, steps: [done.step] }; } });
       }
     }
     choices.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
     const best = choices[0];
     if (!best || best.score <= 0) break;
     const done = best.apply();
-    run = finish(done.run); steps.push(done.step);
+    run = finish(done.run); steps.push(...done.steps);
   }
   return { run, steps };
 }
@@ -497,8 +528,11 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const fresh: Run = { ...g, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false } : u)) };
   const hits: { id: string; hit: number }[] = [];
   for (const u of fresh.units.filter(u => u.side === "black")) {
-    const can = reaches(fresh, u, u, king) || moveTargets(fresh, u).some(t => reaches(fresh, u, t, king));
-    const hit = can ? hitFor(fresh, u) : 0;
+    const walks = moveTargets(fresh, u);
+    const can = reaches(fresh, u, u, king) || walks.some(t => reaches(fresh, u, t, king));
+    // Stepping onto an armed switch whose spears sweep the king's row hits him too.
+    const spears = Math.max(0, ...walks.map(t => volleyAt(fresh, t, u.id)).flatMap(v => (v?.hits.some(h => h.id === "king") ? [v.damage] : [])));
+    const hit = Math.max(can ? hitFor(fresh, u) : 0, spears);
     if (hit > 0) hits.push({ id: u.id, hit });
   }
   if (rulesOf(g).turn === "all") return { damage: hits.reduce((s, h) => s + h.hit, 0), attackers: hits.map(h => h.id) };
@@ -554,13 +588,19 @@ export function enemyPlan(g: Run): Step[] {
 }
 /** One enemy piece's part of a plan: where it would move, and whom it would strike and for how much.
  * A piece with neither waits. */
-export type Intent = { id: string; from: Pos; to?: Pos; strike?: { target: string; at: Pos; damage: number; kills: boolean } };
+export type Intent = { id: string; from: Pos; to?: Pos; strike?: { target: string; at: Pos; damage: number; kills: boolean };
+  /** It steps on an armed switch: the rows the spears sweep and every piece they hit. */
+  spears?: Volley };
 export function intentOf(g: Run, plan: Step[], id: string): Intent | null {
   const u = g.units.find(v => v.id === id);
   if (!u || u.side !== "black") return null;
   const intent: Intent = { id, from: { x: u.x, y: u.y } };
   for (const step of plan.filter(st => st.actor === id)) {
     if (step.kind === "move") { const to = step.units.find(v => v.id === id); if (to) intent.to = { x: to.x, y: to.y }; }
+    else if (step.kind === "spring") {
+      const before = plan[plan.indexOf(step) - 1]?.units ?? g.units;
+      intent.spears = { rows: step.rows ?? [], damage: step.damage[0]?.amount ?? 0, hits: step.damage.map(d => { const v = before.find(w => w.id === d.id)!; return { id: d.id, side: v.side, at: { x: v.x, y: v.y }, kills: step.killed.includes(d.id) }; }) };
+    }
     else if (step.target) intent.strike = { target: step.target, at: step.focus[0], damage: step.damage.find(d => d.id === step.target)?.amount ?? 0, kills: step.killed.includes(step.target) };
   }
   return intent;

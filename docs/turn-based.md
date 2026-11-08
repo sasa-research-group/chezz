@@ -142,15 +142,25 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   with a `type`. The only type so far is `"spears"`: a spear trap with a list
   of rows and a damage. While it's armed, those
   rows are striped and a launcher sits on the board's left edge.
-- When one of your pieces ends a move on an armed switch, the spears fire:
-  every piece on those rows takes the damage, yours included. Pressing the
-  switch is that piece's action, so it can't strike after, and under one
-  move per turn the turn passes. It commits at
-  once (no preview to cancel).
+- When any piece, yours or the enemy's, ends a move on an armed switch, the
+  spears fire: every piece on those rows takes the damage, either side, the
+  presser too if it stands on one. Pressing the switch is that piece's
+  action, so it can't strike after, and under one move per turn the turn
+  passes (also when the presser dies to its own spears). It commits at once
+  (no preview to cancel).
 - Each switch fires once per battle (`Run.sprung`); after that it's an ordinary
-  square. Enemy pieces can stand on it but never press it.
-- The press is refused if the spears would kill your own king. A walk-up
+  square.
+- Your press is refused if the spears would kill your own king. A walk-up
   strike never ends on an armed switch.
+- Check counts the spears: an enemy that could step on a switch whose spears
+  would kill your king puts him in check.
+- On screen: selecting a piece that can reach a switch marks it with a gold
+  dot. Hovering it (mouse), or tapping it once (touch, keyboard), lights the
+  rows that would be swept and puts a damage chip on every piece hit (gold
+  on yours); a click, or a second tap, fires. An enemy's intent shows the
+  same marks when its plan steps on a switch. The volley: the launchers
+  kick, one spear per row crosses the board, and each piece takes its hit
+  (burst, damage pop) as the spear reaches it.
 
 ## Enemy phase
 - Deterministic and computed in full before it plays. The best-scoring action
@@ -159,6 +169,10 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   strikeback, never for 0 damage), then stepping onto a square to strike from,
   closing in on your king or nearest piece (counted in the piece's own moves
   around walls and pieces, so sliders go round walls).
+- An armed switch is weighed like a strike on every piece its spears would
+  hit: yours count for it, its own (the presser included) against it. An
+  enemy steps on it only when that comes out ahead, and otherwise never
+  ends a move there.
 - Under one move per turn the first action picks the piece; after a move,
   only that piece may follow up with a strike.
 - If no enemy piece acts, the log reads "Enemy waits" and the screen shows an
