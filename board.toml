@@ -9,3 +9,9 @@ data = ".workboard/data"
 
 [files]
 docs = ["*.md", "docs/*.md"]
+
+[runner]
+needs = ["node", "playwright"]
+deps = [
+  { lock = "package-lock.json", install = ["npm", "ci"] },
+]
