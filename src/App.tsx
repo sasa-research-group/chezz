@@ -129,7 +129,8 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
           // While picking where to strike from, only those squares (and the target) are marked.
           const pick = picking?.options.find(t => same(t, p)), aimed = picking && same(picking.target, p);
           const m = picking ? undefined : moves.find(t => same(t, p)), s = picking ? undefined : strikes.find(t => same(t, p));
-          const focus = flash?.focus.some(q => same(p, q)) || (counter?.landed && same(counter.at, p));
+          // Spear hits flash as each spear arrives (SpearVolleys), not all at once.
+          const focus = (flash?.kind !== "spring" && flash?.focus.some(q => same(p, q))) || (counter?.landed && same(counter.at, p));
           const startHere = !!deploy?.starts.some(q => same(q, p)), over = !!deploy?.drag?.over && same(deploy.drag.over, p);
           const place = aim?.item === "decoy" && has(aim.targets, p), blastable = aim?.item === "bomb" && has(aim.reach, p), blasted = aim?.item === "bomb" && has(aim.area, p);
           return <button key={i} disabled={(locked && !deploy) || !passable(run, p)} data-x={p.x} data-y={p.y}
