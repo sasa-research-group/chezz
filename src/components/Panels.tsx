@@ -6,9 +6,14 @@ const RANGED = (r: Rules) => (["queen", "rook", "bishop", "king", "knight", "paw
 const REACH: Record<"pawn" | "bishop" | "rook", number[]> = { pawn: [0, 2], bishop: [0, 2, 6, 8], rook: [1, 3, 5, 7] };
 
 export const RulesCard = ({ rules: r = RULES }: { rules?: Rules }) => <dl className="rules-card">
-  <dt>Turn</dt><dd>{r.turn === "one" ? "one piece acts" : "every piece acts"}</dd>
-  <dt>Move</dt><dd>once · its chess shape · any distance</dd>
-  <dt>Strike</dt><dd>after moving · next square in its shape{RANGED(r).length > 0 && <> · {RANGED(r).map(k => GLYPH[k]).join("")} any distance in line</>}</dd>
+  <dt>Turn</dt><dd>{r.turn === "all" ? "every piece acts" : r.turn === 1 ? "one piece acts" : `${r.turn} pieces act`}</dd>
+  {r.movement === "tactics" ? <>
+    <dt>Move</dt><dd>once · walks up to {(["pawn", "knight", "bishop", "king", "rook", "queen"] as const).map(k => <span key={k}>{GLYPH[k]}{r.tactics.move[k]}</span>)} squares · straight steps · pieces and walls block</dd>
+    <dt>Strike</dt><dd>after moving · any enemy within {(["pawn", "knight", "bishop", "king", "rook", "queen"] as const).map(k => <span key={k}>{GLYPH[k]}{r.tactics.reach[k]}</span>)} squares (diagonals count)</dd>
+  </> : <>
+    <dt>Move</dt><dd>once · its chess shape · any distance</dd>
+    <dt>Strike</dt><dd>after moving · next square in its shape{RANGED(r).length > 0 && <> · {RANGED(r).map(k => GLYPH[k]).join("")} any distance in line</>}</dd>
+  </>}
   {r.counter && <><dt>Strike back</dt><dd>a struck piece that lives hits back up close; never from range</dd></>}
   <dt>Damage</dt><dd>{(["pawn", "knight", "bishop", "king", "rook", "queen"] as const).map(k => <span key={k}>{GLYPH[k]}{r.damage[k]}</span>)}</dd>
   <dt><i className="lg-unsafe">✕</i></dt><dd>exposes king</dd>

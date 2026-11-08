@@ -9,12 +9,19 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   reads past the retired `defend` and `defends` of older files and drops them) and
   formats it (`formatRules`, one field per line). `turns.ts` loads it as
   `RULES` and refuses to start on a broken file.
-- Fields: `turn` (`"one"` or `"all"`), `hp` and `damage` per piece, `range`
-  per piece (`1` or `"line"`, below), `counter` (strikebacks on or off),
+- Fields: `turn` (pieces per side per turn: `1`–`9` or `"all"`; older
+  files' `"one"` reads as `1`), `movement` (`"chess"` or `"tactics"`, below),
+  `hp` and `damage` per piece, `range` per piece (`1` or `"line"`, below;
+  chess movement only), `tactics` (`move` and `reach` per piece; tactics
+  movement only), `counter` (strikebacks on or off),
   `cost` (hideout prices), `heal` (HP a heal gives back), `gold` (a new
   run's gold), `slots` (how many items the bag holds) and `items` (each
   item's numbers: `bomb` `damage` and `area`, `decoy` `hp`). A file without
-  `slots` or `items` (tuned before items existed) loads with the defaults.
+  `slots`, `items`, `movement` or `tactics` loads with the defaults (chess
+  movement).
+- The studio's Mechanics tab opens with a **Developer** group: the movement
+  toggle, the tactics numbers per piece (while tactics is on) and moves per
+  turn (1, 2, 3, Unlimited). They save with the stats.
 - A studio test run can carry unsaved rules (`Run.rules`); saved runs never do.
 
 ## Deploy
@@ -31,21 +38,44 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 
 ## Turns
 - You act, then the enemy acts.
-- **`turn: "one"`** (the default): each side acts with one piece per turn,
-  chess-style. That piece may move, then strike; or strike without moving.
-  Once it has moved or struck, your other pieces are locked for the turn
-  (`sidelined`) until the move is cancelled. The turn passes on its own once
-  the piece has struck. A move alone is a preview (below) and waits for End
-  turn, which skips the strike.
-  (`turnSpent` still says when a moved piece has nothing safe left to do.)
-  If the acting piece dies to a strikeback, that side's turn is over
-  (`Run.fell`).
-- **`turn: "all"`**: every piece on a side may act every turn.
-- Each piece may **move** once in its chess shape, any distance: rooks,
-  bishops and queens slide until a piece or wall stops them; kings step one
-  square; pawns step one square forward and stop at the far row (no
-  promotion); knights leap.
-- Then it may **strike** once. It can't move after striking.
+- **Moves per turn** (`turn`): how many pieces each side acts with per turn,
+  the enemy included. **`1`** (the default) is chess-style: one piece may
+  move, then strike; or strike without moving. Once it has moved or struck,
+  your other pieces are locked for the turn (`sidelined`) until the move is
+  cancelled. **`2`, `3`, ...**: the same, with that many pieces; the rest lock
+  once the count is used. **`"all"`**: every piece on a side may act every
+  turn.
+- Under a count, the turn passes on its own once the count is used (or every
+  piece has acted) and each piece that acted has struck, or has moved with
+  nothing safe left to strike (`turnSpent`). A move alone is a preview
+  (below) and waits for End turn, which skips the strike. Under `"all"` it
+  never passes on its own.
+- A piece that dies to a strikeback still counts toward its side's count
+  (`Run.fell`, `Run.fallen`); under `1` that ends the side's turn.
+- Each piece may **move** once, then **strike** once. It can't move after
+  striking. How it moves and strikes depends on `movement`.
+
+## Movement
+- **`movement: "chess"`** (the default): each piece moves once in its chess
+  shape, any distance: rooks, bishops and queens slide until a piece or wall
+  stops them; kings step one square; pawns step one square forward and stop
+  at the far row (no promotion); knights leap. It strikes along its capture
+  shape (Strikes, below).
+- **`movement: "tactics"`**: each kind has a walk and a reach
+  (`rules.json` `tactics.move` and `tactics.reach`). Starting numbers (walk /
+  reach): king 2/1, queen 4/1, rook 3/1, bishop 3/3, knight 3/1, pawn 2/1.
+  - Walk: up to `move` straight (orthogonal) steps, turning freely, through
+    empty squares only. Pieces (either side) and walls block; switches can be
+    walked over and fire only if the walk ends on one. Knights walk too, and
+    pawns walk any way.
+  - Strike: any enemy within `reach` squares counting diagonals (Chebyshev
+    distance: reach 1 is the eight neighbours), over pieces and walls. The
+    `range` field doesn't apply.
+  - Ranged means further than one square: such a strike never draws a
+    strikeback, and a piece only strikes back at an attacker next to it.
+  - Everything else (check, previews, enemy intent, tap-to-strike, items,
+    switches, the enemy's planning) runs through the same `moveTargets` and
+    `reaches`, so it follows the mode on both sides.
 
 ## Previews and enemy intent
 - A move is a preview until a strike or End turn commits it. The
@@ -61,7 +91,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   what it would do if you ended the turn now (`enemyPlan`, `intentOf`): an
   arrow to the square it would move to, a ring and −N on the piece it would
   strike, or "waits".
-  Under one move per turn only the enemy that acts shows a plan. Tapping an
+  Under one move per turn only the enemy that acts shows a plan (under a
+  count, only the pieces that act). Tapping an
   enemy your selected piece can strike still strikes.
 
 ## Strikes
@@ -99,9 +130,10 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 ## Check
 - Your king is in check when the enemy's next turn could kill him
   (`kingThreat`, `inCheck`). Each enemy piece that could strike him this
-  coming turn, in place or after its one move, hits him once. Under one move
-  per turn the threat is the hardest single hit; under every piece acting the
-  hits add up. Either way, check is a threat at least his HP.
+  coming turn, in place or after its one move, hits him once. The threat is
+  the hardest hits added up, as many as the moves per turn: under `1` the
+  hardest single hit, under `2` the two hardest, under `"all"` every hit.
+  Either way, check is a threat at least his HP.
 - You can't put your own king in check with a move or strike (its
   strikeback included). A walk-up strike may pass through danger if the king is safe once
   it lands. Once he's in check you may act freely, but you can't end the turn
@@ -159,8 +191,11 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   strikeback, never for 0 damage), then stepping onto a square to strike from,
   closing in on your king or nearest piece (counted in the piece's own moves
   around walls and pieces, so sliders go round walls).
-- Under one move per turn the first action picks the piece; after a move,
-  only that piece may follow up with a strike.
+- Under a count of moves per turn the first actions pick the pieces; once
+  the count is used, only those pieces may follow up with a strike.
+- Under tactics movement, closing in counts walk steps (a move covers up to
+  the kind's walk), and pawns close in like everyone else instead of
+  marching forward.
 - If no enemy piece acts, the log reads "Enemy waits" and the screen shows an
   ENEMY WAITS ribbon.
 

@@ -145,7 +145,7 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
             {place && <span className="target-dot item-dot" />}</button>;
         })}
       </div>
-      {intent && (!locked || deploy) && <IntentMarks intent={intent} cols={e.width} rows={e.height} leaps={run.units.find(u => u.id === intent.id)?.kind === "knight"} />}
+      {intent && (!locked || deploy) && <IntentMarks intent={intent} cols={e.width} rows={e.height} leaps={r.movement === "chess" && run.units.find(u => u.id === intent.id)?.kind === "knight"} />}
       <div className="piece-layer" aria-hidden="true" style={{ "--spd": spd } as CSSProperties}>{[...units, ...stage.ghosts.filter(gh => !units.some(u => u.id === gh.id))].map(piece => {
         const awaiting = counter?.victim === piece.id && !counter.landed;
         const damage = awaiting ? undefined : flash?.damage.find(d => d.id === piece.id);
@@ -349,7 +349,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const moveRun = useMemo(() => {
     const was = preview && selected?.moved ? preview.units.find(u => u.id === selected.id) : undefined;
     if (!preview || !was || was.moved) return run;
-    if (r.turn === "one") return preview;
+    if (r.turn === 1) return preview;
     if (run.units.some(u => u.id !== was.id && same(u, was))) return run;
     return { ...run, units: run.units.map(u => (u.id === was.id ? { ...u, x: was.x, y: was.y, moved: false } : u)) };
   }, [run, preview, selected?.id, selected?.moved]);
