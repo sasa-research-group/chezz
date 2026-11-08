@@ -562,6 +562,21 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (result.steps.length) { setPlayback({ steps: result.steps, before: run, index: 0, lead: true }); showPhase("enemy"); }
     else if (result.run.phase === "player") { setWaits(w => w + 1); showPhase("player"); }
   };
+  // Enter ends the turn (or begins the battle), unless a focused control should take it.
+  useEffect(() => {
+    if (menu || !canMenu) return;
+    const go = (ev: KeyboardEvent) => {
+      if (ev.key !== "Enter" || ev.defaultPrevented || ev.repeat) return;
+      const control = ev.target instanceof HTMLElement ? ev.target.closest("button, input, select, textarea, a") : null;
+      // A board square keeps focus after a tap; Enter there means "end turn", not "tap again".
+      if (control && !control.classList.contains("exile-cell")) return;
+      ev.preventDefault();
+      if (deploying) beginBattle();
+      else if (!checkLocked) finishTurn();
+    };
+    window.addEventListener("keydown", go);
+    return () => window.removeEventListener("keydown", go);
+  });
   // Under one move per turn, the turn passes on its own once your piece has done all it usefully can,
   // after its animation has played.
   useEffect(() => {

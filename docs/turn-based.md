@@ -51,6 +51,7 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   enemy intent) reads from there. Cancel (next to End turn), Escape, or
   tapping the start square puts it back; tapping another empty square moves it
   again from its start. Under one move per turn, cancel to try another piece.
+- Enter ends the turn (Begin during deploy), the same as the End turn button.
   A move alone never passes the turn on its own; End turn commits it.
 - The run saves the previewed board plus the turn's start
   (`chezz.turns.v1.start`), so a reload can still cancel.

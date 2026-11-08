@@ -532,6 +532,16 @@ test("ending a turn where the enemy does nothing shows ENEMY WAITS and logs it",
   await expect(page.getByRole("status").filter({ hasText: "ENEMY WAITS" })).toBeHidden();
 });
 
+test("Enter ends the turn, even with a board square focused", async ({ page }) => {
+  const start = begin(newRun(FIXED));
+  const g = { ...start, units: [{ ...start.units[0], x: 3, y: 3 }, { id: "ally-1", side: "white" as const, kind: "rook" as const, x: 0, y: 1, hp: 5, moved: true, acted: true }, { id: "enemy-0-0", side: "black" as const, kind: "pawn" as const, x: 0, y: 0, hp: 1 }] };
+  await page.addInitScript(run => localStorage.setItem("chezz.turns.v1", run), stored(g));
+  await page.goto("/");
+  await page.locator(".exile-cell").first().focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(async () => (await saved(page)).log[0]).toBe("Enemy waits");
+});
+
 test("the top bar reads Battle n of N, and Developer → Jump to battle starts battle N after a second tap", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("dialog", { name: "New run" }).getByRole("button", { name: "Start" }).click();
