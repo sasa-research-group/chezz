@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { PieceRig, RIG_MS as DURATION } from "./components/PieceRig";
 import { SKINS } from "./components/skins";
-import { creditWin, loadMeta, saveMeta } from "./game/meta";
+import { creditWin, loadMeta, markTutorial, saveMeta } from "./game/meta";
 import { testArmyOf, typicalStart } from "./game/levels";
 import { BattleBanner, IntentMarks } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { approaches, armedRows, armedSwitch, begin, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canEscape, coord, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { approaches, armedRows, armedSwitch, begin, courseOf, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canEscape, coord, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, levelsOf, move, moveTargets, newRun, passable, reaches, readRun, retry, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, tutorialCourse, tutorialRun, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
@@ -27,10 +27,13 @@ function savedStart(g: Run | null) {
     return s && g.phase === "player" && s.phase === "player" && s.encounter === g.encounter && s.turn === g.turn ? s : null;
   } catch { return null; }
 }
-/** A fresh run at battle `index` with the level's test army and the typical run's leftover gold. */
+/** A fresh run at battle `index`: a tutorial level starts the tutorial there; any other level starts
+ * the roguelike there with the level's test army and the typical run's leftover gold. */
 function jumpRun(index: number) {
+  if (ENCOUNTERS[index].tutorial) return tutorialRun(undefined, index);
   return startAt(index, testArmyOf(ENCOUNTERS, index), typicalStart(ENCOUNTERS, index).gold);
 }
+const HAS_TUTORIAL = tutorialCourse(ENCOUNTERS).length > 0;
 /** Choosing which square to walk to before striking a target (when there's more than one). */
 type Picking = { target: Unit; options: Pos[] };
 /** A piece being dragged in the deploy phase: where the pointer is, in fractional board squares, and the square under it. */
@@ -161,8 +164,22 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
   </div>;
 }
 
+/** Between tutorial battles: no hideout, just the next battle and the army it deals. */
+function TutorialNext({ run, battle, battles, onGo }: { run: Run; battle: number; battles: number; onGo: () => void }) {
+  const next = courseOf(run)[battle], army = next === undefined ? [] : levelsOf(run)[next].tutorial?.army ?? [];
+  return <div className="exile-modal-shade"><section className="exile-modal intro-exile tutorial-next" role="dialog" aria-modal="true" aria-label="Battle won">
+    <p className="kicker">Tutorial</p>
+    <h1>Battle {battle} of {battles} ✓</h1>
+    <div className="tutorial-army" role="img" aria-label={`Next army: ${army.map(p => p.kind).join(", ")}`}>{army.map((p, i) => <i key={i}><PieceRig kind={p.kind} side="white" /></i>)}</div>
+    <button className="primary-button" autoFocus onClick={onGo}>Battle {battle + 1}<span>→</span></button>
+  </section></div>;
+}
+
 export default function App({ test }: { test?: TestLevel } = {}) {
-  const fresh = () => test ? testRun(test.level, test.army, test.index, test.rules) : newRun();
+  const [meta, setMeta] = useState(() => loadMeta(() => localStorage, SKINS));
+  // Until the tutorial is done, a new game is the tutorial.
+  const tutorialNext = !test && HAS_TUTORIAL && !meta.tutorialDone;
+  const fresh = () => test ? testRun(test.level, test.army, test.index, test.rules) : tutorialNext ? tutorialRun() : newRun();
   const [run, setRun] = useState<Run>(() => (test ? null : saved()) ?? fresh());
   const [intro, setIntro] = useState(() => !test && !saved());
   // End-of-battle sequence: let the last blow land, celebrate (or mourn), then show the menu.
@@ -280,8 +297,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const [notice, setNotice] = useState("");
   // Shown briefly when the enemy's turn had no actions, so ending the turn visibly did something.
   const [waits, setWaits] = useState(0);
-  const [meta, setMeta] = useState(() => loadMeta(() => localStorage, SKINS));
-  // A won run unlocks the next skin; creditWin ignores a victory it has already counted (a reload, say).
+  // A won run unlocks the next skin (a finished tutorial marks it done); creditWin ignores a victory it has already counted (a reload, say).
   useEffect(() => { if (run.phase === "victory" && !test) setMeta(m => creditWin(m, run, SKINS).meta); }, [run]);
   useEffect(() => { if (!test && !saveMeta(() => localStorage, meta)) setNotice("Autosave off"); }, [meta]);
   // Skins can't be picked in the game for now (they'll come from the map), but one worn in an older save still draws.
@@ -289,7 +305,8 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const e = levelOf(run), r = rulesOf(run), king = run.units.find(u => u.id === "king");
-  const battles = test ? test.battles : ENCOUNTERS.length;
+  const course = courseOf(run);
+  const battle = test ? run.encounter + 1 : course.indexOf(run.encounter) + 1, battles = test ? test.battles : course.length;
   const selected = run.units.find(u => u.id === selectedId && u.side === "white");
   const selectedBenched = !!selected && sidelined(run, selected);
   const locked = !!playback || intro || run.phase !== "player" || striding;
@@ -555,7 +572,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const captionLine = <div className="playback-caption" aria-live="polite">{caption}</div>;
   const skip = () => { if (timer.current) clearTimeout(timer.current); endPlayback(); };
   return <main className="exile-app">
-    <TopBar battle={run.encounter + 1} battles={battles} gold={run.gold} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
+    <TopBar battle={battle} battles={battles} gold={run.tutorial ? undefined : run.gold} tutorial={run.tutorial} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
       <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null}
         above={<TeamBar side="black" center={playback ? <><span className="turn-ribbon">ENEMY PHASE</span>{captionLine}</>
@@ -566,7 +583,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
           {captionLine}</>}><KingHearts hp={shown.find(u => u.id === "king")?.hp ?? 0} max={r.hp.king} /></TeamBar>} />
       {notice && <p role="status" className="notice">{notice}</p>}
       <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate" : banner === "defeat" ? "Defeat" : banner === "victory" ? "Victory" : banner === "cleared" ? "Battle won" : ""}</p>
-      {banner && <BattleBanner kind={banner} line={banner === "cleared" ? `+${e.reward} ✦` : undefined} onClick={skipOutro} />}
+      {banner && <BattleBanner kind={banner} line={banner === "cleared" && !run.tutorial ? `+${e.reward} ✦` : undefined} onClick={skipOutro} />}
     </section>
     <section className="table-hud" aria-label="Actions">
       <div className="hud-info">
@@ -582,10 +599,15 @@ export default function App({ test }: { test?: TestLevel } = {}) {
         : <>{playback && <SkipToken onClick={skip} />}
       <EndTurnButton state={playback ? "waiting" : checkLocked ? "locked" : "ready"} disabled={locked || checkLocked} onClick={finishTurn} /></>}
     </section>
-    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div><h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
-    {!intro && !playback && !outro && run.phase === "camp" && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
-    {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}><h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${r.hp.king}` : `Battle ${run.encounter + 1} of ${battles} · turn ${run.turn}`}</p><button className="primary-button" onClick={() => start()}>Play again<span>→</span></button></section></div>}
+    {intro && <div className="exile-modal-shade"><section className="exile-modal intro-exile" role="dialog" aria-modal="true" aria-label="New run"><div className="intro-king"><PieceRig kind="king" side="white" /></div>{tutorialNext && <p className="kicker">Tutorial</p>}<h1>Escape from Exile</h1><button className="primary-button" autoFocus onClick={() => start()}>Start<span>→</span></button>{!test && HAS_TUTORIAL && !tutorialNext && <button className="text-button" onClick={() => start(tutorialRun())}>Tutorial</button>}{!test && saved() && <button className="text-button" onClick={() => setIntro(false)}>Continue</button>}</section></div>}
+    {!intro && !playback && !outro && run.phase === "camp" && run.tutorial && <TutorialNext run={run} battle={battle} battles={battles} onGo={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
+    {!intro && !playback && !outro && run.phase === "camp" && !run.tutorial && <Hub run={run} reward={e.reward} spd={spd} onBuy={choice => setRun(r => buy(r, choice))} onLeave={() => { clearStage(); setTurnStart(null); setRun(r => leaveCamp(r)); setSelectedId(null); }} />}
+    {!intro && !playback && !outro && ["victory", "defeat"].includes(run.phase) && <div className="exile-modal-shade"><section className="exile-modal" role="dialog" aria-modal="true" aria-label={run.phase === "victory" ? "Victory" : "Defeat"}>{run.tutorial && <p className="kicker">Tutorial</p>}<h1>{run.phase === "victory" ? "Victory" : "Defeat"}</h1><p>{run.phase === "victory" ? `${run.units.filter(u => u.side === "white").length} pieces · ♥${king?.hp ?? 0}/${r.hp.king}` : `Battle ${battle} of ${battles} · turn ${run.turn}`}</p>
+      {!run.tutorial || test ? <button className="primary-button" onClick={() => start()}>Play again<span>→</span></button>
+        : run.phase === "defeat" ? <button className="primary-button" onClick={() => start(retry(run))}>Retry<span>→</span></button>
+        : <button className="primary-button" onClick={() => start(newRun())}>Roguelike<span>→</span></button>}</section></div>}
     {phaseBanner && <PhaseBanner key={phaseBanner.n} kind={phaseBanner.kind} total={phaseTiming(fast, reduced).total} onDone={() => setPhaseBanner(b => b?.n === phaseBanner.n ? null : b)} />}
-    {menu && <PauseMenu rules={r} log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onClose={() => setMenu(false)} battles={battles} onJump={test ? undefined : index => { setMenu(false); start(jumpRun(index)); }} />}
+    {menu && <PauseMenu rules={r} log={run.log} fast={fast} onFast={setFast} newRunDisabled={!!playback} onNewRun={() => { setMenu(false); setIntro(true); }} onClose={() => setMenu(false)} battles={ENCOUNTERS.length} onJump={test ? undefined : index => { setMenu(false); start(jumpRun(index)); }}
+      tutorial={test || !HAS_TUTORIAL ? undefined : { done: !!meta.tutorialDone, onToggle: () => { setMeta(m => markTutorial(m, !m.tutorialDone)); setMenu(false); setIntro(true); } }} />}
   </main>;
 }

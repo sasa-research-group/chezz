@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { ENCOUNTERS, campReason, kindName, rulesOf } from "../game/turns";
+import { campReason, courseOf, kindName, levelsOf, rulesOf } from "../game/turns";
 import type { CampChoice, Pos, Recruit, Run } from "../game/turns";
 import { PieceRig } from "./PieceRig";
 import { StrikeIcon } from "./StrikeIcon";
@@ -125,7 +125,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
   const r = rulesOf(run), kingUnit = run.units.find(u => u.id === "king");
   const army = run.units.filter(u => u.side === "white");
   const recruits = run.recruits ?? [];
-  const next = ENCOUNTERS[run.encounter + 1];
+  const course = courseOf(run), at = course.indexOf(run.encounter), next = levelsOf(run)[course[at + 1]];
   const place = PLACES.find(p => p.id === open);
   const left = (x: number) => `${(x / W) * 100}%`, top = (y: number) => `${(y / H) * 100}%`;
   return <section className="hub-screen" role="dialog" aria-modal="true" aria-label="Rebel hideout">
@@ -150,7 +150,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
             onClick={() => { if (!blocked(p)) walkTo(p); }} />;
         })}
       </div>
-      {PLACES.map(b => { const tagline = b.id === "road" ? `Battle ${run.encounter + 2} / ${ENCOUNTERS.length}` : b.tagline;
+      {PLACES.map(b => { const tagline = b.id === "road" ? `Battle ${at + 2} / ${course.length}` : b.tagline;
         return <button key={b.id} ref={el => { doors.current[b.id] = el; }} className={`hub-place ${b.id} ${b.soon ? "soon" : ""}`} style={{ left: left(b.at.x), top: top(b.at.y), width: left(b.size.x), height: top(b.size.y) }}
           disabled={b.soon} data-testid={`place-${b.id}`} aria-label={`${b.name}: ${b.soon ? "locked" : tagline}`} onClick={() => walkTo(b.door, b.id)}>
           <PlaceArt id={b.id} /><span className="hub-sign"><b>{b.name}</b><small>{tagline}</small></span>
@@ -172,7 +172,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave }: { run: Run; reward: nu
             <p>{choice === "heal" ? `+${r.heal}♥ · max ${r.hp.king}` : <>♥{r.hp[choice]} <StrikeIcon />{r.damage[choice]}<ReachGlyph kind={choice} /></>}</p>
             <strong>{campReason(run, choice) || `✦ ${r.cost[choice]}`}</strong></button>)}</div>
         </> : place.id === "road" ? <>
-          <h1>Battle {run.encounter + 2} / {ENCOUNTERS.length}</h1>
+          <h1>Battle {at + 2} / {course.length}</h1>
           <div className="hub-army road-army" aria-label={`Army: ${[...army.map(u => u.kind), ...recruits.map(k => `${k} (recruit)`)].join(", ")}`}>
             {army.map(u => <i key={u.id}><PieceRig kind={u.kind} side="white" /></i>)}
             {recruits.map((k, i) => <i key={`r${i}`} className="new"><PieceRig kind={k} side="white" /></i>)}</div>

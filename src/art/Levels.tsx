@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ENCOUNTERS, spawnHp } from "../game/turns";
 import type { Kind, Placed, Pos, Rules, SwitchType } from "../game/turns";
-import { KINDS, MAX_HP, MAX_REWARD, MAX_SIDE, MIN_SIDE, SWITCH_TYPES, formatLevels, isError, listIssues, newSwitch, testArmyOf, typicalArmy } from "../game/levels";
+import { KINDS, MAX_HP, MAX_REWARD, MAX_SIDE, MIN_SIDE, SWITCH_TYPES, formatLevels, isError, listIssues, newSwitch, savedArmy, testArmyOf, typicalArmy, withArmy, withTutorial } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
 import { draftRules } from "./rulesDraft";
@@ -28,11 +28,12 @@ const resize = (l: Level, width: number, height: number): Level => {
   const switches = (l.switches ?? []).filter(fits).map(s => ({ ...s, rows: s.rows.filter(r => r < height) }));
   return withSwitches({ ...l, width, height, walls: l.walls.filter(fits), spawns: l.spawns.filter(([, x, y]) => fits({ x, y })), starts: l.starts.filter(fits) }, switches);
 };
-/** A test army only stands on start squares: a removed start takes its piece with it. Kept in start order so saves diff cleanly. */
+/** An army only stands on start squares: a removed start takes its piece with it. Kept in start order so saves diff cleanly. */
 const prune = (l: Level): Level => {
-  if (!l.testArmy) return l;
+  const army = savedArmy(l);
+  if (!army) return l;
   const order = (p: Pos) => l.starts.findIndex(s => same(s, p));
-  return { ...l, testArmy: l.testArmy.filter(p => order(p) >= 0).sort((a, b) => order(a) - order(b)) };
+  return withArmy(l, army.filter(p => order(p) >= 0).sort((a, b) => order(a) - order(b)));
 };
 const armyLabel = (army: Placed[]) => army.map(p => p.kind).join(" · ") || "none";
 
@@ -171,7 +172,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
       return here?.[0] === enemy ? rest : { ...rest, spawns: [...rest.spawns, [enemy, p.x, p.y]] };
     });
   };
-  const setArmy = (next: Placed[] | undefined) => edit(l => { const { testArmy: _, ...rest } = l; return next ? { ...rest, testArmy: next } : rest; });
+  const setArmy = (next: Placed[] | undefined) => edit(l => withArmy(l, next));
   /** Puts `kind` on start `p`, or clears it. There's one king: placing him elsewhere moves him. */
   const setUnit = (p: Pos, kind: Kind | null) => setArmy([...army.filter(a => !same(a, p) && !(kind === "king" && a.kind === "king")), ...(kind ? [{ kind, x: p.x, y: p.y }] : [])]);
   const removeStart = (p: Pos) => edit(l => ({ ...l, starts: l.starts.filter(s => !same(s, p)) }));
@@ -203,7 +204,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
     <aside className="level-list" aria-label="Levels">
       <ol>{levels.map((l, i) => <li key={ids[i]}>
         <button type="button" aria-current={i === sel ? "true" : undefined} onClick={() => onPick(i)}>
-          <b>{levelName(l, i)}</b><small>{l.width}×{l.height} · {l.spawns.length}♟ · {l.starts.length}⚑</small>
+          <b>{levelName(l, i)}</b><small>{l.tutorial && <em className="level-tag">Tutorial</em>}{l.width}×{l.height} · {l.spawns.length}♟ · {l.starts.length}⚑</small>
           <IssueCount issues={issues[i]} />
         </button>
       </li>)}</ol>
@@ -277,10 +278,11 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
         <small className="level-note plain">Ranks: spears fly along them when your piece steps on the switch, hitting every piece there, yours too. Once per battle.</small>
       </div>
 
-      <div className="stage-field"><span>Army</span>
+      <label className="level-toggle"><input type="checkbox" checked={!!level.tutorial} disabled={!minimum.length} onChange={e => edit(l => withTutorial(l, e.target.checked, army))} />Tutorial level</label>
+      <div className="stage-field"><span>{level.tutorial ? "Preset army" : "Army"}</span>
         <div className="seg" role="group" aria-label="Army preset">
-          <button type="button" disabled={!minimum.length} aria-pressed={JSON.stringify(level.testArmy) === JSON.stringify(minimum)} onClick={() => setArmy(minimum)}>Minimum</button>
-          <button type="button" aria-pressed={!level.testArmy} onClick={() => setArmy(undefined)}>Typical</button>
+          <button type="button" disabled={!minimum.length} aria-pressed={JSON.stringify(savedArmy(level)) === JSON.stringify(minimum)} onClick={() => setArmy(minimum)}>Minimum</button>
+          {!level.tutorial && <button type="button" aria-pressed={!level.testArmy} onClick={() => setArmy(undefined)}>Typical</button>}
         </div>
         <ol className="level-army">{level.starts.map((s, i) => <li key={`${s.x},${s.y}`}>
           <span className={`start-mark ${i === 0 ? "king" : ""}`}>{i + 1}</span><code>{sq(level, s)}</code>
@@ -289,8 +291,10 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
           </select>
           <button type="button" aria-label={`Remove start ${sq(level, s)}`} onClick={() => removeStart(s)}>×</button>
         </li>)}</ol>
-        <small className="level-note">Typical: {typical.join(" · ")}</small>
-        <small className="level-note plain">Numbers are the order a real run's army fills the starts, king first. The test army stands where you put it.</small>
+        {level.tutorial
+          ? <small className="level-note plain">The tutorial deals this army, as placed, every time the level starts.</small>
+          : <><small className="level-note">Typical: {typical.join(" · ")}</small>
+            <small className="level-note plain">Numbers are the order a real run's army fills the starts, king first. The test army stands where you put it.</small></>}
       </div>
     </section>
     {playing !== null && <Suspense fallback={null}>

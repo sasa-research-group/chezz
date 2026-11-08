@@ -21,7 +21,12 @@ export type SwitchType = "spears";
 /** A switch on the floor and the trap it springs. "spears": once one of your pieces steps onto it, spears
  * shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
 export type Trap = Pos & { type: SwitchType; rows: number[]; damage: number };
-export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[] };
+export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[]; tutorial?: TutorialStop; handout?: Handout };
+/** What a level hands the player when it starts (the tutorial predetermines these). Empty by default;
+ * the game doesn't act on it until the consumables mechanic lands. */
+export type Handout = { items?: string[] };
+/** Marks a level as part of the tutorial: the army it deals, exactly as placed. */
+export type TutorialStop = { army: Placed[] };
 export type Run = {
   version: 2; encounter: number; turn: number;
   /** "deploy": before a battle's first turn, while you rearrange your pieces on the start squares. */
@@ -29,6 +34,8 @@ export type Run = {
   gold: number; units: Unit[]; log: string[]; history: string[]; nextId: number;
   /** Recruits bought at the hub, waiting in the barracks until you take the road. */
   recruits?: Recruit[];
+  /** A tutorial run: the tutorial levels in order, each with its own preset army, no hideout and no gold. Missing: the roguelike. */
+  tutorial?: true;
   /** A studio test run's level, played on its own: it replaces the run's battle list and ends the run when won. Never saved. */
   level?: Encounter;
   /** A studio run's unsaved rules, in place of `rules.json`. Never saved. */
@@ -62,6 +69,17 @@ export const ENCOUNTERS = levelsFile.levels as unknown as Encounter[];
 export const levelsOf = (g: Run): Encounter[] => g.levels ?? ENCOUNTERS;
 /** The battle this run is fighting: a test run's own level, or the run's current encounter. */
 export const levelOf = (g: Run): Encounter => g.level ?? levelsOf(g)[g.encounter];
+/** The tutorial's battles, as indexes into the level list: the levels with a `tutorial` block, in order. */
+export const tutorialCourse = (levels: Encounter[]): number[] => levels.flatMap((l, i) => (l.tutorial ? [i] : []));
+/** The roguelike's battles: the levels outside the tutorial, or every level while there are none. */
+export function roguelikeCourse(levels: Encounter[]): number[] {
+  const own = levels.flatMap((l, i) => (l.tutorial ? [] : [i]));
+  return own.length ? own : levels.map((_, i) => i);
+}
+/** The battles this run plays, in order. */
+export const courseOf = (g: Run): number[] => (g.tutorial ? tutorialCourse : roguelikeCourse)(levelsOf(g));
+/** The level index after this run's current battle, or undefined on its last. */
+const nextIndex = (g: Run): number | undefined => { const c = courseOf(g); return c[c.indexOf(g.encounter) + 1]; };
 /** The HP an enemy spawns with under rules `r`: full when the level leaves it out, never above the kind's max. */
 export const spawnHp = (r: Rules, [kind, , , hp]: Spawn): number => Math.max(1, Math.min(r.hp[kind], hp ?? r.hp[kind]));
 export type CampChoice = Recruit | "heal";
@@ -174,7 +192,7 @@ const withData = (g: Run, data?: GameData): Run => ({ ...g, ...(data?.rules && {
 export function newRun(data?: GameData): Run {
   const r = data?.rules ?? RULES;
   const g = withData({ version: 2, encounter: 0, turn: 1, phase: "player", gold: r.gold, units: [], log: [], history: [], nextId: 1 }, data);
-  return spawn(g, [{ id: "king", side: "white", kind: "king", hp: r.hp.king, x: 0, y: 0 }]);
+  return spawn({ ...g, encounter: courseOf(g)[0] }, [{ id: "king", side: "white", kind: "king", hp: r.hp.king, x: 0, y: 0 }]);
 }
 /** Units for an army: kinds fill the start squares in order; placed pieces keep their squares. */
 function armyOf(army: (Kind | Placed)[], r: Rules): Unit[] {
@@ -188,6 +206,19 @@ const isPlaced = (army: (Kind | Placed)[]) => army.length > 0 && typeof army[0] 
 export function testRun(level: Encounter, army: Kind[] | Placed[], index: number, rules?: Rules): Run {
   return spawn({ ...newRun(), encounter: index, level, nextId: army.length, ...(rules ? { rules, gold: rules.gold } : {}) }, armyOf(army, rules ?? RULES), isPlaced(army));
 }
+/** A fresh tutorial run at level `index` (by default the tutorial's first), dealt that level's preset army. */
+export function tutorialRun(data?: GameData, index?: number): Run {
+  const g = withData({ version: 2, tutorial: true, encounter: 0, turn: 1, phase: "player", gold: 0, units: [], log: [], history: [], nextId: 1 }, data);
+  const at = index ?? tutorialCourse(levelsOf(g))[0];
+  if (!levelsOf(g)[at]?.tutorial) throw new Error(`Level ${at + 1} is not in the tutorial`);
+  return dealTutorial({ ...g, encounter: at });
+}
+const dealTutorial = (g: Run): Run => {
+  const army = levelOf(g).tutorial!.army;
+  return spawn({ ...g, nextId: army.length }, armyOf(army, rulesOf(g)), true);
+};
+/** After losing a tutorial battle: the same battle again, dealt fresh. */
+export const retry = (g: Run): Run => (g.tutorial && g.phase === "defeat" ? tutorialRun({ rules: g.rules, levels: g.levels }, g.encounter) : g);
 /** A fresh run that starts at battle `index` with a given army and gold, then carries on as usual. */
 export function startAt(index: number, army: Kind[] | Placed[], gold: number, data?: GameData): Run {
   return spawn({ ...newRun(data), encounter: index, gold, nextId: army.length }, armyOf(army, data?.rules ?? RULES), isPlaced(army));
@@ -197,8 +228,8 @@ const withUnit = (g: Run, id: string, patch: Partial<Unit>) => g.units.map(u => 
 function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["King captured", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
-    const last = !!g.level || g.encounter === levelsOf(g).length - 1, reward = levelOf(g).reward;
-    return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : `+${reward} ✦`, ...g.log] };
+    const last = !!g.level || nextIndex(g) === undefined, reward = g.tutorial ? 0 : levelOf(g).reward;
+    return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : g.tutorial ? "Battle won" : `+${reward} ✦`, ...g.log] };
   }
   return g;
 }
@@ -474,10 +505,11 @@ export function endTurn(g: Run): { run: Run; steps: Step[] } {
 export function campReason(g: Run, choice: CampChoice): string {
   const r = rulesOf(g);
   if (g.phase !== "camp") return "Camp is closed";
+  if (g.tutorial) return "No camp in the tutorial";
   if (g.gold < r.cost[choice]) return "Not enough gold";
   if (choice === "heal" && (g.units.find(u => u.id === "king")?.hp ?? 0) >= r.hp.king) return "Full HP";
   const army = g.units.filter(u => u.side === "white").length + (g.recruits?.length ?? 0);
-  if (choice !== "heal" && army >= (levelsOf(g)[g.encounter + 1]?.starts.length ?? 0)) return "Army full";
+  if (choice !== "heal" && army >= (levelsOf(g)[nextIndex(g) ?? -1]?.starts.length ?? 0)) return "Army full";
   return "";
 }
 /** Spend gold at the hub: mend the king now, or add a recruit to the barracks. You can buy as often as gold and room allow. */
@@ -488,12 +520,15 @@ export function buy(g: Run, choice: CampChoice): Run {
   if (choice === "heal") return { ...paid, units: g.units.map(u => (u.id === "king" ? { ...u, hp: Math.min(r.hp.king, u.hp + r.heal) } : u)) };
   return { ...paid, recruits: [...(g.recruits ?? []), choice] };
 }
-/** Take the road: the army and any recruits march into the next battle. */
+/** Take the road: the army and any recruits march into the next battle. In the tutorial the next
+ * battle deals its own preset army instead. */
 export function leaveCamp(g: Run): Run {
-  if (g.phase !== "camp") return g;
+  const next = nextIndex(g);
+  if (g.phase !== "camp" || next === undefined) return g;
+  if (g.tutorial) return dealTutorial({ ...g, encounter: next, history: [...g.history, "Road"] });
   const recruits = g.recruits ?? [];
   const army = [...g.units.filter(u => u.side === "white"), ...recruits.map((kind, i): Unit => ({ id: `ally-${g.nextId + i}`, side: "white", kind, hp: rulesOf(g).hp[kind], x: 0, y: 0 }))];
-  return spawn({ ...g, encounter: g.encounter + 1, nextId: g.nextId + recruits.length, recruits: undefined, history: [...g.history, "Camp: road"] }, army);
+  return spawn({ ...g, encounter: next, nextId: g.nextId + recruits.length, recruits: undefined, history: [...g.history, "Camp: road"] }, army);
 }
 
 /** Reads a saved run, checked against the files (or `data`, which the returned run then plays by).
@@ -504,10 +539,11 @@ export function readRun(raw: string | null, data?: GameData): Run | null {
     if (!saved || typeof saved !== "object" || saved.level !== undefined || saved.rules !== undefined || saved.levels !== undefined) return null;
     const g = withData(saved, data), r = rulesOf(g), levels = levelsOf(g);
     if (g.version !== 2 || !Number.isInteger(g.encounter) || !Number.isInteger(g.turn) || g.turn < 1 || !levels[g.encounter] || !["deploy", "player", "camp", "victory", "defeat"].includes(g.phase)) return null;
+    if ((g.tutorial !== undefined && g.tutorial !== true) || !courseOf(g).includes(g.encounter) || (g.tutorial && g.recruits !== undefined)) return null;
     if (!Array.isArray(g.units) || !Array.isArray(g.log) || !Array.isArray(g.history) || !Number.isFinite(g.gold) || !Number.isInteger(g.turn) || !Number.isInteger(g.nextId)) return null;
     if (g.phase !== "defeat" && !g.units.some(u => u.id === "king" && u.side === "white")) return null;
     if ((g.phase === "player" || g.phase === "deploy") && !g.units.some(u => u.side === "black")) return null;
-    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[g.encounter + 1]?.starts.length ?? 0))) return null;
+    if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[nextIndex(g) ?? -1]?.starts.length ?? 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
     if (g.sprung !== undefined && (!Array.isArray(g.sprung) || g.sprung.some(i => !Number.isInteger(i) || !levelOf(g).switches?.[i]))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;

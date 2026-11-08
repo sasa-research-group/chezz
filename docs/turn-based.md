@@ -132,12 +132,31 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 - If no enemy piece acts, the log reads "Enemy waits" and the screen shows an
   ENEMY WAITS ribbon.
 
-## Run
-- Battles are data in `src/game/levels/levels.json` (`docs/levels.md`), with
-  the rebel hideout between them: recruit a pawn, bishop or rook, or heal the
+## Tutorial
+- A player's first game is the tutorial (`tutorialRun`, `Run.tutorial`): the
+  levels with a `tutorial` block, in order (`docs/levels.md`). Each battle
+  deals that level's preset army exactly as placed, at full HP; nothing
+  carries over. There is no gold, hideout or recruiting: a won battle shows a
+  "Battle n of N ✓" card with the next army, then deals the next battle
+  (`leaveCamp`; `buy` refuses, "No camp in the tutorial").
+- Losing a tutorial battle offers Retry: the same battle, dealt fresh (`retry`).
+- Winning its last battle shows Victory, marks the tutorial done in the meta
+  save (`meta.ts` `tutorialDone`; no skin unlock) and offers the roguelike.
+  From then on Start begins the roguelike, and the start screen offers the
+  tutorial again as a second button.
+- A level's optional `handout` (`{ items }`) is the hook for what the
+  tutorial hands out there; the game doesn't act on it yet.
+- Developer menu: Skip tutorial / Reset tutorial flips the meta flag.
+- A save from before the tutorial existed loads as a roguelike run.
+
+## Run (roguelike)
+- Battles are data in `src/game/levels/levels.json` (`docs/levels.md`): the
+  levels outside the tutorial, or all of them while there are none
+  (`roguelikeCourse`), with the rebel hideout between them: recruit a pawn, bishop or rook, or heal the
   king (prices and heal from `rules.json`). HP carries over and fallen allies
   stay gone. If a battle has fewer starts than the army, the pieces past the
   last start are lost.
 - A studio test run plays one level with a given army and never saves.
 - Jump to battle (☰ menu, Developer) starts a fresh, saved run at battle N
-  with that level's test army and the typical run's leftover gold (`startAt`).
+  with that level's test army and the typical run's leftover gold (`startAt`);
+  on a tutorial level it starts the tutorial there (`tutorialRun`).
