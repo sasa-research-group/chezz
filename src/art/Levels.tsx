@@ -1,9 +1,11 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ENCOUNTERS, spawnHp } from "../game/turns";
-import type { Kind, Placed, Pos, Rules, SwitchType } from "../game/turns";
+import type { Item, Kind, Placed, Pos, Rules, SwitchType } from "../game/turns";
 import { KINDS, MAX_HP, MAX_REWARD, MAX_SIDE, MIN_SIDE, SWITCH_TYPES, formatLevels, isError, listIssues, newSwitch, savedArmy, testArmyOf, typicalArmy, withArmy, withTutorial } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
+import { ITEMS } from "../game/rules";
+import { ITEM_NAME, ItemIcon } from "../components/table/ItemSlots";
 import { SpriteStill } from "./kit";
 import { draftRules } from "./rulesDraft";
 
@@ -178,6 +180,8 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   const removeStart = (p: Pos) => edit(l => ({ ...l, starts: l.starts.filter(s => !same(s, p)) }));
   type Trap = NonNullable<Level["switches"]>[number];
   const setSwitch = (i: number, patch: (s: Trap) => Trap | null) => edit(l => withSwitches(l, (l.switches ?? []).flatMap((s, j) => { if (j !== i) return [s]; const next = patch(s); return next ? [next] : []; })));
+  /** Sets the level's hand-out items; an empty list drops the field so saves stay tidy. */
+  const setHandout = (items: Item[]) => edit(l => { const { handout: _, ...rest } = l; return items.length ? { ...rest, handout: { items } } : rest; });
   const toggleRow = (s: Trap, y: number) => ({ ...s, rows: s.rows.includes(y) ? s.rows.filter(r => r !== y) : [...s.rows, y].sort((a, b) => a - b) });
 
   async function save() {
@@ -260,6 +264,15 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
           <label><span className="sr-only">{kind} {sq(level, { x, y })} HP</span>♥<input type="number" min={1} max={rules.hp[kind]} value={hp ?? ""} placeholder={`${rules.hp[kind]}`} title="Empty: full HP" onChange={e => edit(l => ({ ...l, spawns: l.spawns.map((s, j) => (j !== i ? s : e.target.value === "" ? [s[0], s[1], s[2]] : [s[0], s[1], s[2], clamp(Number(e.target.value), 0, 99)])) }))} /></label>
           <button type="button" aria-label={`Remove ${kind} ${sq(level, { x, y })}`} onClick={() => edit(l => ({ ...l, spawns: l.spawns.filter((_, j) => j !== i) }))}>×</button>
         </li>)}</ul>
+      </div>
+
+      <div className="stage-field"><span>Hand-out</span>
+        <ul className="level-rows level-handout" aria-label="Hand-out items">{(level.handout?.items ?? []).map((item, i) => <li key={i}>
+          <ItemIcon item={item} /><b>{ITEM_NAME[item]}</b>
+          <button type="button" aria-label={`Remove ${ITEM_NAME[item]} from the hand-out`} onClick={() => setHandout((level.handout?.items ?? []).filter((_, j) => j !== i))}>×</button>
+        </li>)}</ul>
+        <div className="seg" role="group" aria-label="Add to the hand-out">{ITEMS.map(item => <button key={item} type="button" onClick={() => setHandout([...(level.handout?.items ?? []), item])}>+ {ITEM_NAME[item]}</button>)}</div>
+        <small className="level-note plain">{level.handout?.items?.length ? "The bag becomes exactly these items when the battle starts." : level.tutorial ? "None: this tutorial battle starts with an empty bag." : "None: the bag carries over."}</small>
       </div>
 
       <div className="stage-field"><span>Switches</span>

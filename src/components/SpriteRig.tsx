@@ -1,5 +1,6 @@
 import type { RigKind } from "./PieceRig";
 import SIZES from "../assets/sprites/sizes.json";
+import decoyArt from "../assets/items/decoy.webp";
 
 /** Painted sprites (the game's art): one whole image per character, eyes painted in
  * (src/assets/sprites/<side>-<kind>.webp, and skin-<skin id>.webp for a painted skin, made by
@@ -33,6 +34,13 @@ export function spriteBox(kind: RigKind, rebel: boolean, skin?: string): SpriteB
   const tallest = (skin && SKIN_HEIGHT[skin]) || HEIGHT[kind];
   const [pw, ph] = size, k = Math.min(tallest / ph, (RIGHT - LEFT) / pw), w = pw * k, h = ph * k;
   return { href, x: 50 - w / 2, y: FEET - h, w, h };
+}
+
+/** The Decoy item's straw pawn: its painted item art (docs/art/PROPS.md), standing as tall as a pawn. */
+const DECOY_PX = [161, 252];
+export function decoyBox(): SpriteBox {
+  const [pw, ph] = DECOY_PX, k = Math.min(HEIGHT.pawn / ph, (RIGHT - LEFT) / pw), w = pw * k, h = ph * k;
+  return { href: decoyArt, x: 50 - w / 2, y: FEET - h, w, h };
 }
 
 export function SpriteImage({ box }: { box: SpriteBox }) {

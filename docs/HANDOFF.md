@@ -32,6 +32,14 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   errors (block Save/Play) or amber warnings (design rules, never block).
   The Army tool sets starts and the exact test unit on each (or None); Undo /
   Redo per level (Ctrl/⌘ Z). No "wall ahead of start" warning any more.
+- **Items:** a team bag (3 slots, in your team bar) of one-use items: Bomb
+  (−1 to every enemy in a 2×2 you aim) and Decoy (a 1-HP straw pawn next to
+  your pieces; enemies strike it, it blocks lines). Free, one per turn, no
+  undo, check-guarded; enemies don't use them. Numbers in `rules.json`
+  (`slots`, `items`), rules in `docs/turn-based.md` (Items). Tutorial battle 3
+  hands out a Bomb, battle 4 a Decoy (`handout`); each tutorial level replaces
+  the bag. Icons: `src/assets/items/`, `docs/art/PROPS.md`. No shop or battle
+  rewards for items yet.
 - **Switches (battle 2):** a floor switch fires a one-shot spear trap along
   set rows, hitting every piece on them, yours too (`switches` in
   `levels.json`; `stepOnto`, `spring` in `turns.ts`). Battle 2 teaches it:

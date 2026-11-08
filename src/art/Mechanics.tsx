@@ -5,7 +5,7 @@ import { PLACES } from "../components/Hub";
 import { IntentMarks } from "../components/BoardArt";
 import { ENCOUNTERS, RULES, roguelikeCourse, tutorialCourse, approaches, attack, spawnHp, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, Reach, Rules, Run, Side, Unit } from "../game/turns";
-import { LIMITS, SHOP, formatRules, parseRules } from "../game/rules";
+import { ITEM_LIMITS, LIMITS, SHOP, formatRules, parseRules } from "../game/rules";
 import { listIssues } from "../game/levels";
 import type { Shop } from "../game/rules";
 import { Entry, Group, KINDS, MiniBoard, SpriteStill } from "./kit";
@@ -137,6 +137,12 @@ function RulesEditor({ r, onChange }: { r: Rules; onChange: (r: Rules) => void }
       <div className="stage-field"><span>Start gold</span><Num label="Start gold" prefix="✦" value={r.gold} range={LIMITS.gold} onChange={gold => edit({ gold })} /></div>
       <div className="stage-field"><span>Heal</span><Num label="Heal HP" prefix="+♥" value={r.heal} range={LIMITS.heal} onChange={heal => edit({ heal })} /></div>
       <div className="stage-field rules-prices"><span>Prices ✦</span><div>{SHOP.map(s => <label key={s} className="rule-price">{SHOP_LABEL[s]}<Num label={`${SHOP_LABEL[s]} price`} value={r.cost[s]} range={LIMITS.cost} onChange={n => edit({ cost: { ...r.cost, [s]: n } })} /></label>)}</div></div>
+      <div className="stage-field rules-prices"><span>Items</span><div>
+        <label className="rule-price">Slots<Num label="Item slots" value={r.slots} range={LIMITS.slots} onChange={slots => edit({ slots })} /></label>
+        <label className="rule-price">Bomb<Num label="Bomb damage" prefix={<StrikeIcon />} value={r.items.bomb.damage} range={ITEM_LIMITS.bomb.damage} onChange={damage => edit({ items: { ...r.items, bomb: { ...r.items.bomb, damage } } })} /></label>
+        <label className="rule-price">Bomb area<Num label="Bomb area" prefix="▦" value={r.items.bomb.area} range={ITEM_LIMITS.bomb.area} onChange={area => edit({ items: { ...r.items, bomb: { ...r.items.bomb, area } } })} /></label>
+        <label className="rule-price">Decoy<Num label="Decoy HP" prefix="♥" value={r.items.decoy.hp} range={ITEM_LIMITS.decoy.hp} onChange={hp => edit({ items: { ...r.items, decoy: { hp } } })} /></label>
+      </div></div>
     </div>
     {errors.length > 0 && <ul className="level-issues" aria-label="Problems">{errors.map(e => <li key={e}>{e}</li>)}</ul>}
     {clamps.length > 0 && <ul className="level-issues warn" aria-label="Warnings">{clamps.map(c => <li key={c}>{c}</li>)}</ul>}

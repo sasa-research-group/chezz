@@ -27,7 +27,8 @@
       "walls": [{ "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 4, "y": 2 }, { "x": 5, "y": 2 }, { "x": 0, "y": 3 }, { "x": 5, "y": 3 }],
       "spawns": [["pawn", 1, 1], ["pawn", 4, 1], ["bishop", 4, 0], ["bishop", 1, 0], ["knight", 2, 0], ["knight", 3, 0], ["pawn", 2, 1], ["pawn", 3, 1]],
       "starts": [{ "x": 2, "y": 5 }, { "x": 1, "y": 5 }, { "x": 3, "y": 5 }, { "x": 4, "y": 5 }],
-      "tutorial": { "army": [{ "kind": "king", "x": 2, "y": 5 }, { "kind": "pawn", "x": 1, "y": 5 }, { "kind": "knight", "x": 3, "y": 5 }, { "kind": "bishop", "x": 4, "y": 5 }] }
+      "tutorial": { "army": [{ "kind": "king", "x": 2, "y": 5 }, { "kind": "pawn", "x": 1, "y": 5 }, { "kind": "knight", "x": 3, "y": 5 }, { "kind": "bishop", "x": 4, "y": 5 }] },
+      "handout": { "items": ["bomb"] }
     },
     {
       "reward": 0,
@@ -36,7 +37,8 @@
       "walls": [],
       "spawns": [["queen", 1, 0], ["pawn", 1, 1], ["pawn", 0, 0], ["pawn", 2, 0]],
       "starts": [{ "x": 0, "y": 5 }, { "x": 1, "y": 5 }, { "x": 2, "y": 5 }],
-      "tutorial": { "army": [{ "kind": "king", "x": 0, "y": 5 }, { "kind": "rook", "x": 1, "y": 5 }, { "kind": "knight", "x": 2, "y": 5 }] }
+      "tutorial": { "army": [{ "kind": "king", "x": 0, "y": 5 }, { "kind": "rook", "x": 1, "y": 5 }, { "kind": "knight", "x": 2, "y": 5 }] },
+      "handout": { "items": ["decoy"] }
     },
     {
       "reward": 0,

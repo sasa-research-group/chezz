@@ -57,4 +57,40 @@ background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame.")
   highlight tick) on a short iron socket. Chunky proportions: the spearhead is large and
   bold, the shaft thick enough to read at small size. No motion lines.
 
+## Item icons (Nov 8 2026)
+
+The bag's icons in `src/assets/items/`, drawn by `table/ItemSlots.tsx`. The decoy's icon is
+also the straw pawn on the board (`decoyBox` in `SpriteRig.tsx`, drawn at a pawn's height).
+Same method as above: Nano Banana Pro (here through Replicate as `google/nano-banana-pro`)
+with `docs/art/sheet-armour-talks.webp` as the only reference, BiRefNet ToonOut cutout
+(`refine_fg: true`), then `tools/art/prop.mjs`.
+
+| File | Size flags | Note |
+|---|---|---|
+| `bomb.webp` | `--height 160 --outline 5` | One roll, kept. |
+| `decoy.webp` | `--height 240 --outline 6` | 3:4. Two rolls; the squat one on a wide base (reads as a pawn, no cast shadow) over the tall one on a stem. |
+
+- **Bomb** (1:1): "Game item icon, painted as one single whole image, in the exact art style
+  of the first image (a character select sheet): bold flash-era 2D brawler cartoon, very thick
+  even black outlines, flat fills, one hard cel shadow, crisp white highlight ticks on metal.
+  Subject: a classic round cartoon bomb. A heavy iron ball painted dark slate (#3b3f45) with a
+  hard darker shadow on its lower right and one big crisp white highlight tick on its upper
+  left, a short chunky iron cap on top with two round rivets, and a short curling rope fuse
+  coming out of the cap, its tip lit with a bright yellow and orange spark (#ffd34d, #f08a2a)
+  shaped like a small star burst. Slight three-quarter view, the fuse curling up and to the
+  right. Simple chunky shapes, few interior lines, so it reads clearly at 32 pixels." + the
+  closing sentence above.
+- **Decoy** (3:4): "Game character sprite, painted as one single whole image, in the exact art
+  style of the first image (a character select sheet): bold flash-era 2D brawler cartoon, very
+  thick even black outlines, flat fills, one hard cel shadow. Subject: a straw training dummy
+  shaped like a chess pawn, standing upright, full body, facing the viewer at a slight
+  three-quarter angle. A round head made of a stuffed burlap sack (#d9b26a) tied off at the neck
+  with rough twine, two big black stitched cross marks for eyes and a stitched straight mouth,
+  tufts of straw (#e8c860) poking out of the top of the head and from the neck tie. A short round
+  stuffed burlap body with patched seams and straw sticking out at the sides like little arms,
+  sitting on a flared round wooden base painted warm brown (#865637) like a pawn's foot, with a
+  hard darker shadow. A faded red painted target circle (#cd2a25) on its chest. Squat chunky
+  proportions like a chess pawn, simple shapes, few interior lines, so it reads clearly at 48
+  pixels." + the closing sentence above, with "One figure only" for "One object only".
+
 Image models aren't deterministic: the committed webp files are the canonical art.

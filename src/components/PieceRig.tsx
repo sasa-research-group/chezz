@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { skinById } from "./skins";
-import { CrownFx, SpriteImage, hasSkinSprite, spriteBox } from "./SpriteRig";
+import { CrownFx, SpriteImage, decoyBox, hasSkinSprite, spriteBox } from "./SpriteRig";
 
 /** A cast of misfits. Each chess piece is a distinct character whose costume
  * echoes its chess shape; rebels (white) are patched exiles, the patrol
@@ -16,13 +16,13 @@ const GOLD = "#e7ba58";
 export const RIG_MS: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, hit: 420, death: 900, cheer: 1400, leap: 340, "leap-back": 420, mate: 2600 };
 
 /** `skin` is a skin id from components/skins; it applies to rebels of the skin's kind that have a
- * painted sprite, and is ignored otherwise. */
-export function PieceRig({ kind, side, action = "idle", facing = 1, seed = 0, wounded = false, skin: skinId }: {
-  kind: RigKind; side: RigSide; action?: RigAction; facing?: 1 | -1; seed?: number | string; wounded?: boolean; skin?: string;
+ * painted sprite, and is ignored otherwise. `decoy` draws the Decoy item's straw pawn instead. */
+export function PieceRig({ kind, side, action = "idle", facing = 1, seed = 0, wounded = false, skin: skinId, decoy = false }: {
+  kind: RigKind; side: RigSide; action?: RigAction; facing?: 1 | -1; seed?: number | string; wounded?: boolean; skin?: string; decoy?: boolean;
 }) {
   const rebel = side === "white";
-  const found = skinById(skinId), skin = found && rebel && found.kind === kind && hasSkinSprite(found.id) ? found : undefined;
-  const sprite = spriteBox(kind, rebel, skin?.id);
+  const found = skinById(skinId), skin = !decoy && found && rebel && found.kind === kind && hasSkinSprite(found.id) ? found : undefined;
+  const sprite = decoy ? decoyBox() : spriteBox(kind, rebel, skin?.id);
   // A stable per-piece number (ids hash), so idle loops don't jump when the cast changes.
   const n = typeof seed === "number" ? seed : [...seed].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
   const style = { "--seed": `${(n % 7) * -0.37}s`, "--face": facing } as CSSProperties;

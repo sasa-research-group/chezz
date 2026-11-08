@@ -19,10 +19,12 @@
   there are none, it plays every level, ignoring the tutorial blocks. Today all
   five shipped levels are the tutorial, so the roguelike replays them.
 - `handout` (optional, absent by default) is what a level hands the player
-  when it starts: `"handout": { "items": ["<item id>", ...] }`. The tutorial
-  uses it to predetermine when consumables arrive. Typed `Handout` in
-  `turns.ts`; `levels.ts` checks only the shape (short id strings) until the
-  consumables mechanic defines the ids, and the game doesn't act on it yet.
+  when it starts: `"handout": { "items": ["bomb", "decoy", ...] }` (ids from
+  `ITEMS` in `rules.ts`; anything else is an error). When the battle is dealt
+  the bag becomes exactly that list, cut to the bag's `slots` (an amber
+  warning when it's longer). A tutorial level without one starts with an empty
+  bag; a roguelike level without one keeps the bag. Today battle 3 hands out
+  a Bomb and battle 4 a Decoy. Items: `docs/turn-based.md`.
   A tutorial level can't also carry a `testArmy`.
 - Designer-only fields, ignored by the game: `name` (list label) and
   `testArmy` (see below; roguelike levels only).
@@ -70,6 +72,8 @@
 - Right: name, width, height, reward, each enemy's HP (empty: full HP; new
   enemies start empty, so they follow stat changes), and the Army list:
   each start in order with its test unit (or none) and a remove button.
+  **Hand-out** lists the level's hand-out items (× removes one, + Bomb /
+  + Decoy add one; an empty list drops the field).
   The **Tutorial level** box moves a level into the tutorial (its current army
   becomes the preset army) or out (the preset army becomes its test army).
   On a tutorial level the Army tool and list edit the preset army ("Preset
