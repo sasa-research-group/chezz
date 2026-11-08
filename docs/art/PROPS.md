@@ -65,8 +65,7 @@ Image models aren't deterministic: the committed webp files are the canonical ar
 (`.exile-cell.tile-ice`, `.tile-sludge`, and the deploy kit's swatches). Same model and
 style reference as above, 1:1, two rolls each; no cutout, since they fill the square.
 Ice: the roll with sparkles and a clear cel shadow, trimmed of its white margin
-(`magick <in> -fuzz 12% -trim +repage -resize 256x256!`). Sludge: the roll that fills
-the square edge to edge (`-resize 256x256!`).
+(`magick <in> -fuzz 12% -trim +repage -resize 256x256!`). Sludge: see below.
 
 Both prompts open: "Game board floor tile, painted as one single whole image, seen
 straight from above, in the exact art style of the first image (a character select
@@ -80,8 +79,11 @@ objects on it, no text, no border frame, no background."
   diagonal glint streaks, two or three bold dark-outlined crack lines, and one hard
   darker blue (#8cc3dc) cel-shadow patch along the bottom edge. It must read instantly
   as ice.
-- **Sludge:** one square tile of thick murky SLUDGE filling the whole frame edge to
-  edge: a gloopy swamp-mud puddle in drab olive green and brown (#6f6a2e and #5f4a2c)
-  with three or four big round bubbles outlined in black with white highlight ticks,
-  one popped bubble ring, and a darker hard cel-shadow blob. Sticky, slow, gross but
-  cartoony.
+- **Sludge** (redone toxic, at Wesley's request; ice tile as a second reference): one
+  square tile of bubbling TOXIC SLUDGE filling the whole frame edge to edge: a pool of
+  radioactive neon-green ooze (#8de02c, with a darker poison green #3f8f12 hard
+  cel-shadow), a few big round black-outlined bubbles with white highlight ticks, one
+  bubble popping with a splash ring, thick drips curling at the edges, and a couple of
+  small sickly purple (#7b3fa0) poison specks. It must read instantly as toxic,
+  poisonous, harmful to stand in. (No skulls.) The roll's white margin was flood-filled
+  with #3f8f12 from the corners, then `-shave 20x20 -resize 256x256!`.

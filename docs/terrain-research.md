@@ -51,7 +51,7 @@ enemy's later choices.
 | Ice slide blocked | The move isn't allowed | Keeps "nobody stands on ice" (Wesley's rule). Ice Chess stops before the blocker instead. |
 | Knight onto ice | Can't land there | A leap has no single direction (Ice Chess). |
 | Slider over ice | Crosses it, stops only beyond it | Only where a move ends matters. |
-| Sludge | Ends any slide; a slider starting in it moves one square | Stop rules beat movement costs. |
+| Sludge | Ends any slide; a slider starting in it moves one square; burns 1 HP for each turn a piece ends in it | Stop rules beat movement costs; the burn (Wesley, Nov 8) makes it a hazard for every piece, not only sliders. |
 | Where you lay tiles | Empty floor, not a start or switch, not on or next to an enemy | No sniping the back line. |
 | Kit size | Per level (`kit`), 0–9 each | Research suggests 1–3, scaled by board size. |
 | Does the enemy react? | Its intent re-plans from the tiles you lay | Deterministic; the AI uses the same move rules. |
@@ -61,7 +61,7 @@ enemy's later choices.
 1. Too strong or too weak? Count how often a laid tile decides the battle.
 2. Should laying be limited to your own half? The no-adjacent rule is looser than the
    research's suggestion of your own half plus the neutral middle.
-3. Sludge v2: stuck for one turn (any piece, needs a status), or knights can't leave?
+3. Is the 1 HP burn right against 1 HP pawns (sludge kills them outright)?
 4. Preview the whole slide path (dots along the ice), not just the landing square.
 5. Should the enemy get a kit (scripted counter-placement)?
 

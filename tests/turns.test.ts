@@ -609,6 +609,27 @@ describe("floor tiles: ice and sludge, and the deploy kit", () => {
     expect(rook).toContain("0,4"); expect(rook).toContain("0,2"); expect(rook).not.toContain("0,3");
     expect(sq(on(tiles(["ice", 2, 3]), w("n", "knight", 1, 5)), "n")).not.toContain("2,3");
   });
+  it("burns each side's pieces left in sludge as that side's turn ends", () => {
+    // Your rook sits in sludge; the enemy pawn in sludge is walled in by your pawn and can't leave.
+    const g = on(tiles(["sludge", 0, 3], ["sludge", 5, 0]), w("king", "king", 3, 5), w("r", "rook", 0, 3), w("p", "pawn", 5, 1), { id: "e", side: "black", kind: "pawn", x: 5, y: 0, hp: 2 });
+    const { run, steps } = endTurn(g);
+    expect(unit(run, "r")?.hp).toBe(HP.rook - turns.SLUDGE_BURN);
+    expect(unit(run, "e")?.hp).toBe(2 - turns.SLUDGE_BURN);
+    expect(unit(run, "p")?.hp).toBe(HP.pawn);
+    expect(steps.filter(s => s.kind === "sludge").map(s => s.damage.map(d => d.id))).toEqual([["r"], ["e"]]);
+  });
+  it("can kill with the burn, and won't let your king step into a burn that finishes him", () => {
+    const g = on(tiles(["sludge", 0, 3]), w("king", "king", 3, 5), { ...w("p", "pawn", 0, 3), hp: 1 }, { id: "e", side: "black", kind: "rook", x: 5, y: 0, hp: 5 });
+    expect(unit(endTurn(g).run, "p")).toBeUndefined();
+    const weak = on(tiles(["sludge", 3, 4]), { ...w("king", "king", 3, 5), hp: 1 }, { id: "e", side: "black", kind: "pawn", x: 0, y: 0, hp: 1 });
+    expect(move(weak, "king", { x: 3, y: 4 })).toBe(weak);
+    const strong = on(tiles(["sludge", 3, 4]), w("king", "king", 3, 5), { id: "e", side: "black", kind: "pawn", x: 0, y: 0, hp: 1 });
+    expect(unit(move(strong, "king", { x: 3, y: 4 }), "king")).toMatchObject({ x: 3, y: 4 });
+  });
+  it("keeps the enemy out of sludge unless it lines up a strike", () => {
+    const g = on(tiles(["sludge", 2, 2]), w("king", "king", 2, 5), { id: "e", side: "black", kind: "pawn", x: 2, y: 1, hp: 1 });
+    expect(enemyPlan(g).some(s => s.kind === "move" && s.focus.some(p => p.x === 2 && p.y === 2))).toBe(false);
+  });
   it("ends slides on sludge, and a slider in sludge moves one square", () => {
     const up = sq(on(tiles(["sludge", 0, 3]), w("r", "rook", 0, 5)), "r").filter(s => s.startsWith("0,"));
     expect(up).toEqual(["0,3", "0,4"]);

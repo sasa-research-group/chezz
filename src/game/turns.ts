@@ -23,8 +23,11 @@ export type SwitchType = "spears";
 export type Trap = Pos & { type: SwitchType; rows: number[]; damage: number };
 /** Floor that changes movement. "ice": nobody stops on it; a piece whose move ends on ice slides on in the
  * same direction to the first square past it (if that square is blocked, the move isn't allowed), and a
- * knight can't land on it. "sludge": a slide ends on it; a slider that starts its turn in it moves one square. */
+ * knight can't land on it. "sludge": toxic; a slide ends on it, a slider that starts its turn in it moves one
+ * square, and a piece still in it when its side's turn ends loses `SLUDGE_BURN` HP. */
 export type TileType = "ice" | "sludge";
+/** HP a piece loses for each of its side's turns it ends standing in sludge. */
+export const SLUDGE_BURN = 1;
 export type Tile = Pos & { type: TileType };
 /** Tiles the player may lay during the deploy phase, by type. */
 export type Kit = Partial<Record<TileType, number>>;
@@ -62,7 +65,7 @@ export type Recruit = "pawn" | "bishop" | "rook";
 /** A piece placed on a given square: a studio test army. */
 export type Placed = Pos & { kind: Kind };
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring"; target?: string; killed: string[] };
+export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring" | "sludge"; target?: string; killed: string[] };
 
 const loaded = parseRules(rulesFile);
 if (!loaded.ok) throw new Error(`src/game/rules.json: ${loaded.errors.join("; ")}`);
@@ -435,7 +438,10 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
         // A square to strike from is worth a step.
         const lineUp = !u.acted && whites.some(w => reaches(run, u, t, w));
         if (gain <= 0 && !march && !lineUp) continue;
-        choices.push({ score: lineUp ? 20 - travel : march || gain * 5 - travel, key: `m${u.id}${t.x}${t.y}`, apply: () => {
+        // Sludge burns: worth wading into only to line up a strike.
+        const toxic = tileAt(run, t) === "sludge" ? 3 : 0;
+        if (toxic && !lineUp) continue;
+        choices.push({ score: (lineUp ? 20 - travel : march || gain * 5 - travel) - toxic, key: `m${u.id}${t.x}${t.y}`, apply: () => {
           const text = `${label(u)} → ${coord(run, t)}`;
           const next = note({ ...run, units: withUnit(run, u.id, { x: t.x, y: t.y, moved: true }) }, text);
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] } };
@@ -474,7 +480,9 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
 /** Check: the enemy's next turn could kill your king. Threats that would only hurt him don't count. */
 export function inCheck(g: Run): boolean {
   const king = g.units.find(u => u.id === "king");
-  return g.phase === "player" && !!king && kingThreat(g).damage >= king.hp;
+  // Ending the turn in sludge burns him before the enemy acts.
+  const burn = king && tileAt(g, king) === "sludge" ? SLUDGE_BURN : 0;
+  return g.phase === "player" && !!king && kingThreat(g).damage + burn >= king.hp;
 }
 /** Could anything you still do this turn (moves and strikes) get the king out of check? */
 export function canEscape(start: Run): boolean {
@@ -527,13 +535,28 @@ export function intentOf(g: Run, plan: Step[], id: string): Intent | null {
   return intent;
 }
 export const intentWaits = (i: Intent) => !i.to && !i.strike;
+/** Sludge burns: each of `side`'s pieces standing in sludge as its turn ends loses `SLUDGE_BURN` HP (and may die). */
+function burn(g: Run, side: Side): { run: Run; steps: Step[] } {
+  const hit = g.units.filter(u => u.side === side && tileAt(g, u) === "sludge");
+  if (!hit.length) return { run: g, steps: [] };
+  const killed = hit.filter(u => u.hp <= SLUDGE_BURN).map(u => u.id);
+  const units = g.units.flatMap(u => (killed.includes(u.id) ? [] : hit.includes(u) ? [{ ...u, hp: u.hp - SLUDGE_BURN }] : [u]));
+  const text = `Sludge −${SLUDGE_BURN}${hit.length > 1 ? ` × ${hit.length}` : ""}${killed.length ? ` · ${killed.length} killed` : ""}`;
+  const run = finish(note({ ...g, units }, text));
+  return { run, steps: [{ text, units: run.units, focus: hit.map(u => ({ x: u.x, y: u.y })), damage: hit.map(u => ({ id: u.id, amount: SLUDGE_BURN })), actor: hit[0].id, kind: "sludge", killed }] };
+}
 /** Ends the player's turn: the enemy acts, then your pieces are ready again. */
 export function endTurn(g: Run): { run: Run; steps: Step[] } {
   if (g.phase !== "player") return { run: g, steps: [] };
   // In check you must get the king safe first, unless nothing this turn can.
   if (inCheck(g) && canEscape(g)) return { run: g, steps: [] };
-  const { run: acted, steps } = enemyTurn(handOver(g));
-  const run = steps.length ? acted : note(acted, "Enemy waits");
+  // Sludge burns your pieces as your turn ends, then the enemy's as theirs does.
+  const mine = burn(handOver(g), "white");
+  if (mine.run.phase !== "player") return { run: mine.run, steps: mine.steps };
+  const { run: acted, steps: moves } = enemyTurn(mine.run);
+  const theirs = acted.phase === "player" ? burn(acted, "black") : { run: acted, steps: [] };
+  const steps = [...mine.steps, ...moves, ...theirs.steps];
+  const run = moves.length ? theirs.run : note(theirs.run, "Enemy waits");
   if (run.phase !== "player") return { run, steps };
   const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : { ...u, moved: false, acted: false }));
   return { run: { ...run, fell: undefined, units, turn: run.turn + 1 }, steps };

@@ -234,7 +234,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (!actor) return;
     const target = step.target ? beforeUnits.find(u => u.id === step.target) : undefined;
     setStage(st => st.counter ? { ...st, counter: null } : st);
-    if (step.kind === "spring") { springs(step, beforeUnits); return; }
+    if (step.kind === "spring" || step.kind === "sludge") { springs(step, beforeUnits); return; }
     if (step.kind === "move") { const to = step.units.find(u => u.id === actor.id); if (to) face(actor.id, actor, to); animate(actor.id, "move"); return; }
     if (target) face(actor.id, actor, target);
     // Knights show off: front-flip over to the target, smack it, backflip home. The rules still strike from

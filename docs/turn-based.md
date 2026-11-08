@@ -46,9 +46,15 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   pawn stepping onto ice slides past its one step; a rook can cross ice but
   only stops beyond it. A knight's leap has no one direction, so a knight
   can't land on ice (the Ice Chess precedent; see `docs/terrain-research.md`).
-- **Sludge:** a slide ends on sludge (a rook's line or an ice slide). A rook,
-  bishop or queen that starts its turn in sludge moves one square. Kings,
-  pawns and knights leave it normally.
+- **Sludge** (toxic): a slide ends on sludge (a rook's line or an ice slide).
+  A rook, bishop or queen that starts its turn in sludge moves one square.
+  Kings, pawns and knights leave it normally. Every piece still standing in
+  sludge when its side's turn ends loses 1 HP (`SLUDGE_BURN`) and can die of
+  it: yours as you end your turn, the enemy's after its turn. The burn plays
+  as its own beat ("Sludge −1"). Check counts it: your king can't step into
+  sludge that would finish him, and in sludge he's in check once the enemy's
+  threat plus the burn reaches his HP. The enemy only wades into sludge to
+  line up a strike.
 - Tiles don't block strikes; a ranged strike flies over them.
 
 ## Turns
