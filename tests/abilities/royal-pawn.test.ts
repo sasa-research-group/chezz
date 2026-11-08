@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY, approaches, attack, attackTargets, kingThreat, move, newRun, promote, readRun, walkAndStrike } from "../../src/game/turns";
+import { ENERGY, abilityOf, approaches, attack, attackTargets, endTurn, kingThreat, move, newRun, promote, readRun, walkAndStrike } from "../../src/game/turns";
 import type { Run, Unit } from "../../src/game/turns";
 
 // 4x4 board (encounter 0). White thrusts toward y = 0, black toward y = 3.
@@ -77,5 +77,16 @@ describe("Sergeant Pike (royal pawn): Pike", () => {
     const { run } = promote(moved, "mine", "knight");
     expect(unit(run, "mine")).toMatchObject({ kind: "knight", hp: 3 });
     expect(attackTargets(run, unit(run, "mine")!).map(t => t.id)).toEqual(["e"]);
+  });
+  it("an enemy Pike that reaches your back row crowns Her Wigness, while the road's plain pawns still crown a plain queen", () => {
+    // Black moves toward larger y; the far row of the 4x4 board is y = 3. The king stays out of reach.
+    const runner: Unit = { ...pike, x: 3, y: 2 };
+    const { run } = endTurn(board([king, runner]));
+    const crowned = unit(run, "pike")!;
+    expect(crowned).toMatchObject({ kind: "queen", variant: "royal", hp: 9 });
+    expect(abilityOf(crowned)?.name).toBe("Her Wigness");
+    const plain = unit(endTurn(board([king, { ...runner, variant: undefined }])).run, "pike")!;
+    expect(plain).toMatchObject({ kind: "queen" });
+    expect(abilityOf(plain)).toBeUndefined();
   });
 });

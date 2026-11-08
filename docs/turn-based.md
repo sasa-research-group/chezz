@@ -87,7 +87,8 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 
 - A pawn whose ability fixes its crown (Grumble, the misfit pawn: always a
   knight, so Nobody) promotes into that piece on either side; your picker
-  offers only it. Promotion keeps the cast.
+  offers only it. Promotion keeps the cast: an enemy royal pawn crowns Her
+  Wigness, while the road's plain pawns (no cast) crown a plain queen.
 
 ## Stall clock
 - `run.quiet` counts full turns in a row in which no piece lost HP to a blow,

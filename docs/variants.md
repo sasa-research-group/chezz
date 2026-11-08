@@ -320,6 +320,6 @@ The ideation panel's final pass raised these; the prototype ships the simplest r
 
 - ~~Stall clock~~: shipped as specced (Wesley, Nov 8): tiring after 3 quiet turns, retreat after 8; see docs/turn-based.md.
 - ~~Grumble's crown~~: shipped (Wesley, Nov 8): he always crowns a knight, either side, no picker; with the cast kept that is Nobody.
-- Enemy pawns that crown on cast boards become Her Wigness (your pawns deal her 0 and she ignores them), relying on the stall clock to end corks; or crown a plain queen? Recommended: ship Wigness; it is the one consistent promotion rule and corks now cost both sides.
+- ~~Enemy crown~~: shipped (Wesley, Nov 8): promotion keeps the cast, so an enemy royal pawn crowns Her Wigness; the road's plain pawns still crown a plain queen.
 - Nobody's suit: any piece may topple it for 2 energy (interactive, costs the Royals a swing) versus a suit that crumbles on its own after 3 turns (no new core action)? Recommended: topple; it is a decision for both sides, not a timer.
 - Enemy Marmalade: model the friendly nudge inside kingThreat (the one two-piece set-up the search ever credits) or keep him player-only for the prototype? Recommended: model it, because the CHECK tag otherwise lies the first time the Royals field a cat; player-only is the fallback if it slips the build.
