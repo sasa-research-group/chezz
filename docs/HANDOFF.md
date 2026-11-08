@@ -32,6 +32,11 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   errors (block Save/Play) or amber warnings (design rules, never block).
   The Army tool sets starts and the exact test unit on each (or None); Undo /
   Redo per level (Ctrl/⌘ Z). No "wall ahead of start" warning any more.
+- **Switches (battle 2):** a floor switch fires a one-shot spear trap along
+  set rows, hitting every piece on them, yours too (`switches` in
+  `levels.json`; `stepOnto`, `spring` in `turns.ts`). Battle 2 teaches it:
+  rank 4 full of enemies, switch at a1, spears on ranks 4 and 3 for 2. The
+  studio keeps switches through edits but can't place or draw them yet.
 - **Deploy phase:** every battle opens with your pieces on the start squares;
   drag (or tap, tap) to move or swap them, then Begin (`deploy`, `begin` in
   `turns.ts`).

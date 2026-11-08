@@ -587,3 +587,51 @@ describe("turn-based rules", () => {
     });
   });
 });
+
+describe("switches and spear traps", () => {
+  // Spears sweep rows 1 and 2; the switch is the bottom-left corner.
+  const TRAP: Encounter = { reward: 5, width: 6, height: 5, walls: [], switches: [{ x: 0, y: 4, rows: [1, 2], damage: 2 }], spawns: [["knight", 0, 1], ["pawn", 2, 1], ["pawn", 4, 2], ["rook", 3, 0]], starts: [{ x: 1, y: 4 }, { x: 3, y: 4 }] };
+  const army: Placed[] = [{ kind: "king", x: 1, y: 4 }, { kind: "pawn", x: 3, y: 4 }];
+  const deal = (level: Encounter = TRAP, placed: Placed[] = army) => begin(testRun(level, placed, 1, ONE));
+  it("fires when your piece steps on it: every piece on the rows takes the hit, and the turn is spent", () => {
+    const g = deal();
+    expect(turns.armedRows(g)).toEqual([1, 2]);
+    const { run, step } = turns.stepOnto(g, "king", { x: 0, y: 4 });
+    expect(step?.kind).toBe("spring");
+    expect(step?.rows).toEqual([1, 2]);
+    // Pawns die, the knight is hurt, the rook on row 0 is untouched.
+    expect(run.units.filter(u => u.side === "black").map(u => [u.kind, u.hp])).toEqual([["knight", HP.knight - 2], ["rook", HP.rook]]);
+    expect(step?.killed).toHaveLength(2);
+    expect(unit(run, "king")).toMatchObject({ x: 0, y: 4, moved: true, acted: true });
+    expect(run.sprung).toEqual([0]);
+    expect(turns.armedRows(run)).toEqual([]);
+    expect(turnSpent(run)).toBe(true);
+  });
+  it("fires once: a sprung switch is an ordinary square", () => {
+    const used = { ...deal(), sprung: [0] };
+    const { run, step } = turns.stepOnto(used, "king", { x: 0, y: 4 });
+    expect(step).toBeNull();
+    expect(unit(run, "king")).toMatchObject({ x: 0, y: 4, moved: true });
+    expect(unit(run, "king")?.acted).toBeFalsy();
+    expect(run.units.filter(u => u.side === "black")).toHaveLength(4);
+  });
+  it("hits your own pieces on the rows too, and won't kill your own king", () => {
+    const mine = deal({ ...TRAP, starts: [{ x: 1, y: 4 }, { x: 5, y: 2 }] }, [{ kind: "king", x: 1, y: 4 }, { kind: "pawn", x: 5, y: 2 }]);
+    expect(turns.stepOnto(mine, "king", { x: 0, y: 4 }).run.units.some(u => u.side === "white" && u.kind === "pawn")).toBe(false);
+    // The king stands in the spears' row; your pawn could press the switch, but that would kill him.
+    const lane: Encounter = { ...TRAP, switches: [{ x: 1, y: 3, rows: [2], damage: 9 }], starts: [{ x: 3, y: 2 }, { x: 1, y: 4 }] };
+    const risky = deal(lane, [{ kind: "king", x: 3, y: 2 }, { kind: "pawn", x: 1, y: 4 }]);
+    expect(turns.stepOnto(risky, "ally-1", { x: 1, y: 3 }).run).toBe(risky);
+    expect(move(risky, "ally-1", { x: 1, y: 3 })).toBe(risky);
+  });
+  it("wins the battle when the spears take the last enemy", () => {
+    const g = deal({ ...TRAP, spawns: [["pawn", 2, 1], ["pawn", 4, 2]] });
+    expect(turns.stepOnto(g, "king", { x: 0, y: 4 }).run.phase).toBe("victory");
+  });
+  it("is saved as sprung, and a bad switch index won't load", () => {
+    const fired = { ...turns.stepOnto(deal(), "king", { x: 0, y: 4 }).run, level: undefined, encounter: 0 };
+    const data = { rules: ONE, levels: [TRAP, TRAP] };
+    expect(turns.readRun(stored(fired), data)?.sprung).toEqual([0]);
+    expect(turns.readRun(stored({ ...fired, sprung: [3] }), data)).toBeNull();
+  });
+});

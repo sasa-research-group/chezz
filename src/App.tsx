@@ -7,7 +7,7 @@ import { testArmyOf, typicalStart } from "./game/levels";
 import { BattleBanner, GuardBadge, IntentMarks } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { approaches, begin, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canDefend, canEscape, coord, defend, defendsLeft, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { approaches, armedRows, armedSwitch, begin, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canDefend, canEscape, coord, defend, defendsLeft, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, move, moveTargets, newRun, passable, reaches, readRun, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
@@ -56,12 +56,14 @@ type Anim = { action: RigAction; key: number };
  * counter: a struck piece hitting back; the attacker's damage and impact wait until it lands.
  * bolts: ranged strikes in flight, drawn as a streak from striker to target. */
 type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean; counter: { victim: string; at: Pos; landed: boolean } | null; bolts: Bolt[] };
-type Bolt = { key: number; from: Pos; to: Pos; ms: number };
+type Bolt = { key: number; from: Pos; to: Pos; ms: number; spear?: boolean };
 const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], lunge: {}, doomed: [], holdFlash: false, mating: false, counter: null, bolts: [] };
 /** A strike from further than the next square (a knight's jump aside) flies to its target. */
 const ranged = (a: Unit, b: Pos) => a.kind !== "knight" && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) > 1;
 /** How far into its attack animation a blow lands (the impact stars peak a little past halfway). */
 const BLOW_MS = 300;
+/** How long a sprung trap's spears take to cross the board. */
+const SPEAR_MS = 420;
 /** When a strike's beats happen, in unscaled ms from its start. A target that survives winds up its
  * counter once its own hit has played (after a surviving knight has flipped home). */
 function strikeTiming(step: Step, before: Unit[]) {
@@ -85,7 +87,7 @@ function intentWords(g: Run, i: Intent) {
 }
 
 function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare, onHover, locked, stage, spd, picking, checkers, pips, skinOf, intent, deploy, above, below }: { run: Run; moveRun: Run; home: Pos | null; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; onHover: (p: Pos | null) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined; intent: Intent | null; deploy: Deploy | null; above?: ReactNode; below?: ReactNode }) {
-  const e = levelOf(run), r = rulesOf(run);
+  const e = levelOf(run), r = rulesOf(run), lanes = armedRows(run);
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
   const counter = stage.counter && flash?.damage.some(d => d.id === stage.counter!.victim) ? stage.counter : null;
@@ -97,6 +99,7 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
   const strikes = selected && !locked ? [...attackTargets(run, selected).filter(t => !strikeExposesKing(run, selected.id, t.id!)), ...run.units.filter(v => v.side === "black" && approaches(run, selected.id, v.id).length).map(v => ({ x: v.x, y: v.y, id: v.id }))] : [];
   // Enemies it could hit only by leaving the king in check get a ✕ chip instead of a sword badge.
   const unsafe = selected && !locked ? unsafeStrikes(run, selected.id) : [];
+  const trap = (p: Pos) => armedSwitch(run, p) >= 0 ? "armed" : e.switches?.some(s => same(s, p)) ? "sprung" : "";
   const reach = (p: Pos) => !!selected && !locked && !picking && !selected.acted && !sidelined(run, selected) && passable(run, p) && reaches(run, selected, selected, p);
   // Checkmate: zoom in on the fallen king and dim everything else.
   const fallen = stage.mating ? stage.ghosts.find(g => g.id === "king") : undefined;
@@ -113,11 +116,13 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
           const focus = flash?.focus.some(q => same(p, q)) || (counter?.landed && same(counter.at, p));
           const startHere = !!deploy?.starts.some(q => same(q, p)), over = !!deploy?.drag?.over && same(deploy.drag.over, p);
           return <button key={i} disabled={(locked && !deploy) || !passable(run, p)} data-x={p.x} data-y={p.y}
-            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${piece?.defending ? `guarded-tile ${piece.side}` : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""} ${startHere ? "deploy-square" : ""} ${over ? "deploy-over" : ""}`}
+            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${piece?.defending ? `guarded-tile ${piece.side}` : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""} ${startHere ? "deploy-square" : ""} ${over ? "deploy-over" : ""} ${lanes.includes(p.y) ? "spear-lane" : ""}`}
             onPointerEnter={ev => { if (ev.pointerType === "mouse") onHover(p); }} onPointerLeave={ev => { if (ev.pointerType === "mouse") onHover(null); }}
             onPointerDown={deploy ? ev => deploy.onDown(ev, p) : undefined}
-            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP${piece.defending ? ", defending" : ""}` : passable(run, p) ? "empty" : "obstacle"}${startHere ? ", start square" : ""}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}`}
+            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP${piece.defending ? ", defending" : ""}` : passable(run, p) ? "empty" : "obstacle"}${startHere ? ", start square" : ""}${trap(p) === "armed" ? ", switch: step here to fire the spears" : trap(p) ? ", switch, used" : ""}${lanes.includes(p.y) ? ", in the spears' path" : ""}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
+            {trap(p) && <span className={`floor-switch ${trap(p)}`} title={trap(p) === "armed" ? "Switch: fires the spears" : "Switch (used)"} />}
+            {p.x === 0 && lanes.includes(p.y) && <span className="spear-launcher" title="Spears" />}
             {m && !m.unsafe && <span className="target-dot" />}
             {m?.unsafe && <span className="target-dot unsafe-dot" title="Exposes king"><b className="cost-label">✕</b></span>}
             {pick && <span className="target-dot approach-dot"><b className="cost-label"><StrikeIcon /></b></span>}</button>;
@@ -152,7 +157,7 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
 
         </div>;
       })}
-      {stage.bolts.map(b => <span key={b.key} className="strike-bolt" style={{ "--fx": `${(b.from.x + .5) / e.width * 100}%`, "--fy": `${(b.from.y + .2) / e.height * 100}%`, "--tx": `${(b.to.x + .5) / e.width * 100}%`, "--ty": `${(b.to.y + .2) / e.height * 100}%`, "--a": `${Math.atan2(b.to.y - b.from.y, b.to.x - b.from.x)}rad`, "--ms": `${b.ms}ms` } as CSSProperties} />)}</div>
+      {stage.bolts.map(b => <span key={b.key} className={b.spear ? "strike-bolt spear-bolt" : "strike-bolt"} style={{ "--fx": `${(b.from.x + .5) / e.width * 100}%`, "--fy": `${(b.from.y + .2) / e.height * 100}%`, "--tx": `${(b.to.x + .5) / e.width * 100}%`, "--ty": `${(b.to.y + .2) / e.height * 100}%`, "--a": `${Math.atan2(b.to.y - b.from.y, b.to.x - b.from.x)}rad`, "--ms": `${b.ms}ms` } as CSSProperties} />)}</div>
     </div>
     {below}
   </div>;
@@ -199,9 +204,9 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (delay) timers.current.push(setTimeout(go, delay * spd)); else go();
   };
   /** Fires a ranged strike's streak from `from` to `to`, arriving `ms` (unscaled) after `delay`. */
-  const shoot = (from: Pos, to: Pos, delay: number, ms: number) => {
+  const shoot = (from: Pos, to: Pos, delay: number, ms: number, spear = false) => {
     const key = animKey.current++;
-    timers.current.push(setTimeout(() => setStage(st => ({ ...st, bolts: [...st.bolts, { key, from, to, ms }] })), delay * spd));
+    timers.current.push(setTimeout(() => setStage(st => ({ ...st, bolts: [...st.bolts, { key, from, to, ms, spear }] })), delay * spd));
     timers.current.push(setTimeout(() => setStage(st => ({ ...st, bolts: st.bolts.filter(b => b.key !== key) })), (delay + ms + 60) * spd));
   };
   const face = (id: string, from: Pos, to: Pos) => { if (to.x !== from.x) setStage(st => ({ ...st, facing: { ...st.facing, [id]: to.x > from.x ? 1 : -1 } })); };
@@ -212,6 +217,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     const target = step.target ? beforeUnits.find(u => u.id === step.target) : undefined;
     setStage(st => st.counter ? { ...st, counter: null } : st);
     if (step.kind === "defend") { animate(actor.id, "defend"); return; }
+    if (step.kind === "spring") { springs(step, beforeUnits); return; }
     if (step.kind === "move") { const to = step.units.find(u => u.id === actor.id); if (to) face(actor.id, actor, to); animate(actor.id, "move"); return; }
     if (target) face(actor.id, actor, target);
     // Knights show off: front-flip over to the target, smack it, backflip home. The rules still strike from
@@ -259,6 +265,19 @@ export default function App({ test }: { test?: TestLevel } = {}) {
       later(counter.lands, () => setStage(st => st.counter?.victim === actor.id ? { ...st, counter: { ...st.counter, landed: true } } : st));
       if (!actorDies) animate(actor.id, "hit", counter.lands);
     }
+  };
+  /** A sprung trap: a spear flies along each row from the left edge, and each piece it passes takes the hit. */
+  const springs = (step: Step, beforeUnits: Unit[]) => {
+    const width = levelOf(run).width;
+    for (const y of step.rows ?? []) shoot({ x: -1, y }, { x: width, y }, 0, SPEAR_MS, true);
+    const hitAt = (u: Unit) => SPEAR_MS * (u.x + 1) / (width + 1);
+    const dying = beforeUnits.filter(u => step.killed.includes(u.id));
+    setStage(st => ({ ...st, ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying], doomed: [...st.doomed, ...step.killed] }));
+    for (const u of dying) {
+      timers.current.push(setTimeout(() => setStage(st => ({ ...st, doomed: st.doomed.filter(d => d !== u.id) })), hitAt(u) * spd));
+      timers.current.push(setTimeout(() => setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => g.id !== u.id) })), (hitAt(u) + DURATION.death) * spd));
+    }
+    for (const u of beforeUnits) if (step.damage.some(d => d.id === u.id) && !step.killed.includes(u.id)) animate(u.id, "hit", hitAt(u));
   };
   const [menu, setMenu] = useState(false);
   const [notice, setNotice] = useState("");
@@ -482,10 +501,23 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (!selected) return;
     // Tapping the square a previewed piece started on takes the move back.
     if (home && same(home, p)) { cancelPreview(); return; }
-    const next = move(moveRun, selected.id, p);
+    const { run: next, step: sprung } = stepOnto(moveRun, selected.id, p);
     if (next === moveRun) return;
-    if (!preview) setTurnStart(run);
     face(selected.id, selected, p); animate(selected.id, "move");
+    if (sprung) {
+      // Pressing a switch is the piece's action: no preview to cancel; the spears fly once it lands.
+      const walked = { ...moveRun, units: moveRun.units.map(u => (u.id === selected.id ? { ...u, x: p.x, y: p.y, moved: true } : u)) };
+      setRun(walked); setNotice(""); setTurnStart(null); setStriding(true);
+      timers.current.push(setTimeout(() => {
+        setStriding(false);
+        setRun(next); setInspectId(null);
+        setFlash({ step: sprung, hold: SPEAR_MS });
+        perform(sprung, walked.units);
+        if (!next.units.some(v => v.id === selected.id)) setSelectedId(null);
+      }, DURATION.move * spd));
+      return;
+    }
+    if (!preview) setTurnStart(run);
     setRun(next); setNotice("");
   };
   /** Takes back every move since the last strike, defend or End turn: pieces walk home. */

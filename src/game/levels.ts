@@ -4,7 +4,7 @@
  * Pure: no DOM, no file system. */
 import { LIMITS } from "./rules";
 import { RULES } from "./turns";
-import type { Encounter, Kind, Placed, Pos, Recruit, Rules } from "./turns";
+import type { Encounter, Kind, Placed, Pos, Recruit, Rules, Trap } from "./turns";
 
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
 export type Level = Encounter & { name?: string; testArmy?: Placed[] };
@@ -13,7 +13,7 @@ export type LevelsFile = { version: 1; levels: Level[] };
  * corrupt the game and blocks Save and Play; a warning breaks a design rule, or notes something the
  * game fixes at load (an enemy's HP above its kind's max), and is only shown. No error depends on the
  * rules file, so retuning stats can never make the levels file unloadable. */
-export type Issue = { field: "size" | "walls" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
+export type Issue = { field: "size" | "walls" | "switches" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
 export const isError = (i: Issue) => !i.warning;
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
@@ -22,7 +22,7 @@ export const MIN_SIDE = 2, MAX_SIDE = 8;
 export const MAX_REWARD = 99;
 /** The rules file's own HP ceiling: a spawn above it could never be within any legal stats. */
 export const MAX_HP = LIMITS.hp[1];
-const KEYS = ["name", "reward", "width", "height", "walls", "spawns", "starts", "testArmy", "story"] as const;
+const KEYS = ["name", "reward", "width", "height", "walls", "switches", "spawns", "starts", "testArmy", "story"] as const;
 
 const int = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 const isPos = (v: unknown): v is Pos => !!v && typeof v === "object" && !Array.isArray(v) && int((v as Pos).x, -99, 99) && int((v as Pos).y, -99, 99) && Object.keys(v).length === 2;
@@ -39,6 +39,8 @@ function shapeOf(v: unknown, i: number): Level | string {
   for (const k of ["reward", "width", "height"] as const) if (!int(l[k], -999, 999)) return `${where}: ${k} must be a whole number`;
   for (const k of ["walls", "starts"] as const) if (!Array.isArray(l[k]) || !(l[k] as unknown[]).every(isPos)) return `${where}: ${k} must be a list of {x, y}`;
   if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && (s.length === 3 || s.length === 4) && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y] or [kind, x, y, hp]`;
+  const isTrap = (t: unknown) => !!t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).length === 4 && int((t as Trap).x, -99, 99) && int((t as Trap).y, -99, 99) && int((t as Trap).damage, -99, 99) && Array.isArray((t as Trap).rows) && (t as Trap).rows.every(r => int(r, -99, 99));
+  if (l.switches !== undefined && (!Array.isArray(l.switches) || !l.switches.every(isTrap))) return `${where}: switches must be a list of {x, y, rows, damage}`;
   const isPlaced = (p: unknown) => !!p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 3 && isKind((p as Placed).kind) && int((p as Placed).x, -99, 99) && int((p as Placed).y, -99, 99);
   if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isPlaced))) return `${where}: testArmy must be a list of {kind, x, y}`;
   for (const k of ["name", "story"] as const) if (l[k] !== undefined && (typeof l[k] !== "string" || (l[k] as string).length > 200)) return `${where}: ${k} must be short text`;
@@ -62,6 +64,11 @@ export function levelIssues(l: Level, rules: Rules = RULES): Issue[] {
   };
   l.walls.forEach(w => place("walls", w, "Wall"));
   seen.clear();
+  (l.switches ?? []).forEach(t => {
+    place("switches", t, "Switch");
+    if (!t.rows.length || t.rows.some(r => !int(r, 0, l.height - 1))) out.push({ field: "switches", message: "Spear rows on the board", at: { x: t.x, y: t.y } });
+    if (!int(t.damage, 1, MAX_HP)) out.push({ field: "switches", message: `Spear damage 1–${MAX_HP}`, at: { x: t.x, y: t.y } });
+  });
   l.spawns.forEach(([kind, x, y, hp]) => {
     place("spawns", { x, y }, `Enemy ${kind}`);
     if (hp === undefined) return;
@@ -127,7 +134,7 @@ export function formatLevels(levels: Level[]): string {
     : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${inline(x)}`).join(", ")} }`
     : JSON.stringify(v);
   const level = (l: Level) => {
-    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : k === "testArmy" ? l.testArmy!.map(p => ({ kind: p.kind, x: p.x, y: p.y })) : l[k];
+    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : k === "switches" ? l.switches!.map(t => ({ x: t.x, y: t.y, rows: t.rows, damage: t.damage })) : k === "testArmy" ? l.testArmy!.map(p => ({ kind: p.kind, x: p.x, y: p.y })) : l[k];
     const fields = KEYS.filter(k => l[k] !== undefined).map(k => `      ${JSON.stringify(k)}: ${inline(tidy(k))}`);
     return `    {\n${fields.join(",\n")}\n    }`;
   };

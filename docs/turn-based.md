@@ -115,6 +115,20 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   until he's safe, unless nothing you can still do helps (`canEscape`).
 - The king dying ends the run.
 
+## Switches and spear traps
+- A level may place switches on the floor (`switches` in `levels.json`), each
+  wired to a spear trap: a list of rows and a damage. While it's armed, those
+  rows are striped and a launcher sits on the board's left edge.
+- When one of your pieces ends a move on an armed switch, the spears fire:
+  every piece on those rows takes the damage, yours included, whatever its
+  defend. Pressing the switch is that piece's action, so it can't strike or
+  defend after, and under one move per turn the turn passes. It commits at
+  once (no preview to cancel).
+- Each switch fires once per battle (`Run.sprung`); after that it's an ordinary
+  square. Enemy pieces can stand on it but never press it.
+- The press is refused if the spears would kill your own king. A walk-up
+  strike never ends on an armed switch.
+
 ## Enemy phase
 - Deterministic and computed in full before it plays. The best-scoring action
   across the pieces that may still act goes first, repeated until nothing

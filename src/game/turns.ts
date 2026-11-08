@@ -16,7 +16,10 @@ export type Target = Pos & { id?: string };
 /** An enemy on its square: kind, x, y and its starting HP. HP left out means full health; HP above the
  * kind's max (stats retuned since the level was saved) is clamped to the max. */
 export type Spawn = [Kind, number, number] | [Kind, number, number, number];
-export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; spawns: Spawn[]; starts: Pos[] };
+/** A switch on the floor and the spear trap it springs: once one of your pieces steps onto it, spears
+ * shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
+export type Trap = Pos & { rows: number[]; damage: number };
+export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[] };
 export type Run = {
   version: 2; encounter: number; turn: number;
   /** "deploy": before a battle's first turn, while you rearrange your pieces on the start squares. */
@@ -34,6 +37,8 @@ export type Run = {
   fell?: Side;
   /** Defends each side has used this battle (missing: none). */
   defended?: Partial<Record<Side, number>>;
+  /** Switches (indexes into the level's `switches`) already sprung this battle (missing: none). */
+  sprung?: number[];
 };
 /** What a run plays by, when it isn't the shipped files: tests pass fixed data so retuning the files can't move them. */
 export type GameData = { rules?: Rules; levels?: Encounter[] };
@@ -41,7 +46,7 @@ export type Recruit = "pawn" | "bishop" | "rook";
 /** A piece placed on a given square: a studio test army. */
 export type Placed = Pos & { kind: Kind };
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend"; target?: string; killed: string[] };
+export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "spring"; target?: string; killed: string[] };
 
 const loaded = parseRules(rulesFile);
 if (!loaded.ok) throw new Error(`src/game/rules.json: ${loaded.errors.join("; ")}`);
@@ -152,7 +157,7 @@ function spawn(g: Run, army: Unit[], placed = false): Run {
   // A level with fewer starts than the army (allowed, with a warning) loses the extras.
   const whites = placed ? army.map(u => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y })) : army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map((s, i) => ({ id: `enemy-${g.encounter}-${i}`, kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rulesOf(g), s) }));
-  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], defended: undefined };
+  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], defended: undefined, sprung: undefined };
 }
 /** Deploy phase: move your piece to another start square, swapping places with your piece there. */
 export function deploy(g: Run, id: string, to: Pos): Run {
@@ -209,12 +214,39 @@ export function move(g: Run, id: string, to: Pos): Run {
 }
 /** Would this move put your own king in check? */
 export function exposesKing(g: Run, id: string, to: Pos): boolean { return intoCheck(g, moveUnchecked(g, id, to)); }
-function moveUnchecked(g: Run, id: string, to: Pos): Run {
+/** A move that also reports the spear trap it springs, if it ends on an armed switch. */
+export function stepOnto(g: Run, id: string, to: Pos): { run: Run; step: Step | null } {
+  const result = moveWithTrap(g, id, to);
+  return intoCheck(g, result.run) ? { run: g, step: null } : result;
+}
+const moveUnchecked = (g: Run, id: string, to: Pos): Run => moveWithTrap(g, id, to).run;
+function moveWithTrap(g: Run, id: string, to: Pos): { run: Run; step: Step | null } {
   const u = g.units.find(u => u.id === id);
-  if (g.phase !== "player" || !u || u.side !== "white") return g;
+  if (g.phase !== "player" || !u || u.side !== "white") return { run: g, step: null };
   const t = moveTargets(g, u).find(t => same(t, to));
-  if (!t) return g;
-  return note({ ...g, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} → ${coord(g, to)}`);
+  if (!t) return { run: g, step: null };
+  const moved = note({ ...g, units: withUnit(g, id, { x: to.x, y: to.y, moved: true }) }, `${label(u)} → ${coord(g, to)}`);
+  const trap = armedSwitch(g, to);
+  return trap < 0 ? { run: moved, step: null } : spring(moved, trap, id);
+}
+
+/** The index of the armed (not yet sprung) switch on square p, or -1. */
+export function armedSwitch(g: Run, p: Pos): number {
+  return (levelOf(g).switches ?? []).findIndex((s, i) => same(s, p) && !g.sprung?.includes(i));
+}
+/** Rows the level's armed switches would sweep with spears. */
+export const armedRows = (g: Run): number[] => [...new Set((levelOf(g).switches ?? []).flatMap((s, i) => (g.sprung?.includes(i) ? [] : s.rows)))];
+/** Springs switch `i`, pressed by piece `by`: spears fly along its rows and hit every piece on them, yours
+ * too. Pressing it is the piece's action for the turn. */
+function spring(g: Run, i: number, by: string): { run: Run; step: Step } {
+  const trap = levelOf(g).switches![i];
+  const hit = g.units.filter(u => trap.rows.includes(u.y));
+  const damage = hit.map(u => ({ id: u.id, amount: trap.damage }));
+  const killed = hit.filter(u => u.hp <= trap.damage).map(u => u.id);
+  const units = g.units.flatMap(u => killed.includes(u.id) ? [] : hit.includes(u) ? [{ ...u, hp: u.hp - trap.damage }] : [u]);
+  const text = `Spears −${trap.damage}${hit.length ? ` × ${hit.length}` : ""}${killed.length ? ` · ${killed.length} killed` : ""}`;
+  const run = finish(note({ ...g, units: units.map(u => (u.id === by ? { ...u, acted: true } : u)), sprung: [...(g.sprung ?? []), i] }, text));
+  return { run, step: { text, units: run.units, focus: hit.map(u => ({ x: u.x, y: u.y })), damage, actor: by, kind: "spring", rows: trap.rows, killed } };
 }
 
 /** Defends a side has left this battle, out of the rules' `defends`. */
@@ -508,6 +540,7 @@ export function readRun(raw: string | null, data?: GameData): Run | null {
     if ((g.phase === "player" || g.phase === "deploy") && !g.units.some(u => u.side === "black")) return null;
     if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[g.encounter + 1]?.starts.length ?? 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
+    if (g.sprung !== undefined && (!Array.isArray(g.sprung) || g.sprung.some(i => !Number.isInteger(i) || !levelOf(g).switches?.[i]))) return null;
     if (g.defended !== undefined && (!g.defended || typeof g.defended !== "object" || Object.entries(g.defended).some(([side, n]) => !["white", "black"].includes(side) || !Number.isInteger(n) || (n as number) < 0))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g.units.some(u => u.hp > r.hp[u.kind]) ? { ...g, units: g.units.map(u => (u.hp > r.hp[u.kind] ? { ...u, hp: r.hp[u.kind] } : u)) } : g;

@@ -5,7 +5,9 @@
   `turns.ts` reads them as `ENCOUNTERS`; each has the `Encounter` shape:
   `width`, `height` (2–8), `walls`, `spawns` (`[kind, x, y, hp]`, or `[kind, x, y]` for full HP), `starts`
   (a real run's army fills them in order, king first; then the player
-  rearranges it in the deploy phase), `reward`, and an
+  rearranges it in the deploy phase), `reward`, optional `switches`
+  (`[{ x, y, rows: [y, ...], damage }]`: a floor switch and the rows its
+  spears sweep; see `docs/turn-based.md`), and an
   optional `story` the designer keeps but doesn't show.
 - Designer-only fields, ignored by the game: `name` (list label) and
   `testArmy` (see below).
