@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { StrikeIcon } from "../components/StrikeIcon";
 import { PLACES } from "../components/Hub";
 import { IntentMarks } from "../components/BoardArt";
-import { ENCOUNTERS, RULES, approaches, attack, spawnHp, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
+import { ENCOUNTERS, RULES, roguelikeCourse, tutorialCourse, approaches, attack, spawnHp, canEscape, enemyPlan, exposesKing, intentOf, inCheck, kingThreat, moveTargets, newRun, reaches } from "../game/turns";
 import type { Kind, Reach, Rules, Run, Side, Unit } from "../game/turns";
 import { LIMITS, SHOP, formatRules, parseRules } from "../game/rules";
 import { listIssues } from "../game/levels";
@@ -78,7 +78,8 @@ const enemyScores = (r: Rules): [string, string][] => [
   ["Wait", "Nothing scores above 0"],
 ];
 const RUN: [string, string][] = [
-  ["Battles", `${ENCOUNTERS.length}, hideout between each`],
+  ["Tutorial", `${tutorialCourse(ENCOUNTERS).length} battles in order, a preset army each, no hideout; a loss retries the battle`],
+  ["Roguelike", `${roguelikeCourse(ENCOUNTERS).length} battles, hideout between each`],
   ["HP", "Carries between battles"],
   ["Fallen allies", "Gone for the run"],
   ["King dies", "Run over (checkmate finale)"],

@@ -6,7 +6,8 @@ import { LIMITS } from "./rules";
 import { RULES } from "./turns";
 import type { Encounter, Kind, Placed, Pos, Recruit, Rules, SwitchType, Trap } from "./turns";
 
-/** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
+/** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both.
+ * A tutorial level carries its real army in `tutorial.army` instead of a test army. */
 export type Level = Encounter & { name?: string; testArmy?: Placed[] };
 export type LevelsFile = { version: 1; levels: Level[] };
 /** One problem with a level, tied to the control (and square) it concerns. An error would crash or
@@ -26,7 +27,7 @@ export const MIN_SIDE = 2, MAX_SIDE = 8;
 export const MAX_REWARD = 99;
 /** The rules file's own HP ceiling: a spawn above it could never be within any legal stats. */
 export const MAX_HP = LIMITS.hp[1];
-const KEYS = ["name", "reward", "width", "height", "walls", "switches", "spawns", "starts", "testArmy", "story"] as const;
+const KEYS = ["name", "reward", "width", "height", "walls", "switches", "spawns", "starts", "tutorial", "handout", "testArmy", "story"] as const;
 
 const int = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 const isPos = (v: unknown): v is Pos => !!v && typeof v === "object" && !Array.isArray(v) && int((v as Pos).x, -99, 99) && int((v as Pos).y, -99, 99) && Object.keys(v).length === 2;
@@ -47,6 +48,17 @@ function shapeOf(v: unknown, i: number): Level | string {
   if (l.switches !== undefined && (!Array.isArray(l.switches) || !l.switches.every(isTrap))) return `${where}: switches must be a list of {type, x, y, rows, damage}`;
   const isPlaced = (p: unknown) => !!p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 3 && isKind((p as Placed).kind) && int((p as Placed).x, -99, 99) && int((p as Placed).y, -99, 99);
   if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isPlaced))) return `${where}: testArmy must be a list of {kind, x, y}`;
+  if (l.tutorial !== undefined) {
+    const t = l.tutorial as Record<string, unknown>;
+    if (!t || typeof t !== "object" || Array.isArray(t) || Object.keys(t).some(k => k !== "army")) return `${where}: tutorial must be { army }`;
+    if (!Array.isArray(t.army) || !t.army.every(isPlaced)) return `${where}: tutorial army must be a list of {kind, x, y}`;
+    if (l.testArmy !== undefined) return `${where}: a tutorial level's army is its tutorial army; drop testArmy`;
+  }
+  if (l.handout !== undefined) {
+    const h = l.handout as Record<string, unknown>;
+    if (!h || typeof h !== "object" || Array.isArray(h) || Object.keys(h).some(k => k !== "items")) return `${where}: handout must be { items }`;
+    if (h.items !== undefined && (!Array.isArray(h.items) || h.items.length > 20 || !h.items.every(id => typeof id === "string" && id.length > 0 && id.length <= 40))) return `${where}: handout items must be a list of item ids`;
+  }
   for (const k of ["name", "story"] as const) if (l[k] !== undefined && (typeof l[k] !== "string" || (l[k] as string).length > 200)) return `${where}: ${k} must be short text`;
   return l as unknown as Level;
 }
@@ -94,10 +106,11 @@ export function levelIssues(l: Level, rules: Rules = RULES): Issue[] {
     }
     for (const [kind, x, y] of l.spawns) if (inside({ x, y }) && !walls.has(key({ x, y })) && !reach.has(key({ x, y }))) out.push({ field: "spawns", message: `Enemy ${kind} cut off`, at: { x, y }, warning: true });
   }
-  if (l.testArmy) {
-    if (l.testArmy.filter(p => p.kind === "king").length !== 1) out.push({ field: "testArmy", message: "Army needs exactly one king" });
+  const army = savedArmy(l);
+  if (army) {
+    if (army.filter(p => p.kind === "king").length !== 1) out.push({ field: "testArmy", message: "Army needs exactly one king" });
     const taken = new Set<string>();
-    for (const p of l.testArmy) {
+    for (const p of army) {
       const at = { x: p.x, y: p.y };
       if (!l.starts.some(s => s.x === p.x && s.y === p.y)) out.push({ field: "testArmy", message: `Army ${p.kind} off a start`, at });
       else if (taken.has(key(p))) out.push({ field: "testArmy", message: "Two army pieces on one start", at });
@@ -111,7 +124,7 @@ export function levelIssues(l: Level, rules: Rules = RULES): Issue[] {
 export function listIssues(levels: Level[], rules: Rules = RULES): Issue[][] {
   return levels.map((l, i) => {
     const own = levelIssues(l, rules), prev = levels[i - 1];
-    return prev && l.starts.length < prev.starts.length ? [...own, { field: "starts" as const, message: `Fewer starts than battle ${i} (${prev.starts.length})`, warning: true as const }] : own;
+    return prev && !l.tutorial && l.starts.length < prev.starts.length ? [...own, { field: "starts" as const, message: `Fewer starts than battle ${i} (${prev.starts.length})`, warning: true as const }] : own;
   });
 }
 
@@ -138,7 +151,12 @@ export function formatLevels(levels: Level[]): string {
     : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${inline(x)}`).join(", ")} }`
     : JSON.stringify(v);
   const level = (l: Level) => {
-    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : k === "switches" ? l.switches!.map(t => ({ type: t.type, x: t.x, y: t.y, rows: t.rows, damage: t.damage })) : k === "testArmy" ? l.testArmy!.map(p => ({ kind: p.kind, x: p.x, y: p.y })) : l[k];
+    const placed = (army: Placed[]) => army.map(p => ({ kind: p.kind, x: p.x, y: p.y }));
+    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y }))
+      : k === "switches" ? l.switches!.map(t => ({ type: t.type, x: t.x, y: t.y, rows: t.rows, damage: t.damage }))
+      : k === "testArmy" ? placed(l.testArmy!)
+      : k === "tutorial" ? { army: placed(l.tutorial!.army) }
+      : l[k];
     const fields = KEYS.filter(k => l[k] !== undefined).map(k => `      ${JSON.stringify(k)}: ${inline(tidy(k))}`);
     return `    {\n${fields.join(",\n")}\n    }`;
   };
@@ -165,5 +183,19 @@ export function typicalStart(levels: Level[], index: number, rules: Rules = RULE
 }
 /** Kinds standing on a level's start squares in order, as the game deals a real army. */
 export const placeInOrder = (l: Level, kinds: Kind[]): Placed[] => kinds.slice(0, l.starts.length).map((kind, i) => ({ kind, x: l.starts[i].x, y: l.starts[i].y }));
-/** The army a studio test run fields, piece by square: the level's saved test army, or the typical one in start order. */
-export const testArmyOf = (levels: Level[], index: number, rules: Rules = RULES): Placed[] => levels[index].testArmy ?? placeInOrder(levels[index], typicalArmy(levels, index, rules));
+/** The army saved on a level, if any: a tutorial level's preset army, or a roguelike level's test army. */
+export const savedArmy = (l: Level): Placed[] | undefined => l.tutorial?.army ?? l.testArmy;
+/** Saves `army` on a level: into its tutorial block, or as its test army (undefined: back to typical). */
+export function withArmy(l: Level, army: Placed[] | undefined): Level {
+  if (l.tutorial) return army ? { ...l, tutorial: { ...l.tutorial, army } } : l;
+  const { testArmy: _, ...rest } = l;
+  return army ? { ...rest, testArmy: army } : rest;
+}
+/** Moves a level into the tutorial (keeping `army` as its preset army) or out of it (its preset army becomes its test army). */
+export function withTutorial(l: Level, on: boolean, army: Placed[]): Level {
+  const { testArmy: _, tutorial, ...rest } = l;
+  if (on) return { ...rest, tutorial: { army } };
+  return tutorial ? { ...rest, testArmy: tutorial.army } : l;
+}
+/** The army a studio test run fields, piece by square: the level's saved army, or the typical one in start order. */
+export const testArmyOf = (levels: Level[], index: number, rules: Rules = RULES): Placed[] => savedArmy(levels[index]) ?? placeInOrder(levels[index], typicalArmy(levels, index, rules));

@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
 import * as checks from "../src/game/levels";
-import { KINDS, formatLevels, isError, levelIssues, listIssues, parseLevels, testArmyOf, typicalArmy } from "../src/game/levels";
+import { KINDS, formatLevels, isError, levelIssues, listIssues, parseLevels, testArmyOf, typicalArmy, withArmy, withTutorial } from "../src/game/levels";
 import type { Level } from "../src/game/levels";
 import { ENCOUNTERS, RULES, begin, endTurn, startAt } from "../src/game/turns";
 import type { Kind, Rules, Run } from "../src/game/turns";
@@ -113,6 +113,31 @@ describe("levels data", () => {
     expect(testArmyOf(run, 1, FIXED_RULES)).toEqual([{ kind: "king", x: 1, y: 3 }, { kind: "rook", x: 2, y: 3 }]);
     expect(formatLevels([{ ...base, testArmy: [{ x: 1, y: 3, kind: "king" }] as never }])).toContain('"testArmy": [{ "kind": "king", "x": 1, "y": 3 }]');
     expect(parseLevels({ version: 1, levels: [{ ...base, testArmy: ["king"] }] }).ok).toBe(false);
+  });
+  it("keeps a tutorial level's preset army in its tutorial block, checked like a test army", () => {
+    const army = [{ kind: "king" as const, x: 1, y: 3 }];
+    const tutorial: Level = { ...base, tutorial: { army } };
+    expect(parseLevels({ version: 1, levels: [tutorial] }).ok).toBe(true);
+    expect(formatLevels([tutorial])).toContain('"tutorial": { "army": [{ "kind": "king", "x": 1, "y": 3 }] }');
+    expect(testArmyOf([tutorial], 0)).toEqual(army);
+    expect(messages({ tutorial: { army: [{ kind: "rook", x: 1, y: 3 }] } })).toContain("Army needs exactly one king");
+    for (const bad of [{}, { army, extra: 1 }, { army: ["king"] }])
+      expect(parseLevels({ version: 1, levels: [{ ...base, tutorial: bad }] }).ok).toBe(false);
+    // The hand-out hook: empty by default, item ids once consumables exist.
+    for (const handout of [{}, { items: [] }, { items: ["any-id"] }]) expect(parseLevels({ version: 1, levels: [{ ...tutorial, handout }] }).ok).toBe(true);
+    for (const handout of [[], { items: "x" }, { items: [3] }, { gold: 1 }]) expect(parseLevels({ version: 1, levels: [{ ...tutorial, handout }] }).ok).toBe(false);
+    expect(formatLevels([{ ...tutorial, handout: { items: [] } }])).toContain('"handout": { "items": [] }');
+    expect(parseLevels({ version: 1, levels: [{ ...tutorial, testArmy: army }] }).ok).toBe(false);
+    // Survivors don't carry over in the tutorial, so fewer starts than the level before is fine there.
+    expect(listIssues([base, { ...tutorial, starts: [{ x: 1, y: 3 }] }], FIXED_RULES)[1]).toEqual([]);
+  });
+  it("moves a level in and out of the tutorial without losing its army", () => {
+    const army = [{ kind: "king" as const, x: 2, y: 3 }];
+    const on = withTutorial({ ...base, testArmy: army }, true, army);
+    expect(on).toEqual({ ...base, tutorial: { army } });
+    expect(withTutorial(on, false, army)).toEqual({ ...base, testArmy: army });
+    expect(withArmy(on, [{ kind: "king", x: 1, y: 3 }]).tutorial?.army).toEqual([{ kind: "king", x: 1, y: 3 }]);
+    expect(withArmy({ ...base, testArmy: army }, undefined)).toEqual(base);
   });
 });
 

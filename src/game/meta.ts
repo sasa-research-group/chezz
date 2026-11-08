@@ -1,6 +1,6 @@
 import type { Kind, Run } from "./turns";
 
-/** Progress that outlives a run: unlocked and equipped skins. Kept under its own
+/** Progress that outlives a run: unlocked and equipped skins, and whether the tutorial is done. Kept under its own
  * key, apart from the run autosave, which a new run overwrites. No DOM: storage
  * is passed in, and every function returns a new Meta. */
 export const META_KEY = "chezz.meta.v1";
@@ -13,6 +13,8 @@ export type Meta = {
   equipped: Partial<Record<Kind, string>>;
   /** Fingerprint of the last won run already credited, so reloading its victory screen unlocks nothing more. */
   lastWin?: string;
+  /** The tutorial has been finished (or skipped from the Developer menu): a new game starts the roguelike. */
+  tutorialDone?: true;
 };
 
 export const emptyMeta = (): Meta => ({ version: 1, unlocked: [], equipped: {} });
@@ -22,7 +24,7 @@ export function readMeta(raw: string | null, skins: SkinRef[]): Meta {
   let m: unknown;
   try { m = raw ? JSON.parse(raw) : null; } catch { return emptyMeta(); }
   if (!m || typeof m !== "object") return emptyMeta();
-  const { version, unlocked, equipped, lastWin } = m as Record<string, unknown>;
+  const { version, unlocked, equipped, lastWin, tutorialDone } = m as Record<string, unknown>;
   if (version !== 1 || !Array.isArray(unlocked) || !equipped || typeof equipped !== "object" || Array.isArray(equipped)) return emptyMeta();
   const known = new Set(skins.map(s => s.id));
   const owned = [...new Set(unlocked.filter((id): id is string => typeof id === "string" && known.has(id)))];
@@ -30,7 +32,7 @@ export function readMeta(raw: string | null, skins: SkinRef[]): Meta {
   for (const [kind, id] of Object.entries(equipped)) {
     if (skins.some(s => s.id === id && s.kind === kind) && owned.includes(id as string)) worn[kind as Kind] = id as string;
   }
-  return { version: 1, unlocked: owned, equipped: worn, ...(typeof lastWin === "string" ? { lastWin } : {}) };
+  return { version: 1, unlocked: owned, equipped: worn, ...(typeof lastWin === "string" ? { lastWin } : {}), ...(tutorialDone === true ? { tutorialDone } : {}) };
 }
 
 /** A short hash of the whole run, history included. Only a run replayed move for move hashes the same, and then it earns no second unlock. */
@@ -40,12 +42,21 @@ export function runPrint(run: Run): string {
   return h.toString(36);
 }
 
-/** A won run unlocks the first skin not yet owned, once per run. */
+/** A won roguelike run unlocks the first skin not yet owned, once per run. Finishing the tutorial marks it done instead. */
 export function creditWin(meta: Meta, run: Run, skins: SkinRef[]): { meta: Meta; unlocked?: string } {
+  if (run.phase !== "victory") return { meta };
+  if (run.tutorial) return { meta: markTutorial(meta, true) };
   const print = runPrint(run);
-  if (run.phase !== "victory" || meta.lastWin === print) return { meta };
+  if (meta.lastWin === print) return { meta };
   const next = skins.find(s => !meta.unlocked.includes(s.id));
   return { meta: { ...meta, lastWin: print, unlocked: next ? [...meta.unlocked, next.id] : meta.unlocked }, unlocked: next?.id };
+}
+
+/** Marks the tutorial done, or not done again (the Developer menu's reset). */
+export function markTutorial(meta: Meta, done: boolean): Meta {
+  if (!!meta.tutorialDone === done) return meta;
+  const { tutorialDone: _, ...rest } = meta;
+  return done ? { ...rest, tutorialDone: true } : rest;
 }
 
 /** Wears an unlocked skin on its piece, or takes it off. Locked or unknown skins change nothing. */

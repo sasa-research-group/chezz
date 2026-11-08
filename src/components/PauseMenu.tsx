@@ -30,10 +30,12 @@ export function useDialogKeys(ref: RefObject<HTMLElement | null>, onClose: () =>
   }, [ref]);
 }
 
-type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onClose: () => void; battles: number; onJump?: (index: number) => void; rules?: Rules };
+type MenuProps = { log: string[]; fast: boolean; onFast: (fast: boolean) => void; onNewRun: () => void; newRunDisabled?: boolean; onClose: () => void; battles: number; onJump?: (index: number) => void; rules?: Rules;
+  /** Developer: whether the tutorial counts as done, and a switch that skips it or makes it play again. */
+  tutorial?: { done: boolean; onToggle: () => void } };
 
 /** The pause menu's card: the player's items, then the developer's under their own header. */
-export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose, battles, onJump, rules: shown }: MenuProps) {
+export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose, battles, onJump, rules: shown, tutorial }: MenuProps) {
   const [rules, setRules] = useState(false);
   // Jumping replaces the run, so the first tap only arms a battle and a second tap on it goes.
   const [armed, setArmed] = useState<number | null>(null);
@@ -52,6 +54,7 @@ export function MenuCard({ log, fast, onFast, onNewRun, newRunDisabled, onClose,
         return <button key={i} className={go ? "armed" : ""} disabled={newRunDisabled} aria-label={go ? `Confirm battle ${i + 1}` : `Battle ${i + 1}`} onClick={() => go ? onJump(i) : setArmed(i)}>{i + 1}{go && " ✓"}</button>;
       })}</span>
     </div>}
+    {tutorial && <button className="menu-row" disabled={newRunDisabled} onClick={tutorial.onToggle}><span aria-hidden="true">{tutorial.done ? "↺" : "»"}</span>{tutorial.done ? "Reset tutorial" : "Skip tutorial"}</button>}
   </div>;
 }
 

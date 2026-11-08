@@ -182,3 +182,7 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
   .rule-num input{width:48px;font-size:13px}
   .rules-globals{grid-template-columns:repeat(2,minmax(0,1fr))}.rules-globals .seg button{white-space:normal}
 }
+.level-tag{font-style:normal;font-weight:700;color:#396c61;margin-right:6px}
+.level-toggle{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700}
+.level-controls .level-toggle{justify-content:flex-start;text-transform:none}.level-controls .level-toggle input{width:auto;flex:none;margin:0}
+.level-list [aria-current] .level-tag{color:inherit}

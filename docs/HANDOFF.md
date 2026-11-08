@@ -40,6 +40,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   a new kind of switch adds a type to `SwitchType`/`SWITCH_TYPES` and a case
   where `spring` resolves it.
   Painted switch, launcher and spear art: `docs/art/PROPS.md`.
+- **Tutorial:** the five levels are the tutorial (`tutorial` block in
+  `levels.json`: preset army; optional `handout: { items }` hook, unused so far). A new player plays
+  them linearly with preset armies, no hideout or gold; a loss retries the
+  battle; finishing sets `tutorialDone` in the meta and unlocks the roguelike
+  (hub, recruits, gold), which for now replays the same levels. Developer menu:
+  Skip / Reset tutorial. Studio: "Tutorial level" box and preset army.
 - **Deploy phase:** every battle opens with your pieces on the start squares;
   drag (or tap, tap) to move or swap them, then Begin (`deploy`, `begin` in
   `turns.ts`).

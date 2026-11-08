@@ -10,8 +10,22 @@
   (`type`; only `"spears"` so far, listed in `SWITCH_TYPES` in `levels.ts`)
   and the rows its spears sweep; see `docs/turn-based.md`), and an
   optional `story` the designer keeps but doesn't show.
+- **Tutorial vs roguelike.** A level with a `tutorial` block is part of the
+  tutorial: `"tutorial": { "army": [{ "kind": "king", "x": 1, "y": 3 }, ...] }`. The tutorial plays its levels in file order
+  (`tutorialCourse`), each dealing `army` exactly as placed (same checks as a
+  test army: one king, every piece on a start, no two on one), with no
+  hideout, gold or carry-over between them; `reward` is kept but unused there.
+  The roguelike plays the levels without a block (`roguelikeCourse`); while
+  there are none, it plays every level, ignoring the tutorial blocks. Today all
+  five shipped levels are the tutorial, so the roguelike replays them.
+- `handout` (optional, absent by default) is what a level hands the player
+  when it starts: `"handout": { "items": ["<item id>", ...] }`. The tutorial
+  uses it to predetermine when consumables arrive. Typed `Handout` in
+  `turns.ts`; `levels.ts` checks only the shape (short id strings) until the
+  consumables mechanic defines the ids, and the game doesn't act on it yet.
+  A tutorial level can't also carry a `testArmy`.
 - Designer-only fields, ignored by the game: `name` (list label) and
-  `testArmy` (see below).
+  `testArmy` (see below; roguelike levels only).
 - `src/game/levels.ts` checks a level (`levelIssues`), a whole file
   (`parseLevels`, which also rejects unknown fields and wrong types) and
   writes the file (`formatLevels`: one field per line, short lists inline).
@@ -23,11 +37,11 @@
 - **Errors** (would crash or corrupt; block Save and Play, and `parseLevels`
   refuses them): board 2–8 a side; nothing off the board; no enemy or start on
   a wall; no two things on one square; enemy HP a whole number 1–99; at least
-  one enemy and one start; reward 0–99; a test army has exactly one king,
+  one enemy and one start; reward 0–99; a test or tutorial army has exactly one king,
   every piece on a start square and no two on one. Empty starts are fine.
   No error depends on `rules.json`, so retuning stats never breaks a level.
 - **Warnings** (design rules; shown in amber, never block): an enemy
-  the king can't reach from his start (king steps around walls); a level with
+  the king can't reach from his start (king steps around walls); a roguelike level with
   fewer starts than the one before (survivors carry over; the game drops
   whoever doesn't fit); an enemy's HP above its kind's max ("pawn HP 2 >
   max 1 → 1": the game clamps it when the battle starts, and the Mechanics tab
@@ -35,7 +49,8 @@
   apart. Shrinking the board in the editor drops what falls outside it.
 
 ## Studio: Levels tab (`art.html#levels/N`)
-- Left: the list. Select, Add, Duplicate, ↑/↓, Delete. A red count marks a
+- Left: the list. Select, Add, Duplicate, ↑/↓, Delete. Tutorial levels read
+  "Tutorial" under their name. A red count marks a
   level with errors; an amber count, one with only warnings.
 - Board: drawn with the game's board classes and the painted stills. Tools:
   Wall, Enemy (pick the piece), Army, Switch, Erase. One thing per square: painting
@@ -55,6 +70,10 @@
 - Right: name, width, height, reward, each enemy's HP (empty: full HP; new
   enemies start empty, so they follow stat changes), and the Army list:
   each start in order with its test unit (or none) and a remove button.
+  The **Tutorial level** box moves a level into the tutorial (its current army
+  becomes the preset army) or out (the preset army becomes its test army).
+  On a tutorial level the Army tool and list edit the preset army ("Preset
+  army"; no Typical preset).
 - Undo / Redo (buttons, Ctrl/⌘ Z and Shift Ctrl/⌘ Z, or Ctrl Y) step through
   every edit to the selected level. Each level keeps its own history, in
   memory until Save or a reload.
@@ -72,7 +91,8 @@
   rules (unsaved edits included). It reads and writes no saves:
   not the run (`chezz.turns.v1`), not the meta (`chezz.meta.v1`), so no skin
   unlocks. Restart deals the level again; Stop returns to the editor.
-- In a real run the army at a level depends on what the player recruited, so
+- A tutorial level's test run fields its preset army, the same one the game deals.
+- In a real roguelike run the army at a level depends on what the player recruited, so
   a test run uses a stand-in. `testArmy` is that stand-in, per level, piece by
   square: `[{ "kind": "king", "x": 1, "y": 3 }, ...]`. ▶ Play deals it exactly
   as placed (empty starts stay empty, spare squares to deploy onto), then the
@@ -90,7 +110,8 @@
   - Custom: pick a unit per start square (from a preset or from scratch); it
     is saved as `testArmy`.
 - The real game ignores `testArmy` and uses the player's actual army,
-  except the ☰ menu's Developer → Jump to battle, which fields it as placed.
+  except the ☰ menu's Developer → Jump to battle, which fields it as placed
+  (on a tutorial level, Jump starts the tutorial there instead).
 
 ## Balance (no energy, Nov 2)
 Rosters (squares in chess notation, your side at the bottom):
