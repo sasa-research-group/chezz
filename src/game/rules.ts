@@ -15,10 +15,6 @@ export type Rules = {
   hp: Record<Kind, number>;
   damage: Record<Kind, number>;
   range: Record<Kind, Reach>;
-  /** Damage a defending piece blocks from each hit; the game shows it as +N. */
-  defend: number;
-  /** Defends each side may use per battle; every defend spends one. */
-  defends: number;
   /** Strikebacks: whether any piece that survives a hit strikes the attacker back when it can reach it. */
   counter: boolean;
   cost: Record<Shop, number>;
@@ -33,8 +29,10 @@ export const SHOP: Shop[] = ["pawn", "bishop", "rook", "heal"];
 export const TURN_MODES: TurnMode[] = ["one", "all"];
 export const REACHES: Reach[] = [1, "line"];
 /** Allowed range for each number, so a typo can't make a piece unkillable or a level unloadable. */
-export const LIMITS = { hp: [1, 99], damage: [0, 99], defend: [0, 9], defends: [0, 99], cost: [0, 99], heal: [0, 99], gold: [0, 99] } as const;
-const KEYS = ["version", "turn", "hp", "damage", "range", "defend", "defends", "counter", "cost", "heal", "gold"] as const;
+export const LIMITS = { hp: [1, 99], damage: [0, 99], cost: [0, 99], heal: [0, 99], gold: [0, 99] } as const;
+const KEYS = ["version", "turn", "hp", "damage", "range", "counter", "cost", "heal", "gold"] as const;
+/** Fields of retired rules, still found in older rules files: read past, never written back. */
+const RETIRED = ["defend", "defends"];
 
 const int = (v: unknown, [lo, hi]: readonly [number, number]) => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -43,7 +41,7 @@ const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 
 export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: false; errors: string[] } {
   if (!isMap(raw)) return { ok: false, errors: ["Not a rules file"] };
   const errors: string[] = [];
-  const extra = Object.keys(raw).filter(k => !(KEYS as readonly string[]).includes(k));
+  const extra = Object.keys(raw).filter(k => !(KEYS as readonly string[]).includes(k) && !RETIRED.includes(k));
   if (extra.length) errors.push(`Unknown field ${extra.join(", ")}`);
   if (raw.version !== 1) errors.push("Expected version 1");
   if (!(TURN_MODES as unknown[]).includes(raw.turn)) errors.push(`turn must be ${TURN_MODES.map(m => `"${m}"`).join(" or ")}`);
@@ -56,9 +54,9 @@ export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: fal
   const range = raw.range;
   if (!isMap(range) || Object.keys(range).length !== RULE_KINDS.length || !RULE_KINDS.every(k => k in range)) errors.push(`range needs ${RULE_KINDS.join(", ")}`);
   else for (const k of RULE_KINDS) if (!(REACHES as unknown[]).includes(range[k])) errors.push(`range ${k}: 1 or "line"`);
-  for (const k of ["defend", "defends", "heal", "gold"] as const) if (!int(raw[k], LIMITS[k])) errors.push(`${k}: ${LIMITS[k][0]}–${LIMITS[k][1]}`);
+  for (const k of ["heal", "gold"] as const) if (!int(raw[k], LIMITS[k])) errors.push(`${k}: ${LIMITS[k][0]}–${LIMITS[k][1]}`);
   if (typeof raw.counter !== "boolean") errors.push("counter must be true or false");
-  return errors.length ? { ok: false, errors } : { ok: true, rules: raw as unknown as Rules };
+  return errors.length ? { ok: false, errors } : { ok: true, rules: Object.fromEntries(KEYS.map(k => [k, raw[k]])) as unknown as Rules };
 }
 
 /** JSON with one field per line and each table inline, so a changed stat is a one-line diff. */

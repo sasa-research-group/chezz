@@ -61,9 +61,7 @@ test("studio stage: buttons play one take at the game's speed scale, and the tog
   await page.clock.runFor(1400);
   await expect(rig).toHaveClass(/act-idle/);
 
-  await page.getByRole("group", { name: "State" }).getByRole("button", { name: "Guarding" }).click();
   await page.getByRole("group", { name: "State" }).getByRole("button", { name: "Wounded" }).click();
-  await expect(rig).toHaveClass(/is-defending/);
   await expect(rig).toHaveClass(/is-wounded/);
   await page.getByRole("group", { name: "Facing" }).getByRole("button", { name: "Left" }).click();
   await expect(rig).toHaveAttribute("style", /--face: ?-1/);
@@ -91,14 +89,12 @@ test("studio: the Mechanics stats edit live and revert", async ({ page }) => {
   await expect(rook).toContainText("4 dmg");
   await expect(editor.getByRole("status")).toHaveText("Unsaved");
   // A number out of range is listed and blocks Save, and the diagrams keep the last good value.
-  await editor.getByRole("spinbutton", { name: "Defend bonus" }).fill("12");
-  await expect(editor.getByRole("list", { name: "Problems" })).toContainText("defend: 0–9");
+  await editor.getByRole("spinbutton", { name: "Heal HP" }).fill("100");
+  await expect(editor.getByRole("list", { name: "Problems" })).toContainText("heal: 0–99");
   await expect(editor.getByRole("button", { name: "Save" })).toBeDisabled();
   await editor.getByRole("group", { name: "Turn" }).getByRole("button", { name: "Every piece" }).click();
   await expect(page.locator("#turn")).toContainText("One piece per side");
-  await editor.getByRole("spinbutton", { name: "Defend bonus" }).fill("2");
-  await expect(page.locator("#turn")).toContainText("+2 (−2 damage per hit)");
-  await editor.getByRole("group", { name: "Turn" }).getByRole("button", { name: "Every piece" }).click();
+  await editor.getByRole("spinbutton", { name: "Heal HP" }).fill("2");
   await expect(page.locator("#turn")).toContainText("Every piece, every turn");
   await editor.getByRole("button", { name: "Revert" }).click();
   await expect(rook).toContainText("2 dmg");

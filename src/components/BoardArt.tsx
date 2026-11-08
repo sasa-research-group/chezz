@@ -10,8 +10,6 @@ export function BattleBanner({ kind, line, onClick, focus = true }: { kind: Bann
     {line && <em>{line}</em>}
     <small>Tap to continue</small></button>;
 }
-const SHIELD = "M10 1 L18 4 V10 C18 15 14.5 19 10 21 C5.5 19 2 15 2 10 V4 Z";
-export const GuardBadge = ({ bonus }: { bonus: number }) => <span className="guard-badge" title={`+${bonus} defense`}><svg viewBox="0 0 20 22" aria-hidden="true"><path d={SHIELD} /></svg>+{bonus}</span>;
 
 const centre = (p: Pos) => ({ x: p.x + .5, y: p.y + .5 });
 /** The point `by` squares short of b on the way from a, so a line ends before a marker instead of under it. */
@@ -20,9 +18,9 @@ function shortOf(a: Pos, b: Pos, by: number) {
   return { x: b.x - dx / len * by, y: b.y - dy / len * by };
 }
 /** An enemy piece's planned turn drawn on the board, in squares: an arrow to the square it would move
- * to, a ring and −N on the piece it would strike, a ghost shield where it would brace, or a "waits" tag.
+ * to, a ring and −N on the piece it would strike, or a "waits" tag.
  * Two layers: the lines lie on the board under the pieces; the chips stand in front of them. */
-export function IntentMarks({ intent, cols, rows, leaps, bonus }: { intent: Intent; cols: number; rows: number; leaps: boolean; bonus: number }) {
+export function IntentMarks({ intent, cols, rows, leaps }: { intent: Intent; cols: number; rows: number; leaps: boolean }) {
   const from = centre(intent.from), to = intent.to ? centre(intent.to) : null, stand = to ?? from;
   const hit = intent.strike ? centre(intent.strike.at) : null;
   const end = to && shortOf(from, to, .22);
@@ -40,7 +38,6 @@ export function IntentMarks({ intent, cols, rows, leaps, bonus }: { intent: Inte
     </svg>
     <div className="intent-chips" aria-hidden="true">
       {intent.strike && <span className={`intent-chip hit ${intent.strike.kills ? "kills" : ""}`} style={pin(hit!, -.38)}>−{intent.strike.damage}</span>}
-      {intent.defend && <span className="intent-chip brace" style={pin(stand, -.05)}><svg viewBox="0 0 20 22"><path d={SHIELD} /></svg>+{bonus}</span>}
       {intentWaits(intent) && <span className="intent-chip idle" style={pin(from, -.42)}>waits</span>}
     </div>
   </>;

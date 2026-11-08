@@ -1,17 +1,17 @@
-import { attack, attackTargets, canDefend, defend, endTurn, inCheck, move, moveTargets } from "../src/game/turns";
+import { attack, attackTargets, endTurn, inCheck, move, moveTargets } from "../src/game/turns";
 import type { Pos, Run } from "../src/game/turns";
 
-export type Action = { type: "move"; id: string; to: Pos } | { type: "attack"; id: string; targetId: string; to: Pos } | { type: "defend"; id: string };
+export type Action = { type: "move"; id: string; to: Pos } | { type: "attack"; id: string; targetId: string; to: Pos };
 
 // A small search player for tests. Strikes only reach the next square, so
 // winning means planning a turn ahead (stepping into a pawn's path before it
 // strikes, say). It shows the run is reachable, not that it's fun.
 
 export function apply(g: Run, a: Action): Run {
-  return a.type === "move" ? move(g, a.id, a.to) : a.type === "attack" ? attack(g, a.id, a.targetId).run : defend(g, a.id);
+  return a.type === "move" ? move(g, a.id, a.to) : attack(g, a.id, a.targetId).run;
 }
 
-const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).sort().join("|") + g.phase + (g.fell ?? "") + (g.defended?.white ?? 0);
+const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}`).sort().join("|") + g.phase + (g.fell ?? "");
 
 /** Every distinct way the rest of the player's turn can go, with the actions that get there. */
 export function turnOutcomes(start: Run): { run: Run; plan: Action[] }[] {
@@ -25,7 +25,6 @@ export function turnOutcomes(start: Run): { run: Run; plan: Action[] }[] {
     for (const u of g.units.filter(u => u.side === "white")) {
       if (!u.moved && !u.acted) for (const t of moveTargets(g, u)) step({ type: "move", id: u.id, to: { x: t.x, y: t.y } });
       for (const t of attackTargets(g, u)) step({ type: "attack", id: u.id, targetId: t.id!, to: { x: t.x, y: t.y } });
-      if (canDefend(g, u)) step({ type: "defend", id: u.id });
     }
   };
   visit(start, []);
