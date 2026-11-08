@@ -46,6 +46,18 @@
       "spawns": [["king", 2, 0], ["queen", 3, 0], ["bishop", 4, 0], ["bishop", 1, 0], ["pawn", 2, 1], ["pawn", 3, 1], ["pawn", 4, 1], ["pawn", 1, 1]],
       "starts": [{ "x": 2, "y": 5 }, { "x": 1, "y": 5 }, { "x": 3, "y": 5 }, { "x": 4, "y": 5 }, { "x": 4, "y": 6 }, { "x": 3, "y": 6 }, { "x": 2, "y": 6 }, { "x": 1, "y": 6 }],
       "tutorial": { "army": [{ "kind": "pawn", "x": 2, "y": 5 }, { "kind": "pawn", "x": 1, "y": 5 }, { "kind": "pawn", "x": 3, "y": 5 }, { "kind": "pawn", "x": 4, "y": 5 }, { "kind": "bishop", "x": 4, "y": 6 }, { "kind": "queen", "x": 3, "y": 6 }, { "kind": "king", "x": 2, "y": 6 }, { "kind": "bishop", "x": 1, "y": 6 }] }
+    },
+    {
+      "name": "Terrain lab",
+      "reward": 0,
+      "width": 6,
+      "height": 6,
+      "walls": [],
+      "tiles": [{ "type": "ice", "x": 2, "y": 2 }, { "type": "ice", "x": 3, "y": 2 }, { "type": "sludge", "x": 0, "y": 2 }],
+      "kit": { "ice": 2, "sludge": 2 },
+      "spawns": [["rook", 0, 0], ["knight", 4, 0], ["pawn", 1, 1], ["pawn", 2, 1], ["pawn", 3, 1], ["pawn", 4, 1]],
+      "starts": [{ "x": 3, "y": 5 }, { "x": 0, "y": 5 }, { "x": 1, "y": 5 }, { "x": 2, "y": 4 }],
+      "tutorial": { "army": [{ "kind": "king", "x": 3, "y": 5 }, { "kind": "rook", "x": 0, "y": 5 }, { "kind": "knight", "x": 1, "y": 5 }, { "kind": "pawn", "x": 2, "y": 4 }] }
     }
   ]
 }

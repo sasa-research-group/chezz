@@ -58,3 +58,30 @@ background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame.")
   bold, the shaft thick enough to read at small size. No motion lines.
 
 Image models aren't deterministic: the committed webp files are the canonical art.
+
+## Floor tiles (Nov 8 2026)
+
+`tile-ice.webp` and `tile-sludge.webp`: square floor textures drawn under the pieces
+(`.exile-cell.tile-ice`, `.tile-sludge`, and the deploy kit's swatches). Same model and
+style reference as above, 1:1, two rolls each; no cutout, since they fill the square.
+Ice: the roll with sparkles and a clear cel shadow, trimmed of its white margin
+(`magick <in> -fuzz 12% -trim +repage -resize 256x256!`). Sludge: the roll that fills
+the square edge to edge (`-resize 256x256!`).
+
+Both prompts open: "Game board floor tile, painted as one single whole image, seen
+straight from above, in the exact art style of the first image (a character select
+sheet): bold flash-era 2D brawler cartoon, thick even black outlines, flat fills, one
+hard cel shadow, crisp white highlight shapes." and end: "Simple, chunky, readable at 48
+pixels. Fills the whole square frame, square corners, flat top-down, no perspective, no
+objects on it, no text, no border frame, no background."
+
+- **Ice:** one square tile of slippery ICE filling the whole frame edge to edge: a flat
+  sheet of pale icy blue (#bfe3f0) with a lighter frosty rim, a few big chunky white
+  diagonal glint streaks, two or three bold dark-outlined crack lines, and one hard
+  darker blue (#8cc3dc) cel-shadow patch along the bottom edge. It must read instantly
+  as ice.
+- **Sludge:** one square tile of thick murky SLUDGE filling the whole frame edge to
+  edge: a gloopy swamp-mud puddle in drab olive green and brown (#6f6a2e and #5f4a2c)
+  with three or four big round bubbles outlined in black with white highlight ticks,
+  one popped bubble ring, and a darker hard cel-shadow blob. Sticky, slow, gross but
+  cartoony.

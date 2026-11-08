@@ -7,7 +7,7 @@ import { testArmyOf, typicalStart } from "./game/levels";
 import { BattleBanner, IntentMarks } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { approaches, armedRows, armedSwitch, begin, courseOf, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canEscape, coord, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, levelsOf, move, moveTargets, newRun, passable, reaches, readRun, retry, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, tutorialCourse, tutorialRun, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { approaches, armedRows, armedSwitch, begin, canLay, kitLeft, lay, tileAt, unlay, courseOf, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canEscape, coord, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, levelsOf, move, moveTargets, newRun, passable, reaches, readRun, retry, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, tutorialCourse, tutorialRun, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
@@ -15,7 +15,7 @@ import { EnemyEmblem, KingHearts, TeamBar } from "./components/table/TeamBar";
 import { SkipToken } from "./components/table/SkipToken";
 import { PhaseBanner, phaseTiming, type PhaseKind } from "./components/table/PhaseBanner";
 import { StrikeIcon } from "./components/StrikeIcon";
-import type { Encounter, Intent, Kind, Placed, Pos, Rules, Run, Step, Unit } from "./game/turns";
+import type { Encounter, TileType, Intent, Kind, Placed, Pos, Rules, Run, Step, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
 /** The turn as it stood before a previewed move, saved beside the run so a reload can still cancel it. */
@@ -38,7 +38,9 @@ const HAS_TUTORIAL = tutorialCourse(ENCOUNTERS).length > 0;
 type Picking = { target: Unit; options: Pos[] };
 /** A piece being dragged in the deploy phase: where the pointer is, in fractional board squares, and the square under it. */
 type Drag = { id: string; at: Pos; over: Pos | null };
-type Deploy = { starts: Pos[]; picked: string | null; drag: Drag | null; onDown: (ev: ReactPointerEvent, p: Pos) => void };
+type Deploy = { starts: Pos[]; picked: string | null; drag: Drag | null; onDown: (ev: ReactPointerEvent, p: Pos) => void; tile: TileType | null };
+/** Floor tiles in the order the deploy kit lists them. */
+const KIT: [TileType, string][] = [["ice", "Ice"], ["sludge", "Sludge"]];
 /** Pointer travel (px) before a press on a piece becomes a drag rather than a tap. */
 const DRAG_SLOP = 6;
 /** The board square under a screen point, with the point's offset into it, read from the cells themselves so the board's tilt needs no maths. */
@@ -117,11 +119,12 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
           const m = picking ? undefined : moves.find(t => same(t, p)), s = picking ? undefined : strikes.find(t => same(t, p));
           const focus = flash?.focus.some(q => same(p, q)) || (counter?.landed && same(counter.at, p));
           const startHere = !!deploy?.starts.some(q => same(q, p)), over = !!deploy?.drag?.over && same(deploy.drag.over, p);
+          const floor = tileAt(run, p), laid = !!run.placed?.some(t => same(t, p)), layHere = !!deploy?.tile && canLay(run, p);
           return <button key={i} disabled={(locked && !deploy) || !passable(run, p)} data-x={p.x} data-y={p.y}
-            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""} ${startHere ? "deploy-square" : ""} ${over ? "deploy-over" : ""} ${lanes.includes(p.y) ? "spear-lane" : ""}`}
+            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""} ${startHere ? "deploy-square" : ""} ${over ? "deploy-over" : ""} ${lanes.includes(p.y) ? "spear-lane" : ""} ${floor ? `tile-${floor}` : ""} ${laid ? "laid" : ""} ${layHere ? "kit-target" : ""}`}
             onPointerEnter={ev => { if (ev.pointerType === "mouse") onHover(p); }} onPointerLeave={ev => { if (ev.pointerType === "mouse") onHover(null); }}
             onPointerDown={deploy ? ev => deploy.onDown(ev, p) : undefined}
-            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${startHere ? ", start square" : ""}${trap(p) === "armed" ? ", switch: step here to fire the spears" : trap(p) ? ", switch, used" : ""}${lanes.includes(p.y) ? ", in the spears' path" : ""}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}`}
+            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${startHere ? ", start square" : ""}${floor ? `, ${floor}${laid ? " (yours)" : ""}` : ""}${layHere ? `, lay ${deploy!.tile} here` : ""}${trap(p) === "armed" ? ", switch: step here to fire the spears" : trap(p) ? ", switch, used" : ""}${lanes.includes(p.y) ? ", in the spears' path" : ""}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
             {trap(p) && <span className={`floor-switch ${trap(p)}`} title={trap(p) === "armed" ? "Switch: fires the spears" : "Switch (used)"} />}
             {p.x === 0 && lanes.includes(p.y) && <span className="spear-launcher" title="Spears" />}
@@ -325,6 +328,9 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   // Before the battle begins you rearrange your pieces; enemies can still be inspected.
   const deploying = run.phase === "deploy" && !intro && !playback;
   const [deployPick, setDeployPick] = useState<string | null>(null);
+  // The kit tile chosen to lay next, during deploy.
+  const [kitPick, setKitPick] = useState<TileType | null>(null);
+  const kit = KIT.filter(([t]) => (levelOf(run).kit?.[t] ?? 0) > 0);
   const [drag, setDrag] = useState<Drag | null>(null);
   // A press that turned into a drag ends in a click on the cell it started on; that click is not a tap.
   const dragged = useRef(false);
@@ -457,6 +463,14 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const deploySquare = (p: Pos) => {
     if (dragged.current) { dragged.current = false; return; }
     const u = at(run, p);
+    // Tiles from the kit: tap a laid one to pick it back up; with a kit tile chosen, tap a square to lay it.
+    if (!u && run.placed?.some(t => same(t, p))) { setRun(unlay(run, p)); return; }
+    if (!u && kitPick && canLay(run, p)) {
+      const next = lay(run, kitPick, p);
+      setRun(next);
+      if (!kitLeft(next, kitPick)) setKitPick(null);
+      return;
+    }
     if (deployPick && (!u || u.side === "white") && u?.id !== deployPick && e.starts.some(s => same(s, p))) { redeploy(deployPick, p); return; }
     if (u?.side === "white") { setDeployPick(id => (id === u.id ? null : u.id)); setInspectId(null); return; }
     setDeployPick(null);
@@ -489,7 +503,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     };
     window.addEventListener("pointermove", moveTo); window.addEventListener("pointerup", end); window.addEventListener("pointercancel", end);
   };
-  const beginBattle = () => { setDeployPick(null); setDrag(null); setInspectId(null); setRun(begin(run)); showPhase("player"); };
+  const beginBattle = () => { setKitPick(null); setDeployPick(null); setDrag(null); setInspectId(null); setRun(begin(run)); showPhase("player"); };
   const square = (p: Pos) => {
     if (deploying) { deploySquare(p); return; }
     if (locked) return;
@@ -574,7 +588,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   return <main className="exile-app">
     <TopBar battle={battle} battles={battles} gold={run.tutorial ? undefined : run.gold} tutorial={run.tutorial} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
-      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null}
+      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece, tile: kitPick } : null}
         above={<TeamBar side="black" center={playback ? <><span className="turn-ribbon">ENEMY PHASE</span>{captionLine}</>
           : deploying ? <span className="turn-ribbon deploy-ribbon">DEPLOY</span>
           : waits > 0 && <span key={waits} role="status" className="turn-ribbon enemy-waits">ENEMY WAITS</span>}><EnemyEmblem /></TeamBar>}
@@ -594,6 +608,10 @@ export default function App({ test }: { test?: TestLevel } = {}) {
         : selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" skin={skinOf(selected.kind)} /><div><strong>{kindName(selected.kind)}</strong><UnitStats u={selected} r={r} /><span className="action-pips" role="img" aria-label={selectedBenched ? "locked: another piece acted" : selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted || selectedBenched ? "" : "full"} /><i className={selected.acted || selectedBenched ? "" : "full"} /></span></div></div>}
       </div>
       {preview && !locked && <button className="cancel-move" aria-label="Cancel" onClick={cancelPreview} title="Take the move back (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg><span className="cancel-label">Cancel</span></button>}
+      {deploying && kit.length > 0 && <div className="kit-tray" role="group" aria-label="Deploy kit: lay tiles on the board">
+        {kit.map(([t, name]) => <button key={t} type="button" className={`kit-tile tile-${t}`} aria-pressed={kitPick === t} disabled={!kitLeft(run, t)} onClick={() => { setKitPick(k => (k === t ? null : t)); setDeployPick(null); }}>
+          <span className="kit-swatch" aria-hidden="true" /><b>{name}</b><small>×{kitLeft(run, t)}</small></button>)}
+      </div>}
       {deploying
         ? <button className="end-turn ready begin" onClick={beginBattle}><span className="end-turn-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" /></svg></span><span className="end-turn-label">Begin</span></button>
         : <>{playback && <SkipToken onClick={skip} />}

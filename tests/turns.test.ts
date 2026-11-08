@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { approaches, attack, attackTargets, begin, deploy, buy, campReason, canEscape, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, passable, reaches, sidelined, strikeExposesKing, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import * as turns from "../src/game/turns";
-import type { Encounter, Kind, Placed, Rules, Run, Unit } from "../src/game/turns";
+import type { Encounter, Kind, Placed, Rules, Run, TileType, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
 import { FIXED, stored } from "./fixtures";
 
@@ -583,5 +583,62 @@ describe("switches and spear traps", () => {
     const data = { rules: ONE, levels: [TRAP, TRAP] };
     expect(turns.readRun(stored(fired), data)?.sprung).toEqual([0]);
     expect(turns.readRun(stored({ ...fired, sprung: [3] }), data)).toBeNull();
+  });
+});
+
+describe("floor tiles: ice and sludge, and the deploy kit", () => {
+  const LAB: Encounter = { reward: 0, width: 6, height: 6, walls: [], spawns: [["pawn", 5, 0]], starts: [{ x: 3, y: 5 }, { x: 4, y: 5 }] };
+  const tiles = (...t: [TileType, number, number][]): Partial<Encounter> => ({ tiles: t.map(([type, x, y]) => ({ type, x, y })) });
+  const on = (extra: Partial<Encounter>, ...units: Unit[]) => board(units, { level: { ...LAB, ...extra }, rules: ONE });
+  const w = (id: string, kind: Kind, x: number, y: number): Unit => ({ id, side: "white", kind, x, y, hp: HP[kind] });
+  const sq = (g: Run, id: string) => moveTargets(g, unit(g, id)!).map(t => `${t.x},${t.y}`).sort();
+  it("slides a piece that ends on ice to the first square past it", () => {
+    expect(sq(on(tiles(["ice", 2, 3]), w("p", "pawn", 2, 4)), "p")).toEqual(["2,2"]);
+    expect(sq(on(tiles(["ice", 2, 3], ["ice", 2, 2]), w("p", "pawn", 2, 4)), "p")).toEqual(["2,1"]);
+    // A king stepping diagonally onto ice slides on diagonally.
+    expect(sq(on(tiles(["ice", 3, 4]), w("k", "king", 4, 5)), "k")).toContain("2,3");
+  });
+  it("refuses a move whose slide is blocked, so nobody stands on ice", () => {
+    expect(sq(on(tiles(["ice", 2, 3]), w("p", "pawn", 2, 4), w("x", "rook", 2, 2)), "p")).toEqual([]);
+    expect(sq(on(tiles(["ice", 0, 4]), w("p", "pawn", 0, 5)), "p")).toEqual(["0,3"]);
+    const edge = on(tiles(["ice", 2, 0]), w("p", "pawn", 2, 1));
+    expect(sq(edge, "p")).toEqual([]);
+  });
+  it("lets sliders cross ice but not stop on it, and knights never land on it", () => {
+    const rook = sq(on(tiles(["ice", 0, 3]), w("r", "rook", 0, 5)), "r");
+    expect(rook).toContain("0,4"); expect(rook).toContain("0,2"); expect(rook).not.toContain("0,3");
+    expect(sq(on(tiles(["ice", 2, 3]), w("n", "knight", 1, 5)), "n")).not.toContain("2,3");
+  });
+  it("ends slides on sludge, and a slider in sludge moves one square", () => {
+    const up = sq(on(tiles(["sludge", 0, 3]), w("r", "rook", 0, 5)), "r").filter(s => s.startsWith("0,"));
+    expect(up).toEqual(["0,3", "0,4"]);
+    expect(sq(on(tiles(["sludge", 0, 3]), w("r", "rook", 0, 3)), "r")).toEqual(["0,2", "0,4", "1,3"]);
+    // An ice slide that runs into sludge stops in it.
+    expect(sq(on(tiles(["ice", 2, 3], ["sludge", 2, 2]), w("p", "pawn", 2, 4)), "p")).toEqual(["2,2"]);
+    // Kings and knights leave sludge as usual.
+    expect(sq(on(tiles(["sludge", 2, 3]), w("n", "knight", 2, 3)), "n").length).toBeGreaterThan(2);
+  });
+  it("moves enemy pieces by the same rules", () => {
+    const g = on(tiles(["ice", 2, 2]), w("king", "king", 5, 5), { id: "e", side: "black", kind: "pawn", x: 2, y: 1, hp: 1 });
+    expect(sq(g, "e")).toEqual(["2,3"]);
+  });
+  it("lets you lay kit tiles during deploy, away from enemies and starts, and pick them back up", () => {
+    const level: Encounter = { ...LAB, kit: { ice: 1, sludge: 1 } };
+    const g = testRun(level, [{ kind: "king", x: 3, y: 5 }], 0);
+    expect(turns.kitLeft(g, "ice")).toBe(1);
+    const iced = turns.lay(g, "ice", { x: 1, y: 3 });
+    expect(iced.placed).toEqual([{ type: "ice", x: 1, y: 3 }]);
+    expect(turns.kitLeft(iced, "ice")).toBe(0);
+    expect(turns.lay(iced, "ice", { x: 2, y: 3 })).toBe(iced);
+    // Not on a start, a piece, or next to an enemy (the pawn on f6).
+    expect(turns.canLay(g, { x: 4, y: 5 })).toBe(false);
+    expect(turns.canLay(g, { x: 3, y: 5 })).toBe(false);
+    expect(turns.canLay(g, { x: 4, y: 1 })).toBe(false);
+    expect(turns.unlay(iced, { x: 1, y: 3 }).placed).toEqual([]);
+    // Laid tiles play once the battle begins; the pick-up is deploy only.
+    const live = begin(iced);
+    expect(turns.tileAt(live, { x: 1, y: 3 })).toBe("ice");
+    expect(turns.lay(live, "sludge", { x: 1, y: 2 })).toBe(live);
+    expect(turns.unlay(live, { x: 1, y: 3 })).toBe(live);
   });
 });

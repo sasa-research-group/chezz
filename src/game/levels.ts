@@ -4,7 +4,7 @@
  * Pure: no DOM, no file system. */
 import { LIMITS } from "./rules";
 import { RULES } from "./turns";
-import type { Encounter, Kind, Placed, Pos, Recruit, Rules, SwitchType, Trap } from "./turns";
+import type { Encounter, Kind, Kit, Placed, Pos, Recruit, Rules, SwitchType, Tile, TileType, Trap } from "./turns";
 
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both.
  * A tutorial level carries its real army in `tutorial.army` instead of a test army. */
@@ -14,12 +14,16 @@ export type LevelsFile = { version: 1; levels: Level[] };
  * corrupt the game and blocks Save and Play; a warning breaks a design rule, or notes something the
  * game fixes at load (an enemy's HP above its kind's max), and is only shown. No error depends on the
  * rules file, so retuning stats can never make the levels file unloadable. */
-export type Issue = { field: "size" | "walls" | "switches" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
+export type Issue = { field: "size" | "walls" | "switches" | "tiles" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
 export const isError = (i: Issue) => !i.warning;
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
 /** Kinds of floor switch, with the name the studio shows. */
 export const SWITCH_TYPES: [SwitchType, string][] = [["spears", "Spears"]];
+/** Floor tiles, with the name the studio and the deploy kit show. */
+export const TILE_TYPES: [TileType, string][] = [["ice", "Ice"], ["sludge", "Sludge"]];
+/** Most tiles of one type a level's deploy kit can hand out. */
+export const MAX_KIT = 9;
 /** A new switch as the studio places it: spears along the row just above the middle, for 2. */
 export const newSwitch = (l: Pick<Level, "height">, p: Pos): Trap => ({ type: "spears", x: p.x, y: p.y, rows: [Math.max(0, Math.floor((l.height - 1) / 2))], damage: 2 });
 /** Board sides: square names run a–h, so 8 is the widest a board can be. */
@@ -27,7 +31,7 @@ export const MIN_SIDE = 2, MAX_SIDE = 8;
 export const MAX_REWARD = 99;
 /** The rules file's own HP ceiling: a spawn above it could never be within any legal stats. */
 export const MAX_HP = LIMITS.hp[1];
-const KEYS = ["name", "reward", "width", "height", "walls", "switches", "spawns", "starts", "tutorial", "handout", "testArmy", "story"] as const;
+const KEYS = ["name", "reward", "width", "height", "walls", "switches", "tiles", "kit", "spawns", "starts", "tutorial", "handout", "testArmy", "story"] as const;
 
 const int = (v: unknown, lo: number, hi: number): v is number => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
 const isPos = (v: unknown): v is Pos => !!v && typeof v === "object" && !Array.isArray(v) && int((v as Pos).x, -99, 99) && int((v as Pos).y, -99, 99) && Object.keys(v).length === 2;
@@ -46,6 +50,10 @@ function shapeOf(v: unknown, i: number): Level | string {
   if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && (s.length === 3 || s.length === 4) && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y] or [kind, x, y, hp]`;
   const isTrap = (t: unknown) => !!t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).length === 5 && SWITCH_TYPES.some(([k]) => k === (t as Trap).type) && int((t as Trap).x, -99, 99) && int((t as Trap).y, -99, 99) && int((t as Trap).damage, -99, 99) && Array.isArray((t as Trap).rows) && (t as Trap).rows.every(r => int(r, -99, 99));
   if (l.switches !== undefined && (!Array.isArray(l.switches) || !l.switches.every(isTrap))) return `${where}: switches must be a list of {type, x, y, rows, damage}`;
+  const isTileType = (t: unknown) => TILE_TYPES.some(([k]) => k === t);
+  const isTile = (t: unknown) => !!t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).length === 3 && isTileType((t as Tile).type) && int((t as Tile).x, -99, 99) && int((t as Tile).y, -99, 99);
+  if (l.tiles !== undefined && (!Array.isArray(l.tiles) || !l.tiles.every(isTile))) return `${where}: tiles must be a list of {type, x, y}`;
+  if (l.kit !== undefined && (!l.kit || typeof l.kit !== "object" || Array.isArray(l.kit) || Object.entries(l.kit).some(([k, n]) => !isTileType(k) || !int(n, 0, MAX_KIT)))) return `${where}: kit must be { ice, sludge } counts 0–${MAX_KIT}`;
   const isPlaced = (p: unknown) => !!p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 3 && isKind((p as Placed).kind) && int((p as Placed).x, -99, 99) && int((p as Placed).y, -99, 99);
   if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isPlaced))) return `${where}: testArmy must be a list of {kind, x, y}`;
   if (l.tutorial !== undefined) {
@@ -85,6 +93,7 @@ export function levelIssues(l: Level, rules: Rules = RULES): Issue[] {
     if (!t.rows.length || t.rows.some(r => !int(r, 0, l.height - 1))) out.push({ field: "switches", message: "Spear rows on the board", at: { x: t.x, y: t.y } });
     if (!int(t.damage, 1, MAX_HP)) out.push({ field: "switches", message: `Spear damage 1–${MAX_HP}`, at: { x: t.x, y: t.y } });
   });
+  (l.tiles ?? []).forEach(t => place("tiles", t, t.type === "ice" ? "Ice" : "Sludge"));
   l.spawns.forEach(([kind, x, y, hp]) => {
     place("spawns", { x, y }, `Enemy ${kind}`);
     if (hp === undefined) return;
@@ -154,6 +163,8 @@ export function formatLevels(levels: Level[]): string {
     const placed = (army: Placed[]) => army.map(p => ({ kind: p.kind, x: p.x, y: p.y }));
     const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y }))
       : k === "switches" ? l.switches!.map(t => ({ type: t.type, x: t.x, y: t.y, rows: t.rows, damage: t.damage }))
+      : k === "tiles" ? l.tiles!.map(t => ({ type: t.type, x: t.x, y: t.y }))
+      : k === "kit" ? Object.fromEntries(TILE_TYPES.filter(([t]) => l.kit![t] !== undefined).map(([t]) => [t, l.kit![t]]))
       : k === "testArmy" ? placed(l.testArmy!)
       : k === "tutorial" ? { army: placed(l.tutorial!.army) }
       : l[k];

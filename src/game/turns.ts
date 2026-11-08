@@ -21,7 +21,14 @@ export type SwitchType = "spears";
 /** A switch on the floor and the trap it springs. "spears": once one of your pieces steps onto it, spears
  * shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
 export type Trap = Pos & { type: SwitchType; rows: number[]; damage: number };
-export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[]; tutorial?: TutorialStop; handout?: Handout };
+/** Floor that changes movement. "ice": nobody stops on it; a piece whose move ends on ice slides on in the
+ * same direction to the first square past it (if that square is blocked, the move isn't allowed), and a
+ * knight can't land on it. "sludge": a slide ends on it; a slider that starts its turn in it moves one square. */
+export type TileType = "ice" | "sludge";
+export type Tile = Pos & { type: TileType };
+/** Tiles the player may lay during the deploy phase, by type. */
+export type Kit = Partial<Record<TileType, number>>;
+export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; tiles?: Tile[]; kit?: Kit; spawns: Spawn[]; starts: Pos[]; tutorial?: TutorialStop; handout?: Handout };
 /** What a level hands the player when it starts (the tutorial predetermines these). Empty by default;
  * the game doesn't act on it until the consumables mechanic lands. */
 export type Handout = { items?: string[] };
@@ -46,6 +53,8 @@ export type Run = {
   fell?: Side;
   /** Switches (indexes into the level's `switches`) already sprung this battle (missing: none). */
   sprung?: number[];
+  /** Tiles the player laid from the level's kit during the deploy phase. */
+  placed?: Tile[];
 };
 /** What a run plays by, when it isn't the shipped files: tests pass fixed data so retuning the files can't move them. */
 export type GameData = { rules?: Rules; levels?: Encounter[] };
@@ -112,18 +121,27 @@ export function moveTargets(g: Run, u: Unit): Target[] {
   if (u.moved || u.acted || sidelined(g, u)) return [];
   const out: Target[] = [];
   const open = (p: Pos) => passable(g, p) && !at(g, p);
+  // A move ending on ice slides on to the first square past it; blocked there, the move can't be made.
+  const land = (p: Pos, dx: number, dy: number) => {
+    let q = p;
+    while (tileAt(g, q) === "ice") { q = { x: q.x + dx, y: q.y + dy }; if (!open(q)) return; }
+    if (!out.some(o => same(o, q))) out.push(q);
+  };
   const dirs = slides(u.kind);
   if (dirs) {
+    // Sludge ends a slide, and a slider stuck in it moves one square.
+    const stuck = tileAt(g, u) === "sludge";
     for (const [dx, dy] of dirs) for (let n = 1; ; n++) {
       const p = { x: u.x + dx * n, y: u.y + dy * n };
       if (!open(p)) break;
-      out.push(p);
+      land(p, dx, dy);
+      if (stuck || tileAt(g, p) === "sludge") break;
     }
   } else if (u.kind === "knight") {
-    for (const [dx, dy] of LEAPS) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) out.push(p); }
+    for (const [dx, dy] of LEAPS) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p) && tileAt(g, p) !== "ice") out.push(p); }
   } else {
     const steps = u.kind === "king" ? [...STRAIGHTS, ...DIAGONALS] : [[0, forward(u)]];
-    for (const [dx, dy] of steps) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) out.push(p); }
+    for (const [dx, dy] of steps) { const p = { x: u.x + dx, y: u.y + dy }; if (open(p)) land(p, dx, dy); }
   }
   return out;
 }
@@ -175,7 +193,7 @@ function spawn(g: Run, army: Unit[], placed = false): Run {
   // A level with fewer starts than the army (allowed, with a warning) loses the extras.
   const whites = placed ? army.map(u => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y })) : army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map((s, i) => ({ id: `enemy-${g.encounter}-${i}`, kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rulesOf(g), s) }));
-  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], sprung: undefined };
+  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], sprung: undefined, placed: undefined };
 }
 /** Deploy phase: move your piece to another start square, swapping places with your piece there. */
 export function deploy(g: Run, id: string, to: Pos): Run {
@@ -184,6 +202,25 @@ export function deploy(g: Run, id: string, to: Pos): Run {
   const there = at(g, to);
   if (there && there.side !== "white") return g;
   return { ...g, units: g.units.map(v => v.id === u.id ? { ...v, x: to.x, y: to.y } : there && v.id === there.id ? { ...v, x: u.x, y: u.y } : v) };
+}
+/** The floor tile on square p: one the player laid, or the level's own. */
+export const tileAt = (g: Run, p: Pos): TileType | undefined => (g.placed?.find(t => same(t, p)) ?? levelOf(g).tiles?.find(t => same(t, p)))?.type;
+/** Tiles of `type` the player can still lay this deploy phase. */
+export const kitLeft = (g: Run, type: TileType) => Math.max(0, (levelOf(g).kit?.[type] ?? 0) - (g.placed?.filter(t => t.type === type).length ?? 0));
+/** Can the player lay a tile on p? An empty floor square with no tile, switch or start on it, and not on
+ * or next to an enemy piece (no sniping the enemy's back line). */
+export function canLay(g: Run, p: Pos): boolean {
+  const e = levelOf(g);
+  return g.phase === "deploy" && passable(g, p) && !at(g, p) && !tileAt(g, p) && !e.switches?.some(s => same(s, p)) && !e.starts.some(s => same(s, p))
+    && !g.units.some(u => u.side === "black" && Math.max(Math.abs(u.x - p.x), Math.abs(u.y - p.y)) <= 1);
+}
+/** Deploy phase: lay a tile from the kit on p. */
+export function lay(g: Run, type: TileType, p: Pos): Run {
+  return canLay(g, p) && kitLeft(g, type) > 0 ? { ...g, placed: [...(g.placed ?? []), { type, x: p.x, y: p.y }] } : g;
+}
+/** Deploy phase: pick a laid tile back up into the kit. */
+export function unlay(g: Run, p: Pos): Run {
+  return g.phase === "deploy" && g.placed?.some(t => same(t, p)) ? { ...g, placed: g.placed.filter(t => !same(t, p)) } : g;
 }
 /** Ends the deploy phase: the battle's first turn begins. */
 export const begin = (g: Run): Run => g.phase === "deploy" ? { ...g, phase: "player" } : g;
@@ -545,6 +582,7 @@ export function readRun(raw: string | null, data?: GameData): Run | null {
     if ((g.phase === "player" || g.phase === "deploy") && !g.units.some(u => u.side === "black")) return null;
     if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[nextIndex(g) ?? -1]?.starts.length ?? 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
+    if (g.placed !== undefined && (!Array.isArray(g.placed) || g.placed.some(t => !t || !["ice", "sludge"].includes(t.type) || !Number.isInteger(t.x) || !Number.isInteger(t.y) || !passable(g, t)))) return null;
     if (g.sprung !== undefined && (!Array.isArray(g.sprung) || g.sprung.some(i => !Number.isInteger(i) || !levelOf(g).switches?.[i]))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g.units.some(u => u.hp > r.hp[u.kind]) ? { ...g, units: g.units.map(u => (u.hp > r.hp[u.kind] ? { ...u, hp: r.hp[u.kind] } : u)) } : g;

@@ -8,7 +8,10 @@
   rearranges it in the deploy phase), `reward`, optional `switches`
   (`[{ type, x, y, rows: [y, ...], damage }]`: a floor switch, what it does
   (`type`; only `"spears"` so far, listed in `SWITCH_TYPES` in `levels.ts`)
-  and the rows its spears sweep; see `docs/turn-based.md`), and an
+  and the rows its spears sweep; see `docs/turn-based.md`), optional
+  `tiles` (`[{ type, x, y }]`, `type` `"ice"` or `"sludge"`: the level's own
+  floor) and `kit` (`{ "ice": n, "sludge": n }`, 0–9 each: tiles the player
+  lays in the deploy phase), and an
   optional `story` the designer keeps but doesn't show.
 - **Tutorial vs roguelike.** A level with a `tutorial` block is part of the
   tutorial: `"tutorial": { "army": [{ "kind": "king", "x": 1, "y": 3 }, ...] }`. The tutorial plays its levels in file order
@@ -53,7 +56,7 @@
   "Tutorial" under their name. A red count marks a
   level with errors; an amber count, one with only warnings.
 - Board: drawn with the game's board classes and the painted stills. Tools:
-  Wall, Enemy (pick the piece), Army, Switch, Erase. One thing per square: painting
+  Wall, Enemy (pick the piece), Army, Switch, Ice, Sludge, Erase. One thing per square: painting
   replaces what was there; clicking the same thing again removes it. With
   Army, clicking a square makes it a start; clicking a start opens its unit
   picker (king, queen, rook, bishop, knight, pawn or None, plus Remove start).

@@ -204,3 +204,23 @@ describe("switches in the levels file", () => {
     expect(checks.newSwitch({ height: 5 }, { x: 0, y: 4 })).toEqual({ type: "spears", x: 0, y: 4, rows: [2], damage: 2 });
   });
 });
+
+describe("floor tiles and kits in the levels file", () => {
+  it("accepts tiles and a kit and writes them back unchanged", () => {
+    const l: Level = { ...base, tiles: [{ type: "ice", x: 0, y: 2 }, { type: "sludge", x: 3, y: 2 }], kit: { ice: 2, sludge: 1 } };
+    expect(messages(l)).toEqual([]);
+    const parsed = parseLevels(JSON.parse(formatLevels([l])));
+    expect(parsed.ok && parsed.file.levels[0]).toEqual(l);
+  });
+  it("flags a tile under an enemy, a start, a wall or another tile", () => {
+    expect(messages({ tiles: [{ type: "ice", x: 1, y: 0 }] })).toContain("Enemy pawn overlaps ice");
+    expect(messages({ tiles: [{ type: "sludge", x: 1, y: 3 }] })).toContain("King start overlaps sludge");
+    expect(messages({ walls: [{ x: 0, y: 0 }], tiles: [{ type: "ice", x: 0, y: 0 }] })).toContain("Ice on a wall");
+    expect(messages({ tiles: [{ type: "ice", x: 0, y: 2 }, { type: "sludge", x: 0, y: 2 }] })).toContain("Sludge overlaps ice");
+  });
+  it("refuses unknown tile types and kit counts out of range", () => {
+    expect(parseLevels({ version: 1, levels: [{ ...base, tiles: [{ type: "lava", x: 0, y: 2 }] }] }).ok).toBe(false);
+    expect(parseLevels({ version: 1, levels: [{ ...base, kit: { ice: 10 } }] }).ok).toBe(false);
+    expect(parseLevels({ version: 1, levels: [{ ...base, kit: { lava: 1 } }] }).ok).toBe(false);
+  });
+});

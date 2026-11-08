@@ -32,6 +32,12 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   errors (block Save/Play) or amber warnings (design rules, never block).
   The Army tool sets starts and the exact test unit on each (or None); Undo /
   Redo per level (Ctrl/⌘ Z). No "wall ahead of start" warning any more.
+- **Terrain prototype (branch `claude/terrain`):** ice and sludge floor tiles
+  (`tiles` in a level) and a deploy kit (`kit`): the player lays tiles before
+  Begin after seeing the enemy's setup. Rules in `docs/turn-based.md`;
+  research and open questions in `docs/terrain-research.md`; art in
+  `docs/art/PROPS.md`. "Terrain lab" (battle 6, a tutorial stop) shows it off.
+  Studio: Ice and Sludge tools, Deploy kit counts.
 - **Switches (battle 2):** a floor switch fires a one-shot spear trap along
   set rows, hitting every piece on them, yours too (`switches` in
   `levels.json`; `stepOnto`, `spring` in `turns.ts`). Battle 2 teaches it:

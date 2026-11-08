@@ -24,8 +24,32 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   square): it moves there, and a piece already there swaps to where it came
   from (`deploy(run, id, to)`; the swap glides, instantly under reduced
   motion). Dropped anywhere else, it snaps back.
+- **Deploy kit** (prototype, Nov 8): a level's `kit` hands the player floor
+  tiles to lay before Begin, after seeing the enemy's setup and terrain. Pick
+  one in the kit tray beside Begin, then tap a highlighted square (`lay`); tap a
+  laid tile (ringed gold) to pick it back up (`unlay`). A tile can go on any
+  empty floor square that has no tile, switch or start on it and isn't on or
+  next to an enemy piece (`canLay`), so no sniping the enemy's back line.
+  Laid tiles (`Run.placed`) play exactly like the level's own and clear when
+  the next battle is dealt.
 - Enemies can be inspected (card and intent) as they'd act if the battle
-  began as placed. Begin (`begin`) starts turn 1. The phase saves and reloads.
+  began as placed, laid tiles included. Begin (`begin`) starts turn 1. The
+  phase saves and reloads.
+
+## Floor tiles: ice and sludge (prototype)
+- A level may lay its own tiles (`tiles`), usually on the enemy's side, and
+  the deploy kit adds the player's. They change where moves end, never a
+  piece's shape, and work the same for both sides (enemy intent shows it).
+- **Ice:** nobody stops on ice. A move that ends on ice slides on in the
+  same direction, square by square, to the first square past the ice; if
+  that square is a wall, a piece or off the board, the move isn't allowed. A
+  pawn stepping onto ice slides past its one step; a rook can cross ice but
+  only stops beyond it. A knight's leap has no one direction, so a knight
+  can't land on ice (the Ice Chess precedent; see `docs/terrain-research.md`).
+- **Sludge:** a slide ends on sludge (a rook's line or an ice slide). A rook,
+  bishop or queen that starts its turn in sludge moves one square. Kings,
+  pawns and knights leave it normally.
+- Tiles don't block strikes; a ranged strike flies over them.
 
 ## Turns
 - You act, then the enemy acts.
