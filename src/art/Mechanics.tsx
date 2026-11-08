@@ -62,7 +62,7 @@ function StrikeBack({ r, foe }: { r: Rules; foe: Kind }) {
 function Intent({ r, previewed }: { r: Rules; previewed: boolean }) {
   const king = unit(r, "king", "king", "white", previewed ? 0 : 1, 3), rook = unit(r, "e", "rook", "black", 1, 1), pawn = unit(r, "p", "pawn", "black", 3, 0);
   const run = board(r, [king, rook, pawn]), plan = enemyPlan(run), intent = intentOf(run, plan, "e")!;
-  return <><MiniBoard cols={4} rows={4} pieces={[pc(r, king), { ...pc(r, rook), cls: "inspected" }, pc(r, pawn)]} overlay={<IntentMarks intent={intent} cols={4} rows={4} leaps={false} bonus={r.defend} />} />
+  return <><MiniBoard cols={4} rows={4} pieces={[pc(r, king), { ...pc(r, rook), cls: "inspected" }, pc(r, pawn)]} overlay={<IntentMarks intent={intent} cols={4} rows={4} leaps={false} />} />
     <p className="fine">{plan.map(s => s.text).join(" · ") || "Enemy waits"}</p></>;
 }
 function Encounter({ r, i }: { r: Rules; i: number }) {
@@ -73,9 +73,8 @@ function Encounter({ r, i }: { r: Rules; i: number }) {
 
 const enemyScores = (r: Rules): [string, string][] => [
   ["Strike", `100 + 10×damage + 50 if it kills + 30 if the king${r.counter ? " − 8×strikeback − 60 if the strikeback kills it" : ""}. Never for 0 damage.`],
-  ["Step into strike range", "20 − squares travelled ÷ 10, only if it hasn't struck or defended"],
+  ["Step into strike range", "20 − squares travelled ÷ 10, only if it hasn't struck"],
   ["Close in", "5 × moves saved − squares travelled ÷ 10, counting its own moves around walls to a square it could strike the king (weighted) or the nearest piece from; pawns with targets ahead march (1)"],
-  ["Brace (defend)", `0.4, only if threatened and the −${r.defend} saves it`],
   ["Wait", "Nothing scores above 0"],
 ];
 const RUN: [string, string][] = [
@@ -124,17 +123,15 @@ function RulesEditor({ r, onChange }: { r: Rules; onChange: (r: Rules) => void }
     } catch { setStatus({ ok: false, text: "Save failed" }); }
   }
   return <div className="rules-editor" aria-label="Rules editor" role="group">
-    <table className="spec wide-table rules-table"><thead><tr><th>Piece</th><th>HP</th><th>Damage</th><th>vs defender</th><th>Move</th><th>Strike range</th><th>Strike reach</th></tr></thead>
+    <table className="spec wide-table rules-table"><thead><tr><th>Piece</th><th>HP</th><th>Damage</th><th>Move</th><th>Strike range</th><th>Strike reach</th></tr></thead>
       <tbody>{KINDS.map(k => <tr key={k}><th><span className="rule-kind"><SpriteStill kind={k} side="white" />{k}</span></th>
         <td><Num label={`${k} HP`} prefix="♥" value={r.hp[k]} range={LIMITS.hp} onChange={n => edit({ hp: { ...r.hp, [k]: n } })} /></td>
         <td><Num label={`${k} damage`} prefix={<StrikeIcon />} value={r.damage[k]} range={LIMITS.damage} onChange={n => edit({ damage: { ...r.damage, [k]: n } })} /></td>
-        <td>{Math.max(0, r.damage[k] - r.defend)}</td><td>{MOVE[k]}</td>
+        <td>{MOVE[k]}</td>
         <td><Seg<`${Reach}`> label={`${k} strike range`} value={`${r.range[k]}`} options={[["1", "1"], ["line", "Line"]]} onPick={v => edit({ range: { ...r.range, [k]: v === "line" ? "line" : 1 } })} /></td>
         <td>{r.range[k] === "line" ? REACH_LINE[k] : REACH[k]}</td></tr>)}</tbody></table>
     <div className="rules-globals">
       <div className="stage-field"><span>Turn</span><Seg label="Turn" value={r.turn} options={[["one", "One piece"], ["all", "Every piece"]]} onPick={turn => edit({ turn })} /></div>
-      <div className="stage-field"><span>Defend</span><Num label="Defend bonus" prefix="+" value={r.defend} range={LIMITS.defend} onChange={defend => edit({ defend })} /></div>
-      <div className="stage-field"><span>Defends</span><Num label="Defends per battle" prefix="×" value={r.defends} range={LIMITS.defends} onChange={defends => edit({ defends })} /></div>
       <div className="stage-field"><span>Strike back</span><Seg label="Strike back" value={r.counter ? "on" : "off"} options={[["on", "On"], ["off", "Off"]]} onPick={v => edit({ counter: v === "on" })} /></div>
       <div className="stage-field"><span>Start gold</span><Num label="Start gold" prefix="✦" value={r.gold} range={LIMITS.gold} onChange={gold => edit({ gold })} /></div>
       <div className="stage-field"><span>Heal</span><Num label="Heal HP" prefix="+♥" value={r.heal} range={LIMITS.heal} onChange={heal => edit({ heal })} /></div>
@@ -168,11 +165,10 @@ export function Mechanics() {
     <Group id="turn" title="Turn">
       <table className="spec"><tbody>
         <tr><th>Order</th><td>You, then the enemy</td></tr>
-        <tr><th>Per turn</th><td>{one ? "One piece per side: it moves, then strikes or defends (or just strikes or defends). Once it has acted the turn passes; a move alone is a preview until End turn (Cancel takes it back); End turn skips the rest" : "Every piece, every turn: 1 move, then strike or defend"}</td></tr>
+        <tr><th>Per turn</th><td>{one ? "One piece per side: it moves, then strikes (or just strikes). Once it has struck the turn passes; a move alone is a preview until End turn (Cancel takes it back); End turn skips the rest" : "Every piece, every turn: 1 move, then strike"}</td></tr>
         <tr><th>Move</th><td>Its chess shape, any distance · slides stop at pieces and walls · knights leap · pawns stop at the far row</td></tr>
         <tr><th>Strike</th><td>Next square in the piece's shape · range "Line": any distance along it, stopped by the first piece or wall · striker stays put</td></tr>
         <tr><th>Strike back</th><td>{live.counter ? "A struck piece that survives hits back with its own damage, if it can reach the attacker. Never from range: a ranged strike draws none, and a ranged piece never strikes back from afar" : "Off"}</td></tr>
-        <tr><th>Defend</th><td>Instead of a strike · +{live.defend} (−{live.defend} damage per hit) until your next turn · each side gets {live.defends} per battle, enemy too; each defend spends one</td></tr>
         <tr><th>Enemy</th><td>{one ? "One piece too: its best-scoring action, then that piece's follow-up" : "Every piece may act"}</td></tr>
       </tbody></table>
     </Group>
@@ -220,7 +216,7 @@ export function Mechanics() {
       <Entry name="Intent" src="enemyPlan() · intentOf()" note="hover or tap an enemy" wide><Intent r={live} previewed={false} /></Entry>
       <Entry name="Intent after a previewed move" src="enemyPlan()" note="king previewed on a1" wide><Intent r={live} previewed /></Entry>
       <table className="spec"><thead><tr><th>Action</th><th>Score</th></tr></thead><tbody>{enemyScores(live).map(([a, b]) => <tr key={a}><th>{a}</th><td>{b}</td></tr>)}</tbody></table>
-      <p className="fine">enemyTurn(): best score first {one ? "across every piece; once one piece has acted only it may carry on" : "across every piece, repeat until nothing scores above 0 (each piece moves once and strikes or defends once)"}. Deterministic; computed in full before playback.</p>
+      <p className="fine">enemyTurn(): best score first {one ? "across every piece; once one piece has acted only it may carry on" : "across every piece, repeat until nothing scores above 0 (each piece moves once and strikes once)"}. Deterministic; computed in full before playback.</p>
     </Group>
 
     <Group id="battles" title="Battles">

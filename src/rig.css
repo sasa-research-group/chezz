@@ -4,8 +4,6 @@
 .rig{display:block;width:100%;height:auto;overflow:visible;--ease-back:cubic-bezier(.34,1.56,.64,1);--ease-in:cubic-bezier(.55,0,1,.45);--ease-soft:cubic-bezier(.45,0,.55,1)}
 .rig .flip{transform:scaleX(var(--face,1));transform-origin:50px 108px}
 .rig .hop,.rig .squash{transform-origin:50px 108px}
-.rig .shield{transform:scale(0);transition:transform .25s var(--ease-back)}
-.rig.is-defending .shield{transform:scale(1)}
 .rig .fx-dust,.rig .fx-stars,.rig .fx-smoke,.rig .fx-lines,.rig .fx-burst{opacity:0}
 .rig .fx-lines{transform:scaleX(var(--face,1));transform-origin:50px 108px}
 .rig .fx-burst{transform-box:fill-box;transform-origin:center}

@@ -19,10 +19,13 @@ describe("rules data", () => {
   });
   it("lists every problem in a broken file", () => {
     expect(parseRules([]).ok).toBe(false);
-    const bad = { ...RULES, turn: "some", hp: { ...RULES.hp, king: 0 }, damage: { ...RULES.damage, pawn: 1.5 }, defend: -1, counter: "yes", extra: 1 };
-    expect(parseRules(bad)).toEqual({ ok: false, errors: ["Unknown field extra", 'turn must be "one" or "all"', "hp king: 1–99", "damage pawn: 0–99", "defend: 0–9", "counter must be true or false"] });
+    const bad = { ...RULES, turn: "some", hp: { ...RULES.hp, king: 0 }, damage: { ...RULES.damage, pawn: 1.5 }, heal: -1, counter: "yes", extra: 1 };
+    expect(parseRules(bad)).toEqual({ ok: false, errors: ["Unknown field extra", 'turn must be "one" or "all"', "hp king: 1–99", "damage pawn: 0–99", "heal: 0–99", "counter must be true or false"] });
     const { queen: _, ...noQueen } = RULES.hp;
     expect(parseRules({ ...RULES, hp: noQueen })).toEqual({ ok: false, errors: ["hp needs king, queen, rook, bishop, knight, pawn"] });
+  });
+  it("reads past the retired defend fields of an older rules file, and drops them", () => {
+    expect(parseRules({ ...RULES, defend: 1, defends: 3 })).toEqual({ ok: true, rules: RULES });
   });
 });
 
@@ -45,8 +48,8 @@ describe("rules save endpoint", () => {
   });
   it("refuses broken rules and strangers, leaving the file alone", async () => {
     const file = scratch();
-    const r = await send(file, request(JSON.stringify({ ...RULES, defend: 10 })));
-    expect(r).toEqual({ status: 400, body: { errors: ["defend: 0–9"] } });
+    const r = await send(file, request(JSON.stringify({ ...RULES, gold: 100 })));
+    expect(r).toEqual({ status: 400, body: { errors: ["gold: 0–99"] } });
     expect((await send(file, request(JSON.stringify(RULES), { "content-type": "application/json" }))).status).toBe(403);
     expect((await send(file, request(JSON.stringify(RULES), { [LEVELS_HEADER]: "save", "content-type": "application/json", host: "127.0.0.1:5173", origin: "http://localhost:3000" }))).status).toBe(403);
     expect(readFileSync(file, "utf8")).toBe("old");

@@ -1,6 +1,6 @@
 /** Escape from Exile, turn-based: you act, then the enemy acts. A piece moves once in its chess
  * shape (sliding any distance), then strikes along its shape (the next square, or any distance for a
- * ranged kind) or defends. A struck piece that survives strikes back if it can reach the attacker. The rules
+ * ranged kind). A struck piece that survives strikes back if it can reach the attacker. The rules
  * file says whether one piece per side acts each turn or every piece does. Pure and
  * deterministic: no DOM, no randomness, inputs are never mutated. */
 import levelsFile from "./levels/levels.json" with { type: "json" };
@@ -11,7 +11,7 @@ export type { Reach, Rules, TurnMode } from "./rules";
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
-export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean; defending?: boolean };
+export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean };
 export type Target = Pos & { id?: string };
 /** An enemy on its square: kind, x, y and its starting HP. HP left out means full health; HP above the
  * kind's max (stats retuned since the level was saved) is clamped to the max. */
@@ -37,8 +37,6 @@ export type Run = {
   levels?: Encounter[];
   /** The side whose acting piece fell to a strikeback this turn: under one move per turn, that side's turn is used up. */
   fell?: Side;
-  /** Defends each side has used this battle (missing: none). */
-  defended?: Partial<Record<Side, number>>;
   /** Switches (indexes into the level's `switches`) already sprung this battle (missing: none). */
   sprung?: number[];
 };
@@ -48,7 +46,7 @@ export type Recruit = "pawn" | "bishop" | "rook";
 /** A piece placed on a given square: a studio test army. */
 export type Placed = Pos & { kind: Kind };
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "spring"; target?: string; killed: string[] };
+export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring"; target?: string; killed: string[] };
 
 const loaded = parseRules(rulesFile);
 if (!loaded.ok) throw new Error(`src/game/rules.json: ${loaded.errors.join("; ")}`);
@@ -83,8 +81,8 @@ const STRAIGHTS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LEAPS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
 const slides = (k: Kind) => k === "rook" ? STRAIGHTS : k === "bishop" ? DIAGONALS : k === "queen" ? [...STRAIGHTS, ...DIAGONALS] : null;
 const forward = (u: Unit) => u.side === "white" ? -1 : 1;
-/** Damage a strike from `a` deals to `v`, after v's block. */
-const hitFor = (g: Run, a: Unit, v: Unit) => Math.max(0, rulesOf(g).damage[a.kind] - (v.defending ? rulesOf(g).defend : 0));
+/** Damage a strike from `a` deals to `v`. */
+const hitFor = (g: Run, a: Unit) => rulesOf(g).damage[a.kind];
 
 /** Under one move per turn: another piece on u's side has already moved or acted this turn, so u can't. */
 export function sidelined(g: Run, u: Unit): boolean {
@@ -159,7 +157,7 @@ function spawn(g: Run, army: Unit[], placed = false): Run {
   // A level with fewer starts than the army (allowed, with a warning) loses the extras.
   const whites = placed ? army.map(u => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y })) : army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map((s, i) => ({ id: `enemy-${g.encounter}-${i}`, kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rulesOf(g), s) }));
-  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], defended: undefined, sprung: undefined };
+  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], sprung: undefined };
 }
 /** Deploy phase: move your piece to another start square, swapping places with your piece there. */
 export function deploy(g: Run, id: string, to: Pos): Run {
@@ -251,23 +249,11 @@ function spring(g: Run, i: number, by: string): { run: Run; step: Step } {
   return { run, step: { text, units: run.units, focus: hit.map(u => ({ x: u.x, y: u.y })), damage, actor: by, kind: "spring", rows: trap.rows, killed } };
 }
 
-/** Defends a side has left this battle, out of the rules' `defends`. */
-export const defendsLeft = (g: Run, side: Side) => Math.max(0, rulesOf(g).defends - (g.defended?.[side] ?? 0));
-/** Can this piece still defend this turn? Not once its side has used up its defends. */
-export const canDefend = (g: Run, u: Unit) => !u.acted && !sidelined(g, u) && defendsLeft(g, u.side) > 0;
-/** u braces: it's done for the turn, and its side spends a defend. */
-const braced = (g: Run, u: Unit): Run => ({ ...g, units: withUnit(g, u.id, { acted: true, defending: true }), defended: { ...g.defended, [u.side]: (g.defended?.[u.side] ?? 0) + 1 } });
-export function defend(g: Run, id: string): Run {
-  const u = g.units.find(u => u.id === id);
-  if (g.phase !== "player" || !u || u.side !== "white" || !canDefend(g, u)) return g;
-  return note(braced(g, u), `${label(u)} defends`);
-}
-
 /** Resolves one strike for either side. A target that survives strikes back with its own damage if it
- * can reach the attacker's square (and strikebacks are on), defending or not. */
+ * can reach the attacker's square (and strikebacks are on). */
 function strike(g: Run, a: Unit, t: Target): { run: Run; step: Step } {
   const v = g.units.find(u => u.id === t.id)!;
-  const dealt = hitFor(g, a, v);
+  const dealt = hitFor(g, a);
   const survives = v.hp > dealt;
   // Strikes land from where the striker stands; it never moves onto the target's square.
   let units = g.units.flatMap(u => u.id === v.id ? (survives ? [{ ...u, hp: u.hp - dealt }] : []) : u.id === a.id ? [{ ...u, acted: true }] : [u]);
@@ -342,19 +328,12 @@ function movesToStrike(g: Run, u: Unit, targets: Unit[]): number[] {
   return dist;
 }
 
-/** Could any piece on the other side strike u on its next turn, in place or after stepping in? Judged
- * as if that side's pieces were all fresh. */
-function threatened(g: Run, u: Unit): boolean {
-  const fresh: Run = { ...g, units: g.units.map(w => (w.side !== u.side ? { ...w, moved: false, acted: false } : w)) };
-  return fresh.units.some(w => w.side !== u.side && (reaches(fresh, w, w, u) || moveTargets(fresh, w).some(t => reaches(fresh, w, t, u))));
-}
-
-/** Deterministic enemy policy: each enemy piece may move once, then strike or defend once (under one
+/** Deterministic enemy policy: each enemy piece may move once, then strike once (under one
  * move per turn, only the piece that acts first). The best-scoring action across the pieces that may
  * still act goes first, repeated until nothing is worth doing. */
 function enemyTurn(g: Run): { run: Run; steps: Step[] } {
   const r = rulesOf(g);
-  let run: Run = { ...g, fell: undefined, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false, defending: false } : u)) };
+  let run: Run = { ...g, fell: undefined, units: g.units.map(u => (u.side === "black" ? { ...u, moved: false, acted: false } : u)) };
   const steps: Step[] = [];
   const gap = (p: Pos, w: Pos) => Math.max(Math.abs(p.x - w.x), Math.abs(p.y - w.y));
   const limit = 2 * run.units.filter(u => u.side === "black").length + 1;
@@ -366,7 +345,7 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
     for (const u of run.units.filter(u => u.side === "black")) {
       for (const t of attackTargets(run, u)) {
         const v = run.units.find(w => w.id === t.id)!;
-        const dealt = hitFor(run, u, v);
+        const dealt = hitFor(run, u);
         if (dealt === 0) continue;
         // A target that survives strikes back, unless either side strikes from range.
         const countered = dealt < v.hp && strikesBack(run, u, v) ? r.damage[v.kind] : 0;
@@ -394,16 +373,6 @@ function enemyTurn(g: Run): { run: Run; steps: Step[] } {
           return { run: next, step: { text, units: next.units, focus: [{ x: t.x, y: t.y }], damage: [], actor: u.id, kind: "move", killed: [] } };
         } });
       }
-      // Brace only when it matters (a threat it survives only thanks to the block, so it lives to
-      // strike back), and only when no move is worth making.
-      // A threat is one of your pieces that can strike u next turn, stepping in first if need be.
-      const threat = (w: Unit) => reaches(run, w, w, u) || moveTargets(run, { ...w, moved: false, acted: false }).some(t => reaches(run, w, t, u));
-      const worthIt = whites.some(w => threat(w) && r.damage[w.kind] >= u.hp && r.damage[w.kind] - r.defend < u.hp);
-      if (canDefend(run, u) && worthIt) choices.push({ score: 0.4, key: `d${u.id}`, apply: () => {
-        const text = `${label(u)} defends`;
-        const next = note(braced(run, u), text);
-        return { run: next, step: { text, units: next.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "defend", killed: [] } };
-      } });
     }
     choices.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key));
     const best = choices[0];
@@ -425,7 +394,7 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const hits: { id: string; hit: number }[] = [];
   for (const u of fresh.units.filter(u => u.side === "black")) {
     const can = reaches(fresh, u, u, king) || moveTargets(fresh, u).some(t => reaches(fresh, u, t, king));
-    const hit = can ? hitFor(fresh, u, king) : 0;
+    const hit = can ? hitFor(fresh, u) : 0;
     if (hit > 0) hits.push({ id: u.id, hit });
   }
   if (rulesOf(g).turn === "all") return { damage: hits.reduce((s, h) => s + h.hit, 0), attackers: hits.map(h => h.id) };
@@ -439,10 +408,10 @@ export function inCheck(g: Run): boolean {
   const king = g.units.find(u => u.id === "king");
   return g.phase === "player" && !!king && kingThreat(g).damage >= king.hp;
 }
-/** Could anything you still do this turn (moves, strikes, defending) get the king out of check? */
+/** Could anything you still do this turn (moves and strikes) get the king out of check? */
 export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
-  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}`).join("|") + (g.fell ?? "") + defendsLeft(g, "white");
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}`).join("|") + (g.fell ?? "");
   const visit = (g: Run): boolean => {
     if (g.phase !== "player") return g.phase !== "defeat";
     const k = key(g);
@@ -452,24 +421,23 @@ export function canEscape(start: Run): boolean {
     for (const u of g.units.filter(u => u.side === "white")) {
       for (const t of moveTargets(g, u)) if (visit(move(g, u.id, t))) return true;
       for (const t of attackTargets(g, u)) if (visit(attack(g, u.id, t.id!).run)) return true;
-      if (canDefend(g, u) && visit(defend(g, u.id))) return true;
     }
     return false;
   };
   return visit(start);
 }
 /** Under one move per turn, has your piece done all it usefully can, so the turn should pass on its
- * own? True once it has struck or defended, or once it has moved and has nothing safe to strike and no
- * enemy that could hit it (so defending would do nothing). Always false when every piece acts. */
+ * own? True once it has struck, or once it has moved and has nothing safe to strike. Always false when
+ * every piece acts. */
 export function turnSpent(g: Run): boolean {
   if (g.phase !== "player" || rulesOf(g).turn !== "one") return false;
   const whites = g.units.filter(u => u.side === "white");
   if (g.fell === "white" || whites.some(u => u.acted)) return true;
   const mover = whites.find(u => u.moved);
   if (!mover) return false;
-  return !attackTargets(g, mover).some(t => !strikeExposesKing(g, mover.id, t.id!)) && !(threatened(g, mover) && canDefend(g, mover));
+  return !attackTargets(g, mover).some(t => !strikeExposesKing(g, mover.id, t.id!));
 }
-/** Your pieces' moves are spent; their blocks last through the enemy's turn. */
+/** Your pieces' moves are spent. */
 const handOver = (g: Run): Run => ({ ...g, fell: undefined, units: g.units.map(u => (u.side === "white" ? { ...u, moved: false, acted: false } : u)) });
 /** What the enemy would do if you ended your turn now, step by step: its turn computed from the board
  * as it stands (a previewed move included). Nothing is changed; only End turn makes it happen. */
@@ -477,21 +445,20 @@ export function enemyPlan(g: Run): Step[] {
   // During deploy: what the enemy would do if the battle began as placed.
   return g.phase === "player" || g.phase === "deploy" ? enemyTurn(handOver({ ...g, phase: "player" })).steps : [];
 }
-/** One enemy piece's part of a plan: where it would move, whom it would strike and for how much, and
- * whether it would brace. A piece with none of these waits. */
-export type Intent = { id: string; from: Pos; to?: Pos; strike?: { target: string; at: Pos; damage: number; kills: boolean }; defend?: boolean };
+/** One enemy piece's part of a plan: where it would move, and whom it would strike and for how much.
+ * A piece with neither waits. */
+export type Intent = { id: string; from: Pos; to?: Pos; strike?: { target: string; at: Pos; damage: number; kills: boolean } };
 export function intentOf(g: Run, plan: Step[], id: string): Intent | null {
   const u = g.units.find(v => v.id === id);
   if (!u || u.side !== "black") return null;
   const intent: Intent = { id, from: { x: u.x, y: u.y } };
   for (const step of plan.filter(st => st.actor === id)) {
     if (step.kind === "move") { const to = step.units.find(v => v.id === id); if (to) intent.to = { x: to.x, y: to.y }; }
-    else if (step.kind === "defend") intent.defend = true;
     else if (step.target) intent.strike = { target: step.target, at: step.focus[0], damage: step.damage.find(d => d.id === step.target)?.amount ?? 0, kills: step.killed.includes(step.target) };
   }
   return intent;
 }
-export const intentWaits = (i: Intent) => !i.to && !i.strike && !i.defend;
+export const intentWaits = (i: Intent) => !i.to && !i.strike;
 /** Ends the player's turn: the enemy acts, then your pieces are ready again. */
 export function endTurn(g: Run): { run: Run; steps: Step[] } {
   if (g.phase !== "player") return { run: g, steps: [] };
@@ -543,7 +510,6 @@ export function readRun(raw: string | null, data?: GameData): Run | null {
     if (g.recruits !== undefined && (g.phase !== "camp" || !Array.isArray(g.recruits) || g.recruits.some(k => !["pawn", "bishop", "rook"].includes(k)) || g.units.filter(u => u.side === "white").length + g.recruits.length > (levels[g.encounter + 1]?.starts.length ?? 0))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
     if (g.sprung !== undefined && (!Array.isArray(g.sprung) || g.sprung.some(i => !Number.isInteger(i) || !levelOf(g).switches?.[i]))) return null;
-    if (g.defended !== undefined && (!g.defended || typeof g.defended !== "object" || Object.entries(g.defended).some(([side, n]) => !["white", "black"].includes(side) || !Number.isInteger(n) || (n as number) < 0))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
     return g.units.some(u => u.hp > r.hp[u.kind]) ? { ...g, units: g.units.map(u => (u.hp > r.hp[u.kind] ? { ...u, hp: r.hp[u.kind] } : u)) } : g;
   } catch { return null; }

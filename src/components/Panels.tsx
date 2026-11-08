@@ -11,7 +11,6 @@ export const RulesCard = ({ rules: r = RULES }: { rules?: Rules }) => <dl classN
   <dt>Strike</dt><dd>after moving · next square in its shape{RANGED(r).length > 0 && <> · {RANGED(r).map(k => GLYPH[k]).join("")} any distance in line</>}</dd>
   {r.counter && <><dt>Strike back</dt><dd>a struck piece that lives hits back up close; never from range</dd></>}
   <dt>Damage</dt><dd>{(["pawn", "knight", "bishop", "king", "rook", "queen"] as const).map(k => <span key={k}>{GLYPH[k]}{r.damage[k]}</span>)}</dd>
-  <dt>Defend</dt><dd>instead of strike · +{r.defend} defense: each hit −{r.defend} · {r.defends} per battle, each side</dd>
   <dt><i className="lg-unsafe">✕</i></dt><dd>exposes king</dd>
   <dt><i className="lg-check">!</i></dt><dd>threatens king</dd>
 </dl>;

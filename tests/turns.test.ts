@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approaches, attack, attackTargets, begin, deploy, buy, campReason, canDefend, canEscape, defend, defendsLeft, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, passable, reaches, sidelined, strikeExposesKing, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
+import { approaches, attack, attackTargets, begin, deploy, buy, campReason, canEscape, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, inCheck, kingThreat, leaveCamp, move, moveTargets, passable, reaches, sidelined, strikeExposesKing, turnSpent, unsafeStrikes, walkAndStrike } from "../src/game/turns";
 import * as turns from "../src/game/turns";
 import type { Encounter, Kind, Placed, Rules, Run, Unit } from "../src/game/turns";
 import { playTurn } from "./turns-strategy";
@@ -70,14 +70,11 @@ describe("turn-based rules", () => {
     expect(moveTargets(board([pawn]), pawn)).toEqual([{ x: 2, y: 2 }]);
   });
 
-  it("lets each piece move once, then attack or defend", () => {
+  it("lets each piece move once, then attack", () => {
     const g = board([king, { id: "p", side: "black", kind: "pawn", x: 1, y: 0, hp: 1 }]);
     const moved = move(g, "king", { x: 1, y: 2 });
     expect(unit(moved, "king")).toMatchObject({ x: 1, y: 2, moved: true });
     expect(move(moved, "king", { x: 1, y: 1 })).toBe(moved);
-    const braced = defend(moved, "king");
-    expect(unit(braced, "king")!.defending).toBe(true);
-    expect(defend(braced, "king")).toBe(braced);
     // After attacking, a piece can't move.
     const near = board([king, { id: "p", side: "black", kind: "pawn", x: 2, y: 2, hp: 5 }]);
     const hit = attack(near, "king", "p").run;
@@ -148,16 +145,15 @@ describe("turn-based rules", () => {
     expect(steps[0]).toMatchObject({ actor: "p", kind: "move", killed: [] });
   });
 
-  it("makes a defender block 1 and counter an attacker it can reach", () => {
-    // An enemy bishop strikes the defending king diagonally: 2 - 1 = 1 damage, and the king counters for 2.
+  it("makes a struck piece counter an attacker it can reach", () => {
+    // An enemy bishop strikes the king diagonally for 2, and the king counters for 2.
     const bishop: Unit = { id: "b", side: "black", kind: "bishop", x: 0, y: 2, hp: 3 };
-    const g = defend(board([king, bishop]), "king");
-    const { run, steps } = endTurn(g);
-    expect(unit(run, "king")!.hp).toBe(5 - (DAMAGE.bishop - 1));
+    const { run, steps } = endTurn(board([king, bishop]));
+    expect(unit(run, "king")!.hp).toBe(5 - DAMAGE.bishop);
     expect(unit(run, "b")!.hp).toBe(3 - DAMAGE.king);
     // The counter is its own line in the log, and rides on the strike's step for playback.
-    expect(run.log.slice(0, 2)).toEqual(["King counters −2", "Enemy bishop strikes king −1"]);
-    expect(steps.find(s => s.kind === "strike")).toMatchObject({ text: "Enemy bishop strikes king −1", counter: "King counters −2" });
+    expect(run.log.slice(0, 2)).toEqual(["King counters −2", "Enemy bishop strikes king −2"]);
+    expect(steps.find(s => s.kind === "strike")).toMatchObject({ text: "Enemy bishop strikes king −2", counter: "King counters −2" });
   });
   it("makes an enemy piece step next to a target it can't strike from where it stands", () => {
     // The rook sits diagonally from the king, so it can't strike; it steps beside the king, then strikes.
@@ -166,15 +162,6 @@ describe("turn-based rules", () => {
     const r = unit(run, "r")!;
     expect(reaches(run, r, r, unit(run, "king")!)).toBe(true);
     expect(unit(run, "king")!.hp).toBe(5 - DAMAGE.rook);
-  });
-  it("makes an enemy brace against a piece that can step in and strike it", () => {
-    // The rook can slide next to the cornered knight and strike for a kill (2 damage, 2 HP). Walls block every jump, so bracing is all it can do.
-    const level: Encounter = { reward: 0, width: 4, height: 4, walls: [{ x: 1, y: 2 }, { x: 2, y: 1 }], spawns: [], starts: [] };
-    const knight: Unit = { id: "n", side: "black", kind: "knight", x: 0, y: 0, hp: 2 };
-    // It already moved this turn; it can still step in next turn.
-    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 0, y: 3, hp: 5, moved: true };
-    const { run } = endTurn(board([{ ...king, x: 3, y: 3 }, rook, knight], { level }));
-    expect(unit(run, "n")).toMatchObject({ x: 0, y: 0, defending: true });
   });
   it("strikes only the neighbours a piece's shape allows", () => {
     const foe = (x: number, y: number): Unit => ({ id: `f${x}${y}`, side: "black", kind: "pawn", x, y, hp: 1 });
@@ -188,24 +175,17 @@ describe("turn-based rules", () => {
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
     expect(attackTargets(board([knight, foe(1, 1), { ...king, x: 3, y: 3 }]), knight)).toEqual([{ x: 1, y: 1, id: "f11" }]);
   });
-  it("doesn't make the enemy strike for 0 into a defender", () => {
-    // On the 6×6 bridge, so the pawn has no far row to race for this turn.
-    const pawn: Unit = { id: "p", side: "black", kind: "pawn", x: 3, y: 2, hp: 1 };
-    const { run } = endTurn(defend(board([{ ...king, x: 2, y: 3 }, pawn], { level: BRIDGE }), "king"));
-    expect(unit(run, "p")).toBeDefined();
-    expect(unit(run, "king")!.hp).toBe(5);
-  });
-  it("lets a defending slider counter only an attacker next to it", () => {
-    // A black rook strikes a defending white rook from the next square; the defender hits back.
+  it("lets a slider counter only an attacker next to it", () => {
+    // A black rook strikes a white rook from the next square; the white rook hits back.
     const mine: Unit = { id: "m", side: "white", kind: "rook", x: 0, y: 3, hp: 5 };
     const theirs: Unit = { id: "t", side: "black", kind: "rook", x: 0, y: 1, hp: 5 };
-    const { run } = endTurn(defend(board([{ ...king, x: 3, y: 3 }, mine, theirs], { level: WALLED }), "m"));
+    const { run } = endTurn(board([{ ...king, x: 3, y: 3 }, mine, theirs], { level: WALLED }));
     expect(unit(run, "t")!.y).toBe(2);
-    expect(unit(run, "m")!.hp).toBe(5 - (DAMAGE.rook - 1));
+    expect(unit(run, "m")!.hp).toBe(5 - DAMAGE.rook);
     expect(unit(run, "t")!.hp).toBe(5 - DAMAGE.rook);
     expect(reaches(run, unit(run, "m")!, { x: 0, y: 3 }, { x: 0, y: 1 })).toBe(false);
   });
-  it("makes any struck piece that survives strike back, defending or not", () => {
+  it("makes any struck piece that survives strike back", () => {
     const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
     const { run, step } = attack(board([king, rook]), "king", "r");
     expect(unit(run, "r")!.hp).toBe(5 - DAMAGE.king);
@@ -223,13 +203,12 @@ describe("turn-based rules", () => {
     expect(turnSpent(fell.run)).toBe(true);
     expect(endTurn(fell.run).run.fell).toBeUndefined();
   });
-  it("doesn't counter an attacker the defender can't reach", () => {
-    // A black rook strikes a defending knight from the next square; knights can't hit adjacent squares.
+  it("doesn't counter an attacker the struck piece can't reach", () => {
+    // A black rook strikes a knight from the next square; knights can't hit adjacent squares.
     const knight: Unit = { id: "n", side: "white", kind: "knight", x: 0, y: 3, hp: 3 };
     const rook: Unit = { id: "r", side: "black", kind: "rook", x: 0, y: 2, hp: 5 };
-    const g = defend(board([{ ...king, x: 3, y: 3 }, knight, rook], { level: WALLED }), "n");
-    const { run } = endTurn(g);
-    expect(unit(run, "n")!.hp).toBe(3 - (DAMAGE.rook - 1));
+    const { run } = endTurn(board([{ ...king, x: 3, y: 3 }, knight, rook], { level: WALLED }));
+    expect(unit(run, "n")!.hp).toBe(3 - DAMAGE.rook);
     expect(unit(run, "r")!.hp).toBe(5);
   });
 
@@ -258,17 +237,13 @@ describe("turn-based rules", () => {
     const g = board([{ ...king, hp: 1 }, pawn("a", 0), pawn("b", 2)]);
     expect(kingThreat(g).attackers.sort()).toEqual(["a", "b"]);
   });
-  it("lets defending or blocking get the king out of check", () => {
-    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
-    const g = board([{ ...king, hp: 2 }, rook], { level: WALLED });
-    expect(inCheck(g)).toBe(true);
-    // Defending takes 1 off the hit: 1 damage no longer kills a 2-HP king.
-    expect(inCheck(defend(g, "king"))).toBe(false);
-    // Blocking works too: with a piece in the way, the rook two squares off can't get next to him this turn.
-    const far = board([{ ...king, hp: 2 }, { ...rook, y: 1 }], { level: WALLED });
+  it("lets blocking get the king out of check", () => {
+    // With a piece in the way, the rook two squares off can't get next to him this turn.
+    const far = board([{ ...king, hp: 2 }, { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5 }], { level: WALLED });
     expect(inCheck(far)).toBe(true);
     expect(inCheck({ ...far, units: [...far.units, { id: "w", side: "white", kind: "pawn", x: 1, y: 2, hp: 1 }] })).toBe(false);
-    expect(canEscape(g)).toBe(true);
+    // A rook of yours beside the gap can slide in to block.
+    expect(canEscape({ ...far, units: [...far.units, { id: "w", side: "white", kind: "rook", x: 0, y: 2, hp: 5 }] })).toBe(true);
   });
   it("won't let a move put your own king in check", () => {
     // The pawn can't reach the king on b1 this turn, but on b2 it could strike him from c4.
@@ -281,29 +256,28 @@ describe("turn-based rules", () => {
     expect(move(g, "king", { x: 0, y: 3 })).not.toBe(g);
   });
   it("won't let a strike whose counter would leave the king in check", () => {
-    // Striking the defending rook: it survives and counters for 2, leaving a 2-HP king it could finish next turn.
-    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5, defending: true };
+    // Striking the rook: it survives and counters for 2, leaving a 2-HP king it could finish next turn.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
     const g = board([{ ...king, hp: 4 }, rook]);
     expect(inCheck(g)).toBe(false);
     expect(strikeExposesKing(g, "king", "r")).toBe(true);
     expect(attack(g, "king", "r").run).toBe(g);
     expect(unsafeStrikes(g, "king")).toEqual(["r"]);
-    // It strikes back whether or not it defends; a healthier king can take it.
-    expect(unsafeStrikes(board([{ ...king, hp: 4 }, { ...rook, defending: false }]), "king")).toEqual(["r"]);
+    // A healthier king can take it.
     expect(unsafeStrikes(board([{ ...king, hp: 5 }, rook]), "king")).toEqual([]);
   });
   it("flags an enemy whose only walk-up strikes would leave the king in check", () => {
-    // A defending queen counters any next square for 3, leaving the 4-HP king in check from every square he could strike from.
-    const queen: Unit = { id: "q", side: "black", kind: "queen", x: 1, y: 1, hp: 9, defending: true };
+    // The queen counters any next square for 3, leaving the 4-HP king in check from every square he could strike from.
+    const queen: Unit = { id: "q", side: "black", kind: "queen", x: 1, y: 1, hp: 9 };
     const g = board([{ ...king, hp: 4 }, queen]);
     expect(inCheck(g)).toBe(false);
     expect(approaches(g, "king", "q")).toEqual([]);
     expect(unsafeStrikes(g, "king")).toEqual(["q"]);
   });
   it("doesn't offer a walk-up strike whose counter would leave the king in check", () => {
-    // From b2 the defending rook on b3 would counter for 2, leaving the king at 2 HP and in check. From a2 or c2
+    // From b2 the rook on b3 would counter for 2, leaving the king at 2 HP and in check. From a2 or c2
     // the king strikes diagonally, where a rook can't hit back, so those stay on offer.
-    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5, defending: true };
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5 };
     const g = board([{ ...king, hp: 4 }, rook]);
     expect(inCheck(g)).toBe(false);
     expect(approaches(g, "king", "r").map(t => `${t.x},${t.y}`).sort()).toEqual(["0,2", "2,2"]);
@@ -321,7 +295,7 @@ describe("turn-based rules", () => {
     // A plain move there is still refused: on its own it puts the king in check.
     expect(move(g, "king", { x: 1, y: 1 })).toBe(g);
     // But never a walk-up whose counter leaves the king in check.
-    const tough: Unit = { id: "r", side: "black", kind: "rook", x: 2, y: 1, hp: 5, defending: true };
+    const tough: Unit = { id: "r", side: "black", kind: "rook", x: 2, y: 1, hp: 5 };
     expect(walkAndStrike(board([{ ...king, x: 0, y: 0, hp: 4 }, tough]), "king", { x: 1, y: 1 }, "r")).toBeNull();
   });
   it("still lets you act while already in check, so an escape can take several steps", () => {
@@ -332,11 +306,14 @@ describe("turn-based rules", () => {
     expect(move(g, "w", { x: 4, y: 2 })).not.toBe(g);
   });
   it("won't end your turn in check while there's still a way out", () => {
-    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5 };
-    const g = board([{ ...king, hp: 2 }, rook], { level: WALLED });
+    // Your rook can slide in front of the king to block the enemy rook's way in.
+    const rook: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 1, hp: 5 };
+    const blocker: Unit = { id: "w", side: "white", kind: "rook", x: 0, y: 2, hp: 5 };
+    const g = board([{ ...king, hp: 2 }, rook, blocker], { level: WALLED });
+    expect(inCheck(g)).toBe(true);
     expect(endTurn(g).run).toBe(g);
     // Every piece has already acted and he's still in check: no way out, so the turn can end and the enemy may land the blow.
-    const stuck = { ...g, units: g.units.map(u => (u.id === "king" ? { ...u, moved: true, acted: true } : u)) };
+    const stuck = { ...g, units: g.units.map(u => (u.side === "white" ? { ...u, moved: true, acted: true } : u)) };
     expect(canEscape(stuck)).toBe(false);
     expect(endTurn(stuck).run).not.toBe(stuck);
   });
@@ -346,44 +323,16 @@ describe("turn-based rules", () => {
     const a = endTurn(g), b = endTurn(g);
     expect(a).toEqual(b);
     expect(a.run.phase).toBe("player"); expect(a.run.turn).toBe(2);
-    expect(a.run.units.filter(u => u.side === "white").every(u => !u.moved && !u.acted && !u.defending)).toBe(true);
+    expect(a.run.units.filter(u => u.side === "white").every(u => !u.moved && !u.acted)).toBe(true);
   });
 
   it("keeps stuck enemy pawns busy when they can do something useful", () => {
-    // King steps to a2: the pawn on a3 is blocked and bracing wouldn't save it, so it waits; the c-pawn marches.
+    // King steps to a2: the pawn on a3 is blocked, so it waits; the c-pawn marches.
     const level: Encounter = { reward: 0, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 1, 1], ["pawn", 2, 1, 1]], starts: [{ x: 1, y: 3 }] };
     const { run, steps } = endTurn(move(begin(testRun(level, ["king"], 0)), "king", { x: 0, y: 2 }));
     expect(unit(run, "enemy-0-0")).toMatchObject({ x: 0, y: 1 });
-    expect(unit(run, "enemy-0-0")!.defending).toBeFalsy();
     expect(unit(run, "enemy-0-1")).toMatchObject({ x: 2, y: 2 });
     expect(steps.map(s => s.kind)).toEqual(["move"]);
-  });
-  it("braces only when it would survive the hit or could hit back", () => {
-    // A cornered enemy knight on 2 HP next to the king (2 damage) has no strike or useful jump: only the block keeps it alive, so it braces.
-    const knight: Unit = { id: "n", side: "black", kind: "knight", x: 3, y: 0, hp: 2 };
-    const { run } = endTurn(board([{ ...king, x: 2, y: 1 }, knight]));
-    expect(unit(run, "n")!.defending).toBe(true);
-    // On 3 HP it survives the hit anyway, so bracing would be wasted.
-    expect(unit(endTurn(board([{ ...king, x: 2, y: 1 }, { ...knight, hp: 3 }])).run, "n")!.defending).toBeFalsy();
-    // Bracing spends one of the enemy's defends; with none left it can't brace.
-    expect(defendsLeft(run, "black")).toBe(RULES.defends - 1);
-    const empty = board([{ ...king, x: 2, y: 1 }, knight], { defended: { black: RULES.defends } });
-    expect(unit(endTurn(empty).run, "n")!.defending).toBeFalsy();
-  });
-  it("gives each side a few defends per battle, one spent per defend", () => {
-    const g = board([king, { id: "p", side: "black", kind: "pawn", x: 5, y: 0, hp: 1 }]);
-    const once = defend(g, "king");
-    expect([defendsLeft(once, "white"), defendsLeft(once, "black")]).toEqual([RULES.defends - 1, RULES.defends]);
-    const spent: Run = { ...g, defended: { white: RULES.defends } };
-    expect(canDefend(spent, unit(spent, "king")!)).toBe(false);
-    expect(defend(spent, "king")).toBe(spent);
-    // A save from before the limit carries no count: a full pool.
-    expect(defendsLeft(readRun(stored(newRun()))!, "white")).toBe(RULES.defends);
-  });
-  it("refills both sides' defends when the next battle is dealt", () => {
-    const camp: Run = { ...newRun(), phase: "camp", defended: { white: RULES.defends, black: 1 } };
-    const next = leaveCamp(camp);
-    expect([defendsLeft(next, "white"), defendsLeft(next, "black")]).toEqual([RULES.defends, RULES.defends]);
   });
   it("doesn't march pawns away from every target", () => {
     // King behind the pawn's line on the 6×6 bridge: nothing ahead to chase, and the far row is too far.
@@ -450,6 +399,9 @@ describe("turn-based rules", () => {
     expect(readRun(stored({ ...g, units: g.units.filter(u => u.side === "white") }))).toBeNull();
     expect(readRun(stored({ ...g, units: [...g.units, { id: "x", side: "black", kind: "constructor", x: 3, y: 0, hp: 1 }] }))).toBeNull();
     expect(readRun(stored({ ...g, turn: 0 }))).toBeNull();
+    // Saves from when pieces could defend still load; the old fields mean nothing now.
+    const old = { ...g, defended: { white: 2, black: 1 }, units: g.units.map(u => ({ ...u, defending: true })) };
+    expect(readRun(stored(old))).not.toBeNull();
   });
   it("fits HP to the rules: a spawn without HP is full, one above the max and an old save come back at the max", () => {
     const level: Encounter = { reward: 0, width: 4, height: 4, walls: [], spawns: [["pawn", 0, 0], ["rook", 2, 0, 9], ["knight", 3, 0, 1]], starts: [{ x: 1, y: 3 }] };
@@ -477,10 +429,10 @@ describe("turn-based rules", () => {
     const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };
     const { steps } = endTurn(begin(testRun(level, ["king"], 0, ALL)));
     expect(new Set(steps.map(s => s.actor))).toEqual(new Set(["enemy-0-0", "enemy-0-1", "enemy-0-2"]));
-    // Each piece moves at most once and strikes or defends at most once.
+    // Each piece moves at most once and strikes at most once.
     for (const id of ["enemy-0-0", "enemy-0-1", "enemy-0-2"]) {
       expect(steps.filter(s => s.actor === id && s.kind === "move").length).toBeLessThanOrEqual(1);
-      expect(steps.filter(s => s.actor === id && (s.kind === "strike" || s.kind === "defend")).length).toBeLessThanOrEqual(1);
+      expect(steps.filter(s => s.actor === id && s.kind === "strike").length).toBeLessThanOrEqual(1);
     }
   });
   it("lets every one of your pieces move and strike in the same turn when every piece acts", () => {
@@ -555,25 +507,23 @@ describe("turn-based rules", () => {
       const k = unit(moved, "king")!;
       expect(sidelined(moved, k)).toBe(true);
       expect(moveTargets(moved, k)).toEqual([]);
-      expect(canDefend(moved, k)).toBe(false);
-      expect(defend(moved, "king")).toBe(moved);
       // The rook itself may still strike.
       expect(attack(moved, "r", "f").run).not.toBe(moved);
-      // Striking or defending without moving takes the turn too.
-      const braced = defend(start(), "king");
-      expect(moveTargets(braced, unit(braced, "r")!)).toEqual([]);
+      // Striking without moving takes the turn too.
+      const struck = attack(move(start(), "r", { x: 0, y: 1 }), "r", "f").run;
+      expect(moveTargets(struck, unit(struck, "king")!)).toEqual([]);
     });
     it("passes the turn once the piece has acted, or has moved with nothing left worth doing", () => {
       expect(turnSpent(start())).toBe(false);
       // Next to the enemy rook: it can strike, so the turn waits.
       expect(turnSpent(move(start(), "r", { x: 0, y: 1 }))).toBe(false);
       expect(turnSpent(attack(move(start(), "r", { x: 0, y: 1 }), "r", "f").run)).toBe(true);
-      expect(turnSpent(defend(start(), "r"))).toBe(true);
-      // The king steps to a square no enemy can reach: nothing to strike, nothing to defend against.
+      // The king steps to a square with nothing in reach to strike.
       const far = board([{ ...king, x: 3, y: 3 }, { ...foe, x: 0, y: 0, kind: "pawn", hp: 1 }], { rules: ONE, level: BRIDGE });
       expect(turnSpent(move(far, "king", { x: 3, y: 2 }))).toBe(true);
       // Every piece acting never passes the turn on its own.
-      expect(turnSpent(defend(board(start().units, { rules: ALL }), "r"))).toBe(false);
+      const all = board(start().units, { rules: ALL });
+      expect(turnSpent(attack(move(all, "r", { x: 0, y: 1 }), "r", "f").run)).toBe(false);
     });
     it("makes the enemy act with one piece: its best action and that piece's follow-up", () => {
       const level: Encounter = { reward: 0, width: 4, height: 6, walls: [], spawns: [["pawn", 0, 0, 1], ["pawn", 3, 0, 1], ["rook", 1, 0, 5]], starts: [{ x: 1, y: 5 }] };

@@ -26,7 +26,6 @@ const TAKES: Take[] = [
   { id: "idle", label: "Idle", steps: [] },
   { id: "move", label: "Move", steps: [["move", 0]] },
   { id: "attack", label: "Attack", steps: [["attack", 0]] },
-  { id: "defend", label: "Defend", steps: [["defend", 0]] },
   { id: "hit", label: "Hit", steps: [["hit", 0]] },
   { id: "death", label: "Death", steps: [["death", 0]] },
   { id: "cheer", label: "Cheer", steps: [["cheer", 0]] },
@@ -51,7 +50,6 @@ export function Stage({ id, onPick }: { id: SpriteId; onPick: (id: SpriteId) => 
   const [facing, setFacing] = useState<1 | -1>(side === "white" ? 1 : -1);
   const [large, setLarge] = useState(true);
   const [wounded, setWounded] = useState(false);
-  const [guarding, setGuarding] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const keys = useRef(0);
   const stop = () => { timers.current.forEach(clearTimeout); timers.current = []; };
@@ -76,7 +74,7 @@ export function Stage({ id, onPick }: { id: SpriteId; onPick: (id: SpriteId) => 
     <div className={`stage-canvas ${large ? "large" : "board"}`} style={{ "--spd": spd } as CSSProperties} data-take={anim.take}>
       <div className="stage-board" aria-hidden="true">{Array.from({ length: 25 }, (_, i) => <i key={i} className={(i % 5 + Math.floor(i / 5)) % 2 ? "grass" : "sand"} />)}</div>
       <div className="stage-piece">
-        <PieceRig key={anim.key} kind={kind} side={side} action={anim.action} facing={facing} wounded={wounded} defending={guarding || anim.action === "defend"} seed="stage" skin={skin} />
+        <PieceRig key={anim.key} kind={kind} side={side} action={anim.action} facing={facing} wounded={wounded} seed="stage" skin={skin} />
       </div>
     </div>
     <div className="stage-controls">
@@ -95,7 +93,6 @@ export function Stage({ id, onPick }: { id: SpriteId; onPick: (id: SpriteId) => 
       </div></div>
       <div className="stage-field"><span>State</span><div className="seg" role="group" aria-label="State">
         <button type="button" aria-pressed={wounded} onClick={() => setWounded(w => !w)}>Wounded</button>
-        <button type="button" aria-pressed={guarding} onClick={() => setGuarding(g => !g)}>Guarding</button>
       </div></div>
       <Segmented label="Speed" value={speed} options={SPEEDS} onPick={v => { stop(); setAnim({ action: "idle", key: ++keys.current, take: "idle" }); setSpeed(v); }} name={v => SPEED_LABEL[v]} />
       <Segmented label="Facing" value={facing} options={[-1, 1] as (1 | -1)[]} onPick={setFacing} name={v => v === 1 ? "Right" : "Left"} />

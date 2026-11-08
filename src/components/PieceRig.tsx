@@ -8,25 +8,17 @@ import { CrownFx, SpriteImage, hasSkinSprite, spriteBox } from "./SpriteRig";
  * moved whole: src/rig.css holds the groups and shared effects, src/sprite.css the keyframes. */
 export type RigKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type RigSide = "white" | "black";
-export type RigAction = "idle" | "move" | "attack" | "defend" | "hit" | "death" | "cheer" | "leap" | "leap-back" | "mate";
+export type RigAction = "idle" | "move" | "attack" | "hit" | "death" | "cheer" | "leap" | "leap-back" | "mate";
 
 export const INK = "#382f2e";
-const GOLD = "#e7ba58", STEEL = "#cfd6d8", WOOD = "#a77a4f", WOOD_SH = "#80583a", PATROL_BLUE = "#3d5fc4";
+const GOLD = "#e7ba58";
 /** How long each one-shot action plays at 1x (ms); the keyframes in rig.css and sprite.css use the same values. */
-export const RIG_MS: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, defend: 340, hit: 420, death: 900, cheer: 1400, leap: 340, "leap-back": 420, mate: 2600 };
-const o = { stroke: INK, strokeWidth: 3.5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
-const f = { stroke: INK, strokeWidth: 2.2, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
-
-function Shield({ rebel, at: [x, y] }: { rebel: boolean; at: [number, number] }) {
-  return <g className="shield" style={{ transformOrigin: `${x}px ${y}px` }}>{rebel
-    ? <><circle cx={x} cy={y} r="11" fill={WOOD} {...o} /><path d={`M${x - 10} ${y} L${x + 10} ${y} M${x} ${y - 10} L${x} ${y + 10}`} stroke={WOOD_SH} strokeWidth="2" /><circle cx={x} cy={y} r="3.4" fill={STEEL} {...f} /></>
-    : <><path d={`M${x - 10} ${y - 11} L${x + 10} ${y - 11} L${x + 9} ${y + 3} Q${x} ${y + 13} ${x - 9} ${y + 3} Z`} fill={PATROL_BLUE} {...o} /><path d={`M${x} ${y - 10} L${x} ${y + 9} M${x - 8} ${y - 3} L${x + 8} ${y - 3}`} stroke={GOLD} strokeWidth="2.6" /></>}</g>;
-}
+export const RIG_MS: Record<RigAction, number> = { idle: 0, move: 480, attack: 560, hit: 420, death: 900, cheer: 1400, leap: 340, "leap-back": 420, mate: 2600 };
 
 /** `skin` is a skin id from components/skins; it applies to rebels of the skin's kind that have a
  * painted sprite, and is ignored otherwise. */
-export function PieceRig({ kind, side, action = "idle", defending = false, facing = 1, seed = 0, wounded = false, skin: skinId }: {
-  kind: RigKind; side: RigSide; action?: RigAction; defending?: boolean; facing?: 1 | -1; seed?: number | string; wounded?: boolean; skin?: string;
+export function PieceRig({ kind, side, action = "idle", facing = 1, seed = 0, wounded = false, skin: skinId }: {
+  kind: RigKind; side: RigSide; action?: RigAction; facing?: 1 | -1; seed?: number | string; wounded?: boolean; skin?: string;
 }) {
   const rebel = side === "white";
   const found = skinById(skinId), skin = found && rebel && found.kind === kind && hasSkinSprite(found.id) ? found : undefined;
@@ -34,7 +26,7 @@ export function PieceRig({ kind, side, action = "idle", defending = false, facin
   // A stable per-piece number (ids hash), so idle loops don't jump when the cast changes.
   const n = typeof seed === "number" ? seed : [...seed].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7);
   const style = { "--seed": `${(n % 7) * -0.37}s`, "--face": facing } as CSSProperties;
-  const states = `act-${action} ${defending ? "is-defending" : ""} ${wounded ? "is-wounded" : ""}`;
+  const states = `act-${action} ${wounded ? "is-wounded" : ""}`;
   return <svg className={`rig rig-${kind} ${rebel ? "rebel" : "patrol"} ${skin ? `skin-${skin.id}` : ""} ${states}`} viewBox="0 0 100 120" style={style} aria-hidden="true">
     {rebel ? <ellipse className="rig-shadow" cx="50" cy="108" rx="28" ry="6" fill={INK} opacity=".22" />
       : <path className="rig-shadow" d="M22 108 L50 102 L78 108 L50 114 Z" fill={INK} opacity=".22" />}
@@ -42,7 +34,6 @@ export function PieceRig({ kind, side, action = "idle", defending = false, facin
     <g className="fx-lines" stroke={INK} strokeWidth="2.4" strokeLinecap="round"><path d="M4 60 L18 60 M2 74 L20 74 M6 88 L16 88" /></g>
     <g className="flip"><g className="hop"><g className="squash">
       {sprite && <SpriteImage box={sprite} />}
-      <Shield rebel={rebel} at={[Math.max(30, (sprite?.x ?? 20) + 10), 84]} />
     </g></g></g>
     <g className="fx-side">
       <path className="fx-burst" d="M88 46 L94 36 L95 48 L106 46 L97 54 L104 62 L93 60 L90 70 L85 60 L74 62 L81 54 L74 46 L85 48 Z" fill="#ffd34d" stroke={INK} strokeWidth="2" strokeLinejoin="round" />

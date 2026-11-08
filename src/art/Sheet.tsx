@@ -8,7 +8,7 @@ import { skinById } from "../components/skins";
 type Spec = { kind: RigKind; side: RigSide; skin?: string };
 const KINDS: RigKind[] = ["pawn", "knight", "bishop", "rook", "queen", "king"];
 const SIZES = [48, 84, 192];
-const ACTIONS: RigAction[] = ["move", "attack", "defend", "hit", "death", "cheer"];
+const ACTIONS: RigAction[] = ["move", "attack", "hit", "death", "cheer"];
 const KNIGHT_ACTIONS: RigAction[] = ["leap", "leap-back"];
 /** Only kings play the checkmate finale, which throws the crown off. */
 const KING_ACTIONS: RigAction[] = ["mate"];
@@ -25,9 +25,9 @@ export function parseSheet(q: string): Spec[] {
 const facing = (side: RigSide) => side === "white" ? 1 : -1;
 const name = (s: Spec) => `${s.side === "white" ? "Rebel" : "Patrol"} ${s.kind}${s.skin ? ` · skin: ${skinById(s.skin)!.name}` : ""}`;
 
-function Rig({ spec, px, action = "idle", frac = .25, wounded, defending, label }: { spec: Spec; px: number; action?: RigAction; frac?: number; wounded?: boolean; defending?: boolean; label?: string }) {
+function Rig({ spec, px, action = "idle", frac = .25, wounded, label }: { spec: Spec; px: number; action?: RigAction; frac?: number; wounded?: boolean; label?: string }) {
   return <figure className="sheet-cell" data-frac={frac} data-ms={RIG_MS[action] || 1000} data-px={px}>
-    <div style={{ width: px }}><PieceRig kind={spec.kind} side={spec.side} facing={facing(spec.side)} action={action} wounded={wounded} defending={defending ?? action === "defend"} seed="sheet" skin={spec.skin} /></div>
+    <div style={{ width: px }}><PieceRig kind={spec.kind} side={spec.side} facing={facing(spec.side)} action={action} wounded={wounded} seed="sheet" skin={spec.skin} /></div>
     {label && <figcaption>{label}</figcaption>}
   </figure>;
 }
@@ -43,7 +43,6 @@ function RigRows({ spec }: { spec: Spec }) {
     <div className="sheet-row">
       <Rig spec={spec} px={84} label="idle" />
       <Rig spec={spec} px={84} wounded label="wounded" />
-      <Rig spec={spec} px={84} defending label="guarding" />
     </div>
     {[...ACTIONS, ...(spec.kind === "knight" ? KNIGHT_ACTIONS : []), ...(spec.kind === "king" ? KING_ACTIONS : [])].map(a => <div key={a} className="sheet-row sheet-frames"><b>{a}</b>
       {FRACS.map(f => <Rig key={f} spec={spec} px={84} action={a} frac={f} label={`${Math.round(f * 100)}%`} />)}</div>)}
