@@ -16,7 +16,7 @@
       "height": 5,
       "walls": [],
       "switches": [{ "type": "spears", "x": 0, "y": 4, "rows": [1, 2], "damage": 2 }],
-      "spawns": [["knight", 0, 1], ["pawn", 1, 1], ["pawn", 2, 1], ["pawn", 3, 1], ["pawn", 4, 1], ["knight", 5, 1]],
+      "spawns": [["pawn", 2, 1], ["pawn", 3, 1], ["knight", 2, 0], ["pawn", 1, 1]],
       "starts": [{ "x": 2, "y": 4 }, { "x": 3, "y": 4 }],
       "tutorial": { "army": [{ "kind": "king", "x": 2, "y": 4 }, { "kind": "pawn", "x": 3, "y": 4 }] }
     },
