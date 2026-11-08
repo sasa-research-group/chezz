@@ -51,6 +51,9 @@ export type Run = {
   puzzle?: number;
   /** Crumbling tiles that have fallen this battle (pits now), and the gates standing open. */
   collapsed?: Pos[]; gatesOpen?: Pos[];
+  /** The stall clock: full turns in a row in which no piece lost HP to a blow, a burn or a fall, and
+   * each piece's HP when the count was last taken (tiring is subtracted from it, so it never resets the clock). */
+  quiet?: number; mark?: Record<string, number>;
 };
 export type RecruitKind = "pawn" | "bishop" | "rook";
 export const RECRUIT_KINDS: RecruitKind[] = ["pawn", "bishop", "rook"];
@@ -61,6 +64,11 @@ export type PromoteTo = "queen" | "rook" | "bishop" | "knight";
 export type Step = { text: string; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "defend" | "promote" | "alt"; target?: string; killed: string[]; from?: Kind };
 
 export const ENERGY = 4;
+/** After this many quiet turns every piece but the kings tires: 1 HP at the start of its side's turn. */
+export const TIRE_AFTER = 3;
+/** After this many quiet turns both sides fall back and the battle ends without a winner. */
+export const RETREAT_AFTER = 8;
+const hpMark = (units: Unit[]) => Object.fromEntries(units.map(u => [u.id, u.hp]));
 /** Every strike costs the same, knights included: a knight can jump (2) and strike (2) in one turn. */
 export const STRIKE_COST = 2;
 export const HP: Record<Kind, number> = { king: 5, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1 };
@@ -176,7 +184,8 @@ function spawn(g: Run, army: Unit[]): Run {
   // An enemy spawn without a named cast is a plain piece (royal costume, no ability): the road's patrol.
   const enemies = e.spawns.map(([kind, x, y, hp, variant], i): Unit => ({ id: `enemy-${g.encounter}-${i}`, kind, side: "black", variant, x, y, hp }));
   const gatesOpen = e.gates?.filter(x => x.open).map(x => x.at);
-  return { ...g, promoting: undefined, walls: undefined, broken: undefined, flags: undefined, collapsed: undefined, gatesOpen: gatesOpen?.length ? gatesOpen : undefined, units: [...whites, ...enemies], phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
+  const units = [...whites, ...enemies];
+  return { ...g, promoting: undefined, walls: undefined, broken: undefined, flags: undefined, collapsed: undefined, gatesOpen: gatesOpen?.length ? gatesOpen : undefined, quiet: undefined, mark: hpMark(units), units, phase: "player", turn: 1, energy: ENERGY, log: [e.story] };
 }
 export function newRun(): Run {
   const g: Run = { version: 2, encounter: 0, turn: 1, phase: "player", gold: 2, energy: ENERGY, units: [], log: [], history: [], nextId: 1 };
@@ -189,7 +198,8 @@ export function startPuzzle(i: number): Run {
   const army = (e.army ?? []).map(([kind, x, y, hp, variant], n): Unit => ({ id: kind === "king" ? "king" : `ally-${n}`, side: "white", kind, variant: variant ?? "rebel", hp, x, y }));
   const spawned = spawn({ ...g, units: army }, army);
   // Puzzle armies stand where the puzzle puts them, not on the road's starts.
-  return { ...spawned, units: [...army, ...spawned.units.filter(u => u.side === "black")] };
+  const units = [...army, ...spawned.units.filter(u => u.side === "black")];
+  return { ...spawned, units, mark: hpMark(units) };
 }
 
 function finish(g: Run): Run {
@@ -490,9 +500,24 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
   const turn = run.turn + 1;
   const limit = boardOf(run).turns;
   if (limit !== undefined && turn > limit) return { run: { ...run, phase: "defeat", log: ["Out of moves. The Grandmaster resets the board.", ...run.log] }, steps, spent };
+  // The stall clock: did anyone lose HP since the count was last taken? (A save from before it counts from here.)
+  // The enemy's own tiring was taken off the mark during its turn, so read the mark it left.
+  const mark = run.mark ?? hpMark(g.units);
+  const bled = Object.entries(mark).some(([id, hp]) => (run.units.find(u => u.id === id)?.hp ?? 0) < hp);
+  const quiet = bled ? 0 : (g.quiet ?? 0) + 1;
+  if (quiet >= RETREAT_AFTER) return { run: retreat(run), steps, spent };
   const units = run.units.map((u): Unit => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, variant: u.variant, hp: u.hp, x: u.x, y: u.y, mods: u.mods } : u));
-  const fresh = finish(startOfTurn({ ...run, units, energy: ENERGY, turn }, "white", turn));
+  const fresh = finish(startOfTurn({ ...run, units, energy: ENERGY, turn, quiet: quiet || undefined, mark: hpMark(units) }, "white", turn));
   return { run: fresh, steps, spent };
+}
+/** Too many quiet turns: both sides fall back. On the road the army slips on to the hideout without the
+ * reward (the last road can't be slipped past: the patrol holds the bridge); a Guild puzzle is lost. */
+function retreat(g: Run): Run {
+  const text = `${RETREAT_AFTER} quiet turns: both sides fall back.`;
+  if (g.puzzle !== undefined) return { ...g, phase: "defeat", log: [`${text} The Grandmaster resets the board.`, ...g.log] };
+  if (g.encounter === ENCOUNTERS.length - 1) return { ...g, phase: "defeat", log: [`${text} The patrol holds the bridge, and your rebellion ends here.`, ...g.log] };
+  const units = g.units.filter(u => u.side === "white").map(u => abilityOf(u)?.atCamp?.(u, maxHp(u)) ?? u);
+  return { ...g, units, quiet: undefined, mark: undefined, phase: "camp", log: [`${text} You slip past to the hideout, without the reward.`, ...g.log] };
 }
 /** The end of `side`'s turn: each of its pieces' endTurn hooks run (Marmalade dozes off again). */
 function endOfTurn(g: Run, side: Side): Run {
@@ -519,7 +544,19 @@ function startOfTurn(g: Run, side: Side, turn: number): Run {
     const now = run.units.find(x => x.id === u.id);
     if (hook && now && now.hp > 0) run = hook(run, now);
   }
-  return removeDead(run);
+  // A long lull tires everyone but the kings. Tiring is taken off the clock's mark too, so it never resets the clock.
+  if ((run.quiet ?? 0) >= TIRE_AFTER) {
+    const tired = run.units.filter(u => u.side === side && u.kind !== "king" && u.hp > 0);
+    if (tired.length) {
+      const mark = { ...(run.mark ?? {}) };
+      for (const u of tired) if (u.id in mark) mark[u.id] -= 1;
+      run = note({ ...run, mark, units: run.units.map(u => (tired.some(t => t.id === u.id) ? { ...u, hp: u.hp - 1 } : u)) }, `${run.quiet} quiet turns: ${side === "white" ? "your" : "the enemy's"} pieces tire (1 each).`);
+    }
+  }
+  const settled = removeDead(run);
+  // A piece that tired to death took nothing but tiring: forget it, so its absence doesn't read as a blow.
+  const mark = settled.mark && Object.fromEntries(Object.entries(settled.mark).filter(([id, hp]) => settled.units.some(u => u.id === id) || hp > 0));
+  return mark ? { ...settled, mark } : settled;
 }
 
 export function campReason(g: Run, choice: CampChoice): string {
@@ -561,6 +598,8 @@ export function readRun(raw: string | null): Run | null {
     if (g.units.some(u => (u.variant !== undefined && !VARIANTS.includes(u.variant)) || !okMods(u.mods))) return null;
     const okPosList = (l: unknown) => l === undefined || (Array.isArray(l) && l.every(p => p && Number.isInteger(p.x) && Number.isInteger(p.y)));
     if (!okPosList(g.walls) || !okPosList(g.broken) || !okPosList(g.collapsed) || !okPosList(g.gatesOpen) || !okMods(g.flags)) return null;
+    if (g.quiet !== undefined && (!Number.isInteger(g.quiet) || g.quiet < 0 || g.quiet >= RETREAT_AFTER)) return null;
+    if (g.mark !== undefined && (!g.mark || typeof g.mark !== "object" || Array.isArray(g.mark) || !Object.values(g.mark).every(v => Number.isFinite(v)))) return null;
     const e = boardOf(g);
     if (g.collapsed?.some(c => !e.crumbling?.some(t => same(t, c))) || g.gatesOpen?.some(p => !e.gates?.some(x => same(x.at, p)))) return null;
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(HP, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0 || u.hp > maxHp(u))) return null;

@@ -165,3 +165,7 @@
 .puzzle-end{text-align:center}.puzzle-end-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;margin-top:8px}.puzzle-end-actions .secondary-button,.puzzle-end-actions .primary-button{margin:0}
 .battle-banner.solved{background:#7fd38c}.battle-banner.timeout{background:#e9dec5;color:#382f2e}
 @media(max-width:700px){.guild-puzzles{grid-template-columns:1fr}.guild-puzzles button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:10px}.guild-puzzles h2{font-size:16px}.puzzle-end-actions{grid-template-columns:1fr}}
+
+/* The stall clock in the arena's top line: quiet turns, amber once pieces start to tire. */
+.quiet-clock{font-weight:inherit;color:inherit;opacity:.8}
+.quiet-clock.tiring{color:#b5651d;opacity:1}

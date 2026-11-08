@@ -33,7 +33,7 @@ const modsKey = (u: Unit) => (u.mods ? Object.keys(u.mods).sort().map(k => `${k}
  * Unit order, log, history, gold and the turn number (ability timers carry absolute turns) are left out. */
 export function boardKey(g: Run): string {
   const units = g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}{${modsKey(u)}}`).sort();
-  return `${g.phase}|${g.energy}|${g.promoting ?? ""}|${units.join("|")}`;
+  return `${g.phase}|${g.energy}|${g.promoting ?? ""}|q${g.quiet ?? 0}|${units.join("|")}`;
 }
 /** What the enemy's reply can see: the board without your pool, moved and acted flags, which it ignores. */
 const replyKey = (g: Run, defends: boolean) => g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${defends && u.defending ? "d" : ""}{${modsKey(u)}}`).sort().join("|");

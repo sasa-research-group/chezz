@@ -85,6 +85,16 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
   your king counts toward check (he takes it before he can act).
 - The barracks sells rebels and misfits by kind; recruits are `{ kind, variant }`.
 
+## Stall clock
+- `run.quiet` counts full turns in a row in which no piece lost HP to a blow,
+  a burn or a fall (`run.mark` holds each piece's HP when the count was last
+  taken). After 3 (`TIRE_AFTER`) every piece but the kings tires: 1 HP at the
+  start of its side's turn, ignoring defend and abilities. Tiring never resets
+  the clock; any real damage does. After 8 (`RETREAT_AFTER`) both sides fall
+  back: on the road the army slips on to the hideout without the reward (on
+  the last road the patrol holds the bridge and the run ends); a Guild puzzle
+  is lost. The arena's top line shows QUIET n/8, amber once pieces tire.
+
 ## Boards and tiles
 - Encounters may add tiles (`src/game/board.ts` reads them; `settle()` applies
   them to every move, shove and roll-on so they behave alike):

@@ -318,7 +318,7 @@ Picks follow the judges' totals, then two tie-breakers: each kind's three varian
 
 The ideation panel's final pass raised these; the prototype ships the simplest reading of each, so they are Wesley's calls:
 
-- Stall clock: ship exposure (1 to every non-king piece of both sides, ignoring brace) after 3 quiet turns and a retreat after 8? Recommended: yes, as specced; it is one counter on Run and the 3/8 numbers can be tuned from your play.
+- ~~Stall clock~~: shipped as specced (Wesley, Nov 8): tiring after 3 quiet turns, retreat after 8; see docs/turn-based.md.
 - Grumble always crowns a knight, both sides, no picker (with the cast kept that is Nobody: 2 HP, leaves a suit)? Recommended: yes; it kills the 4-row hop-queen, the frog-into-empty-armour joke lands, and the picker stays honest for the other pawns.
 - Enemy pawns that crown on cast boards become Her Wigness (your pawns deal her 0 and she ignores them), relying on the stall clock to end corks; or crown a plain queen? Recommended: ship Wigness; it is the one consistent promotion rule and corks now cost both sides.
 - Nobody's suit: any piece may topple it for 2 energy (interactive, costs the Royals a swing) versus a suit that crumbles on its own after 3 turns (no new core action)? Recommended: topple; it is a decision for both sides, not a timer.

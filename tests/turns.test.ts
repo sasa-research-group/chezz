@@ -5,7 +5,7 @@ import { abilityOf, variantOf } from "../src/game/abilities";
 import { playTurn } from "./turns-strategy";
 
 const king: Unit = { id: "king", side: "white", kind: "king", x: 1, y: 3, hp: 5 };
-function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), units, ...extra }; }
+function board(units: Unit[], extra: Partial<Run> = {}): Run { return { ...newRun(), units, mark: undefined, ...extra }; }
 const unit = (g: Run, id: string) => g.units.find(u => u.id === id);
 
 describe("turn-based rules", () => {
@@ -405,6 +405,46 @@ describe("statuses the rules read", () => {
     const spent: Unit = { id: "r", side: "black", kind: "rook", x: 1, y: 2, hp: 5, moved: true, acted: true, defending: true };
     const g = board([king, spent]);
     expect(kingThreat(g)).toEqual({ damage: 3, attackers: ["r"] });
+  });
+});
+
+describe("the stall clock", () => {
+  // Encounter 1 (6x4, not the last road). A black queen boxed into the corner by walls: nobody can reach anybody.
+  const boxed = (extra: Unit[] = []): Run => board([{ ...king, x: 0, y: 3 }, { id: "q", side: "black", kind: "queen", x: 5, y: 0, hp: 9 }, ...extra], { encounter: 1, walls: [{ x: 4, y: 0 }, { x: 4, y: 1 }, { x: 5, y: 1 }] });
+  const turns = (g: Run, n: number) => { for (let i = 0; i < n; i++) g = endTurn(g).run; return g; };
+
+  it("counts full turns in which nobody lost HP", () => {
+    expect(turns(boxed(), 1).quiet).toBe(1);
+    expect(turns(boxed(), 2).quiet).toBe(2);
+  });
+  it("after 3 quiet turns every piece but the kings tires: 1 at the start of its side's turn, braced or not", () => {
+    const rook: Unit = { id: "r", side: "white", kind: "rook", x: 1, y: 3, hp: 5 };
+    const g = turns(boxed([rook]), 3);
+    expect(g.quiet).toBe(3);
+    expect(unit(g, "r")!.hp).toBe(4);
+    expect(unit(g, "king")!.hp).toBe(5);
+    expect(g.log.some(l => /pieces tire/.test(l))).toBe(true);
+    const next = endTurn(defend(g, "r")).run;
+    expect(unit(next, "q")!.hp).toBe(8);
+    expect(unit(next, "r")!.hp).toBe(3);
+    // Tiring is not fighting: the clock keeps running.
+    expect(next.quiet).toBe(4);
+  });
+  it("a blow, a burn tick or a fall resets it", () => {
+    const near: Run = board([king, { id: "p", side: "black", kind: "pawn", x: 0, y: 2, hp: 1 }]);
+    expect(endTurn(near).run.quiet ?? 0).toBe(0);
+    const burning = boxed([{ id: "r", side: "white", kind: "rook", x: 1, y: 3, hp: 5, mods: { burning: 2 } }]);
+    // The burn ticks at the start of your next turn, so the turn after it is the one that is not quiet.
+    expect(turns(burning, 1).quiet).toBe(1);
+    expect(turns(burning, 2).quiet ?? 0).toBe(0);
+  });
+  it("after 8 quiet turns both sides fall back: the road goes on without the reward", () => {
+    const g = turns(boxed(), 8);
+    expect(g.phase).toBe("camp");
+    expect(g.gold).toBe(boxed().gold);
+    expect(g.log[0]).toMatch(/fall back/);
+    expect(readRun(JSON.stringify(g))).not.toBeNull();
+    expect(leaveCamp(g).encounter).toBe(2);
   });
 });
 
