@@ -2,7 +2,7 @@
  * reach in one turn (playerOutcomes), plays the deterministic enemy reply (endTurn) and searches,
  * shortest line first, for a win against this AI (solve). Built for proving puzzle encounters in
  * tests; see docs/solver.md. Pure like turns.ts: no DOM, no randomness, inputs are never mutated. */
-import { DAMAGE, ENERGY, HP, STRIKE_COST, abilityOf, alt, altActions, approaches, attack, attackTargets, boardOf, coord, defend, endTurn, inCheck, move, moveTargets, passable, promote, reaches, walkAndStrike } from "./turns";
+import { DAMAGE, ENERGY, HP, STRIKE_COST, abilityOf, alt, altActions, strikeCostOf, approaches, attack, attackTargets, boardOf, coord, defend, endTurn, inCheck, move, moveTargets, passable, promote, reaches, walkAndStrike } from "./turns";
 import type { Pos, PromoteTo, Run, Step, Target, Unit } from "./turns";
 import type { Ability } from "./abilities";
 
@@ -31,18 +31,21 @@ const modsKey = (u: Unit) => (u.mods ? Object.keys(u.mods).sort().map(k => `${k}
 /** Everything the rules care about in a position, so equal keys play out identically: each unit's id,
  * kind, square, hp, turn flags and ability state, plus the pool, a pending promotion and the phase.
  * Unit order, log, history, gold and the turn number (ability timers carry absolute turns) are left out. */
+/** The board state abilities and tiles change (raised and smashed walls, fallen tiles, open gates, run flags), sorted so order never matters. */
+const sortedPos = (l?: Pos[]) => (l ?? []).map(p => `${p.x},${p.y}`).sort().join(";");
+const tilesKey = (g: Run) => `${sortedPos(g.walls)}/${sortedPos(g.broken)}/${sortedPos(g.collapsed)}/${sortedPos(g.gatesOpen)}/${g.flags ? Object.keys(g.flags).sort().map(k => `${k}=${String(g.flags![k])}`).join(",") : ""}`;
 export function boardKey(g: Run): string {
   const units = g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}{${modsKey(u)}}`).sort();
-  return `${g.phase}|${g.energy}|${g.promoting ?? ""}|q${g.quiet ?? 0}|${units.join("|")}`;
+  return `${g.phase}|${g.energy}|${g.promoting ?? ""}|q${g.quiet ?? 0}|${tilesKey(g)}|${units.join("|")}`;
 }
 /** What the enemy's reply can see: the board without your pool, moved and acted flags, which it ignores. */
-const replyKey = (g: Run, defends: boolean) => g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${defends && u.defending ? "d" : ""}{${modsKey(u)}}`).sort().join("|");
+const replyKey = (g: Run, defends: boolean) => `${tilesKey(g)}|q${g.quiet ?? 0}|` + g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${defends && u.defending ? "d" : ""}{${modsKey(u)}}`).sort().join("|");
 
 /** Hooks the solver uses to keep the turn's enumeration small. `prune` drops a position and everything
  * after it (only sound when nothing reachable from it can win); `defenders` limits who may defend. */
 type Hooks = { prune?: (g: Run) => boolean; defenders?: (g: Run) => Set<string> | null };
 /** Within one turn the units array keeps its order (the rules only map and filter it), so the key can skip the sort. */
-const turnKey = (g: Run) => `${g.phase}|${g.energy}|${g.promoting ?? ""}|` + g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}{${modsKey(u)}}`).join("|");
+const turnKey = (g: Run) => `${g.phase}|${g.energy}|${g.promoting ?? ""}|${tilesKey(g)}|` + g.units.map(u => `${u.id}:${u.kind}@${u.x},${u.y}#${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}{${modsKey(u)}}`).join("|");
 function enumerate(start: Run, hooks: Hooks): Outcome[] {
   const seen = new Map<string, Outcome>();
   const visit = (g: Run, plan: Action[]) => {
@@ -56,7 +59,8 @@ function enumerate(start: Run, hooks: Hooks): Outcome[] {
     const enemies = g.units.filter(u => u.side === "black");
     // A tap can pass through check only while the king is already in check (he may then act freely, and the
     // tap is judged as one move), so that's the one case where a walk the rules allow still needs the tap path.
-    const taps = g.energy > STRIKE_COST;
+    // A walk (1) plus the cheapest strike (1, Sir Lance's charge) is the least a tap can cost.
+    const taps = g.energy >= 2;
     const check = taps && inCheck(g);
     const defenders = g.energy >= 1 ? hooks.defenders?.(g) ?? null : null;
     for (const u of g.units) {
@@ -70,7 +74,7 @@ function enumerate(start: Run, hooks: Hooks): Outcome[] {
       if (taps) {
         const ways = check
           ? enemies.flatMap(v => approaches(g, u.id, v.id).map(t => [t, v] as const))
-          : refused.flatMap(t => (t.cost + STRIKE_COST > g.energy ? [] : enemies.filter(v => reaches(g, u, t, v)).map(v => [t, v] as const)));
+          : refused.flatMap(t => (t.cost + strikeCostOf(g, { ...u, moved: true }) > g.energy ? [] : enemies.filter(v => reaches(g, u, t, v)).map(v => [t, v] as const)));
         for (const [t, v] of ways) {
           const tap = walkAndStrike(g, u.id, t, v.id);
           if (tap) step(tap.run, { type: "move", id: u.id, to: { x: t.x, y: t.y } }, { type: "attack", id: u.id, targetId: v.id });
