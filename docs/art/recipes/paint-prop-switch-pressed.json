@@ -1,0 +1,35 @@
+{
+  "id": "paint-prop-switch-pressed",
+  "description": "Spear trap floor switch, pressed (src/assets/props/switch-sprung.webp): paints the armed switch, edits the button down so the slab matches, removes the background; then tools/art/prop.mjs. See docs/art/PROPS.md.",
+  "model": "google/nano-banana-pro",
+  "steps": [
+    {
+      "name": "paint",
+      "aspect_ratio": "1:1",
+      "images": [
+        "docs/art/sheet-armour-talks.webp"
+      ],
+      "prompt": "Game prop sprite, painted as one single whole image, in the exact art style of the first image (a character select sheet): bold flash-era 2D brawler cartoon, very thick even black outlines, flat fills, one hard cel shadow, crisp white highlight ticks on metal. SUBJECT: a dungeon floor pressure-plate trap switch, seen straight from above, square, filling a floor tile. A square slab of rough grey flagstone with chunky bevelled edges and one chipped corner, held in a dark iron frame with a big round rivet in each corner. In the middle a big round raised pressure button painted bright red (#cd2a25) with a thick iron ring around it, one hard darker-red cel shadow on its lower half and one crisp white highlight tick, clearly sticking up, ready to be stepped on. Two short carved arrow grooves in the stone point outward from the button to the left and right, as a hint that something fires sideways. Simple chunky shapes, few interior lines, so it reads clearly at 48 pixels. Earthy greys and iron, with the red button as the one bright accent. A VERY thick black outer outline all the way round. One object only, centred, filling most of the frame with a small margin, on a plain flat light grey background (#d8d8d8), no ground, no cast shadow, no text, no labels, no frame."
+    },
+    {
+      "name": "pressed",
+      "images": [
+        "$previous"
+      ],
+      "prompt": "Change only the round red button in the middle: it has been pressed all the way down, so it now sits flush, sunk deep into its iron ring with no visible side wall and a dark shadow crescent inside the ring above it, and its colour is a dull dark brick red (#7a2a24) with no white highlight. The two carved arrows on either side now glow faintly orange-red as if just fired. Keep everything else exactly the same: the stone slab, the chips, the iron frame, the rivets, the thick black outlines, the flat light grey background."
+    },
+    {
+      "name": "cutout",
+      "model": "bria/remove-background",
+      "imageField": "image",
+      "images": [
+        "$previous"
+      ]
+    }
+  ],
+  "output": "paint-prop-switch-pressed.png",
+  "prop": {
+    "file": "src/assets/props/switch-sprung.webp",
+    "flags": "--height 240 --outline 6"
+  }
+}
