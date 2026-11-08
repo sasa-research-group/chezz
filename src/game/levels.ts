@@ -4,7 +4,7 @@
  * Pure: no DOM, no file system. */
 import { LIMITS } from "./rules";
 import { RULES } from "./turns";
-import type { Encounter, Kind, Placed, Pos, Recruit, Rules, Trap } from "./turns";
+import type { Encounter, Kind, Placed, Pos, Recruit, Rules, SwitchType, Trap } from "./turns";
 
 /** A battle plus designer-only extras: a list name and the army a test run fields. The game ignores both. */
 export type Level = Encounter & { name?: string; testArmy?: Placed[] };
@@ -17,6 +17,10 @@ export type Issue = { field: "size" | "walls" | "switches" | "spawns" | "starts"
 export const isError = (i: Issue) => !i.warning;
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
+/** Kinds of floor switch, with the name the studio shows. */
+export const SWITCH_TYPES: [SwitchType, string][] = [["spears", "Spears"]];
+/** A new switch as the studio places it: spears along the row just above the middle, for 2. */
+export const newSwitch = (l: Pick<Level, "height">, p: Pos): Trap => ({ type: "spears", x: p.x, y: p.y, rows: [Math.max(0, Math.floor((l.height - 1) / 2))], damage: 2 });
 /** Board sides: square names run a–h, so 8 is the widest a board can be. */
 export const MIN_SIDE = 2, MAX_SIDE = 8;
 export const MAX_REWARD = 99;
@@ -39,8 +43,8 @@ function shapeOf(v: unknown, i: number): Level | string {
   for (const k of ["reward", "width", "height"] as const) if (!int(l[k], -999, 999)) return `${where}: ${k} must be a whole number`;
   for (const k of ["walls", "starts"] as const) if (!Array.isArray(l[k]) || !(l[k] as unknown[]).every(isPos)) return `${where}: ${k} must be a list of {x, y}`;
   if (!Array.isArray(l.spawns) || !l.spawns.every(s => Array.isArray(s) && (s.length === 3 || s.length === 4) && isKind(s[0]) && s.slice(1).every(n => int(n, -99, 99)))) return `${where}: spawns must be [kind, x, y] or [kind, x, y, hp]`;
-  const isTrap = (t: unknown) => !!t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).length === 4 && int((t as Trap).x, -99, 99) && int((t as Trap).y, -99, 99) && int((t as Trap).damage, -99, 99) && Array.isArray((t as Trap).rows) && (t as Trap).rows.every(r => int(r, -99, 99));
-  if (l.switches !== undefined && (!Array.isArray(l.switches) || !l.switches.every(isTrap))) return `${where}: switches must be a list of {x, y, rows, damage}`;
+  const isTrap = (t: unknown) => !!t && typeof t === "object" && !Array.isArray(t) && Object.keys(t).length === 5 && SWITCH_TYPES.some(([k]) => k === (t as Trap).type) && int((t as Trap).x, -99, 99) && int((t as Trap).y, -99, 99) && int((t as Trap).damage, -99, 99) && Array.isArray((t as Trap).rows) && (t as Trap).rows.every(r => int(r, -99, 99));
+  if (l.switches !== undefined && (!Array.isArray(l.switches) || !l.switches.every(isTrap))) return `${where}: switches must be a list of {type, x, y, rows, damage}`;
   const isPlaced = (p: unknown) => !!p && typeof p === "object" && !Array.isArray(p) && Object.keys(p).length === 3 && isKind((p as Placed).kind) && int((p as Placed).x, -99, 99) && int((p as Placed).y, -99, 99);
   if (l.testArmy !== undefined && (!Array.isArray(l.testArmy) || !l.testArmy.every(isPlaced))) return `${where}: testArmy must be a list of {kind, x, y}`;
   for (const k of ["name", "story"] as const) if (l[k] !== undefined && (typeof l[k] !== "string" || (l[k] as string).length > 200)) return `${where}: ${k} must be short text`;
@@ -134,7 +138,7 @@ export function formatLevels(levels: Level[]): string {
     : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${inline(x)}`).join(", ")} }`
     : JSON.stringify(v);
   const level = (l: Level) => {
-    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : k === "switches" ? l.switches!.map(t => ({ x: t.x, y: t.y, rows: t.rows, damage: t.damage })) : k === "testArmy" ? l.testArmy!.map(p => ({ kind: p.kind, x: p.x, y: p.y })) : l[k];
+    const tidy = (k: (typeof KEYS)[number]) => k === "walls" || k === "starts" ? l[k].map(p => ({ x: p.x, y: p.y })) : k === "switches" ? l.switches!.map(t => ({ type: t.type, x: t.x, y: t.y, rows: t.rows, damage: t.damage })) : k === "testArmy" ? l.testArmy!.map(p => ({ kind: p.kind, x: p.x, y: p.y })) : l[k];
     const fields = KEYS.filter(k => l[k] !== undefined).map(k => `      ${JSON.stringify(k)}: ${inline(tidy(k))}`);
     return `    {\n${fields.join(",\n")}\n    }`;
   };

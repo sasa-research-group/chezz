@@ -16,9 +16,11 @@ export type Target = Pos & { id?: string };
 /** An enemy on its square: kind, x, y and its starting HP. HP left out means full health; HP above the
  * kind's max (stats retuned since the level was saved) is clamped to the max. */
 export type Spawn = [Kind, number, number] | [Kind, number, number, number];
-/** A switch on the floor and the spear trap it springs: once one of your pieces steps onto it, spears
+/** What a switch does when pressed. Only spears today; new kinds of switch add a type here. */
+export type SwitchType = "spears";
+/** A switch on the floor and the trap it springs. "spears": once one of your pieces steps onto it, spears
  * shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
-export type Trap = Pos & { rows: number[]; damage: number };
+export type Trap = Pos & { type: SwitchType; rows: number[]; damage: number };
 export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[] };
 export type Run = {
   version: 2; encounter: number; turn: number;

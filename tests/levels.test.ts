@@ -154,3 +154,28 @@ describe("level designer save endpoint", () => {
     expect(levelsPlugin(file).apply).toBe("serve");
   });
 });
+
+describe("switches in the levels file", () => {
+  const trap = { type: "spears" as const, x: 0, y: 3, rows: [1, 2], damage: 2 };
+  it("accepts a spear switch and writes it back unchanged", () => {
+    expect(messages({ switches: [trap] })).toEqual([]);
+    const l = { ...base, switches: [trap] };
+    const parsed = parseLevels(JSON.parse(formatLevels([l])));
+    expect(parsed.ok && parsed.file.levels[0].switches).toEqual([trap]);
+  });
+  it("flags a switch off the board, on a start or enemy, with ranks off the board or no damage", () => {
+    expect(messages({ switches: [{ ...trap, x: 9 }] })).toContain("Switch off the board");
+    expect(messages({ switches: [{ ...trap, x: 1, y: 3 }] })).toContain("King start overlaps switch");
+    expect(messages({ switches: [{ ...trap, rows: [4] }] })).toContain("Spear rows on the board");
+    expect(messages({ switches: [{ ...trap, rows: [] }] })).toContain("Spear rows on the board");
+    expect(messages({ switches: [{ ...trap, damage: 0 }] }).some(m => m.startsWith("Spear damage"))).toBe(true);
+  });
+  it("refuses an unknown switch type or a missing field", () => {
+    expect(parseLevels({ version: 1, levels: [{ ...base, switches: [{ ...trap, type: "fire" }] }] }).ok).toBe(false);
+    const { type: _, ...untyped } = trap;
+    expect(parseLevels({ version: 1, levels: [{ ...base, switches: [untyped] }] }).ok).toBe(false);
+  });
+  it("places a new switch with spears on a middle rank", () => {
+    expect(checks.newSwitch({ height: 5 }, { x: 0, y: 4 })).toEqual({ type: "spears", x: 0, y: 4, rows: [2], damage: 2 });
+  });
+});

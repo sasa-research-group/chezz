@@ -117,7 +117,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
 
 ## Switches and spear traps
 - A level may place switches on the floor (`switches` in `levels.json`), each
-  wired to a spear trap: a list of rows and a damage. While it's armed, those
+  with a `type`. The only type so far is `"spears"`: a spear trap with a list
+  of rows and a damage. While it's armed, those
   rows are striped and a launcher sits on the board's left edge.
 - When one of your pieces ends a move on an armed switch, the spears fire:
   every piece on those rows takes the damage, yours included, whatever its

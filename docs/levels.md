@@ -6,8 +6,9 @@
   `width`, `height` (2–8), `walls`, `spawns` (`[kind, x, y, hp]`, or `[kind, x, y]` for full HP), `starts`
   (a real run's army fills them in order, king first; then the player
   rearranges it in the deploy phase), `reward`, optional `switches`
-  (`[{ x, y, rows: [y, ...], damage }]`: a floor switch and the rows its
-  spears sweep; see `docs/turn-based.md`), and an
+  (`[{ type, x, y, rows: [y, ...], damage }]`: a floor switch, what it does
+  (`type`; only `"spears"` so far, listed in `SWITCH_TYPES` in `levels.ts`)
+  and the rows its spears sweep; see `docs/turn-based.md`), and an
   optional `story` the designer keeps but doesn't show.
 - Designer-only fields, ignored by the game: `name` (list label) and
   `testArmy` (see below).
@@ -37,11 +38,17 @@
 - Left: the list. Select, Add, Duplicate, ↑/↓, Delete. A red count marks a
   level with errors; an amber count, one with only warnings.
 - Board: drawn with the game's board classes and the painted stills. Tools:
-  Wall, Enemy (pick the piece), Army, Erase. One thing per square: painting
+  Wall, Enemy (pick the piece), Army, Switch, Erase. One thing per square: painting
   replaces what was there; clicking the same thing again removes it. With
   Army, clicking a square makes it a start; clicking a start opens its unit
   picker (king, queen, rook, bishop, knight, pawn or None, plus Remove start).
-  Picking the king for a square moves him there. The test army stands on the
+  Picking the king for a square moves him there. With Switch, clicking a
+  square places a spear switch (spears on the rank just above the middle, 2
+  damage); clicking it again removes it. The Switches list on the right sets
+  each one's type, damage and the ranks its spears sweep; the board stripes
+  those ranks and shows a launcher at their left edge. Switches error when
+  off the board, on a wall, enemy or start, with no rank or a rank off the
+  board, or with damage outside 1–99. The test army stands on the
   board as sprites. Numbers on the starts are the order a real army fills them. Errors
   (red) and warnings (amber) list under the board and ring their square in
   the same colour.

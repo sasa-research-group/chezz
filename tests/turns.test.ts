@@ -590,7 +590,7 @@ describe("turn-based rules", () => {
 
 describe("switches and spear traps", () => {
   // Spears sweep rows 1 and 2; the switch is the bottom-left corner.
-  const TRAP: Encounter = { reward: 5, width: 6, height: 5, walls: [], switches: [{ x: 0, y: 4, rows: [1, 2], damage: 2 }], spawns: [["knight", 0, 1], ["pawn", 2, 1], ["pawn", 4, 2], ["rook", 3, 0]], starts: [{ x: 1, y: 4 }, { x: 3, y: 4 }] };
+  const TRAP: Encounter = { reward: 5, width: 6, height: 5, walls: [], switches: [{ type: "spears", x: 0, y: 4, rows: [1, 2], damage: 2 }], spawns: [["knight", 0, 1], ["pawn", 2, 1], ["pawn", 4, 2], ["rook", 3, 0]], starts: [{ x: 1, y: 4 }, { x: 3, y: 4 }] };
   const army: Placed[] = [{ kind: "king", x: 1, y: 4 }, { kind: "pawn", x: 3, y: 4 }];
   const deal = (level: Encounter = TRAP, placed: Placed[] = army) => begin(testRun(level, placed, 1, ONE));
   it("fires when your piece steps on it: every piece on the rows takes the hit, and the turn is spent", () => {
@@ -619,7 +619,7 @@ describe("switches and spear traps", () => {
     const mine = deal({ ...TRAP, starts: [{ x: 1, y: 4 }, { x: 5, y: 2 }] }, [{ kind: "king", x: 1, y: 4 }, { kind: "pawn", x: 5, y: 2 }]);
     expect(turns.stepOnto(mine, "king", { x: 0, y: 4 }).run.units.some(u => u.side === "white" && u.kind === "pawn")).toBe(false);
     // The king stands in the spears' row; your pawn could press the switch, but that would kill him.
-    const lane: Encounter = { ...TRAP, switches: [{ x: 1, y: 3, rows: [2], damage: 9 }], starts: [{ x: 3, y: 2 }, { x: 1, y: 4 }] };
+    const lane: Encounter = { ...TRAP, switches: [{ type: "spears", x: 1, y: 3, rows: [2], damage: 9 }], starts: [{ x: 3, y: 2 }, { x: 1, y: 4 }] };
     const risky = deal(lane, [{ kind: "king", x: 3, y: 2 }, { kind: "pawn", x: 1, y: 4 }]);
     expect(turns.stepOnto(risky, "ally-1", { x: 1, y: 3 }).run).toBe(risky);
     expect(move(risky, "ally-1", { x: 1, y: 3 })).toBe(risky);

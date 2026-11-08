@@ -36,7 +36,9 @@ Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
   set rows, hitting every piece on them, yours too (`switches` in
   `levels.json`; `stepOnto`, `spring` in `turns.ts`). Battle 2 teaches it:
   rank 4 full of enemies, switch at a1, spears on ranks 4 and 3 for 2. The
-  studio keeps switches through edits but can't place or draw them yet.
+  studio's Switch tool places them; each has a `type` (only `"spears"`), so
+  a new kind of switch adds a type to `SwitchType`/`SWITCH_TYPES` and a case
+  where `spring` resolves it.
   Painted switch, launcher and spear art: `docs/art/PROPS.md`.
 - **Deploy phase:** every battle opens with your pieces on the start squares;
   drag (or tap, tap) to move or swap them, then Begin (`deploy`, `begin` in

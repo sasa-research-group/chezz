@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ENCOUNTERS, spawnHp } from "../game/turns";
-import type { Kind, Placed, Pos, Rules } from "../game/turns";
-import { KINDS, MAX_REWARD, MAX_SIDE, MIN_SIDE, formatLevels, isError, listIssues, testArmyOf, typicalArmy } from "../game/levels";
+import type { Kind, Placed, Pos, Rules, SwitchType } from "../game/turns";
+import { KINDS, MAX_HP, MAX_REWARD, MAX_SIDE, MIN_SIDE, SWITCH_TYPES, formatLevels, isError, listIssues, newSwitch, testArmyOf, typicalArmy } from "../game/levels";
 import type { Issue, Level } from "../game/levels";
 import { SpriteStill } from "./kit";
 import { draftRules } from "./rulesDraft";
@@ -10,20 +10,23 @@ import { draftRules } from "./rulesDraft";
 const TestRun = lazy(() => import("./TestRun"));
 const LEVELS_ENDPOINT = "/__studio/levels";
 
-type Tool = "wall" | "enemy" | "army" | "erase";
-const TOOLS: [Tool, string][] = [["wall", "Wall"], ["enemy", "Enemy"], ["army", "Army"], ["erase", "Erase"]];
+type Tool = "wall" | "enemy" | "army" | "switch" | "erase";
+const TOOLS: [Tool, string][] = [["wall", "Wall"], ["enemy", "Enemy"], ["army", "Army"], ["switch", "Switch"], ["erase", "Erase"]];
 const BLANK: Level = { reward: 0, width: 6, height: 6, walls: [], spawns: [["pawn", 2, 1]], starts: [{ x: 2, y: 5 }] };
 
 const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 const sq = (l: Level, p: Pos) => `${"abcdefgh"[p.x] ?? "?"}${l.height - p.y}`;
 const copy = (l: Level): Level => JSON.parse(JSON.stringify(l));
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n) || 0));
-const without = (l: Level, p: Pos): Level => ({ ...l, walls: l.walls.filter(w => !same(w, p)), spawns: l.spawns.filter(([, x, y]) => !same({ x, y }, p)), starts: l.starts.filter(s => !same(s, p)) });
+/** The level with a list of switches, or without the field when there are none, so saves stay tidy. */
+const withSwitches = (l: Level, switches: NonNullable<Level["switches"]>): Level => { const { switches: _, ...rest } = l; return switches.length ? { ...rest, switches } : rest; };
+const without = (l: Level, p: Pos): Level => withSwitches({ ...l, walls: l.walls.filter(w => !same(w, p)), spawns: l.spawns.filter(([, x, y]) => !same({ x, y }, p)), starts: l.starts.filter(s => !same(s, p)) }, (l.switches ?? []).filter(s => !same(s, p)));
 const levelName = (l: Level, i: number) => l.name || `Battle ${i + 1}`;
 /** Shrinking the board drops whatever falls outside it. */
 const resize = (l: Level, width: number, height: number): Level => {
   const fits = (p: Pos) => p.x < width && p.y < height;
-  return { ...l, width, height, walls: l.walls.filter(fits), spawns: l.spawns.filter(([, x, y]) => fits({ x, y })), starts: l.starts.filter(fits) };
+  const switches = (l.switches ?? []).filter(fits).map(s => ({ ...s, rows: s.rows.filter(r => r < height) }));
+  return withSwitches({ ...l, width, height, walls: l.walls.filter(fits), spawns: l.spawns.filter(([, x, y]) => fits({ x, y })), starts: l.starts.filter(fits) }, switches);
 };
 /** A test army only stands on start squares: a removed start takes its piece with it. Kept in start order so saves diff cleanly. */
 const prune = (l: Level): Level => {
@@ -68,11 +71,14 @@ function LevelBoard({ level, rules, army, issues, picked, onSquare }: { level: L
           const p = { x: i % cols, y: Math.floor(i / cols) };
           const wall = level.walls.some(v => same(v, p)), start = level.starts.findIndex(s => same(s, p));
           const spawn = level.spawns.find(([, x, y]) => same({ x, y }, p)), unit = army.find(a => same(a, p));
-          const what = [wall && "wall", spawn && `enemy ${spawn[0]} ${spawnHp(rules, spawn)} HP`, start >= 0 && `start ${start + 1} ${unit ? `with ${unit.kind}` : "empty"}`].filter(Boolean).join(", ") || "empty";
-          return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${flag(p)} ${picked && same(picked, p) ? "picked" : ""}`}
+          const trap = level.switches?.find(s => same(s, p)), lane = level.switches?.some(s => s.rows.includes(p.y));
+          const what = [wall && "wall", trap && `${trap.type} switch`, lane && "in a spear lane", spawn && `enemy ${spawn[0]} ${spawnHp(rules, spawn)} HP`, start >= 0 && `start ${start + 1} ${unit ? `with ${unit.kind}` : "empty"}`].filter(Boolean).join(", ") || "empty";
+          return <button key={i} type="button" className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${wall ? "wall" : ""} ${lane ? "spear-lane" : ""} ${flag(p)} ${picked && same(picked, p) ? "picked" : ""}`}
             aria-label={`${sq(level, p)} ${what}`} aria-pressed={picked ? same(picked, p) : undefined} onClick={() => onSquare(p)}>
             <span className="tile-coord">{sq(level, p)}</span>
             {start >= 0 && <span className={`start-mark ${start === 0 ? "king" : ""}`}>{start + 1}</span>}
+            {trap && <span className="floor-switch" />}
+            {p.x === 0 && lane && <span className="spear-launcher" />}
           </button>;
         })}
       </div>
@@ -160,6 +166,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
       const rest = without(l, p);
       if (tool === "erase") return rest;
       if (tool === "wall") return l.walls.some(w => same(w, p)) ? rest : { ...rest, walls: [...rest.walls, p] };
+      if (tool === "switch") return l.switches?.some(s => same(s, p)) ? rest : withSwitches(rest, [...(rest.switches ?? []), newSwitch(l, p)]);
       const here = l.spawns.find(([, x, y]) => same({ x, y }, p));
       return here?.[0] === enemy ? rest : { ...rest, spawns: [...rest.spawns, [enemy, p.x, p.y]] };
     });
@@ -168,6 +175,9 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
   /** Puts `kind` on start `p`, or clears it. There's one king: placing him elsewhere moves him. */
   const setUnit = (p: Pos, kind: Kind | null) => setArmy([...army.filter(a => !same(a, p) && !(kind === "king" && a.kind === "king")), ...(kind ? [{ kind, x: p.x, y: p.y }] : [])]);
   const removeStart = (p: Pos) => edit(l => ({ ...l, starts: l.starts.filter(s => !same(s, p)) }));
+  type Trap = NonNullable<Level["switches"]>[number];
+  const setSwitch = (i: number, patch: (s: Trap) => Trap | null) => edit(l => withSwitches(l, (l.switches ?? []).flatMap((s, j) => { if (j !== i) return [s]; const next = patch(s); return next ? [next] : []; })));
+  const toggleRow = (s: Trap, y: number) => ({ ...s, rows: s.rows.includes(y) ? s.rows.filter(r => r !== y) : [...s.rows, y].sort((a, b) => a - b) });
 
   async function save() {
     if (broken) return;
@@ -221,6 +231,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
           <button type="button" className="unit-picker-remove" onClick={() => { removeStart(pick); setPicked(null); }}>Remove start</button>
         </div>
         : <p className="level-hint">Click a square to make it a start; click a start to choose its unit.</p>)}
+      {tool === "switch" && <p className="level-hint">Click a square to place a switch; click it again to remove it. Pick its ranks and damage on the right.</p>}
       <LevelBoard level={level} rules={rules} army={army} issues={mine} picked={pick} onSquare={square} />
       <IssueList level={level} issues={errors} label="Problems" />
       <IssueList level={level} issues={warnings} label="Warnings" />
@@ -248,6 +259,22 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
           <label><span className="sr-only">{kind} {sq(level, { x, y })} HP</span>♥<input type="number" min={1} max={rules.hp[kind]} value={hp ?? ""} placeholder={`${rules.hp[kind]}`} title="Empty: full HP" onChange={e => edit(l => ({ ...l, spawns: l.spawns.map((s, j) => (j !== i ? s : e.target.value === "" ? [s[0], s[1], s[2]] : [s[0], s[1], s[2], clamp(Number(e.target.value), 0, 99)])) }))} /></label>
           <button type="button" aria-label={`Remove ${kind} ${sq(level, { x, y })}`} onClick={() => edit(l => ({ ...l, spawns: l.spawns.filter((_, j) => j !== i) }))}>×</button>
         </li>)}</ul>
+      </div>
+
+      <div className="stage-field"><span>Switches</span>
+        {!level.switches?.length && <small className="level-note plain">None. Use the Switch tool to place one.</small>}
+        <ul className="level-rows level-switches">{(level.switches ?? []).map((s, i) => <li key={`${s.x},${s.y}`}>
+          <span className="switch-icon" aria-hidden="true" /><code>{sq(level, s)}</code>
+          <select aria-label={`Switch ${sq(level, s)} type`} value={s.type} onChange={e => setSwitch(i, t => ({ ...t, type: e.target.value as SwitchType }))}>
+            {SWITCH_TYPES.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+          </select>
+          <label><span className="sr-only">Switch {sq(level, s)} damage</span><span aria-hidden="true">−</span><input type="number" min={1} max={MAX_HP} value={s.damage} title="Damage to every piece in the lanes" onChange={e => setSwitch(i, t => ({ ...t, damage: clamp(Number(e.target.value), 0, MAX_HP + 1) }))} /></label>
+          <button type="button" aria-label={`Remove switch ${sq(level, s)}`} onClick={() => setSwitch(i, () => null)}>×</button>
+          <div className="seg switch-rows" role="group" aria-label={`Ranks the spears sweep from switch ${sq(level, s)}`}>
+            {Array.from({ length: level.height }, (_, y) => <button key={y} type="button" aria-pressed={s.rows.includes(y)} onClick={() => setSwitch(i, t => toggleRow(t, y))}>{level.height - y}</button>)}
+          </div>
+        </li>)}</ul>
+        <small className="level-note plain">Ranks: spears fly along them when your piece steps on the switch, hitting every piece there, yours too. Once per battle.</small>
       </div>
 
       <div className="stage-field"><span>Army</span>
