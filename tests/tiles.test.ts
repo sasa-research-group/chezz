@@ -274,6 +274,20 @@ describe("review fixes", () => {
   });
 });
 
+describe("leapers through burrows", () => {
+  it("Grumble's hop and Dobbin's jump come out of the far mouth, and an occupied far mouth refuses them", () => {
+    const grumble: Unit = { id: "g", side: "white", kind: "pawn", variant: "misfit", x: 2, y: 4, hp: 1 };
+    const hop = board({ portals: [[sq(2, 2), sq(0, 0)]] }, [king(4, 4), grumble, sentry]);
+    expect(moveTargets(hop, grumble)).toEqual(expect.arrayContaining([{ x: 0, y: 0, cost: 2 }]));
+    expect(moveTargets(hop, grumble).some(t => t.x === 2 && t.y === 2)).toBe(false);
+    const dobbin: Unit = { id: "d", side: "white", kind: "knight", variant: "rebel", x: 2, y: 4, hp: 3 };
+    const jump = board({ portals: [[sq(3, 2), sq(0, 0)]] }, [king(4, 4), dobbin, sentry]);
+    expect(moveTargets(jump, dobbin)).toEqual(expect.arrayContaining([{ x: 0, y: 0, cost: 1 }]));
+    const blocked = board({ portals: [[sq(3, 2), sq(0, 0)]] }, [king(4, 4), dobbin, foe("s", "pawn", 0, 0)]);
+    expect(moveTargets(blocked, dobbin).some(t => (t.x === 3 && t.y === 2) || (t.x === 0 && t.y === 0))).toBe(false);
+  });
+});
+
 describe("Brick and gates", () => {
   it("demolishes a shut gate into floor for good: the lever no longer shuts it", () => {
     const brick: Unit = { id: "r", side: "white", kind: "rook", variant: "rebel", x: 2, y: 3, hp: 5 };

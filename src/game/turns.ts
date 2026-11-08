@@ -147,7 +147,8 @@ export function moveTargets(g: Run, u: Unit, energy = g.energy): Target[] {
   if (u.moved || u.acted || isDazed(u, g.turn)) return [];
   const base = shapeTargets(g, u, u.kind, energy);
   const hook = abilityOf(u)?.moveTargets;
-  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => open(g, p), passable: p => passable(g, p) }) : base;
+  const land = (p: Pos) => { const exit = portalExit(g, p); return !open(g, p) || (exit && !open(g, exit)) ? undefined : landingOf(g, p); };
+  return hook ? hook(g, u, base, { energy, shape: kind => shapeTargets(g, u, kind, energy), open: p => open(g, p), passable: p => passable(g, p), land }) : base;
 }
 
 /** Would u's ability let it strike v at all (reach and energy aside)? Her Wigness won't touch pawns. */

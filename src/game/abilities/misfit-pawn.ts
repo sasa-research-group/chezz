@@ -10,8 +10,9 @@ export const grumble: Ability = {
   id: "misfit-pawn", variant: "misfit", kind: "pawn", name: "Grumble", ability: "Hop",
   sentence: "Grumble can hop two squares straight forward over anything (a piece, a wall, a hole) for 2 energy, but is far too grumpy to ever defend.",
   moveTargets: (g, u, base, ctx) => {
-    const landing = { x: u.x, y: u.y + 2 * forward(u) };
-    if (ctx.energy < 2 || !ctx.open(landing) || base.some(t => same(t, landing))) return base;
+    // The hop lands two squares ahead; onto a burrow mouth it comes out the far one.
+    const landing = ctx.energy >= 2 ? ctx.land({ x: u.x, y: u.y + 2 * forward(u) }) : undefined;
+    if (!landing || base.some(t => same(t, landing))) return base;
     return [...base, { ...landing, cost: 2 }];
   },
   crown: "knight",

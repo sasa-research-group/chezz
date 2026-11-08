@@ -15,7 +15,12 @@ export const dobbin: Ability = {
   // So `base`/ctx.shape are bypassed: any tile mechanic shapeTargets learns for knight landings (portals, ice) must be mirrored here.
   moveTargets: (_g, u, _base, ctx) => {
     if (ctx.energy < 1) return [];
-    return LEAPS.map(([dx, dy]) => ({ x: u.x + dx, y: u.y + dy, cost: 1 })).filter(t => ctx.open(t) && (ctx.open({ x: t.x, y: u.y }) || ctx.open({ x: u.x, y: t.y })));
+    // Landing through ctx.land: onto a burrow mouth he comes out the far one (if it is free).
+    return LEAPS.flatMap(([dx, dy]) => {
+      const t = { x: u.x + dx, y: u.y + dy };
+      const at = ctx.land(t);
+      return at && (ctx.open({ x: t.x, y: u.y }) || ctx.open({ x: u.x, y: t.y })) ? [{ x: at.x, y: at.y, cost: 1 }] : [];
+    });
   },
   // Strikes (and so counters, approaches and kingThreat) keep the knight's reach, under the elbow rule.
   reaches: (g, _u, from, target, base) => base && elbowClear(g, from, target),

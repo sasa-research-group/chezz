@@ -39,6 +39,8 @@ export type HookContext = {
   open: (p: Pos) => boolean;
   /** On the board and not a wall or hole (a piece may stand there). */
   passable: (p: Pos) => boolean;
+  /** Where a leap or hop that lands on `p` ends up (out the far mouth of a burrow), or undefined if it can't land there. */
+  land: (p: Pos) => Pos | undefined;
 };
 /** An action a piece can take instead of striking (hex, honk, demolish, dub...). `targets` are the
  * squares the player may pick; an empty list means the action needs no target. `apply` resolves it
