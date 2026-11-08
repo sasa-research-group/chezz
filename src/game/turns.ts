@@ -254,7 +254,9 @@ function removeDead(g: Run): Run {
 }
 function promoted(g: Run, u: Unit, kind: PromoteTo): { run: Run; step: Step } {
   const text = `${label(u)} reaches the far row and becomes a ${kind}!`;
-  const run = note({ ...g, units: withUnit(g, u.id, { kind, hp: maxHp({ ...u, kind }) }) }, text);
+  const hp = maxHp({ ...u, kind });
+  // The stall clock compares against the new piece's HP, so a blow on it counts.
+  const run = note({ ...g, units: withUnit(g, u.id, { kind, hp }), mark: g.mark && { ...g.mark, [u.id]: hp } }, text);
   return { run, step: { text, units: run.units, focus: [{ x: u.x, y: u.y }], damage: [], actor: u.id, kind: "promote", killed: [], from: u.kind } };
 }
 /** Completes your pending promotion. The new piece keeps its turn: it has moved, but can still strike or defend. */
@@ -302,7 +304,10 @@ export function alt(g: Run, id: string, actionId: string, target?: Pos): { run: 
   const action = altActions(g, u, g.energy).find(a => a.id === actionId);
   if (!action || (action.targets.length > 0 && !(target && action.targets.some(t => same(t, target))))) return { run: g, step: null };
   const { run, step } = action.apply({ ...g, energy: g.energy - action.cost, units: withUnit(g, id, { acted: true }) }, target);
-  const done = finish(removeDead(run));
+  let done = finish(removeDead(run));
+  // A piece the action made stronger (Dub) is compared against its new HP by the stall clock.
+  const grown = done.units.filter(w => (g.units.find(x => x.id === w.id)?.hp ?? Infinity) < w.hp);
+  if (done.mark && grown.length) done = { ...done, mark: { ...done.mark, ...Object.fromEntries(grown.map(w => [w.id, w.hp])) } };
   const killed = g.units.filter(w => !done.units.some(x => x.id === w.id)).map(w => w.id);
   return intoCheck(g, done) ? { run: g, step: null } : { run: done, step: { ...step, units: done.units, killed } };
 }
@@ -461,15 +466,18 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const combos: { damage: number; ids: string[] }[] = [{ damage: burn, ids: [] }];
   /** A piece whose move would wake a sleeping friend beside it (Marmalade): the one two-piece set-up check counts. */
   const sleeperBeside = (run: Run, u: Unit, p: Pos) => run.units.some(w => w.side === u.side && w.id !== u.id && !!abilityOf(w)?.onAnyMove && Math.max(Math.abs(w.x - p.x), Math.abs(w.y - p.y)) === 1);
+  const sleepers = new Set(g.units.filter(u => u.side === "black" && abilityOf(u)?.onAnyMove).map(u => u.id));
+  // A line with a nudge in it counts only if the friend it woke strikes in it too.
+  const honest = (ids: string[]) => !ids.some(id => id.startsWith("nudge:")) || ids.some(id => sleepers.has(id));
   const search = (run: Run, pool: number, left: Unit[], damage: number, ids: string[]) => {
-    if (damage > 0) combos.push({ damage, ids });
+    if (damage > 0 && honest(ids)) combos.push({ damage, ids });
     left.forEach((stale, i) => {
       // Read the piece as the board has it now: an earlier move in this line may have woken it.
       const u = run.units.find(w => w.id === stale.id);
       if (!u) return;
       const rest = left.filter((_, j) => j !== i);
       // A nudge: step beside a sleeping friend without striking, so it can act (it strikes later in the line).
-      for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool)) {
+      if (sleepers.size) for (const t of moveTargets(run, { ...u, moved: false, acted: false }, pool)) {
         if (!sleeperBeside(run, u, t)) continue;
         const woke = afterMove(settle(run, u.id, t, u, routeOf(t)), u.id, u);
         if (woke.units.some(w => w.id === u.id)) search(woke, pool - t.cost, rest, damage, [...ids, `nudge:${u.id}`]);
@@ -481,7 +489,8 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
         const crowned = u.kind === "pawn" && t.y === lastRank(run, u);
         const moved: Unit = { ...u, x: t.x, y: t.y, moved: true, kind: crowned ? crownOf(u) ?? "queen" : u.kind };
         if (!reaches(run, moved, t, king)) continue;
-        const stood = settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u, routeOf(t));
+        // The step's move hooks run too: stepping beside a sleeping Marmalade wakes him for a later blow in the line.
+        const stood = afterMove(settle({ ...run, units: withUnit(run, u.id, { kind: moved.kind }) }, u.id, t, u, routeOf(t)), u.id, u);
         if (stood.units.some(w => w.id === u.id) && mayStrike(stood, moved, king)) search(stood, pool - t.cost - stepped, rest, damage + hit(run, moved), [...ids, u.id]);
       }
     });
@@ -490,8 +499,7 @@ export function kingThreat(g: Run): { damage: number; attackers: string[] } {
   const damage = Math.max(0, ...combos.map(c => c.damage));
   const bar = Math.min(damage, king.hp);
   // A nudger is marked only when the friend it woke is one of the line's attackers.
-  const sleepers = new Set(g.units.filter(u => u.side === "black" && abilityOf(u)?.onAnyMove).map(u => u.id));
-  const marked = (ids: string[]) => ids.some(id => sleepers.has(id)) ? ids.map(id => id.replace(/^nudge:/, "")) : ids.filter(id => !id.startsWith("nudge:"));
+  const marked = (ids: string[]) => ids.map(id => id.replace(/^nudge:/, ""));
   const attackers = [...new Set(combos.filter(c => c.damage > burn && c.damage >= bar).flatMap(c => marked(c.ids)))];
   return { damage, attackers };
 }
@@ -507,7 +515,7 @@ export function canEscape(start: Run): boolean {
   const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}${u.defending ? "d" : ""}${u.mods ? JSON.stringify(u.mods) : ""}`).join("|") + g.energy + JSON.stringify([g.walls, g.broken, g.collapsed, g.gatesOpen, g.flags]);
   const visit = (g: Run): boolean => {
     // Try every promotion: a knight's reach might be the only way out.
-    if (g.promoting) return (["queen", "rook", "bishop", "knight"] as const).some(kind => visit(promote(g, g.promoting!, kind).run));
+    if (g.promoting) return (["queen", "rook", "bishop", "knight"] as const).some(kind => { const next = promote(g, g.promoting!, kind).run; return next !== g && visit(next); });
     if (g.phase !== "player") return g.phase !== "defeat";
     const k = key(g);
     if (seen.has(k)) return false;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENERGY, PUZZLES, alt, attack, canEscape, endTurn, inCheck, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
+import { ENERGY, PUZZLES, alt, attack, canEscape, promote, endTurn, inCheck, kingThreat, move, moveTargets, passable, readRun, startPuzzle } from "../src/game/turns";
 import type { Encounter, Run, Unit } from "../src/game/turns";
 import { isHole, isWall, landingOf } from "../src/game/board";
 
@@ -245,6 +245,32 @@ describe("run-level state the rules must see", () => {
     expect(inCheck(move(smashed, "king", sq(1, 4)))).toBe(false);
     expect(canEscape(g)).toBe(true);
     expect(endTurn(g).run).toBe(g);
+  });
+});
+
+describe("review fixes", () => {
+  it("canEscape survives a pawn whose crown is fixed: refused kinds are skipped, not recursed into", () => {
+    const grumble: Unit = { id: "g", side: "white", kind: "pawn", variant: "misfit", x: 4, y: 0, hp: 1 };
+    const g = board({ enemyEnergy: 5 }, [{ ...king(0, 4), hp: 2 }, grumble, foe("r", "rook", 0, 0, 5)], { promoting: "g" });
+    expect(() => canEscape(g)).not.toThrow();
+  });
+  it("a piece that steps beside a sleeping enemy Marmalade to strike wakes him, and check counts his blow too", () => {
+    const cat: Unit = { id: "cat", side: "black", kind: "king", variant: "misfit", x: 0, y: 0, hp: 5 };
+    const g = board({ enemyEnergy: 6 }, [{ ...king(0, 2), hp: 3 }, cat, foe("p", "pawn", 1, 0)]);
+    expect(kingThreat(g).damage).toBeGreaterThanOrEqual(3);
+    expect(inCheck(g)).toBe(true);
+  });
+  it("a nudge counts only in a line where the woken cat strikes", () => {
+    const cat: Unit = { id: "cat", side: "black", kind: "king", variant: "misfit", x: 0, y: 0, hp: 5 };
+    const g = board({ enemyEnergy: 7 }, [{ ...king(2, 4), hp: 3 }, cat, foe("n", "knight", 2, 2, 3), foe("r", "rook", 2, 0, 5)]);
+    const plain = { ...g, units: g.units.map(u => (u.id === "cat" ? { ...u, x: 4, y: 0, variant: undefined } : u)) };
+    expect(kingThreat(g).damage).toBe(kingThreat(plain).damage);
+  });
+  it("the stall clock's mark follows a promotion, so a blow on the new piece resets the clock", () => {
+    const pawn: Unit = { id: "p", side: "white", kind: "pawn", x: 1, y: 1, hp: 1 };
+    const g = board({}, [king(4, 4), pawn, sentry], { mark: { king: 5, p: 1, sentry: 1 }, quiet: 2 });
+    const crowned = promote(move(g, "p", sq(1, 0)), "p", "queen").run;
+    expect(crowned.mark!.p).toBe(9);
   });
 });
 
