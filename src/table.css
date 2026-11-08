@@ -120,3 +120,15 @@
 .exile-piece.dragging{transition:opacity .35s,filter .25s;pointer-events:none}
 .exile-piece.dragging .rig{filter:drop-shadow(0 10px 6px #0006) drop-shadow(0 0 4px #fff9d7)}
 .deploy-ribbon{background:#396c61;border-color:#f6e3b4}
+
+/* Your item bag, at the far end of your team bar: one slot per item. */
+.item-slots{display:flex;gap:4px;flex-shrink:0;pointer-events:auto}
+.item-slot{position:relative;width:30px;height:28px;padding:0;border-radius:7px;border:2px solid #a8865f;background:#3a2c25;display:grid;place-items:center;box-shadow:0 2px 0 #1c1512}
+.item-slot.empty{border-style:dashed;border-color:#a8865f66;background:none;box-shadow:none}
+.item-slot:not(:disabled):not(.empty){cursor:pointer;animation:item-ready 1.6s ease-in-out infinite}
+.item-slot:disabled{opacity:.45}
+.item-slot.aiming{border-color:#ffd34d;background:#6b4a22;box-shadow:0 0 0 2px #ffd34d66,0 2px 0 #1c1512;animation:none}
+.item-icon{width:24px;height:24px;object-fit:contain;display:block;pointer-events:none}
+.item-num{position:absolute;right:-5px;bottom:-6px;font-size:9px;line-height:1;padding:1px 3px;border-radius:5px;background:#fcf5de;color:#382f2e;border:1.5px solid #382f2e;font-weight:900}
+@keyframes item-ready{0%,100%{border-color:#a8865f}50%{border-color:#ffd34d}}
+@media(prefers-reduced-motion:reduce){.item-slot:not(:disabled):not(.empty){animation:none}}

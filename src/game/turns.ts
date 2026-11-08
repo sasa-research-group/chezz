@@ -5,13 +5,14 @@
  * deterministic: no DOM, no randomness, inputs are never mutated. */
 import levelsFile from "./levels/levels.json" with { type: "json" };
 import rulesFile from "./rules.json" with { type: "json" };
-import { parseRules } from "./rules";
-import type { Rules } from "./rules";
-export type { Reach, Rules, TurnMode } from "./rules";
+import { ITEMS, parseRules } from "./rules";
+import type { Item, Rules } from "./rules";
+export type { Item, Reach, Rules, TurnMode } from "./rules";
 export type Side = "white" | "black";
 export type Kind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 export type Pos = { x: number; y: number };
-export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean };
+/** `decoy`: a straw pawn placed by the Decoy item. It never moves, strikes or strikes back. */
+export type Unit = Pos & { id: string; side: Side; kind: Kind; hp: number; moved?: boolean; acted?: boolean; decoy?: true };
 export type Target = Pos & { id?: string };
 /** An enemy on its square: kind, x, y and its starting HP. HP left out means full health; HP above the
  * kind's max (stats retuned since the level was saved) is clamped to the max. */
@@ -22,9 +23,9 @@ export type SwitchType = "spears";
  * shoot along every listed row (y) from the board's left edge and hit every piece on it, either side. */
 export type Trap = Pos & { type: SwitchType; rows: number[]; damage: number };
 export type Encounter = { story?: string; reward: number; width: number; height: number; walls: Pos[]; switches?: Trap[]; spawns: Spawn[]; starts: Pos[]; tutorial?: TutorialStop; handout?: Handout };
-/** What a level hands the player when it starts (the tutorial predetermines these). Empty by default;
- * the game doesn't act on it until the consumables mechanic lands. */
-export type Handout = { items?: string[] };
+/** What a level hands the player when it starts. A level that lists items replaces the bag with them
+ * (the tutorial uses this so each lesson starts with exactly its items). */
+export type Handout = { items?: Item[] };
 /** Marks a level as part of the tutorial: the army it deals, exactly as placed. */
 export type TutorialStop = { army: Placed[] };
 export type Run = {
@@ -46,6 +47,10 @@ export type Run = {
   fell?: Side;
   /** Switches (indexes into the level's `switches`) already sprung this battle (missing: none). */
   sprung?: number[];
+  /** The team's bag of one-use items (missing: empty). */
+  items?: Item[];
+  /** An item has been used this turn (one per turn); End turn clears it. */
+  itemUsed?: true;
 };
 /** What a run plays by, when it isn't the shipped files: tests pass fixed data so retuning the files can't move them. */
 export type GameData = { rules?: Rules; levels?: Encounter[] };
@@ -53,7 +58,7 @@ export type Recruit = "pawn" | "bishop" | "rook";
 /** A piece placed on a given square: a studio test army. */
 export type Placed = Pos & { kind: Kind };
 /** One beat of play for presentation: who acted, how, on whom, and who fell. */
-export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring"; target?: string; killed: string[] };
+export type Step = { text: string; /** The target's strikeback, as logged, when the strike drew one. */ counter?: string; /** Rows a sprung spear trap swept. */ rows?: number[]; units: Unit[]; focus: Pos[]; damage: { id: string; amount: number }[]; actor: string; kind: "move" | "strike" | "spring" | "item"; target?: string; killed: string[]; /** The item used, for an "item" step. */ item?: Item; /** The squares a bomb blasted. */ area?: Pos[] };
 
 const loaded = parseRules(rulesFile);
 if (!loaded.ok) throw new Error(`src/game/rules.json: ${loaded.errors.join("; ")}`);
@@ -89,7 +94,9 @@ export const same = (a: Pos, b: Pos) => a.x === b.x && a.y === b.y;
 export const coord = (g: Run, p: Pos) => "abcdefgh"[p.x] + (levelOf(g).height - p.y);
 export const at = (g: Run, p: Pos) => g.units.find(u => same(u, p));
 export const kindName = (k: string) => k[0].toUpperCase() + k.slice(1);
-export const label = (u: Unit) => u.side === "white" ? kindName(u.kind) : `Enemy ${u.kind}`;
+export const label = (u: Unit) => u.decoy ? "Decoy" : u.side === "white" ? kindName(u.kind) : `Enemy ${u.kind}`;
+/** A piece's full HP: its kind's, or the Decoy item's for a decoy. */
+export const maxHp = (r: Rules, u: Unit) => u.decoy ? r.items.decoy.hp : r.hp[u.kind];
 export function passable(g: Run, p: Pos) {
   const e = levelOf(g);
   return p.x >= 0 && p.y >= 0 && p.x < e.width && p.y < e.height && !e.walls.some(w => same(w, p));
@@ -109,7 +116,7 @@ export function sidelined(g: Run, u: Unit): boolean {
 
 /** Empty squares a piece can move to this turn. */
 export function moveTargets(g: Run, u: Unit): Target[] {
-  if (u.moved || u.acted || sidelined(g, u)) return [];
+  if (u.decoy || u.moved || u.acted || sidelined(g, u)) return [];
   const out: Target[] = [];
   const open = (p: Pos) => passable(g, p) && !at(g, p);
   const dirs = slides(u.kind);
@@ -130,7 +137,7 @@ export function moveTargets(g: Run, u: Unit): Target[] {
 
 /** Enemies a piece can strike this turn from where it stands (see `reaches`). */
 export function attackTargets(g: Run, u: Unit): Target[] {
-  if (u.acted || sidelined(g, u)) return [];
+  if (u.decoy || u.acted || sidelined(g, u)) return [];
   return g.units.filter(v => v.side !== u.side && reaches(g, u, u, v)).map(v => ({ x: v.x, y: v.y, id: v.id }));
 }
 
@@ -148,7 +155,7 @@ const strikeSteps = (u: Unit) => u.kind === "pawn" ? [[1, forward(u)], [-1, forw
 /** A strikeback happens only between pieces striking from one step away: a ranged strike never draws one,
  * and a ranged piece never strikes back from afar. */
 export const strikesBack = (g: Run, attacker: Unit, target: Unit) =>
-  rulesOf(g).counter && reaches(g, attacker, attacker, target, true) && reaches(g, target, target, attacker, true);
+  rulesOf(g).counter && !target.decoy && reaches(g, attacker, attacker, target, true) && reaches(g, target, target, attacker, true);
 /** Could u, standing on `from`, strike `target`? A strike reaches one step in the piece's capture shape,
  * or, for a kind whose range is "line", any number of steps along it as long as every square between is
  * open: the first piece or wall in the way stops it. u's own square never blocks (it may have moved). */
@@ -175,7 +182,14 @@ function spawn(g: Run, army: Unit[], placed = false): Run {
   // A level with fewer starts than the army (allowed, with a warning) loses the extras.
   const whites = placed ? army.map(u => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y })) : army.slice(0, e.starts.length).map((u, i) => ({ id: u.id, side: u.side, kind: u.kind, hp: u.hp, ...e.starts[i] }));
   const enemies = e.spawns.map((s, i) => ({ id: `enemy-${g.encounter}-${i}`, kind: s[0], side: "black" as const, x: s[1], y: s[2], hp: spawnHp(rulesOf(g), s) }));
-  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], sprung: undefined };
+  return { ...g, units: [...whites, ...enemies], phase: "deploy", turn: 1, log: [], sprung: undefined, itemUsed: undefined, items: handoutBag(g, e) };
+}
+/** The bag a battle opens with: a level that hands out items replaces the bag with them (up to the
+ * slots). In the tutorial every level replaces it, so a lesson without a hand-out starts empty. */
+function handoutBag(g: Run, e: Encounter): Item[] | undefined {
+  const given = e.handout?.items;
+  if (given?.length) return given.slice(0, rulesOf(g).slots);
+  return g.tutorial ? undefined : g.items;
 }
 /** Deploy phase: move your piece to another start square, swapping places with your piece there. */
 export function deploy(g: Run, id: string, to: Pos): Run {
@@ -229,7 +243,8 @@ function finish(g: Run): Run {
   if (!g.units.some(u => u.id === "king")) return { ...g, phase: "defeat", log: ["King captured", ...g.log] };
   if (!g.units.some(u => u.side === "black")) {
     const last = !!g.level || nextIndex(g) === undefined, reward = g.tutorial ? 0 : levelOf(g).reward;
-    return { ...g, phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : g.tutorial ? "Battle won" : `+${reward} ✦`, ...g.log] };
+    // Decoys stay behind on the field they were placed on.
+    return { ...g, units: g.units.filter(u => !u.decoy), phase: last ? "victory" : "camp", gold: g.gold + reward, log: [last ? "Victory" : g.tutorial ? "Battle won" : `+${reward} ✦`, ...g.log] };
   }
   return g;
 }
@@ -333,6 +348,64 @@ function attackUnchecked(g: Run, id: string, targetId: string): { run: Run; step
   if (!t) return { run: g, step: null };
   const { run, step } = strike(g, u, t);
   return { run: finish(run), step };
+}
+
+/** The squares a bomb with its top-left corner on `corner` blasts: an area × area square, cut off at the board's edge. */
+export function blastArea(g: Run, corner: Pos): Pos[] {
+  const n = rulesOf(g).items.bomb.area, e = levelOf(g);
+  return Array.from({ length: n * n }, (_, i) => ({ x: corner.x + (i % n), y: corner.y + Math.floor(i / n) })).filter(p => p.x < e.width && p.y < e.height);
+}
+/** Where an item could go, before the check guard: a bomb's corner, wherever its square holds an enemy;
+ * a decoy, any empty square (not an armed switch) next to one of your pieces. */
+function itemSquares(g: Run, item: Item): Pos[] {
+  const e = levelOf(g), out: Pos[] = [];
+  if (item === "bomb") {
+    const n = rulesOf(g).items.bomb.area;
+    for (let y = 0; y <= Math.max(0, e.height - n); y++) for (let x = 0; x <= Math.max(0, e.width - n); x++)
+      if (blastArea(g, { x, y }).some(p => at(g, p)?.side === "black")) out.push({ x, y });
+    return out;
+  }
+  const next = (p: Pos) => g.units.some(u => u.side === "white" && !u.decoy && Math.max(Math.abs(u.x - p.x), Math.abs(u.y - p.y)) === 1);
+  for (let y = 0; y < e.height; y++) for (let x = 0; x < e.width; x++) {
+    const p = { x, y };
+    if (passable(g, p) && !at(g, p) && armedSwitch(g, p) < 0 && next(p)) out.push(p);
+  }
+  return out;
+}
+/** Squares the item can be used on now without putting your king in check (see `itemSquares`). */
+export function itemTargets(g: Run, item: Item): Pos[] {
+  if (g.phase !== "player" || g.itemUsed || !g.items?.includes(item)) return [];
+  return itemSquares(g, item).filter(p => !intoCheck(g, useUnchecked(g, item, p).run));
+}
+/** Why the item can't be used right now, or "" if it can. */
+export function itemReason(g: Run, item: Item): string {
+  if (g.phase !== "player") return "Not now";
+  if (!g.items?.includes(item)) return "None left";
+  if (g.itemUsed) return "One item per turn";
+  return itemTargets(g, item).length ? "" : "No target";
+}
+/** Uses one item from the bag on `target` (a bomb's top-left corner, or a decoy's square). Free: it
+ * doesn't use up a piece's move or strike, but only one item a turn, and it can't be taken back. */
+export function useItem(g: Run, item: Item, target: Pos): { run: Run; step: Step | null } {
+  const result = useUnchecked(g, item, target);
+  return intoCheck(g, result.run) ? { run: g, step: null } : result;
+}
+function useUnchecked(g: Run, item: Item, target: Pos): { run: Run; step: Step | null } {
+  if (g.phase !== "player" || g.itemUsed || !g.items?.includes(item) || !itemSquares(g, item).some(p => same(p, target))) return { run: g, step: null };
+  const i = g.items.indexOf(item), r = rulesOf(g);
+  const spent: Run = { ...g, items: [...g.items.slice(0, i), ...g.items.slice(i + 1)], itemUsed: true };
+  if (item === "decoy") {
+    const id = `decoy-${g.nextId}`, text = `Decoy → ${coord(g, target)}`;
+    const run = note({ ...spent, nextId: g.nextId + 1, units: [...g.units, { id, side: "white", kind: "pawn", hp: r.items.decoy.hp, x: target.x, y: target.y, decoy: true }] }, text);
+    return { run, step: { text, units: run.units, focus: [target], damage: [], actor: id, kind: "item", item, killed: [] } };
+  }
+  const { damage } = r.items.bomb, area = blastArea(g, target);
+  const hit = g.units.filter(u => u.side === "black" && area.some(p => same(p, u)));
+  const killed = hit.filter(u => u.hp <= damage).map(u => u.id);
+  const units = g.units.flatMap(u => killed.includes(u.id) ? [] : hit.includes(u) ? [{ ...u, hp: u.hp - damage }] : [u]);
+  const text = `Bomb −${damage} × ${hit.length}${killed.length ? ` · ${killed.length} killed` : ""}`;
+  const run = finish(note({ ...spent, units }, text));
+  return { run, step: { text, units: run.units, focus: area, damage: hit.map(u => ({ id: u.id, amount: damage })), actor: "bomb", kind: "item", item, area, killed } };
 }
 
 /** For every square (indexed y * width + x), how many of u's own moves it takes from there to reach a
@@ -439,10 +512,10 @@ export function inCheck(g: Run): boolean {
   const king = g.units.find(u => u.id === "king");
   return g.phase === "player" && !!king && kingThreat(g).damage >= king.hp;
 }
-/** Could anything you still do this turn (moves and strikes) get the king out of check? */
+/** Could anything you still do this turn (moves, strikes and an item) get the king out of check? */
 export function canEscape(start: Run): boolean {
   const seen = new Set<string>();
-  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}`).join("|") + (g.fell ?? "");
+  const key = (g: Run) => g.units.map(u => `${u.id}${u.kind[0]}${u.x},${u.y}:${u.hp}${u.moved ? "m" : ""}${u.acted ? "a" : ""}`).join("|") + (g.fell ?? "") + (g.itemUsed ? "!" : (g.items ?? []).join());
   const visit = (g: Run): boolean => {
     if (g.phase !== "player") return g.phase !== "defeat";
     const k = key(g);
@@ -453,6 +526,7 @@ export function canEscape(start: Run): boolean {
       for (const t of moveTargets(g, u)) if (visit(move(g, u.id, t))) return true;
       for (const t of attackTargets(g, u)) if (visit(attack(g, u.id, t.id!).run)) return true;
     }
+    for (const item of new Set(g.items ?? [])) for (const p of itemTargets(g, item)) if (visit(useItem(g, item, p).run)) return true;
     return false;
   };
   return visit(start);
@@ -462,6 +536,8 @@ export function canEscape(start: Run): boolean {
  * every piece acts. */
 export function turnSpent(g: Run): boolean {
   if (g.phase !== "player" || rulesOf(g).turn !== "one") return false;
+  // An item you could still use waits for End turn: items work before or after the piece acts.
+  if ((g.items ?? []).some(item => !itemReason(g, item))) return false;
   const whites = g.units.filter(u => u.side === "white");
   if (g.fell === "white" || whites.some(u => u.acted)) return true;
   const mover = whites.find(u => u.moved);
@@ -498,8 +574,8 @@ export function endTurn(g: Run): { run: Run; steps: Step[] } {
   const { run: acted, steps } = enemyTurn(handOver(g));
   const run = steps.length ? acted : note(acted, "Enemy waits");
   if (run.phase !== "player") return { run, steps };
-  const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y } : { ...u, moved: false, acted: false }));
-  return { run: { ...run, fell: undefined, units, turn: run.turn + 1 }, steps };
+  const units = run.units.map(u => (u.side === "white" ? { id: u.id, side: u.side, kind: u.kind, hp: u.hp, x: u.x, y: u.y, ...(u.decoy && { decoy: true as const }) } : { ...u, moved: false, acted: false }));
+  return { run: { ...run, fell: undefined, itemUsed: undefined, units, turn: run.turn + 1 }, steps };
 }
 
 export function campReason(g: Run, choice: CampChoice): string {
@@ -547,6 +623,8 @@ export function readRun(raw: string | null, data?: GameData): Run | null {
     if (g.units.some(u => typeof u.id !== "string" || !Object.hasOwn(r.hp, u.kind) || !Number.isInteger(u.x) || !Number.isInteger(u.y) || !["white", "black"].includes(u.side) || !passable(g, u) || !Number.isFinite(u.hp) || u.hp <= 0)) return null;
     if (g.sprung !== undefined && (!Array.isArray(g.sprung) || g.sprung.some(i => !Number.isInteger(i) || !levelOf(g).switches?.[i]))) return null;
     if (new Set(g.units.map(u => u.id)).size !== g.units.length || new Set(g.units.map(u => `${u.x},${u.y}`)).size !== g.units.length) return null;
-    return g.units.some(u => u.hp > r.hp[u.kind]) ? { ...g, units: g.units.map(u => (u.hp > r.hp[u.kind] ? { ...u, hp: r.hp[u.kind] } : u)) } : g;
+    if (g.items !== undefined && (!Array.isArray(g.items) || g.items.some(i => !ITEMS.includes(i)))) return null;
+    if ((g.itemUsed !== undefined && g.itemUsed !== true) || g.units.some(u => u.decoy !== undefined && (u.decoy !== true || u.side !== "white"))) return null;
+    return g.units.some(u => u.hp > maxHp(r, u)) ? { ...g, units: g.units.map(u => (u.hp > maxHp(r, u) ? { ...u, hp: maxHp(r, u) } : u)) } : g;
   } catch { return null; }
 }

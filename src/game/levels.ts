@@ -2,7 +2,7 @@
  * level designer edits them. This module checks a level before it is played or written back to the
  * repo, formats the file so diffs stay readable, and picks the army a studio test run fields.
  * Pure: no DOM, no file system. */
-import { LIMITS } from "./rules";
+import { ITEMS, LIMITS } from "./rules";
 import { RULES } from "./turns";
 import type { Encounter, Kind, Placed, Pos, Recruit, Rules, SwitchType, Trap } from "./turns";
 
@@ -14,7 +14,7 @@ export type LevelsFile = { version: 1; levels: Level[] };
  * corrupt the game and blocks Save and Play; a warning breaks a design rule, or notes something the
  * game fixes at load (an enemy's HP above its kind's max), and is only shown. No error depends on the
  * rules file, so retuning stats can never make the levels file unloadable. */
-export type Issue = { field: "size" | "walls" | "switches" | "spawns" | "starts" | "reward" | "testArmy" | "name"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
+export type Issue = { field: "size" | "walls" | "switches" | "spawns" | "starts" | "reward" | "testArmy" | "name" | "handout"; message: string; at?: Pos; warning?: true; /** The game fixes this at load (HP clamped to the max). */ clamped?: true };
 export const isError = (i: Issue) => !i.warning;
 
 export const KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
@@ -57,7 +57,7 @@ function shapeOf(v: unknown, i: number): Level | string {
   if (l.handout !== undefined) {
     const h = l.handout as Record<string, unknown>;
     if (!h || typeof h !== "object" || Array.isArray(h) || Object.keys(h).some(k => k !== "items")) return `${where}: handout must be { items }`;
-    if (h.items !== undefined && (!Array.isArray(h.items) || h.items.length > 20 || !h.items.every(id => typeof id === "string" && id.length > 0 && id.length <= 40))) return `${where}: handout items must be a list of item ids`;
+    if (h.items !== undefined && (!Array.isArray(h.items) || h.items.length > 20 || !h.items.every(id => (ITEMS as unknown[]).includes(id)))) return `${where}: handout items must be a list of ${ITEMS.join(", ")}`;
   }
   for (const k of ["name", "story"] as const) if (l[k] !== undefined && (typeof l[k] !== "string" || (l[k] as string).length > 200)) return `${where}: ${k} must be short text`;
   return l as unknown as Level;
@@ -94,6 +94,8 @@ export function levelIssues(l: Level, rules: Rules = RULES): Issue[] {
   l.starts.forEach((s, i) => place("starts", s, i === 0 ? "King start" : `Start ${i + 1}`));
   if (!l.spawns.length) out.push({ field: "spawns", message: "Needs an enemy" });
   if (!l.starts.length) out.push({ field: "starts", message: "Needs a king start" });
+  const given = l.handout?.items?.length ?? 0;
+  if (given > rules.slots) out.push({ field: "handout", message: `Hand-out ${given} items > ${rules.slots} slots → first ${rules.slots}`, warning: true });
   // An enemy the king can't reach may never be beaten.
   if (l.starts.length && inside(l.starts[0]) && !walls.has(key(l.starts[0]))) {
     const reach = new Set([key(l.starts[0])]), queue = [l.starts[0]];

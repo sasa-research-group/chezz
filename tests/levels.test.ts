@@ -124,8 +124,8 @@ describe("levels data", () => {
     for (const bad of [{}, { army, extra: 1 }, { army: ["king"] }])
       expect(parseLevels({ version: 1, levels: [{ ...base, tutorial: bad }] }).ok).toBe(false);
     // The hand-out hook: empty by default, item ids once consumables exist.
-    for (const handout of [{}, { items: [] }, { items: ["any-id"] }]) expect(parseLevels({ version: 1, levels: [{ ...tutorial, handout }] }).ok).toBe(true);
-    for (const handout of [[], { items: "x" }, { items: [3] }, { gold: 1 }]) expect(parseLevels({ version: 1, levels: [{ ...tutorial, handout }] }).ok).toBe(false);
+    for (const handout of [{}, { items: [] }, { items: ["bomb", "decoy"] }]) expect(parseLevels({ version: 1, levels: [{ ...tutorial, handout }] }).ok).toBe(true);
+    for (const handout of [[], { items: "x" }, { items: [3] }, { items: ["any-id"] }, { gold: 1 }]) expect(parseLevels({ version: 1, levels: [{ ...tutorial, handout }] }).ok).toBe(false);
     expect(formatLevels([{ ...tutorial, handout: { items: [] } }])).toContain('"handout": { "items": [] }');
     expect(parseLevels({ version: 1, levels: [{ ...tutorial, testArmy: army }] }).ok).toBe(false);
     // Survivors don't carry over in the tutorial, so fewer starts than the level before is fine there.

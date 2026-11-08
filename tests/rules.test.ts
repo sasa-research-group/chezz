@@ -24,6 +24,12 @@ describe("rules data", () => {
     const { queen: _, ...noQueen } = RULES.hp;
     expect(parseRules({ ...RULES, hp: noQueen })).toEqual({ ok: false, errors: ["hp needs king, queen, rook, bishop, knight, pawn"] });
   });
+  it("fills in item fields an older file lacks, and checks item numbers", () => {
+    const { slots: _, items: __, ...older } = RULES;
+    expect(parseRules(older)).toEqual({ ok: true, rules: RULES });
+    expect(parseRules({ ...RULES, slots: 12, items: { ...RULES.items, bomb: { damage: 1, area: 0 } } })).toEqual({ ok: false, errors: ["slots: 0–9", "items bomb area: 1–8"] });
+    expect(parseRules({ ...RULES, items: { bomb: RULES.items.bomb } }).ok).toBe(false);
+  });
   it("reads past the retired defend fields of an older rules file, and drops them", () => {
     expect(parseRules({ ...RULES, defend: 1, defends: 3 })).toEqual({ ok: true, rules: RULES });
   });

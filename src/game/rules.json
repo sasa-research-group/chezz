@@ -7,5 +7,7 @@
   "counter": true,
   "cost": { "pawn": 3, "bishop": 6, "rook": 8, "heal": 4 },
   "heal": 2,
-  "gold": 2
+  "gold": 2,
+  "slots": 3,
+  "items": { "bomb": { "damage": 1, "area": 2 }, "decoy": { "hp": 1 } }
 }

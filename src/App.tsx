@@ -7,7 +7,7 @@ import { testArmyOf, typicalStart } from "./game/levels";
 import { BattleBanner, IntentMarks } from "./components/BoardArt";
 import type { RigAction } from "./components/PieceRig";
 import { Hub } from "./components/Hub";
-import { approaches, armedRows, armedSwitch, begin, courseOf, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canEscape, coord, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, levelsOf, move, moveTargets, newRun, passable, reaches, readRun, retry, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, tutorialCourse, tutorialRun, unsafeStrikes, walkAndStrike } from "./game/turns";
+import { approaches, armedRows, armedSwitch, begin, blastArea, courseOf, itemReason, itemTargets, maxHp, useItem, deploy, ENCOUNTERS, at, attack, attackTargets, buy, canEscape, coord, endTurn, enemyPlan, exposesKing, intentOf, intentWaits, label, inCheck, kindName, kingThreat, leaveCamp, levelOf, levelsOf, move, moveTargets, newRun, passable, reaches, readRun, retry, rulesOf, same, sidelined, startAt, stepOnto, strikeExposesKing, testRun, turnSpent, tutorialCourse, tutorialRun, unsafeStrikes, walkAndStrike } from "./game/turns";
 import { TopBar } from "./components/TopBar";
 import { PauseMenu } from "./components/PauseMenu";
 import { EndTurnButton } from "./components/table/EndTurn";
@@ -15,7 +15,8 @@ import { EnemyEmblem, KingHearts, TeamBar } from "./components/table/TeamBar";
 import { SkipToken } from "./components/table/SkipToken";
 import { PhaseBanner, phaseTiming, type PhaseKind } from "./components/table/PhaseBanner";
 import { StrikeIcon } from "./components/StrikeIcon";
-import type { Encounter, Intent, Kind, Placed, Pos, Rules, Run, Step, Unit } from "./game/turns";
+import { ITEM_NAME, ItemSlots, itemNumber } from "./components/table/ItemSlots";
+import type { Encounter, Intent, Item, Kind, Placed, Pos, Rules, Run, Step, Unit } from "./game/turns";
 
 const SAVE = "chezz.turns.v1";
 /** The turn as it stood before a previewed move, saved beside the run so a reload can still cancel it. */
@@ -60,9 +61,17 @@ type Anim = { action: RigAction; key: number };
 /** lunge: where a leaping knight is drawn mid-strike ("home" while it flips back). doomed: fallen pieces still waiting for the blow to land.
  * counter: a struck piece hitting back; the attacker's damage and impact wait until it lands.
  * bolts: ranged strikes in flight, drawn as a streak from striker to target. */
-type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean; counter: { victim: string; at: Pos; landed: boolean } | null; bolts: Bolt[] };
+type Stage = { anims: Record<string, Anim>; facing: Record<string, 1 | -1>; ghosts: Unit[]; lunge: Record<string, Pos | "home">; doomed: string[]; holdFlash: boolean; mating: boolean; counter: { victim: string; at: Pos; landed: boolean } | null; bolts: Bolt[]; blasts: Blast[] };
+/** A bomb going off over its squares. */
+type Blast = { key: number; area: Pos[] };
+/** An item picked from the bag, waiting for its square: `at` is the bomb's aimed corner, tapped once and not yet fired. */
+type Aiming = { index: number; item: Item; at: Pos | null };
+/** What the board shows while aiming: where the item can go, and for a bomb, the squares it could blast and the ones it's aimed at. */
+type Aim = { item: Item; targets: Pos[]; reach: Pos[]; area: Pos[]; damage: number };
+/** How long a bomb's blast shows, and when in it the pieces take the hit. */
+const BLAST_MS = 650, BLAST_HIT = 160;
 type Bolt = { key: number; from: Pos; to: Pos; ms: number; spear?: boolean };
-const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], lunge: {}, doomed: [], holdFlash: false, mating: false, counter: null, bolts: [] };
+const EMPTY_STAGE: Stage = { anims: {}, facing: {}, ghosts: [], lunge: {}, doomed: [], holdFlash: false, mating: false, counter: null, bolts: [], blasts: [] };
 /** A strike from further than the next square (a knight's jump aside) flies to its target. */
 const ranged = (a: Unit, b: Pos) => a.kind !== "knight" && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) > 1;
 /** How far into its attack animation a blow lands (the impact stars peak a little past halfway). */
@@ -91,7 +100,8 @@ function intentWords(g: Run, i: Intent) {
   return [i.to && `moves to ${coord(g, i.to)}`, i.strike && `strikes ${target ? label(target).toLowerCase() : "?"} −${i.strike.damage}${i.strike.kills ? ", kills" : ""}`].filter(Boolean).join(", ");
 }
 
-function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare, onHover, locked, stage, spd, picking, checkers, pips, skinOf, intent, deploy, above, below }: { run: Run; moveRun: Run; home: Pos | null; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; onHover: (p: Pos | null) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined; intent: Intent | null; deploy: Deploy | null; above?: ReactNode; below?: ReactNode }) {
+function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare, onHover, locked, stage, spd, picking, checkers, pips, skinOf, intent, deploy, aim, above, below }: { run: Run; moveRun: Run; home: Pos | null; units: Unit[]; selected: Unit | undefined; flash: Step | null; onSquare: (p: Pos) => void; onHover: (p: Pos | null) => void; locked: boolean; stage: Stage; spd: number; picking: Picking | null; checkers: string[]; pips: boolean; skinOf: (kind: Kind) => string | undefined; intent: Intent | null; deploy: Deploy | null; aim: Aim | null; above?: ReactNode; below?: ReactNode }) {
+  const has = (list: Pos[] | undefined, p: Pos) => !!list?.some(q => same(q, p));
   const e = levelOf(run), r = rulesOf(run), lanes = armedRows(run);
   // While a knight is still flipping over, its blow hasn't landed: hold back damage pops and impact squares.
   const flash = stage.holdFlash ? null : rawFlash;
@@ -120,17 +130,19 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
           const m = picking ? undefined : moves.find(t => same(t, p)), s = picking ? undefined : strikes.find(t => same(t, p));
           const focus = flash?.focus.some(q => same(p, q)) || (counter?.landed && same(counter.at, p));
           const startHere = !!deploy?.starts.some(q => same(q, p)), over = !!deploy?.drag?.over && same(deploy.drag.over, p);
+          const place = aim?.item === "decoy" && has(aim.targets, p), blastable = aim?.item === "bomb" && has(aim.reach, p), blasted = aim?.item === "bomb" && has(aim.area, p);
           return <button key={i} disabled={(locked && !deploy) || !passable(run, p)} data-x={p.x} data-y={p.y}
-            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""} ${startHere ? "deploy-square" : ""} ${over ? "deploy-over" : ""} ${lanes.includes(p.y) ? "spear-lane" : ""}`}
+            className={`exile-cell ${(p.x + p.y) % 2 ? "grass" : "sand"} ${!passable(run, p) ? "wall" : ""} ${focus ? "impact-square" : ""} ${aimed ? "aimed" : ""} ${reach(p) ? "in-reach" : ""} ${s ? "strikeable" : ""} ${home && !locked && same(home, p) && !piece ? "start-square" : ""} ${startHere ? "deploy-square" : ""} ${over ? "deploy-over" : ""} ${lanes.includes(p.y) ? "spear-lane" : ""} ${blastable ? "bomb-reach" : ""} ${blasted ? "bomb-aim" : ""}`}
             onPointerEnter={ev => { if (ev.pointerType === "mouse") onHover(p); }} onPointerLeave={ev => { if (ev.pointerType === "mouse") onHover(null); }}
             onPointerDown={deploy ? ev => deploy.onDown(ev, p) : undefined}
-            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${startHere ? ", start square" : ""}${trap(p) === "armed" ? ", switch: step here to fire the spears" : trap(p) ? ", switch, used" : ""}${lanes.includes(p.y) ? ", in the spears' path" : ""}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}`}
+            aria-label={`${coord(run, p)} ${piece ? `${piece.side} ${piece.kind}, ${piece.hp} HP` : passable(run, p) ? "empty" : "obstacle"}${startHere ? ", start square" : ""}${trap(p) === "armed" ? ", switch: step here to fire the spears" : trap(p) ? ", switch, used" : ""}${lanes.includes(p.y) ? ", in the spears' path" : ""}${m ? m.unsafe ? ", blocked: would put your king in check" : ", move here" : ""}${s ? `, strike${attackTargets(run, selected!).some(t => same(t, p)) ? "" : " (walks up first)"}` : ""}${piece && unsafe.includes(piece.id) ? ", strike blocked: would put your king in check" : ""}${pick ? `, walk here and strike the ${picking!.target.kind}` : ""}${aimed ? ", target" : ""}${place ? ", place the decoy here" : ""}${blasted ? ", in the bomb's blast: tap to throw" : blastable ? ", aim the bomb here" : ""}`}
             onClick={() => onSquare(p)}><span className="tile-coord">{coord(run, p)}</span>
             {trap(p) && <span className={`floor-switch ${trap(p)}`} title={trap(p) === "armed" ? "Switch: fires the spears" : "Switch (used)"} />}
             {p.x === 0 && lanes.includes(p.y) && <span className="spear-launcher" title="Spears" />}
             {m && !m.unsafe && <span className="target-dot" />}
             {m?.unsafe && <span className="target-dot unsafe-dot" title="Exposes king"><b className="cost-label">✕</b></span>}
-            {pick && <span className="target-dot approach-dot"><b className="cost-label"><StrikeIcon /></b></span>}</button>;
+            {pick && <span className="target-dot approach-dot"><b className="cost-label"><StrikeIcon /></b></span>}
+            {place && <span className="target-dot item-dot" />}</button>;
         })}
       </div>
       {intent && (!locked || deploy) && <IntentMarks intent={intent} cols={e.width} rows={e.height} leaps={run.units.find(u => u.id === intent.id)?.kind === "knight"} />}
@@ -140,28 +152,34 @@ function Board({ run, moveRun, home, units, selected, flash: rawFlash, onSquare,
         // Until the counter lands, the attacker's chip still reads its HP from before the counter.
         const hp = awaiting ? piece.hp + (flash?.damage.find(d => d.id === piece.id)?.amount ?? 0) : piece.hp;
         // Under one move per turn, the pieces that didn't act are done once another has.
-        const benched = piece.side === "white" && sidelined(run, piece);
+        const benched = piece.side === "white" && !piece.decoy && sidelined(run, piece);
         const spent = piece.side === "white" && (piece.acted || benched);
         const ghost = !units.includes(piece), doomed = ghost && stage.doomed.includes(piece.id);
+        const max = maxHp(r, piece), bombed = !ghost && aim?.item === "bomb" && piece.side === "black" && has(aim.area, piece);
         const anim = ghost && piece.id === "king" && stage.mating ? { action: "mate" as const, key: -3 } : doomed ? stage.anims[piece.id] ?? { action: "idle" as const, key: -2 } : ghost ? { action: "death" as const, key: -1 } : stage.anims[piece.id] ?? { action: "idle" as const, key: 0 };
         const dragged = deploy?.drag?.id === piece.id ? deploy.drag : null;
         const lunge = stage.lunge[piece.id], spot = dragged ? { x: dragged.at.x - .5, y: dragged.at.y - .5 } : lunge && lunge !== "home" ? lunge : piece;
         // Enemies you can strike right now glow and carry a sword badge, drawn over the art.
         const strike = !ghost && !picking ? strikes.find(t => t.id === piece.id) : undefined;
-        return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id || deploy?.picked === piece.id ? "selected" : ""} ${dragged ? "dragging" : ""} ${(!locked || deploy) && intent?.id === piece.id ? "inspected" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""}`}
+        return <div key={piece.id} className={`exile-piece ${piece.side} ${strike ? "targetable" : ""} ${selected?.id === piece.id || deploy?.picked === piece.id ? "selected" : ""} ${dragged ? "dragging" : ""} ${(!locked || deploy) && intent?.id === piece.id ? "inspected" : ""} ${spent ? "spent" : ""} ${ghost ? "ghost" : ""} ${lunge ? "lunging" : ""} ${piece.decoy ? "decoy" : ""}`}
           style={{ left: `${(spot.x + .5) / e.width * 100}%`, top: `${(spot.y + .5) / e.height * 100}%`, width: `${92 / e.width}%`, zIndex: dragged ? 200 : Math.round(spot.y * 10 + (lunge ? 35 : ghost ? 29 : 30)) }}>
-          <PieceRig key={`${piece.id}-${anim.key}`} kind={piece.kind} side={piece.side} action={anim.action} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < r.hp[piece.kind] && piece.hp <= r.hp[piece.kind] / 2} skin={skinOf(piece.kind)} />
+          <PieceRig key={`${piece.id}-${anim.key}`} kind={piece.kind} side={piece.side} action={anim.action} facing={stage.facing[piece.id] ?? (piece.side === "white" ? 1 : -1)} seed={piece.id} wounded={piece.hp < max && piece.hp <= max / 2} skin={skinOf(piece.kind)} decoy={piece.decoy} />
+          {bombed && <span className="strike-badge bomb-mark">−{aim!.damage}</span>}
           {strike && <span className="strike-badge"><StrikeIcon /></span>}
           {!ghost && !picking && unsafe.includes(piece.id) && <span className="strike-badge unsafe" title="Exposes king">✕</span>}
           {!ghost && checkers.includes(piece.id) && <span className="check-mark" title="Threatens king">!</span>}
           {!ghost && checkers.length > 0 && piece.id === "king" && <span className="check-tag">CHECK</span>}
-          {!ghost && <span className="piece-health">{hp}<small> / {r.hp[piece.kind]}</small></span>}
-          {!ghost && pips && piece.side === "white" && <span className="action-pips" aria-hidden="true"><i className={piece.moved || spent ? "" : "full"} /><i className={spent ? "" : "full"} /></span>}
+          {!ghost && <span className="piece-health">{hp}<small> / {max}</small></span>}
+          {!ghost && pips && piece.side === "white" && !piece.decoy && <span className="action-pips" aria-hidden="true"><i className={piece.moved || spent ? "" : "full"} /><i className={spent ? "" : "full"} /></span>}
           {damage && damage.amount > 0 && <span className="damage-pop" key={`${flash?.text}-${piece.id}`}>−{damage.amount}</span>}
 
         </div>;
       })}
-      {stage.bolts.map(b => <span key={b.key} className={b.spear ? "strike-bolt spear-bolt" : "strike-bolt"} style={{ "--fx": `${(b.from.x + .5) / e.width * 100}%`, "--fy": `${(b.from.y + .2) / e.height * 100}%`, "--tx": `${(b.to.x + .5) / e.width * 100}%`, "--ty": `${(b.to.y + .2) / e.height * 100}%`, "--a": `${Math.atan2(b.to.y - b.from.y, b.to.x - b.from.x)}rad`, "--ms": `${b.ms}ms` } as CSSProperties} />)}</div>
+      {stage.bolts.map(b => <span key={b.key} className={b.spear ? "strike-bolt spear-bolt" : "strike-bolt"} style={{ "--fx": `${(b.from.x + .5) / e.width * 100}%`, "--fy": `${(b.from.y + .2) / e.height * 100}%`, "--tx": `${(b.to.x + .5) / e.width * 100}%`, "--ty": `${(b.to.y + .2) / e.height * 100}%`, "--a": `${Math.atan2(b.to.y - b.from.y, b.to.x - b.from.x)}rad`, "--ms": `${b.ms}ms` } as CSSProperties} />)}
+      {stage.blasts.map(b => {
+        const xs = b.area.map(p => p.x), ys = b.area.map(p => p.y), x0 = Math.min(...xs), y0 = Math.min(...ys);
+        return <span key={b.key} className="bomb-blast" style={{ left: `${x0 / e.width * 100}%`, top: `${y0 / e.height * 100}%`, width: `${(Math.max(...xs) - x0 + 1) / e.width * 100}%`, height: `${(Math.max(...ys) - y0 + 1) / e.height * 100}%`, "--ms": `${BLAST_MS * spd}ms` } as CSSProperties} />;
+      })}</div>
     </div>
     {below}
   </div>;
@@ -207,6 +225,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const spd = reducedMotion ? .1 : fast ? .3 : 1;
   const clearStage = () => { timers.current.forEach(clearTimeout); timers.current = []; setStage(EMPTY_STAGE); setStriding(false); setPicking(null); };
   const [picking, setPicking] = useState<Picking | null>(null);
+  const [aiming, setAiming] = useState<Aiming | null>(null);
   // The king's last stand: where he fell and who mated him, for the finale.
   const [fall, setFall] = useState<{ king: Unit; by: string[] } | null>(null);
   // True while a piece walks up to strike: the strike lands when the walk ends.
@@ -231,6 +250,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   const face = (id: string, from: Pos, to: Pos) => { if (to.x !== from.x) setStage(st => ({ ...st, facing: { ...st.facing, [id]: to.x > from.x ? 1 : -1 } })); };
   /** Animates a step from the rules: a move or a strike, with hits, counters and deaths. */
   const perform = (step: Step, beforeUnits: Unit[]) => {
+    if (step.kind === "item") { if (step.item === "bomb") explode(step, beforeUnits); return; }
     const actor = beforeUnits.find(u => u.id === step.actor);
     if (!actor) return;
     const target = step.target ? beforeUnits.find(u => u.id === step.target) : undefined;
@@ -297,6 +317,16 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     }
     for (const u of beforeUnits) if (step.damage.some(d => d.id === u.id) && !step.killed.includes(u.id)) animate(u.id, "hit", hitAt(u));
   };
+  /** A bomb: a blast over its squares, and every enemy caught in it takes the hit at once. */
+  const explode = (step: Step, beforeUnits: Unit[]) => {
+    const key = animKey.current++, later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms * spd));
+    const dying = beforeUnits.filter(u => step.killed.includes(u.id));
+    setStage(st => ({ ...st, blasts: [...st.blasts, { key, area: step.area ?? [] }], ghosts: [...st.ghosts.filter(g => !step.killed.includes(g.id)), ...dying], doomed: [...st.doomed, ...step.killed] }));
+    later(BLAST_MS, () => setStage(st => ({ ...st, blasts: st.blasts.filter(b => b.key !== key) })));
+    later(BLAST_HIT, () => setStage(st => ({ ...st, doomed: st.doomed.filter(d => !step.killed.includes(d)) })));
+    later(BLAST_HIT + DURATION.death, () => setStage(st => ({ ...st, ghosts: st.ghosts.filter(g => !step.killed.includes(g.id)) })));
+    for (const u of beforeUnits) if (step.damage.some(d => d.id === u.id) && !step.killed.includes(u.id)) animate(u.id, "hit", BLAST_HIT);
+  };
   const [menu, setMenu] = useState(false);
   const [notice, setNotice] = useState("");
   // Shown briefly when the enemy's turn had no actions, so ending the turn visibly did something.
@@ -333,7 +363,8 @@ export default function App({ test }: { test?: TestLevel } = {}) {
   // A press that turned into a drag ends in a click on the cell it started on; that click is not a tap.
   const dragged = useRef(false);
   const plan = useMemo(() => (locked && !deploying ? [] : enemyPlan(run)), [run, locked, deploying]);
-  const enemy = run.units.find(u => u.side === "black" && u.id === (hoverId ?? inspectId));
+  // While an item is aimed the board shows only the item's marks.
+  const enemy = aiming ? undefined : run.units.find(u => u.side === "black" && u.id === (hoverId ?? inspectId));
   const intent = enemy && (!locked || deploying) ? intentOf(run, plan, enemy.id) : null;
   // Check: the enemy's next turn could kill the king. You can't end the turn until he's safe, unless nothing can make him safe.
   const check = useMemo(() => {
@@ -341,6 +372,42 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     return { attackers: kingThreat(run).attackers, escape: canEscape(run) };
   }, [run, striding]);
   const checkLocked = !!check?.escape;
+  // Items: why each one in the bag can't be used now (or ""), and the board's marks while one is aimed.
+  const bag = run.items ?? [];
+  const itemWhy = useMemo(() => Object.fromEntries(bag.map(item => [item, itemReason(run, item)])) as Record<Item, string>, [run]);
+  const aim = useMemo((): Aim | null => {
+    if (!aiming || locked) return null;
+    const targets = itemTargets(run, aiming.item);
+    const reach = aiming.item === "bomb" ? targets.flatMap(t => blastArea(run, t)) : [];
+    return { item: aiming.item, targets, reach, area: aiming.at ? blastArea(run, aiming.at) : [], damage: r.items.bomb.damage };
+  }, [run, aiming, locked]);
+  /** Picks an item from the bag (or puts it back): its squares light up. */
+  const pickItem = (index: number) => {
+    const item = bag[index];
+    if (!item || locked) return;
+    if (aiming?.index === index) { setAiming(null); return; }
+    if (itemWhy[item]) return;
+    setAiming({ index, item, at: null }); setSelectedId(null); setPicking(null); setInspectId(null); setNotice("");
+  };
+  /** A tap while aiming: a decoy goes on a lit square; a bomb aims at the best square of blasts the tap is in, and a
+   * second tap inside that aim throws it. Anywhere else backs out. */
+  const aimAt = (p: Pos) => {
+    if (!aiming || !aim) return;
+    if (aiming.item === "decoy") { if (aim.targets.some(t => same(t, p))) throwItem("decoy", p); else setAiming(null); return; }
+    if (aiming.at && aim.area.some(q => same(q, p))) { throwItem("bomb", aiming.at); return; }
+    const enemiesIn = (corner: Pos) => blastArea(run, corner).filter(q => at(run, q)?.side === "black").length;
+    const best = aim.targets.filter(t => blastArea(run, t).some(q => same(q, p))).sort((a, b) => enemiesIn(b) - enemiesIn(a))[0];
+    setAiming(best ? { ...aiming, at: best } : null);
+  };
+  /** Uses the item: it commits the turn so far (no Cancel), and plays its effect. */
+  const throwItem = (item: Item, target: Pos) => {
+    const { run: next, step } = useItem(run, item, target);
+    setAiming(null);
+    if (!step) return;
+    setRun(next); setTurnStart(null); setInspectId(null); setNotice("");
+    setFlash({ step, hold: item === "bomb" ? BLAST_HIT : 0 });
+    perform(step, run.units);
+  };
   const key = outroKey(run), outro = key !== "" && key !== outroDone;
   useEffect(() => {
     if (!outro || playback || intro) return;
@@ -396,7 +463,8 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (menu || !canMenu) return;
     const back = (ev: KeyboardEvent) => {
       if (ev.key !== "Escape" || ev.defaultPrevented) return;
-      if (picking) setPicking(null);
+      if (aiming) setAiming(null);
+      else if (picking) setPicking(null);
       else if (inspectId) setInspectId(null);
       else if (preview && !locked) cancelPreview();
       else if (selectedId) setSelectedId(null);
@@ -405,7 +473,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     };
     window.addEventListener("keydown", back);
     return () => window.removeEventListener("keydown", back);
-  }, [menu, canMenu, picking, selectedId, inspectId, preview, locked, run, deployPick]);
+  }, [menu, canMenu, aiming, picking, selectedId, inspectId, preview, locked, run, deployPick]);
   useEffect(() => {
     if (!playback || playback.lead) return;
     const prev = playback.index === 0 ? playback.before.units : playback.steps[playback.index - 1].units;
@@ -504,7 +572,9 @@ export default function App({ test }: { test?: TestLevel } = {}) {
       // Any other tap cancels; only another piece (yours or an enemy) carries on as a fresh tap.
       if (!at(run, p) || same(picking.target, p)) { setNotice(""); return; }
     }
+    if (aiming) { aimAt(p); return; }
     const u = at(run, p);
+    if (u?.decoy) return;
     if (u?.side === "white") { setSelectedId(u.id); setInspectId(null); setNotice(""); return; }
     if (u && selected) {
       // Tap an enemy to strike it: in place if it's next to you, otherwise walk up first.
@@ -554,7 +624,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     if (locked) return;
     const result = endTurn(run);
     if (result.run === run) return;
-    setSelectedId(null); setNotice(""); setPicking(null); setTurnStart(null); setInspectId(null); setHoverId(null);
+    setSelectedId(null); setNotice(""); setPicking(null); setAiming(null); setTurnStart(null); setInspectId(null); setHoverId(null);
     // Commit the enemy's result at once (autosave included); playback only shows it.
     setRun(result.run);
     const fallen = run.units.find(u => u.id === "king");
@@ -584,22 +654,22 @@ export default function App({ test }: { test?: TestLevel } = {}) {
     const id = setTimeout(finishTurn, (reduced ? 150 : 450) * spd);
     return () => clearTimeout(id);
   }, [run, locked, flash, preview]);
-  function start(next: Run = fresh()) { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setPhaseBanner(null); setWaits(0); setRun(next); setTurnStart(null); setInspectId(null); setSelectedId(null); setIntro(false); setNotice(""); setDeployPick(null); setDrag(null); }
+  function start(next: Run = fresh()) { clearStage(); setFall(null); setBanner(""); setOutroDone(""); if (timer.current) clearTimeout(timer.current); setPlayback(null); setPhaseBanner(null); setWaits(0); setRun(next); setTurnStart(null); setInspectId(null); setSelectedId(null); setIntro(false); setNotice(""); setDeployPick(null); setDrag(null); setAiming(null); }
   const step = playback && !playback.lead ? playback.steps[playback.index] : null;
   const shown = step ? step.units : playback ? playback.before.units : run.units;
-  const caption = step ? (step.counter && stage.counter?.landed ? step.counter : step.text) : picking ? "Strike from?" : "";
+  const caption = step ? (step.counter && stage.counter?.landed ? step.counter : step.text) : picking ? "Strike from?" : aim ? `${ITEM_NAME[aim.item]} ${itemNumber(r, aim.item)}` : "";
   const captionLine = <div className="playback-caption" aria-live="polite">{caption}</div>;
   const skip = () => { if (timer.current) clearTimeout(timer.current); endPlayback(); };
   return <main className="exile-app">
     <TopBar battle={battle} battles={battles} gold={run.tutorial ? undefined : run.gold} tutorial={run.tutorial} menuOpen={menu} menuDisabled={!canMenu} onMenu={() => setMenu(true)} />
     <section className="exile-field">
-      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={selected} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null}
+      <Board run={playback ? playback.before : run} moveRun={playback ? playback.before : moveRun} home={home} onHover={p => setHoverId(p ? at(run, p)?.id ?? null : null)} intent={intent} units={shown} selected={aim ? undefined : selected} aim={playback ? null : aim} flash={step ?? flash?.step ?? null} onSquare={square} locked={locked} stage={stage} spd={spd} picking={playback ? null : picking} checkers={playback || !check ? [] : check.attackers} pips={!playback && run.phase === "player"} skinOf={skinOf} deploy={deploying ? { starts: e.starts, picked: deployPick, drag, onDown: pressPiece } : null}
         above={<TeamBar side="black" center={playback ? <><span className="turn-ribbon">ENEMY PHASE</span>{captionLine}</>
           : deploying ? <span className="turn-ribbon deploy-ribbon">DEPLOY</span>
           : waits > 0 && <span key={waits} role="status" className="turn-ribbon enemy-waits">ENEMY WAITS</span>}><EnemyEmblem /></TeamBar>}
         below={<TeamBar side="white" center={!playback && <>
           {check && <p role="alert" className={`check-alert ${check.escape ? "" : "no-way-out"}`}><strong>{check.escape ? "Check" : "No way out"}</strong></p>}
-          {captionLine}</>}><KingHearts hp={shown.find(u => u.id === "king")?.hp ?? 0} max={r.hp.king} /></TeamBar>} />
+          {captionLine}</>} end={!deploying && run.phase === "player" && <ItemSlots items={bag} rules={r} aiming={aim ? aiming!.index : null} locked={locked} reasonOf={item => itemWhy[item] ?? ""} onPick={pickItem} />}><KingHearts hp={shown.find(u => u.id === "king")?.hp ?? 0} max={r.hp.king} /></TeamBar>} />
       {notice && <p role="status" className="notice">{notice}</p>}
       <p className="sr-only" aria-live="polite">{banner === "checkmate" ? "Checkmate" : banner === "defeat" ? "Defeat" : banner === "victory" ? "Victory" : banner === "cleared" ? "Battle won" : ""}</p>
       {banner && <BattleBanner kind={banner} line={banner === "cleared" && !run.tutorial ? `+${e.reward} ✦` : undefined} onClick={skipOutro} />}
@@ -612,7 +682,7 @@ export default function App({ test }: { test?: TestLevel } = {}) {
             {intent.strike && <span><StrikeIcon />{kindName(run.units.find(u => u.id === intent.strike!.target)?.kind ?? "")} −{intent.strike.damage}</span>}</>}</span></div></div>
         : selected && !locked && <div className="selected-card"><PieceRig kind={selected.kind} side="white" skin={skinOf(selected.kind)} /><div><strong>{kindName(selected.kind)}</strong><UnitStats u={selected} r={r} /><span className="action-pips" role="img" aria-label={selectedBenched ? "locked: another piece acted" : selected.acted ? "done" : selected.moved ? "moved" : "ready"}><i className={selected.moved || selected.acted || selectedBenched ? "" : "full"} /><i className={selected.acted || selectedBenched ? "" : "full"} /></span></div></div>}
       </div>
-      {preview && !locked && <button className="cancel-move" aria-label="Cancel" onClick={cancelPreview} title="Take the move back (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg><span className="cancel-label">Cancel</span></button>}
+      {(preview || aim) && !locked && <button className="cancel-move" aria-label="Cancel" onClick={aim ? () => setAiming(null) : cancelPreview} title={aim ? "Put the item back (Esc)" : "Take the move back (Esc)"}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg><span className="cancel-label">Cancel</span></button>}
       {deploying
         ? <button className="end-turn ready begin" onClick={beginBattle}><span className="end-turn-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" /></svg></span><span className="end-turn-label">Begin</span></button>
         : <>{playback && <SkipToken onClick={skip} />}

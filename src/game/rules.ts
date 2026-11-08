@@ -9,6 +9,10 @@ export type Shop = "pawn" | "bishop" | "rook" | "heal";
 /** How far a piece strikes along its capture shape: 1 is the next square; "line" is any distance along
  * those directions, stopped by the first piece or wall. */
 export type Reach = 1 | "line";
+/** One-use items the team carries in its bag (docs/turn-based.md, Items). */
+export type Item = "bomb" | "decoy";
+/** Each item's numbers. bomb: damage to every enemy in an area × area square. decoy: the straw pawn's HP. */
+export type ItemStats = { bomb: { damage: number; area: number }; decoy: { hp: number } };
 export type Rules = {
   version: 1;
   turn: TurnMode;
@@ -22,6 +26,9 @@ export type Rules = {
   heal: number;
   /** Gold a new run starts with. */
   gold: number;
+  /** How many items the team's bag holds. */
+  slots: number;
+  items: ItemStats;
 };
 
 export const RULE_KINDS: Kind[] = ["king", "queen", "rook", "bishop", "knight", "pawn"];
@@ -29,8 +36,12 @@ export const SHOP: Shop[] = ["pawn", "bishop", "rook", "heal"];
 export const TURN_MODES: TurnMode[] = ["one", "all"];
 export const REACHES: Reach[] = [1, "line"];
 /** Allowed range for each number, so a typo can't make a piece unkillable or a level unloadable. */
-export const LIMITS = { hp: [1, 99], damage: [0, 99], cost: [0, 99], heal: [0, 99], gold: [0, 99] } as const;
-const KEYS = ["version", "turn", "hp", "damage", "range", "counter", "cost", "heal", "gold"] as const;
+export const LIMITS = { hp: [1, 99], damage: [0, 99], cost: [0, 99], heal: [0, 99], gold: [0, 99], slots: [0, 9] } as const;
+export const ITEMS: Item[] = ["bomb", "decoy"];
+export const ITEM_LIMITS = { bomb: { damage: [0, 99], area: [1, 8] }, decoy: { hp: [1, 99] } } as const;
+const KEYS = ["version", "turn", "hp", "damage", "range", "counter", "cost", "heal", "gold", "slots", "items"] as const;
+/** Fields added after rules files were already being tuned by hand: a file without them loads with these. */
+const ADDED = { slots: 3, items: { bomb: { damage: 1, area: 2 }, decoy: { hp: 1 } } };
 /** Fields of retired rules, still found in older rules files: read past, never written back. */
 const RETIRED = ["defend", "defends"];
 
@@ -38,8 +49,9 @@ const int = (v: unknown, [lo, hi]: readonly [number, number]) => Number.isIntege
 const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 /** Parses and checks a rules file (a POST body, a hand-edited file). Returns every problem, not just the first. */
-export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: false; errors: string[] } {
-  if (!isMap(raw)) return { ok: false, errors: ["Not a rules file"] };
+export function parseRules(input: unknown): { ok: true; rules: Rules } | { ok: false; errors: string[] } {
+  if (!isMap(input)) return { ok: false, errors: ["Not a rules file"] };
+  const raw: Record<string, unknown> = { ...ADDED, ...input };
   const errors: string[] = [];
   const extra = Object.keys(raw).filter(k => !(KEYS as readonly string[]).includes(k) && !RETIRED.includes(k));
   if (extra.length) errors.push(`Unknown field ${extra.join(", ")}`);
@@ -54,7 +66,15 @@ export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: fal
   const range = raw.range;
   if (!isMap(range) || Object.keys(range).length !== RULE_KINDS.length || !RULE_KINDS.every(k => k in range)) errors.push(`range needs ${RULE_KINDS.join(", ")}`);
   else for (const k of RULE_KINDS) if (!(REACHES as unknown[]).includes(range[k])) errors.push(`range ${k}: 1 or "line"`);
-  for (const k of ["heal", "gold"] as const) if (!int(raw[k], LIMITS[k])) errors.push(`${k}: ${LIMITS[k][0]}–${LIMITS[k][1]}`);
+  for (const k of ["heal", "gold", "slots"] as const) if (!int(raw[k], LIMITS[k])) errors.push(`${k}: ${LIMITS[k][0]}–${LIMITS[k][1]}`);
+  const items = raw.items;
+  if (!isMap(items) || Object.keys(items).length !== ITEMS.length || !ITEMS.every(k => isMap(items[k]))) errors.push(`items needs ${ITEMS.join(", ")}`);
+  else for (const item of ITEMS) {
+    const stats = items[item] as Record<string, unknown>, limits: Record<string, readonly [number, number]> = ITEM_LIMITS[item];
+    const keys = Object.keys(limits);
+    if (Object.keys(stats).length !== keys.length || !keys.every(k => k in stats)) { errors.push(`items ${item} needs ${keys.join(", ")}`); continue; }
+    for (const k of keys) if (!int(stats[k], limits[k])) errors.push(`items ${item} ${k}: ${limits[k][0]}–${limits[k][1]}`);
+  }
   if (typeof raw.counter !== "boolean") errors.push("counter must be true or false");
   return errors.length ? { ok: false, errors } : { ok: true, rules: Object.fromEntries(KEYS.map(k => [k, raw[k]])) as unknown as Rules };
 }
@@ -62,6 +82,7 @@ export function parseRules(raw: unknown): { ok: true; rules: Rules } | { ok: fal
 /** JSON with one field per line and each table inline, so a changed stat is a one-line diff. */
 export function formatRules(r: Rules): string {
   const inline = (keys: string[], t: Record<string, unknown>) => `{ ${keys.map(k => `${JSON.stringify(k)}: ${JSON.stringify(t[k])}`).join(", ")} }`;
-  const value = (k: typeof KEYS[number]) => k === "hp" || k === "damage" || k === "range" ? inline(RULE_KINDS, r[k]) : k === "cost" ? inline(SHOP, r.cost) : JSON.stringify(r[k]);
+  const value = (k: typeof KEYS[number]) => k === "hp" || k === "damage" || k === "range" ? inline(RULE_KINDS, r[k]) : k === "cost" ? inline(SHOP, r.cost)
+    : k === "items" ? `{ ${ITEMS.map(i => `${JSON.stringify(i)}: ${inline(Object.keys(ITEM_LIMITS[i]), r.items[i])}`).join(", ")} }` : JSON.stringify(r[k]);
   return `{\n${KEYS.map(k => `  ${JSON.stringify(k)}: ${value(k)}`).join(",\n")}\n}\n`;
 }

@@ -187,3 +187,4 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
 .level-toggle{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700}
 .level-controls .level-toggle{justify-content:flex-start;text-transform:none}.level-controls .level-toggle input{width:auto;flex:none;margin:0}
 .level-list [aria-current] .level-tag{color:inherit}
+.level-handout li{grid-template-columns:28px 1fr auto}.level-handout .item-icon{width:24px;height:24px;object-fit:contain;display:block}

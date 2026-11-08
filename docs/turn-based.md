@@ -11,8 +11,10 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   `RULES` and refuses to start on a broken file.
 - Fields: `turn` (`"one"` or `"all"`), `hp` and `damage` per piece, `range`
   per piece (`1` or `"line"`, below), `counter` (strikebacks on or off),
-  `cost` (hideout prices), `heal` (HP a heal gives back) and `gold` (a new
-  run's gold).
+  `cost` (hideout prices), `heal` (HP a heal gives back), `gold` (a new
+  run's gold), `slots` (how many items the bag holds) and `items` (each
+  item's numbers: `bomb` `damage` and `area`, `decoy` `hp`). A file without
+  `slots` or `items` (tuned before items existed) loads with the defaults.
 - A studio test run can carry unsaved rules (`Run.rules`); saved runs never do.
 
 ## Deploy
@@ -106,6 +108,35 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   until he's safe, unless nothing you can still do helps (`canEscape`).
 - The king dying ends the run.
 
+## Items
+- Your team carries a bag of one-use items (`Run.items`), shown as slots at
+  the right end of your team bar (`rules.json` `slots`, 3 today). The team
+  holds them, not a piece. Enemies don't use items.
+- Using one is free (it doesn't use up your piece's move or strike) but only
+  one item a turn (`Run.itemUsed`, cleared by End turn). Use it before or
+  after your piece acts; while an item could still be used, the turn doesn't
+  pass on its own after a strike (`turnSpent`), so End turn ends it.
+- It can't be taken back: like a strike, it commits the turn so far (a
+  previewed move included).
+- Tap a slot: the squares it can go on light up (`itemTargets`); Cancel,
+  Escape or tapping the slot again puts it back. A greyed slot says why
+  (`itemReason`: one per turn, no target).
+- Check applies: an item can't leave your king open to a kill, and when he's
+  in check an item that makes him safe counts as a way out (`canEscape`).
+- **Bomb**: `items.bomb.damage` to every enemy in an `area` × `area` square
+  (2×2 today); your own pieces are never hit. Lit squares are where a blast
+  could reach; tap one to aim (the square of blasts holding the most enemies
+  that contains it, outlined, with −N on each enemy), tap inside the aim to
+  throw it, anywhere else to re-aim. Logged as "Bomb −1 × 3 · 1 killed".
+- **Decoy**: a straw pawn (`items.decoy.hp` HP) on an empty square next to one
+  of your pieces (not an armed switch). It never moves, strikes or strikes
+  back, and enemies treat it as one of your pieces: they strike it and it
+  blocks their lines, but it never counts as your king. It stays behind when
+  the battle is won.
+- The bag carries between roguelike battles; a level's `handout` replaces it
+  (`docs/levels.md`), and in the tutorial every level replaces it. Old saves
+  load with an empty bag.
+
 ## Switches and spear traps
 - A level may place switches on the floor (`switches` in `levels.json`), each
   with a `type`. The only type so far is `"spears"`: a spear trap with a list
@@ -145,8 +176,8 @@ and the stats in `src/game/rules.json`, edited in the studio's Mechanics tab.
   save (`meta.ts` `tutorialDone`; no skin unlock) and offers the roguelike.
   From then on Start begins the roguelike, and the start screen offers the
   tutorial again as a second button.
-- A level's optional `handout` (`{ items }`) is the hook for what the
-  tutorial hands out there; the game doesn't act on it yet.
+- Every tutorial level replaces the item bag: with its `handout` items
+  (battle 3 hands out a Bomb, battle 4 a Decoy), or with nothing.
 - Developer menu: Skip tutorial / Reset tutorial flips the meta flag.
 - A save from before the tutorial existed loads as a roguelike run.
 
