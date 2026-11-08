@@ -269,7 +269,7 @@ export function Levels({ index, onPick }: { index: number; onPick: (i: number) =
           <select aria-label={`Switch ${sq(level, s)} type`} value={s.type} onChange={e => setSwitch(i, t => ({ ...t, type: e.target.value as SwitchType }))}>
             {SWITCH_TYPES.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
           </select>
-          <label><span className="sr-only">Switch {sq(level, s)} damage</span><span aria-hidden="true">−</span><input type="number" min={1} max={MAX_HP} value={s.damage} title="Damage to every piece in the lanes" onChange={e => setSwitch(i, t => ({ ...t, damage: clamp(Number(e.target.value), 0, MAX_HP + 1) }))} /></label>
+          <label className="switch-damage" title="HP every piece in the lit ranks loses when the spears fire, yours too"><span className="sr-only">Switch {sq(level, s)}</span>Damage<input type="number" min={1} max={MAX_HP} value={s.damage} onChange={e => setSwitch(i, t => ({ ...t, damage: clamp(Number(e.target.value), 0, MAX_HP + 1) }))} /></label>
           <button type="button" aria-label={`Remove switch ${sq(level, s)}`} onClick={() => setSwitch(i, () => null)}>×</button>
           <div className="seg switch-rows" role="group" aria-label={`Ranks the spears sweep from switch ${sq(level, s)}`}>
             {Array.from({ length: level.height }, (_, y) => <button key={y} type="button" aria-pressed={s.rows.includes(y)} onClick={() => setSwitch(i, t => toggleRow(t, y))}>{level.height - y}</button>)}

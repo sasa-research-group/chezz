@@ -106,8 +106,9 @@ a.cast-tile:hover,a.cast-tile:focus-visible{border-color:#396c61;outline:none;bo
 .level-rows .sprite-still{width:28px}.level-rows b{text-transform:capitalize}.level-rows code{font-size:11px;color:#766a58}
 .level-rows label{display:flex;align-items:center;gap:3px;color:#a3271c;font-weight:800}.level-rows input{padding:3px 5px;font-size:13px}
 .levels-area .level-rows button,.levels-area .level-chips button,.levels-area .level-army button{padding:2px 8px;font-size:14px;line-height:1.2}
-.level-switches li{grid-template-columns:28px auto 1fr 70px auto;row-gap:4px;padding-bottom:6px;border-bottom:1px solid #d8caae}
+.level-switches li{grid-template-columns:28px auto 1fr auto auto;row-gap:4px;padding-bottom:6px;border-bottom:1px solid #d8caae}
 .level-switches select{padding:3px 4px;font-size:13px}
+.level-rows .switch-damage{color:#766a58;font-size:11px;font-weight:700;gap:5px}.level-rows .switch-damage input{width:52px}
 .switch-icon{width:26px;height:26px;background:url("../assets/props/switch.webp") center/contain no-repeat}
 .level-switches .switch-rows{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:3px}.levels-area .level-switches .switch-rows button{min-width:30px;padding:2px 6px;font-size:12px}
 .level-chips{grid-template-columns:repeat(auto-fill,minmax(82px,1fr))}
