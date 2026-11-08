@@ -1,6 +1,6 @@
 /** Board overlays shared by the game and the art studio (art.html). */
-export type BannerKind = "cleared" | "victory" | "defeat" | "checkmate" | "solved" | "timeout";
-export const BANNER_TEXT: Record<BannerKind, string> = { checkmate: "Checkmate!", defeat: "The crown falls…", victory: "Victory!", cleared: "Road cleared!", solved: "Solved!", timeout: "Out of moves…" };
+export type BannerKind = "cleared" | "victory" | "defeat" | "checkmate" | "solved" | "timeout" | "retreat";
+export const BANNER_TEXT: Record<BannerKind, string> = { checkmate: "Checkmate!", defeat: "The crown falls…", victory: "Victory!", cleared: "Road cleared!", solved: "Solved!", timeout: "Out of moves…", retreat: "Both sides fall back…" };
 /** Jokes for the checkmate banner, picked by turn so a replay shows the same one. */
 export const MATE_LINES = ["Long live the… oh.", "The crown has left the building.", "He'll walk it off. He won't.", "Somewhere, a pawn is laughing.", "Exile was nicer, honestly."];
 

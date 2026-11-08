@@ -482,6 +482,7 @@ describe("the stall clock", () => {
     expect(g.phase).toBe("camp");
     expect(g.gold).toBe(boxed().gold);
     expect(g.log[0]).toMatch(/fall back/);
+    expect(g.flags?.retreated).toBe(true);
     expect(readRun(JSON.stringify(g))).not.toBeNull();
     expect(leaveCamp(g).encounter).toBe(2);
   });

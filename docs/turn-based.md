@@ -33,7 +33,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 ## Check
 - Your king is in check when the enemy's next turn could kill him: within its
   pool, each enemy piece may step in (if it can afford to; a pawn reaching your
-  back row becomes a queen first) and strike him once,
+  back row crowns first) and strike him once,
   and the hits add up to at least his HP (`kingThreat`, `inCheck`). Threats that
   would only hurt him are not check.
 - You can't put your own king in check: a move or strike (through the counter
@@ -139,7 +139,7 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
 - A pawn that moves onto the far row promotes at full health of its new
   piece. Yours pauses play for a picker (queen, rook, bishop or knight) and
   can still strike or defend that turn; nothing else can happen until you
-  choose. An enemy pawn always becomes a queen, and the enemy races for the
+  choose. An enemy pawn becomes a queen of its cast (or its fixed crown), and the enemy races for the
   far row when it can; a fresh queen may still strike that turn if the enemy
   has energy left. A two-part animation shows the pawn transforming.
 
@@ -176,9 +176,9 @@ on Oct 10 at Wesley's request. That slice's rules are kept in
     2 (4). Buy as often as gold allows; recruits wait in the barracks
     (`run.recruits`) and are refused once the army would outnumber the next
     map's start squares.
-  - Training grounds (upgrades), the armory (gear), the merchant
-    (consumables) and the Grandmaster's Guild: placeholders with no actions
-    yet.
+  - Training grounds (upgrades), the armory (gear) and the merchant
+    (consumables): placeholders with no actions yet. The Grandmaster's Guild
+    lists the puzzles (see Guild puzzles).
   - Road out: march into the next battle.
 - HP carries over; fallen allies stay gone; king death ends the run. The order pool, combat modes, pawn ambushes and cleanup
   strikes from the simultaneous slice are gone.

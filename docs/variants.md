@@ -18,7 +18,7 @@ Shared rules the abilities lean on:
 - **Alt actions** replace the strike: they cost energy, mark the piece acted, may be taken after a
   move, and are refused like any move if they would leave your king in check.
 - **Run-level tiles**: walls an ability raised (`run.walls`) and encounter walls knocked down
-  (`run.broken`); `passable()` reads both. Holes, ice, portals and gates are planned (see Boards).
+  (`run.broken`); `passable()` reads both. Holes, crumbling tiles, burrows, ice, gates and levers are built (see Boards and docs/turn-based.md).
 - **Order of a strike**: bodyguard redirect, splash, damage to every victim, counters from
   survivors, deaths (and death hooks), then the striker's `afterStrike`.
 - **Check** (`kingThreat`) prices every enemy action through the hooks: strike cost, damage, reach,
@@ -53,7 +53,7 @@ Shared rules the abilities lean on:
 
 > Grumble can hop two squares straight forward over anything (a piece, a wall, a hole) for 2 energy, but is far too grumpy to ever defend.
 
-**Rules.** moveTargets hook: adds (x, y + 2*forward) at cost 2 when the landing square is passable and empty, whatever the middle square holds (piece of either side, wall, hole, shut gate). The plain forward step (1) stays. One move per turn, so hop 2 + strike 2 = the whole pool. Strike unchanged (diagonal forward, 1 damage). canDefend hook: false (button hidden; the AI never braces him). Promotion: a hop onto the far row promotes (yours picks; an enemy Grumble becomes a queen). Boards: landing on ice slides, on a lever pulls it, on a crumbling tile is fine (the vaulted tile is untouched). Check: enemy hops come through moveTargets, so a frog two rows out on a 4 pool is a threat; kingThreat sees it. AI: generic; crowning hops score 30.
+**Rules.** moveTargets hook: adds (x, y + 2*forward) at cost 2 when the landing square is passable and empty, whatever the middle square holds (piece of either side, wall, hole, shut gate). The plain forward step (1) stays. One move per turn, so hop 2 + strike 2 = the whole pool. Strike unchanged (diagonal forward, 1 damage). canDefend hook: false (button hidden; the AI never braces him). Promotion: a hop onto the far row promotes, always into a knight (so Nobody), either side. Boards: a hop never glides on ice (leapers land), onto a burrow mouth it comes out the far one, onto a lever pulls it, and a vaulted crumbling tile is untouched. Check: enemy hops come through moveTargets, so a frog two rows out on a 4 pool is a threat; kingThreat sees it. AI: generic; crowning hops score 30.
 
 **Downside.** Never defends, so anything that reaches him kills him, and the hop can carry him past the piece he wanted to poke.
 
@@ -132,7 +132,7 @@ Shared rules the abilities lean on:
 
 > Brick can swing the sledgehammer at an adjacent wall instead of a piece and knock it down for good.
 
-**Rules.** altAction 'demolish': cost 2, counts as acted, may move first. Target: an orthogonally adjacent wall tile: an encounter wall, a shut gate (it becomes plain floor and never shuts again) or Nobody's suit; board edges and holes are not walls. Effect: the tile joins run.brokenWalls, which passable() consults, so turns.ts stays pure and saves replay. His strike is a normal 3-damage rook strike for 2. Check: demolition is judged by intoCheck like any action (opening a wall may expose your king: refused with the red ✕). UI: walls show a hammer badge when Brick stands beside them with 2 energy. AI: enemy Brick demolishes only when the opened square shortens its path to your king (BFS distance drops), score 15 - cost.
+**Rules.** altAction 'demolish': cost 2, counts as acted, may move first. Target: an orthogonally adjacent wall tile: an encounter wall, a shut gate (it becomes plain floor and never shuts again) or Nobody's suit; board edges and holes are not walls. Effect: the tile joins run.broken, which passable() consults, so turns.ts stays pure and saves replay. His strike is a normal 3-damage rook strike for 2. Check: demolition is judged by intoCheck like any action (opening a wall may expose your king: refused with the red ✕). UI: walls show a hammer badge when Brick stands beside them with 2 energy. AI: enemy Brick demolishes only when the opened square shortens its path to your king (BFS distance drops), score 15 - cost.
 
 **Downside.** Demolishing spends the whole action and the new doorway is open for the enemy too; a rook standing in a fresh gap is a target.
 
@@ -218,14 +218,14 @@ Shared rules the abilities lean on:
 
 > Marmalade sleeps: he cannot move, strike or defend and takes 1 less from every hit. A friend ending a move beside him wakes him for the turn: he gets zoomies and moves like a queen, then naps again when the turn ends.
 
-**Rules.** mods.asleep = true at spawn and again at the end of each of his side's turns. Asleep: moveTargets and attackTargets empty, canDefend false, every hit on him deals 1 less (burn ticks ignore it). Wake (afterMove hook): a friendly unit's move ending on his 8 neighbours (steps, slides, hops, honk pushes count) clears asleep until endTurn. Awake: moveTargets = queen shape at 1 per square (a king's step is included), strike adjacent for 2 (cost 2), may brace. Being struck does not wake him (a deep sleeper): this keeps the awake window inside his own side's turn. Check: kingThreat applies the -1 always (he is asleep whenever the enemy acts); canEscape finds 'nudge, then slide' because the nudge is an ordinary move and the woken king then has queen moves. AI: an enemy Marmalade's side nudges him only when he is threatened (+25 for the nudge move), then zooms to the square with the lowest kingThreat.
+**Rules.** He is asleep unless mods.awake is set (a friend's move sets it; his side's turn end clears it). Asleep: moveTargets and attackTargets empty, canDefend false, every hit on him deals 1 less (burn ticks ignore it). Wake (afterMove hook): a friendly unit's move ending on his 8 neighbours (steps, slides, hops, honk pushes count) clears asleep until endTurn. Awake: moveTargets = queen shape at 1 per square (a king's step is included), strike adjacent for 2 (cost 2), may brace. Being struck does not wake him (a deep sleeper): this keeps the awake window inside his own side's turn. Check: kingThreat applies the -1 always (he is asleep whenever the enemy acts); canEscape finds 'nudge, then slide' because the nudge is an ordinary move and the woken king then has queen moves. AI: an enemy Marmalade's side nudges him only when he is threatened (+25 for the nudge move), then zooms to the square with the lowest kingThreat.
 
 **Downside.** He never acts on his own: every escape costs a second piece's move first, and a lone Marmalade just lies there in check.
 
 **Puzzle hook.** Wake the cat: king in check, the nudge costs 1, the queen-slide escape costs 2, and the last 1 is a brace. Which ally reaches his side in 1 without standing in the slide lane? The decoy answer walks into a Pike's tip.
 
 
-## Boards (planned tiles)
+## Boards
 
 Four atypical boards, each a mechanic the cast can play with. Tile data lives on the encounter; state that changes during a battle (collapsed tiles, gate positions) lives on the run so saves replay.
 
@@ -307,7 +307,7 @@ Legend: uppercase = yours, lowercase = enemy, . = floor
 Legend: uppercase = yours, lowercase = enemy, . = floor
 ```
 
-**Puzzle hook.** Two keys, one mate. The lever opens the gate, but Sir Lance leaps walls: he can land on e3 to pull it shut again, or on c3 to charge your king for 3. The winning line ignores the lever: Brick c1-c3 (2) and Demolish the gate at c4 (2), so it is floor forever. Lance's reply is a charge on Redcape (5 HP survives), and next turn Brick steps into the doorway (1) and strikes c5 (2): Lance at d5 is a diagonal from c4, so no guard takes the blow, and the wounded king falls before the knight can charge twice.
+**Puzzle hook.** Two keys, one mate. The lever opens the gate, but Sir Lance leaps walls: he can land on the lever to pull it shut again (the lever now sits on a3, out of his reach), or on c3 to charge your king for 3. The winning line ignores the lever: Brick c1-c3 (2) and Demolish the gate at c4 (2), so it is floor forever. Lance's reply is a charge on Redcape (5 HP survives), and next turn Brick steps into the doorway (1) and strikes c5 (2): Lance at d5 is a diagonal from c4, so no guard takes the blow, and the wounded king falls before the knight can charge twice.
 
 
 ## How the set was chosen

@@ -30,7 +30,7 @@
   .playback-caption{min-height:0;padding:6px 4px 2px;font-size:12px}.playback-controls{padding:2px 4px}
   .exile-sidebar{display:block}
   .action-bar{position:fixed;left:0;right:0;bottom:0;z-index:50;border-radius:14px 14px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))!important;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;align-items:center;box-shadow:0 -4px 18px #382f2e33}
-  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice):not(.check-alert),.action-bar .selected-card p,.action-bar .selected-card svg{display:none}
+  .action-bar>h2,.action-bar>.small-print,.action-bar>p:not(.kicker):not(.notice):not(.check-alert),.action-bar .selected-card p,.action-bar .selected-card svg,.action-bar .selected-card .sprite{display:none}
   .action-bar>.kicker{margin:0;grid-column:1}.action-bar .energy-pips{margin:0;grid-column:2;justify-self:end}
   .action-bar .selected-card{grid-column:1/-1;margin:0;padding:6px 10px}
   .action-bar .secondary-button,.action-bar .primary-button{margin:0;padding:12px 10px}
@@ -150,7 +150,8 @@
 .exile-cell .target-dot.alt-dot{animation-name:alt-pulse}
 @media(prefers-reduced-motion:reduce){.exile-cell .target-dot.alt-dot{animation:none}}
 @media(max-width:700px){
-  .action-bar .piece-actions{grid-column:1;margin:0;gap:6px}
+  .action-bar .piece-actions{grid-column:1;margin:0;gap:6px;grid-auto-flow:column;grid-auto-columns:1fr}
+  .action-bar .piece-actions .secondary-button span{display:none}
   .alt-dot .cost-label{font-size:8px}.exile-cell .target-dot.alt-dot{padding:2px 5px}
 }
 /* Statuses: small chips stacked at the piece's shoulder, clear of the face and the health badge. */
@@ -164,6 +165,7 @@
 .guild-puzzles button{align-items:flex-start;text-align:left;min-height:0;padding:14px 14px 12px}.guild-puzzles .kicker{margin-bottom:6px;font-size:9px}.guild-puzzles h2{font-size:18px;margin-bottom:2px}.guild-puzzles p{margin:6px 0}.guild-puzzles .puzzle-goal{color:#4a3760;font-weight:700}.guild-puzzles strong{margin-top:8px}
 .puzzle-end{text-align:center}.puzzle-end-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;margin-top:8px}.puzzle-end-actions .secondary-button,.puzzle-end-actions .primary-button{margin:0}
 .battle-banner.solved{background:#7fd38c}.battle-banner.timeout{background:#e9dec5;color:#382f2e}
+.battle-banner.retreat{background:#d9c7a3;color:#382f2e}
 @media(max-width:700px){.guild-puzzles{grid-template-columns:1fr}.guild-puzzles button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:10px}.guild-puzzles h2{font-size:16px}.puzzle-end-actions{grid-template-columns:1fr}}
 
 /* The stall clock in the arena's top line: quiet turns, amber once pieces start to tire. */

@@ -121,10 +121,11 @@ describe("ice", () => {
     const slid = move(g, "p", sq(2, 0));
     expect(unit(slid, "p")).toMatchObject({ x: 2, y: 0 });
     expect(slid.promoting).toBe("p");
-    // An enemy rook closing in on the king skids across the lake.
+    // The enemy's pieces glide too: its move list (which the AI picks from) holds the glide's end, never the ice.
     const chase = board({ ice: [sq(1, 0), sq(2, 0), sq(3, 0)] }, [king(4, 4), foe("r", "rook", 0, 0, 5)]);
-    const after = endTurn(chase).run;
-    expect(unit(after, "r")!.y === 0 ? [1, 2, 3].includes(unit(after, "r")!.x) : true).toBe(false);
+    const rookMoves = moveTargets(chase, unit(chase, "r")!, 3);
+    expect(rookMoves).toEqual(expect.arrayContaining([{ x: 4, y: 0, cost: 1 }]));
+    expect(rookMoves.some(t => t.y === 0 && t.x >= 1 && t.x <= 3)).toBe(false);
   });
 });
 
@@ -209,9 +210,11 @@ describe("tiles under abilities and odd routes", () => {
     const g = board({ holes: [sq(3, 3)] }, [king(2, 2), pip]);
     expect(kingThreat(g)).toEqual({ damage: 5, attackers: ["pip"] });
     expect(inCheck(g)).toBe(true);
-    const fell = endTurn({ ...g, units: g.units.map(u => (u.id === "king" ? { ...u, x: 2, y: 2 } : u)) });
-    // With a way out refused (the turn can only end once the king is safe), force it: move him first and he is fine.
-    expect(fell.run === g || fell.run.phase === "player" || fell.run.phase === "defeat").toBe(true);
+    // Out of energy there is no way out, so the turn may end: the heave lands and the king goes into the pit.
+    const fell = endTurn({ ...g, energy: 0 }).run;
+    expect(fell.phase).toBe("defeat");
+    expect(fell.log.some(l => /falls into the pit/.test(l))).toBe(true);
+    // With energy he steps aside and is safe.
     const safe = move(g, "king", sq(2, 3));
     expect(inCheck(safe)).toBe(false);
   });
@@ -314,15 +317,11 @@ describe("Guild puzzles", () => {
     const t2 = endTurn(g).run;
     expect(t2.phase).toBe("player"); expect(t2.turn).toBe(2);
     expect(endTurn(t2).run.phase).toBe("defeat");
-    // Or rook b1→b4 isn't reachable (pawn's lane), so a1 via a-file: rook b1→a1 (1), a1→a2.. the pawn sits at a4 (0,0): slide to a3 (0,1) costs 1+2=3? One move per turn: b1→a1 then strike needs adjacency. Use the tap: walk b1→a2? Not in a rook's shape. Simplest: rook b1→b4 (1,0) is beside the pawn: 3 energy, then strike (2) exceeds 4. So turn 1: rook to b4 (3). Enemy pawn marches to a3 (0,1) maybe. Just assert the win is possible via attack from an adjacent square.
-    const walked = move(g, "ally-1", { x: 1, y: 0 });
-    expect(walked.energy).toBe(1);
-    const next = endTurn(walked).run;
-    const rook = unit(next, "ally-1")!, pawn = next.units.find(u => u.side === "black")!;
-    if (Math.abs(rook.x - pawn.x) + Math.abs(rook.y - pawn.y) === 1) {
-      const won = attack(next, "ally-1", pawn.id).run;
-      expect(won.phase).toBe("victory");
-      expect(readRun(JSON.stringify(won))).not.toBeNull();
-    }
+    // Played well: the rook stands beside the pawn and strikes; the puzzle is won outright.
+    const ready = { ...g, units: g.units.map(u => (u.id === "ally-1" ? { ...u, x: 1, y: 0 } : u)) };
+    const won = attack(ready, "ally-1", "enemy-0-0").run;
+    expect(won.phase).toBe("victory");
+    expect(won.log[0]).toMatch(/Solved/);
+    expect(readRun(JSON.stringify(won))).not.toBeNull();
   });
 });

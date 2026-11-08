@@ -130,7 +130,7 @@ export function Hub({ run, reward, spd, onBuy, onLeave, onPuzzle }: { run: Run; 
   return <section className="hub-screen" role="dialog" aria-modal="true" aria-label="Rebel hideout">
     <div className="hub-body" inert={!!place}>
     <header className="hub-header">
-      <div><p className="kicker">PATROL DEFEATED · +{reward} GOLD</p><h1>The rebel hideout</h1><p>Tap a building and the king will walk over. Take the road when you're ready.</p></div>
+      <div><p className="kicker">{run.flags?.retreated ? "BOTH SIDES FELL BACK · NO REWARD" : `PATROL DEFEATED · +${reward} GOLD`}</p><h1>The rebel hideout</h1><p>Tap a building and the king will walk over. Take the road when you're ready.</p></div>
       <div className="hub-stats">
         <span>✦ <b>{run.gold}</b><small>GOLD</small></span>
         <span>♛ <b>{kingUnit?.hp ?? 0} / {kingUnit ? maxHp(kingUnit) : HP.king}</b><small>KING HEALTH</small></span>

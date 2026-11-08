@@ -47,8 +47,9 @@ as one move + defend chip; #20 handoff audit.
 
 ## Open items
 - The enemy AI takes no alt actions and has no per-ability scoring.
-- Known gaps: a Sir Lance that moved then braced counters for 3; shoves
-  resolve after counters (a braced piece hits back before it is shoved).
+- Known gaps: shoves resolve after counters (a braced piece hits back before
+  it is shoved, and Pip's heave lands even if that counter fells him).
+  Frozen Lake and Sinkhole Road accept several winning first moves.
 - Road encounters name no cast yet; the first battles could use royals once
   balance is replayed.
 - App debt: `App.tsx` is dense; modals lack Escape and a focus trap; phone

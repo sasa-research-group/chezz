@@ -557,9 +557,9 @@ export function endTurn(g: Run): { run: Run; steps: Step[]; spent: number } {
 function retreat(g: Run): Run {
   const text = `${RETREAT_AFTER} quiet turns: both sides fall back.`;
   if (g.puzzle !== undefined) return { ...g, phase: "defeat", log: [`${text} The Grandmaster resets the board.`, ...g.log] };
-  if (g.encounter === ENCOUNTERS.length - 1) return { ...g, phase: "defeat", log: [`${text} The patrol holds the bridge, and your rebellion ends here.`, ...g.log] };
+  if (g.encounter === ENCOUNTERS.length - 1) return { ...g, phase: "defeat", flags: { ...g.flags, retreated: true }, log: [`${text} The patrol holds the bridge, and your rebellion ends here.`, ...g.log] };
   const units = g.units.filter(u => u.side === "white").map(u => abilityOf(u)?.atCamp?.(u, maxHp(u)) ?? u);
-  return { ...g, units, quiet: undefined, mark: undefined, phase: "camp", log: [`${text} You slip past to the hideout, without the reward.`, ...g.log] };
+  return { ...g, units, quiet: undefined, mark: undefined, flags: { ...g.flags, retreated: true }, phase: "camp", log: [`${text} You slip past to the hideout, without the reward.`, ...g.log] };
 }
 /** The end of `side`'s turn: each of its pieces' endTurn hooks run (Marmalade dozes off again). */
 function endOfTurn(g: Run, side: Side): Run {
