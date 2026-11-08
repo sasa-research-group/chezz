@@ -28,8 +28,11 @@ npm run build       # tsc -b + production build
 npm run test:e2e    # Playwright
 ```
 Run `npm test` and the build before merging into local `main`. Run the e2e suite
-before a push, or when a change touches screens or input flow. Never run
-`playwright install`; with a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
+before a push, or when a change touches screens or input flow. Run browser work
+(the e2e suite, `tools/art/shoot.mjs`) on the runner Mac, not the owner's:
+`workboard remote -- npx playwright test --workers 2` (uncommitted edits go
+along; `--out DIR` brings files back). Never run `playwright install`; with a
+preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
 
 ## The art harness lives in this repo
 Someone else must be able to clone this repo and generate the same art, so what
