@@ -34,6 +34,11 @@ Lives beside the battle game; nothing in `src/game/` changes.
   stops on it (the dungeon uses them too). Lever: flips its gates each time.
   Plate: holds its gates flipped while pressed. Other effects: drop every
   trapdoor, wake the sleepers, flood listed squares with sludge (kills what's there).
+- **Statue** (5th piece field `"statue"`, enemy rook/bishop/queen/knight/pawn):
+  never moves; on its turn it strikes one of your pieces in its reach (as that
+  piece) without leaving its square. Gives check.
+- **Coward** (kind `coward`, enemy): steps like a king, never captures, never
+  stops on a square you attack. Herd it into sludge, snares or a corner. Worth 3.
 - Killing the enemy king any way (sludge) wins like mate.
 
 ## The dungeon plays perfectly (`src/puzzle/solve.ts`)

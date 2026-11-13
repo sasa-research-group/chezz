@@ -19,7 +19,7 @@ export function switchText(w: Switch): string {
   }
 }
 export const MIN_SIDE = 2, MAX_SIDE = 8, MAX_MOVES = 12;
-export const P_KINDS: PKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn", "peasant"];
+export const P_KINDS: PKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn", "peasant", "coward"];
 export const GOALS: [GoalType, string][] = [["mate", "Checkmate"], ["capture", "Capture pieces"], ["material", "Win material"], ["escort", "Escort peasants"], ["reach", "Reach a square"], ["survive", "Survive"]];
 /** A fresh goal of a type, carrying over target squares where it can. */
 export function goalOf(type: GoalType, was?: Goal): Goal {
@@ -79,6 +79,8 @@ export function puzzleIssues(pz: Puzzle): PIssue[] {
     const p = { x, y };
     if ((pz.sludge ?? []).some(q => same(q, p))) err(`${side} ${kind} starts in sludge`, p);
     if (z === "asleep" && side !== "black") err("Only enemies sleep", p);
+    if (kind === "coward" && side !== "black") err("Cowards are enemies", p);
+    if (z === "statue" && (kind === "king" || kind === "peasant" || kind === "coward")) err(`A ${kind} can't be a statue`, p);
     if (!on(p)) err(`${side} ${kind} is off the board`, p);
     else if (blocked.some(q => same(q, p))) err(`${side} ${kind} stands on a hole or wall`, p);
     if ((pz.gates ?? []).some(g => same(g, p) && !g.open)) err(`${side} ${kind} stands in a closed gate`, p);
@@ -146,7 +148,7 @@ export function parsePuzzles(raw: unknown): { ok: true; puzzles: Puzzle[] } | { 
   f.puzzles.forEach((pz, i) => {
     const name = pz?.name || `Puzzle ${i + 1}`;
     if (!pz || !Number.isInteger(pz.width) || !Number.isInteger(pz.height) || (pz.eyes !== undefined && !posList(pz.eyes)) || (pz.sludge !== undefined && !posList(pz.sludge)) || (pz.trapdoors !== undefined && !posList(pz.trapdoors)) || (pz.gates !== undefined && !posList(pz.gates)) || (pz.switches !== undefined && !(posList(pz.switches) && pz.switches.every(okSwitch))) || (pz.snares !== undefined && !posList(pz.snares)) || !posList(pz.holes) || !posList(pz.walls) || !Array.isArray(pz.pieces) || !pz.goal || !GOALS.some(([t]) => t === pz.goal.type)) { errors.push(`${name}: malformed`); return; }
-    if (!pz.pieces.every(p => Array.isArray(p) && P_KINDS.includes(p[0]) && (p[1] === "white" || p[1] === "black") && Number.isInteger(p[2]) && Number.isInteger(p[3]) && (p.length === 4 || (p.length === 5 && p[4] === "asleep")))) { errors.push(`${name}: bad piece`); return; }
+    if (!pz.pieces.every(p => Array.isArray(p) && P_KINDS.includes(p[0]) && (p[1] === "white" || p[1] === "black") && Number.isInteger(p[2]) && Number.isInteger(p[3]) && (p.length === 4 || (p.length === 5 && (p[4] === "asleep" || p[4] === "statue"))))) { errors.push(`${name}: bad piece`); return; }
     for (const i of puzzleIssues(pz)) if (!i.warning) errors.push(`${name}: ${i.message}`);
   });
   return errors.length ? { ok: false, errors } : { ok: true, puzzles: f.puzzles };

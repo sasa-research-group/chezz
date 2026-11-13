@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apply, boardOf, gateOpen, inCheck, legalMoves, outcome, start } from "../src/puzzle/engine";
+import { apply, boardOf, gateOpen, inCheck, keyOf, legalMoves, outcome, start } from "../src/puzzle/engine";
 import type { Puzzle } from "../src/puzzle/engine";
 import { NEVER, analyze, bestReply, solver } from "../src/puzzle/solve";
 import { PUZZLES, formatPuzzles, parsePuzzles } from "../src/puzzle/puzzles";
@@ -144,6 +144,29 @@ describe("gates and switches", () => {
     expect(flood.pieces.some(p => p.kind === "knight")).toBe(false);
     const wake = apply(pz, { ...s0, pieces: s0.pieces.map(p => (p.kind === "rook" ? { ...p, x: 2, y: 3 } : p)) }, { from: { x: 2, y: 3 }, to: { x: 2, y: 2 } });
     expect(wake.pieces.some(p => p.asleep)).toBe(false);
+  });
+});
+
+describe("new enemies", () => {
+  it("a statue strikes from where it stands and never moves", () => {
+    const pz = base({ goal: { type: "survive" }, pieces: [["rook", "black", 0, 0, "statue"], ["knight", "white", 0, 3], ["king", "white", 3, 3]] });
+    const b = boardOf(pz), s = { ...start(pz), turn: "black" as const };
+    const moves = legalMoves(pz, b, s);
+    expect(moves).toEqual([{ from: { x: 0, y: 0 }, to: { x: 0, y: 3 }, strike: true }]);
+    const after = apply(pz, s, moves[0]);
+    expect(after.pieces.find(p => p.side === "black")).toMatchObject({ x: 0, y: 0, statue: true });
+    expect(after.pieces.some(p => p.kind === "knight")).toBe(false);
+  });
+  it("a coward never captures or stops where you attack", () => {
+    const pz = base({ goal: { type: "capture", count: 1 }, pieces: [["coward", "black", 1, 1], ["rook", "white", 0, 3], ["pawn", "white", 1, 2]] });
+    const b = boardOf(pz), s = { ...start(pz), turn: "black" as const };
+    const to = legalMoves(pz, b, s).map(m => `${m.to.x}${m.to.y}`).sort();
+    // The rook covers the a-file, the pawn the two squares ahead of it diagonally; the coward never takes the pawn.
+    expect(to).toEqual(["10", "20", "22"]);
+  });
+  it("tells a white pawn from a peasant in the solver's memo", () => {
+    const a = base({ pieces: [["pawn", "white", 1, 1], ["king", "black", 3, 0]] }), b2 = base({ pieces: [["peasant", "white", 1, 1], ["king", "black", 3, 0]] });
+    expect(keyOf(start(a))).not.toBe(keyOf(start(b2)));
   });
 });
 

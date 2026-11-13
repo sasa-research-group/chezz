@@ -50,3 +50,7 @@
 .puzzles-area .level-tools>button{flex:0 0 auto}
 .puzzle-switches li{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;padding:4px}
 .puzzle-switches .switch-say{flex-basis:100%}
+.exile-piece.statue .rig{filter:grayscale(1) contrast(1.1) brightness(1.05) drop-shadow(0 0 0 #777)}
+.statue-tag{background:#d9d4cc;color:#3f3a35;border-color:#3f3a35}
+.exile-piece.coward .rig{filter:hue-rotate(160deg) saturate(.8)}
+.coward-tag{background:#f6e7a8;color:#6a5413;border-color:#6a5413}

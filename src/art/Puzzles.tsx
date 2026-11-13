@@ -9,8 +9,8 @@ import { SpriteStill } from "./kit";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
-type Tool = "piece" | "sleep" | "hole" | "wall" | "eye" | "sludge" | "trapdoor" | "snare" | "gate" | "switch" | "goal" | "erase";
-const TOOLS: [Tool, string][] = [["piece", "Piece"], ["sleep", "Sleep"], ["wall", "Wall"], ["hole", "Hole"], ["eye", "Eye"], ["sludge", "Sludge"], ["trapdoor", "Trapdoor"], ["snare", "Snare"], ["gate", "Gate"], ["switch", "Switch"], ["goal", "Goal square"], ["erase", "Erase"]];
+type Tool = "piece" | "sleep" | "statue" | "hole" | "wall" | "eye" | "sludge" | "trapdoor" | "snare" | "gate" | "switch" | "goal" | "erase";
+const TOOLS: [Tool, string][] = [["piece", "Piece"], ["sleep", "Sleep"], ["statue", "Statue"], ["wall", "Wall"], ["hole", "Hole"], ["eye", "Eye"], ["sludge", "Sludge"], ["trapdoor", "Trapdoor"], ["snare", "Snare"], ["gate", "Gate"], ["switch", "Switch"], ["goal", "Goal square"], ["erase", "Erase"]];
 const BLANK: Puzzle = { width: 5, height: 5, moves: 2, goal: { type: "mate" }, holes: [], walls: [], pieces: [["king", "black", 2, 0], ["king", "white", 2, 4]] };
 const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n) || 0));
@@ -66,10 +66,12 @@ function PuzzleBoard({ pz, state, picked, targets, last, flags, wired = [], onSq
         })}
       </div>
       <div className="piece-layer">{state.pieces.map(pc =>
-        <div key={`${pc.side}${pc.kind}${pc.x},${pc.y}`} className={`exile-piece ${pc.side} ${pc.kind === "peasant" ? "peasant" : ""} ${pc.asleep ? "asleep" : ""} ${picked && same(picked, pc) ? "selected" : ""}`} style={{ left: `${(pc.x + .5) / cols * 100}%`, top: `${(pc.y + .5) / rows * 100}%`, width: `${92 / cols}%`, zIndex: Math.round(pc.y * 10 + 30) }}>
-          <SpriteStill kind={pc.kind === "peasant" ? "pawn" : pc.kind} side={pc.side} className="rig" />
+        <div key={`${pc.side}${pc.kind}${pc.x},${pc.y}`} className={`exile-piece ${pc.side} ${pc.kind === "peasant" ? "peasant" : ""} ${pc.asleep ? "asleep" : ""} ${pc.statue ? "statue" : ""} ${pc.kind === "coward" ? "coward" : ""} ${picked && same(picked, pc) ? "selected" : ""}`} style={{ left: `${(pc.x + .5) / cols * 100}%`, top: `${(pc.y + .5) / rows * 100}%`, width: `${92 / cols}%`, zIndex: Math.round(pc.y * 10 + 30) }}>
+          <SpriteStill kind={pc.kind === "peasant" || pc.kind === "coward" ? "pawn" : pc.kind} side={pc.side} className="rig" />
           {pc.kind === "peasant" && <span className="peasant-tag">peasant</span>}
           {pc.asleep && <span className="sleep-tag">z<small>z</small></span>}
+          {pc.statue && <span className="peasant-tag statue-tag">{pc.kind} statue</span>}
+          {pc.kind === "coward" && <span className="peasant-tag coward-tag">coward</span>}
         </div>)}</div>
     </div>
   </div>;
@@ -154,7 +156,12 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
       }
       case "sludge": return z.sludge?.some(q => same(q, p)) ? rest : withSludge(rest, [...(rest.sludge ?? []), p]);
       case "eye": return z.eyes?.some(q => same(q, p)) ? rest : withEyes(rest, [...(rest.eyes ?? []), p]);
-      case "sleep": return pc && pc[1] === "black" ? { ...z, pieces: z.pieces.map(q => (q === pc ? (q[4] ? [q[0], q[1], q[2], q[3]] : [q[0], q[1], q[2], q[3], "asleep"]) : q)) } : z;
+      case "sleep": case "statue": {
+        // Toggle the tag; a piece carries at most one.
+        const tag = tool === "sleep" ? "asleep" : "statue";
+        if (!pc || pc[1] !== "black" || (tag === "statue" && ["king", "peasant", "coward"].includes(pc[0]))) return z;
+        return { ...z, pieces: z.pieces.map(q => (q === pc ? (q[4] === tag ? [q[0], q[1], q[2], q[3]] : [q[0], q[1], q[2], q[3], tag]) : q)) };
+      }
       case "wall": return z.walls.some(q => same(q, p)) ? rest : { ...rest, walls: [...rest.walls, p] };
       case "goal": {
         if (z.goal.type !== "escort" && z.goal.type !== "reach") return z;
@@ -252,10 +259,11 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
       {!play ? <>
         <div className="seg level-tools" role="group" aria-label="Tool">{TOOLS.map(([t, label]) => <button key={t} type="button" disabled={t === "goal" && !hasSquares} aria-pressed={tool === t} onClick={() => setTool(t)}>{label}</button>)}</div>
         {tool === "piece" && <div className="seg level-tools" role="group" aria-label="Piece">
-          {(["white", "black"] as const).map(s => <button key={s} type="button" aria-pressed={side === s} onClick={() => { setSide(s); if (s === "black" && kind === "peasant") setKind("pawn"); }}>{s === "white" ? "Yours" : "Enemy"}</button>)}
+          {(["white", "black"] as const).map(s => <button key={s} type="button" aria-pressed={side === s} onClick={() => { setSide(s); if (s === "black" && kind === "peasant") setKind("pawn"); if (s === "white" && kind === "coward") setKind("pawn"); }}>{s === "white" ? "Yours" : "Enemy"}</button>)}
           <span className="seg-gap" />
-          {P_KINDS.filter(k => side === "white" || k !== "peasant").map(k => <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{k}</button>)}
+          {P_KINDS.filter(k => (side === "white" ? k !== "coward" : k !== "peasant")).map(k => <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{k}</button>)}
         </div>}
+        {tool === "statue" && <p className="level-hint">Click an enemy to turn it to stone or back. A statue never moves: it strikes any of your pieces in its reach (as that piece) without leaving its square.</p>}
         {tool === "sleep" && <p className="level-hint">Click an enemy to put it to sleep or wake it. Sleepers can't move, capture or give check until an eye sees one of your pieces.</p>}
         {tool === "gate" && <p className="level-hint">Click: closed gate. Again: open gate. Again: remove. Wire gates to a switch on the right.</p>}
         {tool === "switch" && <p className="level-hint">Click: lever (flips each time a piece stops on it). Again: pressure plate (works only while pressed). Again: remove. Set what it does on the right.</p>}
@@ -321,7 +329,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
         {(pz.gates ?? []).length > 0 && <small className="level-note plain">Gates: {(pz.gates ?? []).map(g => `${squareName(pz, g)} ${g.open ? "open" : "closed"}`).join(" · ")}</small>}
       </div>
       <div className="stage-field"><span>Solver</span><Verdict pz={pz} a={analysis} /></div>
-      <small className="level-note plain">You move first. The dungeon always plays its best reply: it stops your goal if it can, otherwise holds out longest, then takes the most material. You lose if your king or a peasant is captured, you're mated or stalemated, or you run out of moves. Mating the enemy king always wins. A piece that stops in sludge dies. Switches fire when any piece stops on them, so the dungeon uses them too; a gate can't close on a piece. A trapdoor falls open behind a piece that leaves it. A snared piece can't move but still attacks. An eye that sees any of your pieces at the end of a move wakes every sleeping enemy. Pawns promote to queens; no castling, double steps or en passant.</small>
+      <small className="level-note plain">You move first. The dungeon always plays its best reply: it stops your goal if it can, otherwise holds out longest, then takes the most material. You lose if your king or a peasant is captured, you're mated or stalemated, or you run out of moves. Mating the enemy king always wins. A piece that stops in sludge dies. A statue never moves but strikes anything in its reach. A coward steps like a king, never captures and never stops where you attack. Switches fire when any piece stops on them, so the dungeon uses them too; a gate can't close on a piece. A trapdoor falls open behind a piece that leaves it. A snared piece can't move but still attacks. An eye that sees any of your pieces at the end of a move wakes every sleeping enemy. Pawns promote to queens; no castling, double steps or en passant.</small>
     </section>
   </div>;
 }

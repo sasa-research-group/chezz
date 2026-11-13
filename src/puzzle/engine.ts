@@ -5,11 +5,14 @@
 
 export type Side = "white" | "black";
 /** The chess six, plus the peasant: steps one square any way, never captures, must not be lost. */
-export type PKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn" | "peasant";
+/** Plus the coward (enemy): steps like a king, never captures, never stops where you attack. */
+export type PKind = "king" | "queen" | "rook" | "bishop" | "knight" | "pawn" | "peasant" | "coward";
+/** A piece's optional tag: a sleeping enemy, or a statue (never moves; strikes from where it stands). */
+export type Tag = "asleep" | "statue";
 export type Pos = { x: number; y: number };
 /** A piece as a puzzle file lists it: kind, side, file (x), rank row (y, 0 = top), and "asleep" for a
  * sleeping enemy (can't move, capture or give check until an eye raises the alarm; can be captured). */
-export type PieceDef = [PKind, Side, number, number] | [PKind, Side, number, number, "asleep"];
+export type PieceDef = [PKind, Side, number, number] | [PKind, Side, number, number, Tag];
 
 /** What the player must do. Checkmate always wins, whatever the goal. */
 export type Goal =
@@ -72,7 +75,7 @@ export type Puzzle = {
   moves: number;
 };
 
-export type Piece = Pos & { kind: PKind; side: Side; asleep?: true };
+export type Piece = Pos & { kind: PKind; side: Side; asleep?: true; statue?: true };
 export type State = {
   pieces: Piece[];
   turn: Side;
@@ -92,10 +95,11 @@ export type State = {
   /** Sludge switches that have flooded: bit i is switch i. */
   flood: number;
 };
-export type Move = { from: Pos; to: Pos; promo?: PKind };
+/** `strike`: a statue's capture: the victim on `to` dies, the statue stays on `from`. */
+export type Move = { from: Pos; to: Pos; promo?: PKind; strike?: true };
 export type Outcome = "win" | "lose" | null;
 
-export const VALUE: Record<PKind, number> = { king: 0, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1, peasant: 0 };
+export const VALUE: Record<PKind, number> = { king: 0, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1, peasant: 0, coward: 3 };
 const KNIGHT = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
 const AROUND = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const ROOK = AROUND.slice(0, 4), BISHOP = AROUND.slice(4);
@@ -166,7 +170,7 @@ const isOpen = (b: Board, x: number, y: number, s: State) => {
 export const fallen = (b: Board, s: State, p: Pos) => { const d = b.door[p.y * b.width + p.x]; return d >= 0 && !!(s.doors & (1 << d)); };
 
 export function start(p: Puzzle): State {
-  const pieces = p.pieces.map(([kind, side, x, y, z]): Piece => ({ kind, side, x, y, ...(z === "asleep" ? { asleep: true as const } : {}) }));
+  const pieces = p.pieces.map(([kind, side, x, y, z]): Piece => ({ kind, side, x, y, ...(z === "asleep" ? { asleep: true as const } : z === "statue" ? { statue: true as const } : {}) }));
   return alarm(boardOf(p), { pieces, turn: "white", played: 0, taken: 0, material: 0, saved: 0, lost: false, doors: 0, levers: 0, flood: 0 });
 }
 export const pieceAt = (s: State, p: Pos) => s.pieces.find(q => same(q, p));
@@ -191,7 +195,7 @@ function reach(b: Board, s: State, pc: Piece, capturesOnly = false): Pos[] {
     case "bishop": slide(BISHOP); break;
     case "knight": for (const [dx, dy] of KNIGHT) add(pc.x + dx, pc.y + dy); break;
     case "king": for (const [dx, dy] of AROUND) add(pc.x + dx, pc.y + dy); break;
-    case "peasant": if (!capturesOnly) for (const [dx, dy] of AROUND) add(pc.x + dx, pc.y + dy, false); break;
+    case "coward": case "peasant": if (!capturesOnly) for (const [dx, dy] of AROUND) add(pc.x + dx, pc.y + dy, false); break;
     case "pawn": {
       const dy = pc.side === "white" ? -1 : 1;
       if (!capturesOnly) add(pc.x, pc.y + dy, false);
@@ -218,7 +222,11 @@ export function movesFrom(pz: Puzzle, b: Board, s: State, p: Pos): Move[] {
   if (!pc || pc.side !== s.turn) return [];
   const last = pc.side === "white" ? 0 : b.height - 1;
   const guarded = s.pieces.some(q => q.kind === "king" && q.side === pc.side);
+  // A statue only strikes; a coward never stops where the other side attacks.
+  if (pc.statue) return reach(b, s, pc).filter(to => pieceAt(s, to)).map(to => ({ from: { x: pc.x, y: pc.y }, to, strike: true as const }))
+    .filter(m => !guarded || !inCheck(b, apply(pz, s, m), pc.side));
   return reach(b, s, pc)
+    .filter(to => pc.kind !== "coward" || !attacked(b, { ...s, pieces: s.pieces.filter(q => q !== pc) }, to, other(pc.side)))
     .map(to => ({ from: { x: pc.x, y: pc.y }, to, ...(pc.kind === "pawn" && to.y === last ? { promo: "queen" as const } : {}) }))
     .filter(m => !(pc.kind === "king" && toxic(b, s, m.to.y * b.width + m.to.x)) && (!guarded || !inCheck(b, apply(pz, s, m), pc.side)));
 }
@@ -230,6 +238,13 @@ export function legalMoves(pz: Puzzle, b: Board, s: State): Move[] {
 export function apply(pz: Puzzle, s: State, m: Move): State {
   const mover = pieceAt(s, m.from)!;
   const victim = pieceAt(s, m.to);
+  if (m.strike) {
+    // A statue's strike: the victim dies where it stands; nothing moves.
+    let { taken, material, lost } = s;
+    if (victim?.side === "black") { taken++; material += VALUE[victim.kind]; }
+    else if (victim && (victim.kind === "king" || victim.kind === "peasant")) lost = true;
+    return alarm(boardFor(pz), { ...s, pieces: s.pieces.filter(q => q !== victim), turn: other(s.turn), played: s.played + (s.turn === "white" ? 1 : 0), taken, material, lost });
+  }
   let pieces = s.pieces.filter(q => q !== victim && q !== mover);
   let { taken, material, saved, lost } = s;
   if (victim) {
@@ -309,15 +324,17 @@ export function outcome(pz: Puzzle, b: Board, s: State, moves?: Move[]): Outcome
 
 /** Algebraic name of a square: files a–h left to right, ranks counted up from the bottom. */
 export const squareName = (pz: Pick<Puzzle, "height">, p: Pos) => `${"abcdefgh"[p.x] ?? "?"}${pz.height - p.y}`;
-const LETTER: Record<PKind, string> = { king: "K", queen: "Q", rook: "R", bishop: "B", knight: "N", pawn: "", peasant: "P" };
+const LETTER: Record<PKind, string> = { king: "K", queen: "Q", rook: "R", bishop: "B", knight: "N", pawn: "", peasant: "P", coward: "C" };
 export function moveName(pz: Puzzle, s: State, m: Move): string {
   const pc = pieceAt(s, m.from), cap = pieceAt(s, m.to);
   if (!pc) return "?";
   const from = pc.kind === "pawn" && cap ? squareName(pz, m.from)[0] : "";
+  if (m.strike) return `${LETTER[pc.kind] || "P"}(statue)x${squareName(pz, m.to)}`;
   return `${LETTER[pc.kind]}${from}${cap ? "x" : ""}${squareName(pz, m.to)}${m.promo ? "=Q" : ""}`;
 }
+const KEY: Record<PKind, string> = { king: "K", queen: "Q", rook: "R", bishop: "B", knight: "N", pawn: "p", peasant: "P", coward: "C" };
 /** A compact key for a position (who's where, whose turn, progress), for the solver's memo. */
 export function keyOf(s: State): string {
-  const ps = s.pieces.map(q => `${q.kind[0]}${q.kind === "king" ? "K" : ""}${q.side[0]}${q.x}${q.y}${q.asleep ? "z" : ""}`).sort().join("");
+  const ps = s.pieces.map(q => `${KEY[q.kind]}${q.side[0]}${q.x}.${q.y}${q.asleep ? "z" : ""}${q.statue ? "s" : ""}`).sort().join("");
   return `${s.turn[0]}${s.doors},${s.levers},${s.flood},${s.taken},${s.material},${s.saved},${s.lost ? 1 : 0}|${ps}`;
 }
