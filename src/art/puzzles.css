@@ -20,3 +20,33 @@
 .verdict dt{font-weight:700;opacity:.7}.verdict dd{margin:0}
 .verdict .line{display:flex;flex-wrap:wrap;gap:2px 6px;font-family:ui-monospace,monospace}
 .seg-gap{display:inline-block;width:10px}
+.puzzle-board .exile-cell.eye{background:#4f4560!important}
+.eye-mark{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(16px,4.5vw,34px);filter:drop-shadow(0 2px 0 #0006);pointer-events:none}
+.puzzle-board .exile-cell.in-sight{box-shadow:inset 0 0 0 999px #c0507a2e}
+.puzzle-board .exile-cell.in-sight.calm{box-shadow:inset 0 0 0 999px #7a6a9a1a}
+.exile-piece.asleep .rig{filter:saturate(.35) brightness(.85)}
+.sleep-tag{position:absolute;top:-4px;right:2px;font:900 16px ui-rounded,system-ui;color:#4f4560;text-shadow:0 0 3px #fff}
+.sleep-tag small{font-size:11px;vertical-align:super}
+.puzzle-board .exile-cell.sludge{background:#6f8f3a!important;background-image:radial-gradient(circle at 30% 35%,#a9c95a 0 9%,transparent 10%),radial-gradient(circle at 68% 62%,#a9c95a 0 7%,transparent 8%),radial-gradient(circle at 55% 25%,#8fb04a 0 5%,transparent 6%)!important;box-shadow:inset 0 0 12px #3b5a1a}
+.puzzle-board .exile-cell.sludge .tile-coord{color:#dbe8b0}
+.puzzle-board .exile-cell.trapdoor{background:#a5774a!important;background-image:repeating-linear-gradient(90deg,#00000022 0 2px,transparent 2px 25%)!important;box-shadow:inset 0 0 0 3px #6d4a2b,inset 0 0 0 5px #c49a6a}
+.puzzle-board .exile-cell.trapdoor .tile-coord{color:#f3dfc0}
+.puzzle-board .exile-cell.fallen{background:transparent!important}
+.puzzle-board .exile-cell.fallen::after{content:"";position:absolute;inset:8%;border-radius:4px;background:radial-gradient(circle at 50% 40%,#1b1614,#2e2622 70%,#3d332d);box-shadow:inset 0 4px 8px #000a,0 0 0 3px #6d4a2b}
+.snare-mark{position:absolute;inset:18%;border:4px dashed #5b5148;border-radius:50%;box-shadow:inset 0 0 0 4px #8a7c6c55;pointer-events:none}
+.gate-mark{position:absolute;inset:6%;pointer-events:none;border:3px solid #5b5148;border-radius:3px;opacity:.35}
+.exile-cell.gate.shut{background:#7d6f62!important}
+.exile-cell.gate.shut .gate-mark{opacity:1;background:repeating-linear-gradient(90deg,#3b332d 0 4px,transparent 4px 22%);border-color:#3b332d}
+.switch-mark{position:absolute;inset:26%;pointer-events:none;border-radius:4px}
+.switch-mark.plate{background:#b8a98f;border:3px solid #6b5d4c;box-shadow:inset 0 -3px 0 #8d7f69}
+.switch-mark.lever{border-radius:50%;background:radial-gradient(circle,#c7a040 0 30%,#5b4a2c 32% 45%,transparent 47%)}
+.switch-mark.lever::after{content:"";position:absolute;left:46%;top:-30%;width:9%;height:70%;background:#5b4a2c;border-radius:3px;transform:rotate(25deg);transform-origin:50% 100%}
+.switch-mark.inline{position:relative;display:inline-block;inset:auto;width:16px;height:16px;vertical-align:middle}
+.exile-cell.wired{outline:3px solid #c7a040;outline-offset:-3px}
+.puzzle-switches li{flex-wrap:wrap}.puzzle-switches li.wiring{background:#c7a04022;border-radius:6px}
+.switch-say{width:100%;opacity:.7}
+.wiring-hint{background:#c7a04022;border-radius:6px;padding:4px 8px}
+.puzzles-area .level-tools{flex-wrap:wrap;justify-content:center}
+.puzzles-area .level-tools>button{flex:0 0 auto}
+.puzzle-switches li{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;padding:4px}
+.puzzle-switches .switch-say{flex-basis:100%}

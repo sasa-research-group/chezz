@@ -13,14 +13,13 @@ export const solver = (pz: Puzzle, budget = 2_000_000): Solver => ({ pz, b: boar
 
 /** Player moves still needed to force a win from `s` (0: already won), or NEVER. */
 export function need(sv: Solver, s: State): number {
-  const o = outcome(sv.pz, sv.b, s);
-  if (o === "win") return 0;
-  if (o === "lose") return NEVER;
   const key = `${keyOf(s)}#${s.played}`;
   const hit = sv.memo.get(key);
   if (hit !== undefined) return hit;
+  const moves = s.lost ? [] : legalMoves(sv.pz, sv.b, s);
+  const o = outcome(sv.pz, sv.b, s, moves);
+  if (o) { const v = o === "win" ? 0 : NEVER; sv.memo.set(key, v); return v; }
   if (++sv.nodes > sv.budget) throw new TooBig();
-  const moves = legalMoves(sv.pz, sv.b, s);
   let v: number;
   if (s.turn === "white") {
     v = NEVER;
