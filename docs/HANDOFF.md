@@ -1,6 +1,9 @@
 # Handoff
 
 ## State
+- **Branch `puzzle/dungeon` (exploration, Nov 13):** chess-rule dungeon
+  puzzles with a perfect-play enemy, a Puzzles studio tab and solver. See
+  `docs/puzzles.md`. Not merged into main.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "puzzles": [
+    {
+      "name": "Back rank",
+      "width": 4,
+      "height": 4,
+      "moves": 1,
+      "goal": { "type": "mate" },
+      "holes": [],
+      "walls": [],
+      "pieces": [["king", "black", 0, 0], ["pawn", "black", 0, 1], ["pawn", "black", 1, 1], ["rook", "white", 3, 3], ["king", "white", 2, 3]]
+    },
+    {
+      "name": "Fork",
+      "note": "Nc4+ forks king and queen; the rook can't reach through the pawn.",
+      "width": 5,
+      "height": 5,
+      "moves": 2,
+      "goal": { "type": "material", "points": 9 },
+      "holes": [],
+      "walls": [{ "x": 2, "y": 2 }],
+      "pieces": [["king", "white", 0, 4], ["knight", "white", 1, 3], ["rook", "white", 4, 4], ["pawn", "black", 4, 2], ["queen", "black", 4, 0], ["king", "black", 0, 0], ["pawn", "black", 1, 1]]
+    },
+    {
+      "name": "Village road",
+      "note": "Found by the solver. Key Pb2: the peasant goes diagonal. Pb1? Nxb1 and Pa2? Nc4 both lose.",
+      "width": 5,
+      "height": 5,
+      "moves": 6,
+      "goal": { "type": "escort", "exits": [{ "x": 4, "y": 0 }] },
+      "holes": [{ "x": 1, "y": 2 }],
+      "walls": [],
+      "pieces": [["peasant", "white", 0, 4], ["knight", "white", 4, 4], ["knight", "black", 0, 2]]
+    },
+    {
+      "name": "Let it promote",
+      "note": "Found by the solver. Rd3 lets the pawn queen on d1 so the rook can take it.",
+      "width": 5,
+      "height": 5,
+      "moves": 6,
+      "goal": { "type": "escort", "exits": [{ "x": 4, "y": 0 }] },
+      "holes": [],
+      "walls": [],
+      "pieces": [["peasant", "white", 0, 4], ["rook", "white", 4, 2], ["pawn", "black", 3, 3]]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+/* Studio Puzzles tab: the board's dungeon squares and the solver panel. Layout reuses the Levels tab's classes. */
+.puzzle-board .exile-cell.hole{background:transparent!important;box-shadow:inset 0 0 0 2px #00000010;cursor:pointer}
+.puzzle-board .exile-cell.hole::after{content:"";position:absolute;inset:8%;border-radius:4px;background:radial-gradient(circle at 50% 40%,#1b1614,#2e2622 70%,#3d332d);box-shadow:inset 0 4px 8px #000a}
+.puzzle-board .exile-cell.last-move{box-shadow:inset 0 0 0 999px #f2c94c40}
+.puzzle-board .exile-cell.picked{box-shadow:inset 0 0 0 3px #397869}
+.goal-mark{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(14px,4vw,30px);font-weight:900;color:#2d6755;opacity:.8;pointer-events:none}
+.goal-escort,.goal-reach{background-image:radial-gradient(circle,#ffe9a066 0,#ffe9a000 70%)!important}
+.capture-ring{position:absolute;inset:10%;border:4px solid #8d2c27aa;border-radius:50%;pointer-events:none}
+.exile-piece.peasant .rig{filter:sepia(.7) saturate(1.6) hue-rotate(-15deg)}
+.peasant-tag{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;background:#fcf5de;color:#5a4636;border:1.5px solid #5a4636;border-radius:6px;padding:0 4px;white-space:nowrap}
+.puzzle-goal{text-align:center;margin:4px 0 8px;font-size:15px}
+.puzzle-log{display:flex;flex-wrap:wrap;gap:4px 8px;justify-content:center;min-height:22px;font:600 13px ui-monospace,monospace}
+.puzzle-log .black,.verdict .line .black{opacity:.6}
+.puzzle-result{text-align:center;font-weight:900;font-size:18px;margin:6px 0}
+.puzzle-result.win{color:#2d6755}.puzzle-result.lose{color:#8d2c27}.puzzle-result.thinking{opacity:.6;font-size:14px}
+.verdict{margin:4px 0;font-size:13px}
+.verdict p{margin:0 0 6px;font-weight:800}
+.verdict .good{color:#2d6755}.verdict .warn,.verdict.warn{color:#9a6a12}.verdict.bad{color:#8d2c27;font-weight:800}
+.verdict dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0}
+.verdict dt{font-weight:700;opacity:.7}.verdict dd{margin:0}
+.verdict .line{display:flex;flex-wrap:wrap;gap:2px 6px;font-family:ui-monospace,monospace}
+.seg-gap{display:inline-block;width:10px}
