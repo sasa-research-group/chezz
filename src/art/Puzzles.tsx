@@ -81,11 +81,16 @@ function PuzzleBoard({ pz, state, picked, targets, last, flags, wired = [], onSq
 }
 
 /** Falls back to the 2D board when the 3D view can't start (no WebGL, e.g. a browser whose GPU process gave up). */
-class No3D extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  state = { failed: !canWebGL() };
-  static getDerivedStateFromError() { return { failed: true }; }
+class No3D extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean; error?: string }> {
+  state: { failed: boolean; error?: string } = { failed: !canWebGL() };
+  static getDerivedStateFromError(e: unknown) { return { failed: true, error: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }; }
+  componentDidCatch(e: unknown) { console.error("3D view failed", e); }
   render() {
-    return this.state.failed ? <>{this.props.fallback}<p className="diorama-note">3D needs WebGL, which this browser has turned off. Showing the 2D board.</p></> : this.props.children;
+    if (!this.state.failed) return this.props.children;
+    const why = this.state.error
+      ? `The 3D view hit an error, so this is the 2D board. ${this.state.error}`
+      : "3D needs WebGL, which this browser has turned off. Showing the 2D board.";
+    return <>{this.props.fallback}<p className="diorama-note">{why}</p></>;
   }
 }
 const canWebGL = () => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch { return false; } };
