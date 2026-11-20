@@ -16,7 +16,8 @@
 # --clip GLB --frames N bakes a loop instead (king_motion.py): the Meshy clip is resampled to N frames and reshaped
 # for the chibi body (CHIBI_RUN), the cape and hem reweighted so they don't swing like boards, and the felt fibres
 # (built in the r17 pose exactly as for the still king, then bound to their root triangles) re-seated on the
-# posed body every frame. Writes run{k}_{i}.png / -glow.png and run.json; the crop holds every frame.
+# posed body every frame. --gait walk|jog|run picks shape and clip from king_motion.GAITS. Writes {gait}{k}_{i}.png /
+# -glow.png and {gait}.json (with `cycle`, the ground one loop covers with the feet planted); the crop holds every frame.
 # PROP=path.glb puts a held prop (the sword, later) in his right hand for any bake (king_motion.attach_prop).
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
@@ -36,13 +37,21 @@ ap.add_argument("--only", default="")  # headings to (re)render, e.g. "3,4"; def
 ap.add_argument("--glow_k", type=float, default=16.0)
 ap.add_argument("--clip", default="")  # a Meshy animation glb (same mesh and rig): bake its loop
 ap.add_argument("--frames", type=int, default=14)
+ap.add_argument("--gait", default="")  # run|walk|jog: shape (and clip, unless --clip) from king_motion.GAITS
 a = ap.parse_args(argv)
 EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0
 KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
 T0 = time.time()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import king_motion as km
-NAME = "run" if a.clip else "king"
+SHAPE = None
+if a.gait:
+    SHAPE, _g = km.GAITS[a.gait]
+    a.clip = a.clip or os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/" + _g)
+elif a.clip:
+    SHAPE = km.CHIBI_RUN
+NAME = (a.gait or "run") if a.clip else "king"
+GAIT = None
 
 # --- the king, posed and measured exactly as tools/render_v4.py does for the hero
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -56,7 +65,7 @@ poses = []
 if a.clip:
     km.fix_skirt(arm, body)
     km.fix_cape(arm, body)
-    poses = km.loop_poses(arm, frames=a.frames)
+    poses = km.loop_poses(arm, frames=a.frames, **SHAPE)
     for pb in arm.pose.bones:  # back to rest, then the r17 pose: the stage, felt and lights are built in it
         pb.rotation_mode = "QUATERNION"
         pb.location = (0, 0, 0); pb.rotation_quaternion = (1, 0, 0, 0); pb.scale = (1, 1, 1)
@@ -106,6 +115,9 @@ if a.clip:
         zlo.append(float(king_points()[:, 2].min()))
     arm.location.z -= min(zlo)
     print("CHECK loop floor lift %.4f (H %.3f), airborne max %.4f" % (-min(zlo), H, max(zlo) - min(zlo)), flush=True)
+    GAIT = km.gait_stats(arm, poses, H=H)
+    print("GAIT bounce %.1f%%H crown %.1f%%H lean %.1f..%.1f heel %.0f%%H cycle %.1f%%H" % (
+        GAIT["bounce"], GAIT["crown"], *GAIT["lean"], GAIT["heel"], GAIT["cycle"]), flush=True)
 def pose(i):
     if binder is not None:
         km.apply_pose(arm, poses[i])
@@ -303,7 +315,9 @@ info = {
     "right": list(right), "up": list(up), "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq,
     "anchor": list(P0), "quad": quad, "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
     "headings": 8, "samples": a.samples,
-    "frames": len(poses) or None, "clip": os.path.basename(a.clip) or None, "shape": km.CHIBI_RUN if a.clip else None,
+    "frames": len(poses) or None, "clip": os.path.basename(a.clip) or None, "shape": SHAPE, "gait": a.gait or None,
+    # cycle: ground covered per loop with the feet planted, in stage units (and in squares, S = 1.2 H)
+    "cycle": GAIT and GAIT["cycle"] * H / 100, "cycleSquares": GAIT and GAIT["cycle"] / 120, "stats": GAIT,
     "prop": os.environ.get("PROP"),
     "rim": {k: os.environ.get(k) for k in ("KING_RIM", "KING_RIM_S", "KING_RIM_FIBONLY", "RIM_PLAY", "RIM_EL", "RIM_D", "CROWN_RIM", "CROWN_EL", "CROWN_D", "CROWN_R")},
 }

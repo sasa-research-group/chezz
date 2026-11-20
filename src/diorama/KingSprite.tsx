@@ -3,8 +3,10 @@
 // KING_RIM halo and the crown glow included. Drawn on a quad parallel to the image plane, a little in front
 // of his nearest point, so the set and the other pieces still sort against him; on any square the quad is
 // slid and scaled so his feet land on the square and he keeps the size he has there.
-// A move is a turn to face the new square, a run there on the run-cycle sheets (king-run*.webp, loaded after
-// he first stands; a heading without a sheet slides his still frame), and a stop into the still idle.
+// A move is a turn to face the new square, a steady walk (or jog) there on the gait loop sheets
+// (king-walk*.webp, loaded after he first stands; a heading without a sheet slides his still frame), and a stop
+// into the still idle. He moves at the loop's own ground speed (cycle x cps), with the frame taken from the
+// distance covered, so his feet stay planted: the gait sets the move's length, not the other way round.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
@@ -27,15 +29,21 @@ function useSheet(): KingSheet {
   if (!sheet) throw sheetP;
   return sheet;
 }
-/** The run cycle: `frames` per heading on a tiles[0] x tiles[1] sheet each, for the headings in `have`. */
-type RunSheet = KingSheet & { frames: number; fps: number; have: number[] };
+/** A gait loop: `frames` per heading on a tiles[0] x tiles[1] sheet each, for the headings in `have`; one loop
+ * covers `cycle` stage units with the feet planted, and plays `cps` times a second. */
+type RunSheet = KingSheet & { frames: number; cps: number; cycle: number; have: number[] };
+// `?kinggait=jog` swaps the brisk walk for the light jog; `?kingcps=1.8` changes the cadence (loops a second)
+const Q = new URLSearchParams(location.search);
+const GAIT = Q.get("kinggait") === "jog" ? "jog" : "walk";
+const CPS = +(Q.get("kingcps") ?? 0) || 0;
 let runP: Promise<RunSheet | null> | null = null;
-const runSheet = () => (runP ??= fetch(`${BASE}king-run.json`).then(r => (r.ok ? r.json() as Promise<RunSheet> : null)).catch(() => null));
+const runSheet = () => (runP ??= fetch(`${BASE}king-${GAIT}.json`).then(r => (r.ok ? r.json() as Promise<RunSheet> : null))
+  .then(r => (r && CPS ? { ...r, cps: CPS } : r)).catch(() => null));
 const runTex = new Map<number, Promise<[THREE.Texture, THREE.Texture]>>();
 const loadRun = (k: number) => {
   if (!runTex.has(k)) {
     const L = new THREE.TextureLoader();
-    runTex.set(k, Promise.all([L.loadAsync(`${BASE}king-run${k}.webp`), L.loadAsync(`${BASE}king-run${k}-glow.webp`)]).then(([m, g]) => {
+    runTex.set(k, Promise.all([L.loadAsync(`${BASE}king-${GAIT}${k}.webp`), L.loadAsync(`${BASE}king-${GAIT}${k}-glow.webp`)]).then(([m, g]) => {
       m.colorSpace = THREE.SRGBColorSpace; m.generateMipmaps = true; g.colorSpace = THREE.NoColorSpace;
       return [m, g] as [THREE.Texture, THREE.Texture];
     }));
@@ -89,8 +97,9 @@ const trim = (k: keyof typeof TRIM) => {
   return v === null ? TRIM[k] : +v;
 };
 const STEP = 0.2;  // a turn on the spot walks through the headings in between over this long
-const TURN = 0.15;  // before a run: the turn to face the new square
-const PER_SQUARE = 0.35, MIN_RUN = 0.5;  // run time: per square, and the shortest run
+const TURN = 0.15;  // before a move: the turn to face the new square
+const RAMP = 0.15;  // seconds to reach (and leave) his steady pace
+const PACE = 1.4;  // stage units a second when no gait sheet is in (his still frame slides at about the walk's pace)
 // dev: `?kingslow=4` plays his moves 4x slower, to look at the run
 const SLOW = import.meta.env.DEV ? +(new URLSearchParams(location.search).get("kingslow") ?? 1) || 1 : 1;
 const tileOf = (yaw: number, n: number) => ((Math.round(yaw / (2 * Math.PI / n)) % n) + n) % n;
@@ -155,7 +164,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
   const n = s.headings;
   const turn = useRef({ shown: tileOf(yaw, n), wait: 0, dt: 0, to: tileOf(yaw, n) });
   // The move: from where he was to `at`; "turn" to face it, "run", then standing again.
-  const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run", t: 0, dur: 0, k: 0, f: 0 });
+  const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0 });
   const cam = useMemo(() => new THREE.Vector3(), []), F = useMemo(() => new THREE.Vector3(), []), fwd = useMemo(() => new THREE.Vector3(...s.fwd), [s]);
   // Slide the quad along the ray to his feet so it keeps the bake's gap in front of them, and scale it so
   // he subtends what he would standing there (camera in Blender axes: three (x, y, z) is Blender (x, -z, y)).
@@ -177,7 +186,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       M.from = [...M.pos]; M.to = [at[0], at[1]];
       const dx = M.to[0] - M.from[0], dy = M.to[1] - M.from[1], d = Math.hypot(dx, dy) / s.S;
       if (d > 1e-3) {
-        M.k = tileOf(Math.atan2(dx, -dy), n); M.dur = Math.max(MIN_RUN, PER_SQUARE * d); M.t = 0; M.f = 0;
+        M.k = tileOf(Math.atan2(dx, -dy), n); M.v = run.current ? run.current.s.cycle * run.current.s.cps : PACE; M.D = d * s.S; M.dur = M.D / M.v + RAMP; M.t = 0; M.f = 0;
         M.phase = M.k === t.shown ? "run" : "turn";
         moving(((M.phase === "turn" ? TURN : 0) + M.dur) * SLOW);
       }
@@ -187,11 +196,13 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       if (M.t >= TURN) { M.phase = "run"; M.t = 0; t.shown = M.k; }
     } else if (M.phase === "run") {
       M.t += dt;
-      const u = Math.min(1, M.t / M.dur), e = 0.5 - 0.5 * Math.cos(Math.PI * u);
+      // Steady pace, eased in and out over RAMP; the frame follows the ground covered, so no skating.
+      const T = M.dur, tt = Math.min(M.t, T), R = Math.min(RAMP, T / 2);
+      const x = tt < R ? M.v * tt * tt / (2 * R) : tt > T - R ? M.D - M.v * (T - tt) ** 2 / (2 * R) : M.v * (tt - R / 2);
+      const e = Math.min(1, x / M.D);
       M.pos = [M.from[0] + (M.to[0] - M.from[0]) * e, M.from[1] + (M.to[1] - M.from[1]) * e];
-      // Steps quicken with his speed, so his feet don't skate at the start and the stop.
-      if (run.current) M.f += dt * run.current.s.fps * (0.45 + 0.55 * Math.sin(Math.PI * u));
-      if (u >= 1) { M.phase = "idle"; M.pos = [...M.to]; }
+      if (run.current) M.f = (x / run.current.s.cycle) * run.current.s.frames;
+      if (M.t >= T) { M.phase = "idle"; M.pos = [...M.to]; }
     }
     const want = M.phase === "idle" ? tileOf(yaw, n) : M.k;
     if (t.to !== want) { t.to = want; t.dt = 0; t.wait = 0; }

@@ -10,7 +10,12 @@ clip, out = a[0], a[1]
 kv = dict(x.split("=") for x in a[2:])
 frames = int(kv.pop("frames", 14))
 raw = kv.pop("raw", None)
-shape = {k: float(v) for k, v in kv.items()}
+gait = kv.pop("gait", None)
+noskirt, nocape = kv.pop("noskirt", None), kv.pop("nocape", None)
+shape = dict(km.GAITS[gait][0]) if gait else {}
+if gait and clip == "-":
+    clip = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/") + km.GAITS[gait][1]
+shape.update({k: float(v) for k, v in kv.items()})
 if raw:
     shape = dict(leg=1, knee=1, arms=1, spread=0, upright=0, bounce=1, armout=0)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -20,13 +25,14 @@ for o in list(bpy.data.objects):
         bpy.data.objects.remove(o)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 body = next(o for o in bpy.data.objects if o.type == "MESH")
-if not kv.get("noskirt") and not raw:
+if not noskirt and not raw:
     km.fix_skirt(arm, body)
-    if not kv.get("nocape"):
+    if not nocape:
         km.fix_cape(arm, body)
-shape.pop("nocape", None)
-shape.pop("noskirt", None)
 poses = km.loop_poses(arm, frames=frames, **shape)
+g = km.gait_stats(arm, poses)
+print("GAIT bounce %.1f%%H  crown bob %.1f%%H  lean %.1f..%.1f deg  heel %.0f%%H  gap %.0f%%H  stride %.0f%%H  cycle %.0f%%H" % (
+    g["bounce"], g["crown"], *g["lean"], g["heel"], g["gap"], g["stride"], g["cycle"]), flush=True)
 W = lambda n: arm.matrix_world @ arm.pose.bones[n].head
 st = []
 for p in poses:

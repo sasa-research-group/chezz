@@ -15,6 +15,7 @@
 #   upright          degrees the lower spine is tipped back
 #   bounce           scale of the hips' up-down (and sway) about their mean
 #   armout           degrees the upper arms are held out from the body (room for the belly and beard)
+#   chin             degrees the head is tipped back (the run looks down at its feet)
 import math
 import numpy as np
 import bpy
@@ -24,6 +25,17 @@ LEGS = ("LeftUpLeg", "RightUpLeg")
 SHINS = ("LeftLeg", "RightLeg", "LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase")
 ARMS = ("LeftArm", "RightArm", "LeftForeArm", "RightForeArm", "LeftShoulder", "RightShoulder")
 CHIBI_RUN = dict(leg=0.62, knee=0.55, tuck=0.7, arms=0.55, spread=7.0, upright=6.0, bounce=1.7, armout=8.0)
+# Round 2 (Wesley: "running a little too hard ... more like a deterministic speed walk/jog"): steady, upright,
+# level, crown bob about 1-1.5% of his height, modest arms, low knees. Same cadence for both in the game.
+GAITS = {
+    "run": (CHIBI_RUN, "basic_animations_running_glb__running.glb"),
+    # A: the library walk, sped up in the game; one foot always down
+    "walk": (dict(leg=0.9, knee=0.8, tuck=0.85, arms=0.45, spread=7.0, upright=-2.6, bounce=0.4, armout=8.0),
+             "basic_animations_walking_glb__walking.glb"),
+    # B: the run toned down: half the chibi run's bounce and arm swing, lower knees, no lean
+    "jog": (dict(leg=0.85, knee=0.3, tuck=0.3, arms=0.28, spread=7.0, upright=10.0, bounce=0.55, armout=8.0, chin=6.0),
+            "basic_animations_running_glb__running.glb"),
+}
 
 
 def _local(arm, bone, R):
@@ -45,7 +57,8 @@ def loop_poses(arm, frames=14, period=None, start=None, **shape):
     s = dict(CHIBI_RUN); s.update(shape)
     act = arm.animation_data.action
     f0, f1 = act.frame_range
-    f0 = math.floor(f0) if start is None else start
+    # the library clips hold their first key (at 0.8) before it, so a loop is [f0, f1) exactly
+    f0 = f0 if start is None else start
     period = (f1 - f0) if period is None else period
     sc = bpy.context.scene
     raw = []
@@ -70,6 +83,8 @@ def loop_poses(arm, frames=14, period=None, start=None, **shape):
         pre.update(RightArm=_local(arm, "RightArm", Ry(A)), LeftArm=_local(arm, "LeftArm", Ry(-A)))
     if s["upright"]:
         pre["Spine02"] = _local(arm, "Spine02", Rx(-s["upright"]))
+    if s.get("chin"):
+        pre["Head"] = _local(arm, "Head", Rx(-s["chin"]))
     out = []
     for r in raw:
         p = {}
@@ -91,6 +106,32 @@ def loop_poses(arm, frames=14, period=None, start=None, **shape):
                 p[side + "CapeArm"] = (Vector(), pre[n] @ mean[n] if n in pre else mean[n])
         out.append(p)
     return out
+
+
+def gait_stats(arm, poses, H=1.7):
+    """Numbers for a loop, in % of his height H: hips bounce, crown (head) bob, lean range (deg, + forward),
+    heel lift, the narrowest gap between the feet, the longest stride, and `cycle`: how far the planted foot
+    slides back over one loop. An in-place clip played while moving at cycle (x H) per loop keeps the feet
+    planted. Leaves the last pose applied."""
+    W = lambda n: arm.matrix_world @ arm.pose.bones[n].head
+    st = []
+    for p in poses:
+        apply_pose(arm, p)
+        h, hd, lf, rf = W("Hips"), W("Head"), W("LeftFoot"), W("RightFoot")
+        v = hd - h
+        st.append((h.z, hd.z, math.degrees(math.atan2(-v.y, v.z)), lf, rf))
+    n = len(st)
+    cyc = 0.0
+    for i in range(n):
+        a, b = st[i], st[(i + 1) % n]
+        k = 3 if a[3].z <= a[4].z else 4  # the lower foot is the planted one
+        cyc += max(0.0, b[k].y - a[k].y)  # forward is -y: a planted foot slides back (+y) under him
+    rng = lambda xs: max(xs) - min(xs)
+    return dict(bounce=100 * rng([s[0] for s in st]) / H, crown=100 * rng([s[1] for s in st]) / H,
+                lean=(min(s[2] for s in st), max(s[2] for s in st)),
+                heel=100 * max(max(s[3].z, s[4].z) - min(s[3].z, s[4].z) for s in st) / H,
+                gap=100 * min(abs(s[3].x - s[4].x) for s in st) / H, stride=100 * max(abs(s[3].y - s[4].y) for s in st) / H,
+                cycle=100 * cyc / H)
 
 
 def fix_skirt(arm, body):

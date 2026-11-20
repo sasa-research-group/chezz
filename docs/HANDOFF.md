@@ -29,14 +29,16 @@
   `oiio:UnassociatedAlpha=1` (white fringe). Pieces face their last move
   (`src/diorama/facing.ts`). Dev-only: `?shells=N`, `?kingsheet=name`.
 - **Branch `claude/puzzle-run` (Nov 19, on puzzle/dungeon):** the king
-  turns (~0.15 s), runs (0.35 s a square, at least 0.5 s, eased) and stops
-  into the idle; the dungeon's reply waits for him (`src/diorama/motion.ts`).
-  Run cycle: 14 frames baked with `bake_king_sprites.py --clip
-  <running glb>` (`king_motion.py`: chibi run shaping, skirt and cape fixes,
-  felt fibres re-bound to the posed mesh each frame; `PROP=glb` for a held
-  prop later), packed by `king_run_atlas.py` (0.8 scale, lossy webp, ~257 KB
-  a heading, lazy-loaded). Only headings 0 and 2 are baked so far; the others
-  slide his still frame. Dev: `?kingslow=8`.
+  turns (~0.15 s), then walks to the square at a steady pace and stops into
+  the idle; the dungeon's reply waits for him (`src/diorama/motion.ts`).
+  Gaits (`king_motion.GAITS`): `walk` (A, brisk walk, default) and `jog`
+  (B, light jog; `?kinggait=jog`), 16-frame loops baked with
+  `tools/art/diorama/runbake.sh GAIT OUT` (one bake at a time), packed by
+  `king_loop_atlas.py DIR public/diorama name=walk cps=2`. He moves at the
+  loop's own ground speed (`cycle` x `cps`, frame from distance, so the feet
+  stay planted), which makes a move about 1.5 s a square (`?kingcps=` to
+  try another cadence). Only headings 0 and 2 are baked; the others slide
+  his still frame. Dev: `?kingslow=8`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then
