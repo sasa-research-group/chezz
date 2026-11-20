@@ -21,9 +21,12 @@
 # PROP=path.glb puts a held prop (the sword, later) in his right hand for any bake (king_motion.attach_prop).
 # GUARD=guard.json (with PROP=the sword) bakes the still king in the sword guard instead of arms relaxed: the pose
 # and the sword's place in his hand come from sword/guard_pose.py (king_motion.load_guard / attach_held).
+# --strike strike.json (with PROP=the sword) bakes the sword strike (strike_pose.py): one solved guard_pose per
+# frame, the sword and both fists re-placed every frame from that frame's solve. Writes strike{k}_{i}.png and
+# strike.json (with fps, the hit frame and the ground the leap covers, `travel`).
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 STAGE = os.environ.get("STAGE_DIR", os.path.expanduser("~/.dos/scratch/d84406ef/stage"))
 sys.path.insert(0, STAGE)
@@ -39,6 +42,7 @@ ap.add_argument("--only", default="")  # headings to (re)render, e.g. "3,4"; def
 ap.add_argument("--glow_k", type=float, default=16.0)
 ap.add_argument("--clip", default="")  # a Meshy animation glb (same mesh and rig): bake its loop
 ap.add_argument("--frames", type=int, default=14)
+ap.add_argument("--strike", default="")  # strike_pose.py's strike.json: bake the sword strike
 ap.add_argument("--gait", default="")  # run|walk|jog: shape (and clip, unless --clip) from king_motion.GAITS
 a = ap.parse_args(argv)
 EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0
@@ -52,7 +56,8 @@ if a.gait:
     a.clip = a.clip or os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/" + _g)
 elif a.clip:
     SHAPE = km.CHIBI_RUN
-NAME = (a.gait or "run") if a.clip else "king"
+NAME = "strike" if a.strike else (a.gait or "run") if a.clip else "king"
+STRIKE = json.load(open(a.strike)) if a.strike else None
 GAIT = None
 
 # --- the king, posed and measured exactly as tools/render_v4.py does for the hero
@@ -77,6 +82,12 @@ if a.clip:
     bpy.context.view_layer.update()
 stage.relax_arms(arm)
 GUARD = GUARD_LOOP if a.clip and os.environ.get("GUARD") else None
+if STRIKE:  # every frame is a whole guard_pose solve: pose, sword in the forearm's frame, fists
+    def _pose(g):
+        return {n: (Vector(v[0]), Quaternion(v[1])) + ((Vector(v[2]),) if len(v) > 2 else ()) for n, v in g["pose"].items()}
+    poses = [_pose(g) for g in STRIKE["frames"]]
+    GUARD = STRIKE["frames"][0]
+    km.apply_pose(arm, poses[0])
 if os.environ.get("GUARD") and not a.clip:  # the idle guard with the sword (sword/guard_pose.py)
     _gp, GUARD = km.load_guard(os.environ["GUARD"])
     km.apply_pose(arm, _gp)
@@ -115,29 +126,43 @@ t = time.time()
 stage.build_stage(sc, H, center=(0, 0), board=5)
 stage.clay_ify(arm)
 binder = None
-if a.clip:
+if STRIKE:  # the tunic hem follows the thighs; in his crouch it swung through the floor (king_motion.fix_skirt)
+    km.fix_skirt(arm, body)
+if a.clip or STRIKE:
     binder = km.FibreBinder(body, bpy.data.objects["felt_fibres"])  # bound in the pose they were grown in
     # stand the loop on the floor: the lowest point over the cycle touches it (the rest is airborne bounce)
     zlo = []
     for ps in poses:
         km.apply_pose(arm, ps)
         zlo.append(float(king_points()[:, 2].min()))
-    arm.location.z -= min(zlo)
+    arm.location.z -= zlo[0] if STRIKE else min(zlo)  # the strike stands on its first (standing) frame
     print("CHECK loop floor lift %.4f (H %.3f), airborne max %.4f" % (-min(zlo), H, max(zlo) - min(zlo)), flush=True)
-    GAIT = km.gait_stats(arm, poses, H=H)
-    print("GAIT bounce %.1f%%H crown %.1f%%H lean %.1f..%.1f heel %.0f%%H cycle %.1f%%H" % (
-        GAIT["bounce"], GAIT["crown"], *GAIT["lean"], GAIT["heel"], GAIT["cycle"]), flush=True)
+    GAIT = km.gait_stats(arm, poses, H=H) if a.clip else None
+    if GAIT:
+        print("GAIT bounce %.1f%%H crown %.1f%%H lean %.1f..%.1f heel %.0f%%H cycle %.1f%%H" % (
+            GAIT["bounce"], GAIT["crown"], *GAIT["lean"], GAIT["heel"], GAIT["cycle"]), flush=True)
+HELD = {}  # the strike's sword and fists, re-placed per frame
 def pose(i):
     if binder is not None:
         km.apply_pose(arm, poses[i])
+        if HELD:
+            g = STRIKE["frames"][i]
+            B = arm.matrix_world @ arm.pose.bones[g.get("bone", "RightForeArm")].matrix
+            HELD["sword"].matrix_world = B @ Matrix(g["sword_in_hand"])
+            for f in g["fists"]:
+                HELD["fist_" + f["side"]].matrix_world = B @ Matrix(f["m"])
+            bpy.context.view_layer.update()
         binder.update()
-if a.clip:
+if a.clip or STRIKE:
     pose(0)
 if os.environ.get("PROP") and GUARD is not None:  # after clay_ify: the sword is clay, not felt
     pr = km.attach_held(arm, os.environ["PROP"], GUARD)
     for o_ in [pr] + [o for o in bpy.data.objects if o.name.startswith("fist_")]:
         for s_ in o_.material_slots:
             stage._clay_material(s_.material, stage._local_dims_world(o_), H, 1.0, 1.0)
+    if STRIKE:
+        HELD.update({"sword": pr}, **{o.name: o for o in bpy.data.objects if o.name.startswith("fist_")})
+        pose(0)
     print("CHECK held prop", pr.name, tuple(round(x, 3) for x in pr.matrix_world.translation), flush=True)
 elif os.environ.get("PROP"):
     pr = km.attach_prop(arm, os.environ["PROP"], H)
@@ -282,11 +307,11 @@ def srgb(x):
 expo = 2.0 ** float(os.environ.get("EXPO", 0))
 only = [int(k) for k in a.only.split(",") if k != ""] or list(range(8))
 times = {}
-jobs = [(k, i) for k in only for i in range(len(poses))] if a.clip else [(k, None) for k in only]
+jobs = [(k, i) for k in only for i in range(len(poses))] if a.clip or STRIKE else [(k, None) for k in only]
 for k, i in jobs:
     tag = "%d" % k if i is None else "%d_%02d" % (k, i)
     png = os.path.join(a.out, "%s%s.png" % (NAME, tag))
-    if os.path.exists(png) and (not a.only or a.clip):  # a loop resumes after a Metal crash
+    if os.path.exists(png) and (not a.only or a.clip or STRIKE):  # a loop resumes after a Metal crash
         continue
     heading(k)
     pose(i) if i is not None else None
@@ -333,6 +358,9 @@ info = {
     "frames": len(poses) or None, "clip": os.path.basename(a.clip) or None, "shape": SHAPE, "gait": a.gait or None,
     # cycle: ground covered per loop with the feet planted, in stage units (and in squares, S = 1.2 H)
     "cycle": GAIT and GAIT["cycle"] * H / 100, "cycleSquares": GAIT and GAIT["cycle"] / 120, "stats": GAIT,
+    "fps": STRIKE and STRIKE["fps"], "hit": STRIKE and STRIKE["hit"],
+    # the leap carries him forward: stage units and squares (S = 1.2 H) he ends ahead of where he started
+    "travel": STRIKE and STRIKE.get("travel", 0), "travelSquares": STRIKE and STRIKE.get("travel", 0) / (1.2 * H),
     "prop": os.path.basename(os.environ["PROP"]) if os.environ.get("PROP") else None,
     "rim": {k: os.environ.get(k) for k in ("KING_RIM", "KING_RIM_S", "KING_RIM_FIBONLY", "RIM_PLAY", "RIM_EL", "RIM_D", "CROWN_RIM", "CROWN_EL", "CROWN_D", "CROWN_R")},
 }

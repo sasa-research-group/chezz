@@ -15,7 +15,8 @@ from mathutils import Vector, Matrix, Quaternion
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 K = dict(hips=0.07, lean=14.0, chin=12.0, stance=0.27, stagger=0.13, gx=-0.02, gy=-0.36, gz=0.50,
-         tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, render=1)
+         tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, roll=0.0,
+         air=0.0, ahead=0.0, tuck=0.0, step=0.0, render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
 KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
@@ -111,7 +112,10 @@ def ik2(upper, lower, endb, T, pole):
 
 # --- legs: wide, staggered feet (left foot forward), knees forward and out
 for s, sx, dy in (("Left", 1, -K["stagger"]), ("Right", -1, K["stagger"] * 0.4)):
-    T = Vector((sx * K["stance"], foot0[s].y + dy, foot0[s].z))
+    # tuck: feet drawn up under him (a jump; `air` lifts the whole body afterwards). step: the front (left) foot
+    # reaches further forward, a lunge
+    T = Vector((sx * K["stance"], foot0[s].y + dy - (K["step"] if s == "Left" else 0) + K["tuck"] * 0.5,
+                foot0[s].z + K["tuck"]))
     print("LEG %s miss %.3f" % (s, ik2(s + "UpLeg", s + "Leg", s + "Foot", T, Vector((sx * (K["stance"] + 0.3), -1.5, 0.25)))), flush=True)
     # keep the foot flat and pointing forward-out: undo the shin's rotation on the foot
     aim(s + "Foot", s + "ToeBase", W(s + "Foot") + Vector((sx * 0.25, -1.0, -0.6)).normalized() * (W(s + "ToeBase") - W(s + "Foot")).length)
@@ -120,10 +124,24 @@ for s, sx, dy in (("Left", 1, -K["stagger"]), ("Right", -1, K["stagger"] * 0.4))
 t, f = math.radians(K["tilt"]), math.radians(K["fwd"])
 up = Vector((-math.sin(t), -math.sin(f), math.cos(t) * math.cos(f))).normalized()  # pommel -> tip
 G = Vector((K["gx"], K["gy"], K["gz"]))
+# which way the blade's flat faces: toward the viewer (-y) in the guard; `roll` turns that reference about the
+# vertical toward +x, so in a chop (blade pointing forward) the flat faces sideways and the edge leads
+rr = math.radians(K["roll"])
+REF = Vector((math.sin(rr), -math.cos(rr), 0))
+def flat(u):
+    v = REF - u * u.dot(REF)
+    if v.length < 1e-4:
+        v = Vector((0, 0, 1)) - u * u.dot(Vector((0, 0, 1)))
+    return v.normalized()
 hands = {"Right": G + up * K["gap"] * 0.5, "Left": G - up * K["gap"] * 0.5}  # right hand by the guard
-side = up.cross(Vector((0, -1, 0))).normalized()  # across the grip
+side = up.cross(Vector((0, -1, 0))).normalized() if abs(up.y) < 0.999 else Vector((1, 0, 0))  # across the grip
 if side.x < 0:
     side = -side
+# that breaks down as the blade points forward (a chop), so blend toward plain +x across the grip as `roll` rises
+w = min(1.0, abs(K["roll"]) / 90.0)
+if w:
+    px = (Vector((1, 0, 0)) - up * up.x).normalized()
+    side = (side * (1 - w) + px * w).normalized()
 for s, sx in (("Left", 1), ("Right", -1)):
     wrist = hands[s] + side * sx * K["wrist"] + Vector((0, 0.02, 0))
     print("ARM %s miss %.3f" % (s, ik2(s + "Arm", s + "ForeArm", s + "Hand", wrist, Vector((sx * 1.2, 0.4, 0.2)))), flush=True)
@@ -150,7 +168,7 @@ grip = Vector((lo[0] + 0.835 * L, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2))
 me.transform(Matrix.Scale(K["length"] * H / L, 4) @ Matrix.Translation(-grip))  # grip centre at the origin
 # local -x is the blade: map -x -> up; local z (the flat) faces the viewer as much as possible
 x_ax = -up
-z_ax = (Vector((0, -1, 0)) - up * up.dot(Vector((0, -1, 0)))).normalized()
+z_ax = flat(up)
 y_ax = z_ax.cross(x_ax)
 R = Matrix((x_ax, y_ax, z_ax)).transposed().to_4x4()
 sw.matrix_world = Matrix.Translation(G) @ R
@@ -171,12 +189,18 @@ HB = (MW @ rh.matrix).inverted()
 fists = []
 for s_ in ("Left", "Right"):
     # fist frame: x along the grip (up), z toward the viewer-ish, centre on the grip
-    fz = (Vector((0, -1, 0)) - up * up.dot(Vector((0, -1, 0)))).normalized()
+    fz = flat(up)
     fy = fz.cross(up)
     F = Matrix((up, fy, fz)).transposed().to_4x4(); F.translation = hands[s_]
     wl = F.inverted() @ W(s_ + "Hand")  # the forearm's end, in the fist frame
     fists.append(dict(side=s_, m=[list(r) for r in HB @ F], r=K["fist"], len=K["gap"] * 0.98,
                       gr=0.0215 / 1.018 * K["length"] * H, wrist=list(wl)))
+# a jump or lunge: the whole body (and the sword and fists with it, as they hang off the forearm) rises by `air`
+# and travels forward by `ahead`, moved at the root bone after everything above is solved
+if K["air"] or K["ahead"]:
+    m = hips.matrix.copy(); m.translation += MW.to_3x3().inverted() @ Vector((0, -K["ahead"], K["air"])); hips.matrix = m
+    bpy.context.view_layer.update()
+    pose = {pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones}
 os.makedirs(OUT, exist_ok=True)
 json.dump(dict(knobs=K, pose=pose, sword_in_hand=[list(r) for r in rel], sword_world_length=K["length"] * H, grip=0.835, fists=fists, bone="RightForeArm"),
           open(os.path.join(OUT, "guard.json"), "w"), indent=1)
@@ -190,7 +214,7 @@ dg = bpy.context.evaluated_depsgraph_get()
 e = body.evaluated_get(dg); m2 = e.to_mesh()
 zs = [(e.matrix_world @ v.co).z for v in m2.vertices]; e.to_mesh_clear()
 print("FLOOR body min z %.3f (was 0)" % min(zs), flush=True)
-arm.location.z -= min(zs)
+arm.location.z -= min(zs) if not (K["air"] or K["tuck"]) else -0.062  # off the ground: keep the standing floor
 if not K["render"]:
     sys.exit()
 sc = bpy.context.scene
