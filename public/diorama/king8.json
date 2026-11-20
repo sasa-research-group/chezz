@@ -53,11 +53,16 @@
  "headings": 8,
  "samples": 256,
  "rim": {
-  "KING_RIM": "5000",
+  "KING_RIM": "2250",
   "KING_RIM_S": "1.4",
+  "KING_RIM_FIBONLY": "1",
   "RIM_PLAY": "1",
-  "RIM_EL": null,
-  "RIM_D": null
+  "RIM_EL": "8.5",
+  "RIM_D": null,
+  "CROWN_RIM": "2500",
+  "CROWN_EL": "8.5",
+  "CROWN_D": null,
+  "CROWN_R": null
  },
  "tiles": [
   4,

@@ -18,9 +18,13 @@
   slid and scaled to his square; turns step through the in-between
   headings in ~0.2 s; idle is still plus ~1% breathing. The rigged glTF
   still casts his live VSM shadow (shadow-only), and `?king=live` shows it
-  instead. Rebake: `bake_king_sprites.py` with `KING_RIM=5000 RIM_PLAY=1`
-  (rim placed behind him for the play camera; the haze must stay in), then
-  `king_atlas.py`. Gotcha: OIIO un-premultiplies on PNG write unless
+  instead. Rebake: `bake_king_sprites.py` with `KING_RIM=2250
+  KING_RIM_FIBONLY=1 RIM_PLAY=1 CROWN_RIM=2500 CROWN_EL=8.5` (rim behind
+  him for the play camera on the felt only, plus a crown-only spot; the
+  haze must stay in), then `king_atlas.py`. The set's depth mesh puts
+  floating leaves in front of the back wall, so the sprite is depth-tested
+  2 units nearer than it is, except over cards (stencil), where true depth
+  is used. Gotcha: OIIO un-premultiplies on PNG write unless
   `oiio:UnassociatedAlpha=1` (white fringe). Pieces face their last move
   (`src/diorama/facing.ts`). Dev-only: `?shells=N`, `?kingsheet=name`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).

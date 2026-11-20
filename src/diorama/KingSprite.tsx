@@ -24,7 +24,15 @@ function useSheet(): KingSheet {
   return sheet;
 }
 
-const vert = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+// Depth only is pulled depthBias toward the camera (the image stays put): the set plate has leaves floating in
+// front of the back wall, and its depth mesh put them in front of his face on the back row.
+const vert = /* glsl */ `uniform float depthBias; varying vec2 vUv;
+void main(){
+  vUv = uv;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vec4 p = projectionMatrix * mv, pb = projectionMatrix * (mv + vec4(0.0, 0.0, depthBias, 0.0));
+  gl_Position = vec4(p.xy, pb.z / pb.w * p.w, p.w);
+}`;
 const frag = /* glsl */ `
 uniform sampler2D map; uniform sampler2D glow; uniform float invExpo; uniform float glowK; uniform vec2 tile; uniform vec2 tiles;
 varying vec2 vUv;
@@ -36,6 +44,10 @@ void main(){
   gl_FragColor = vec4(c.rgb * invExpo + g * g * glowK, c.a);
 }`;
 
+// Against the set he is tested DEPTH_BIAS nearer than he is; that is more than one square, so where a card is
+// drawn (cards write CARD_STENCIL) a second pass tests him at his true depth instead.
+const DEPTH_BIAS = 2.0;  // stage units; 1.5 still let a few leaf specks through on a5/e5/c5
+export const CARD_STENCIL = 1;
 const STEP = 0.2;  // a turn walks through the headings in between over this long
 const tileOf = (yaw: number, n: number) => ((Math.round(yaw / (2 * Math.PI / n)) % n) + n) % n;
 
@@ -43,8 +55,8 @@ const tileOf = (yaw: number, n: number) => ((Math.round(yaw / (2 * Math.PI / n))
 export function KingSprite({ at, yaw = 0, onClick }: { at: [number, number]; yaw?: number; onClick?: () => void }) {
   const s = useSheet();
   const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}king8.webp`, `${BASE}king8-glow.png`]);
-  const mesh = useRef<THREE.Mesh>(null);
-  const { geometry, material, basis, alpha } = useMemo(() => {
+  const mesh = useRef<THREE.Group>(null);
+  const { geometry, material, onCards, basis, alpha } = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace; map.generateMipmaps = true; map.needsUpdate = true;
     glow.colorSpace = THREE.NoColorSpace;
     const { x0, x1, y0, y1 } = s.quad;
@@ -56,18 +68,22 @@ export function KingSprite({ at, yaw = 0, onClick }: { at: [number, number]; yaw
       vertexShader: vert, fragmentShader: frag, transparent: true, depthWrite: false,
       uniforms: {
         map: { value: map }, glow: { value: glow }, invExpo: { value: Math.pow(2, -s.exposure) }, glowK: { value: s.glowK },
-        tile: { value: new THREE.Vector2() }, tiles: { value: new THREE.Vector2(...s.tiles) },
+        tile: { value: new THREE.Vector2() }, depthBias: { value: DEPTH_BIAS }, tiles: { value: new THREE.Vector2(...s.tiles) },
       },
+      stencilWrite: true, stencilRef: CARD_STENCIL, stencilFunc: THREE.NotEqualStencilFunc,
     });
+    const mc = m.clone();
+    mc.uniforms = { ...m.uniforms, depthBias: { value: 0 } };
+    mc.stencilFunc = THREE.EqualStencilFunc;
     const v = (a: number[]) => new THREE.Vector3(a[0], a[1], a[2]);
     const b = new THREE.Matrix4().makeBasis(v(s.right), v(s.up), v(s.fwd).negate());
     // His alpha, for clicks: only where he is drawn, so the square behind his head stays clickable.
     const img = map.image as HTMLImageElement, c = document.createElement("canvas");
     c.width = img.width; c.height = img.height;
     const cx = c.getContext("2d", { willReadFrequently: true })!; cx.drawImage(img, 0, 0);
-    return { geometry: g, material: m, basis: new THREE.Quaternion().setFromRotationMatrix(b), alpha: { d: cx.getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height } };
+    return { geometry: g, material: m, onCards: mc, basis: new THREE.Quaternion().setFromRotationMatrix(b), alpha: { d: cx.getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height } };
   }, [map, glow, s]);
-  useEffect(() => () => { geometry.dispose(); material.dispose(); }, [geometry, material]);
+  useEffect(() => () => { geometry.dispose(); material.dispose(); onCards.dispose(); }, [geometry, material, onCards]);
 
   // The heading on show steps one tile at a time toward the target, the whole turn in about STEP seconds.
   const turn = useRef({ shown: tileOf(yaw, s.headings), wait: 0, dt: 0 });
@@ -115,6 +131,9 @@ export function KingSprite({ at, yaw = 0, onClick }: { at: [number, number]; yaw
       }
     };
   }, [s, alpha]);
-  return <mesh ref={mesh} geometry={geometry} material={material} renderOrder={10} frustumCulled={false} raycast={raycast}
-    onClick={onClick ? e => { e.stopPropagation(); onClick(); } : undefined} />;
+  return <group ref={mesh}>
+    <mesh geometry={geometry} material={material} renderOrder={10} frustumCulled={false} raycast={raycast}
+      onClick={onClick ? e => { e.stopPropagation(); onClick(); } : undefined} />
+    <mesh geometry={geometry} material={onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+  </group>;
 }

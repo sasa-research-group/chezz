@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { BloomEffect, Effect, EffectComposer, EffectPass, LUT3DEffect, LUTCubeLoader, RenderPass } from "postprocessing";
 import { GradeEffect } from "./grade";
 import { King } from "./King";
-import { KingSprite } from "./KingSprite";
+import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { yawOf } from "./facing";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
@@ -107,7 +107,7 @@ function Post() {
   // disposed by the first cleanup and then drawn black. `?dio=nobloom,nograde,nolut` drops stages to compare.
   const [composer, setComposer] = useState<EffectComposer | null>(null);
   useEffect(() => {
-    const c = new EffectComposer(gl, { frameBufferType: THREE.HalfFloatType, multisampling: Math.min(4, gl.capabilities.maxSamples) });
+    const c = new EffectComposer(gl, { frameBufferType: THREE.HalfFloatType, stencilBuffer: true, multisampling: Math.min(4, gl.capabilities.maxSamples) });
     c.addPass(new RenderPass(scene, camera));
     const dbg = new URLSearchParams(location.search).get("dio") ?? "";
     const bloom = new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.4, intensity: 1.1, mipmapBlur: true, radius: 0.55 });
@@ -219,7 +219,9 @@ function Card({ pc, S, onClick }: { pc: DioramaPiece & { sprite: NonNullable<Dio
   return <group position={[0, 0, 0]} onClick={e => { e.stopPropagation(); onClick(); }}>
     <mesh castShadow position={[(b.x + b.w / 2 - 50) * k * (mirror ? -1 : 1), 0, (108 - b.y - b.h / 2) * k]} rotation={[Math.PI / 2, 0, 0]} scale={[mirror ? -1 : 1, 1, 1]}>
       <planeGeometry args={[w, h]} />
-      <meshBasicMaterial map={tex} color={tint} alphaTest={0.5} side={THREE.DoubleSide} shadowSide={THREE.DoubleSide} />
+      {/* stencil CARD_STENCIL where drawn: the pre-rendered king sorts against cards by true depth (KingSprite) */}
+      <meshBasicMaterial map={tex} color={tint} alphaTest={0.5} side={THREE.DoubleSide} shadowSide={THREE.DoubleSide}
+        stencilWrite stencilRef={CARD_STENCIL} stencilZPass={THREE.ReplaceStencilOp} />
     </mesh>
   </group>;
 }
@@ -277,7 +279,7 @@ export function Diorama({ w, h, squares, pieces, onSquare, showFps }: { w: numbe
   const [fps, setFps] = useState(0);
   const n = sourceFor(w, h);
   return <div className="diorama">
-    <Canvas flat shadows={{ type: THREE.VSMShadowMap }} dpr={[1, 2]} camera={{ fov: 30, position: [0, 10, 30] }} gl={{ antialias: false, powerPreference: "high-performance" }}
+    <Canvas flat shadows={{ type: THREE.VSMShadowMap }} dpr={[1, 2]} camera={{ fov: 30, position: [0, 10, 30] }} gl={{ antialias: false, stencil: true, powerPreference: "high-performance" }}
       onCreated={({ gl, scene, camera }) => {
         if (import.meta.env.DEV) (window as unknown as { __dio: unknown }).__dio = { gl, scene, camera }; gl.setClearColor(new THREE.Color(0.0008, 0.0012, 0.0024), 1); scene.background = new THREE.Color(0.0008, 0.0012, 0.0024); }}>
       <Suspense fallback={null}>

@@ -106,6 +106,39 @@ if rim is not None and os.environ.get("RIM_PLAY"):
     rim.location = ctr + d_ * float(os.environ.get("RIM_D", 1.0)) * H
     rim.rotation_euler = (ctr - rim.location).to_track_quat("-Z", "Y").to_euler()
     bpy.context.view_layer.update()
+# CROWN_RIM: with KING_RIM_FIBONLY the rim lights only the felt (fibres and shells), so hands and face stay out
+# of it but so does the crown. This puts a narrow spot, linked to the body mesh alone, behind and above the crown
+# (CROWN_EL degrees above the view ray, CROWN_D x H away), its cone just wide enough for the crown.
+if os.environ.get("CROWN_RIM"):
+    Pk = king_points()
+    lo, hi = Pk.min(0), Pk.max(0)
+    crown = Vector((float(lo[0] + hi[0]) / 2, float(lo[1] + hi[1]) / 2, float(hi[2]) - 0.1 * H))
+    M3 = cam.matrix_world.to_3x3()
+    f_, r_ = -(M3 @ Vector((0, 0, 1))), M3 @ Vector((1, 0, 0))
+    d_ = Matrix.Rotation(math.radians(float(os.environ.get("CROWN_EL", 30))), 3, r_) @ f_
+    dist = float(os.environ.get("CROWN_D", 1.0)) * H
+    cl = bpy.data.lights.new("crown_rim", "SPOT")
+    cl.energy = float(os.environ["CROWN_RIM"]) * H * H
+    cl.color = (1.0, 0.72, 0.42)
+    cl.spot_size = 2 * math.atan(float(os.environ.get("CROWN_R", 0.22)) * H / dist)
+    cl.spot_blend = 0.5
+    cl.shadow_soft_size = 0.1 * H
+    try:
+        cl.cycles.cast_shadow = False
+    except Exception:
+        pass
+    co_ = bpy.data.objects.new("crown_rim", cl)
+    bpy.context.scene.collection.objects.link(co_)
+    co_.location = crown + d_ * dist
+    co_.rotation_euler = (crown - co_.location).to_track_quat("-Z", "Y").to_euler()
+    rc_ = bpy.data.collections.new("CrownRimRecv")
+    for o_ in king:
+        if o_.type == "MESH" and not o_.name.startswith("felt_fibres") and "_shell" not in o_.name:
+            rc_.objects.link(o_)
+    co_.light_linking.receiver_collection = rc_
+    bpy.context.view_layer.update()
+    print("CHECK crown_rim", tuple(round(x, 3) for x in co_.location), "energy", round(cl.energy, 1),
+          "cone", round(math.degrees(cl.spot_size), 1), [o.name for o in rc_.objects], flush=True)
 if rim is not None:
     print("CHECK rim", tuple(round(x, 3) for x in rim.location), "energy", round(rim.data.energy, 1), "size", round(rim.data.size, 3), flush=True)
 
@@ -216,7 +249,7 @@ info = {
     "right": list(right), "up": list(up), "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq,
     "anchor": list(P0), "quad": quad, "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
     "headings": 8, "samples": a.samples,
-    "rim": {k: os.environ.get(k) for k in ("KING_RIM", "KING_RIM_S", "RIM_PLAY", "RIM_EL", "RIM_D")},
+    "rim": {k: os.environ.get(k) for k in ("KING_RIM", "KING_RIM_S", "KING_RIM_FIBONLY", "RIM_PLAY", "RIM_EL", "RIM_D", "CROWN_RIM", "CROWN_EL", "CROWN_D", "CROWN_R")},
 }
 json.dump(info, open(os.path.join(a.out, "king.json"), "w"), indent=1)
 print("RENDER_TOTAL %.1f" % sum(times.values()), "WALL %.1f" % (time.time() - T0), json.dumps(times), flush=True)
