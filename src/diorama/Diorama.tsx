@@ -11,6 +11,7 @@ import { GradeEffect } from "./grade";
 import { King } from "./King";
 import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { yawOf } from "./facing";
+import { hitTime } from "./motion";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
 import type { SetData } from "./set";
@@ -194,7 +195,9 @@ export type DioramaSquare = {
   label: string;
 };
 export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; x: number; y: number;
-  /** The way its last move went (facing.ts); null or missing: toward the camera. */ facing?: Facing; sprite?: { href: string; x: number; y: number; w: number; h: number }; asleep?: boolean; statue?: boolean; picked?: boolean };
+  /** The way its last move went (facing.ts); null or missing: toward the camera. */ facing?: Facing; sprite?: { href: string; x: number; y: number; w: number; h: number }; asleep?: boolean; statue?: boolean; picked?: boolean;
+  /** Your king is taking a piece with this move: he plays his sword strike. */ strike?: boolean;
+  /** A piece just taken: it stays up until the king's blow lands, then falls away from him (his move's way). */ falling?: Facing };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
 function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) {
@@ -255,12 +258,32 @@ function Card({ pc, S, onClick }: { pc: DioramaPiece & { sprite: NonNullable<Dio
   </group>;
 }
 
+const TIP = 0.3, SINK = 0.35;  // seconds: a taken piece tips over, then sinks through the floor
+const NO_HIT = 4000;  // ms: a taken piece falls anyway if no blow is announced (the live 3D king, no strike sheet)
+/** A taken piece: stands until the king's blow lands on its square (motion.ts), then tips over away from him
+ * and sinks out of sight. */
+function Falling({ at, away, children }: { at: [number, number]; away: Facing; children: ReactNode }) {
+  const g = useRef<THREE.Group>(null), born = useMemo(() => performance.now(), []);
+  // tip about the floor line across his blow: the axis is the blow's direction turned a quarter
+  const axis = useMemo(() => { const [x, y] = away ?? [0, 1], l = Math.hypot(x, y) || 1; return new THREE.Vector3(-y / l, x / l, 0); }, [away]);
+  useFrame(() => {
+    const o = g.current;
+    if (!o) return;
+    const now = performance.now(), hit = hitTime(at[0], at[1], born - 50) ?? (now - born > NO_HIT ? born + NO_HIT : null);
+    const t = hit === null ? -1 : (now - hit) / 1000;
+    o.quaternion.setFromAxisAngle(axis, Math.PI / 2 * Math.min(1, Math.max(0, t / TIP)) ** 2);
+    o.position.z = -Math.max(0, t - TIP) / SINK * 1.2;
+    o.visible = t < TIP + SINK;
+  });
+  return <group ref={g}>{children}</group>;
+}
+
 /** The pre-rendered king: he runs from square to square (KingSprite), his blob and shadow go with him. */
 function RunningKing({ pc, at, S, onClick }: { pc: DioramaPiece; at: [number, number]; S: number; onClick: () => void }) {
   const follow = useRef<THREE.Group>(null);
   const yaw = yawOf(pc.facing ?? null);
   return <>
-    <KingSprite at={at} yaw={yaw} onClick={onClick} follow={follow} />
+    <KingSprite at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} />
     <group ref={follow}>
       <Blob x={0} y={0} r={0.2 * S} o={0.35} />
       <King position={[0, 0, 0]} yaw={yaw} shadowOnly />
@@ -300,8 +323,9 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
         const isKing = pc.kind === "king" && pc.side === "white";
         if (isKing && !KING_LIVE) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
         return <group key={pc.id} position={[x, y, 0]}>
-          <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />
+          {pc.falling === undefined && <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />}
           {isKing ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
+            : pc.sprite && pc.falling !== undefined ? <Falling at={[x, y]} away={pc.falling}><Card pc={pc as DioramaPiece & { sprite: NonNullable<DioramaPiece["sprite"]> }} S={S} onClick={() => onSquare(pc.x, pc.y)} /></Falling>
             : pc.sprite ? <Card pc={pc as DioramaPiece & { sprite: NonNullable<DioramaPiece["sprite"]> }} S={S} onClick={() => onSquare(pc.x, pc.y)} /> : null}
         </group>;
       })}

@@ -9,7 +9,7 @@ import { SpriteStill } from "./kit";
 import { spriteBox } from "../components/SpriteRig";
 import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
 import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
-import { track } from "../diorama/facing";
+import { lastCapture, snapDir, track } from "../diorama/facing";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -114,6 +114,16 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
     const kind = pc.kind === "peasant" || pc.kind === "coward" ? "pawn" : pc.kind;
     return { id: seen3d?.[i].id ?? `${pc.side}${pc.kind}${pc.x},${pc.y}`, facing: seen3d?.[i].facing ?? null, kind: pc.kind, side: pc.side, x: pc.x, y: pc.y, sprite: spriteBox(kind, pc.side === "white"), asleep: pc.asleep, statue: pc.statue };
   });
+  // Your king's capture: he plays his sword strike, and the piece he takes stays up until his blow lands.
+  const cap = history ? lastCapture(history.states, history.moves) : null;
+  const taker = cap && pieces[cap.by], move = history?.moves[history.moves.length - 1];
+  if (cap && taker && move && taker.kind === "king" && taker.side === "white" && !move.strike) {
+    const v = history!.states[history.moves.length - 1].pieces[cap.victim];
+    const kind = v.kind === "peasant" || v.kind === "coward" ? "pawn" : v.kind;
+    taker.strike = true;
+    pieces.push({ id: `taken${history!.moves.length}`, kind: v.kind, side: v.side, x: v.x, y: v.y, sprite: spriteBox(kind, v.side === "white"),
+      falling: snapDir(move.to.x - move.from.x, move.to.y - move.from.y) ?? [0, 1] });
+  }
   return <No3D fallback={<PuzzleBoard pz={pz} state={state} picked={picked} targets={targets} last={last} flags={flags} wired={wired} onSquare={onSquare} />}>
     <Suspense fallback={<div className="diorama diorama-loading">Loading 3D…</div>}>
       <Diorama w={pz.width} h={pz.height} squares={squares} pieces={pieces} onSquare={(x, y) => onSquare({ x, y })} showFps={new URLSearchParams(location.search).has("fps")} />

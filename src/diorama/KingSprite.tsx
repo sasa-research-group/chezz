@@ -7,12 +7,17 @@
 // (king-walk*.webp, loaded after he first stands; a heading without a sheet slides his still frame), and a stop
 // into the still idle. He moves at the loop's own ground speed (cycle x cps), with the frame taken from the
 // distance covered, so his feet stay planted: the gait sets the move's length, not the other way round.
+// A capture (`strike`) walks to a stand-off point short of the enemy and plays the jump attack (king-strike*.webp,
+// strike.ts): the leap lands him on the square, the blow falls on the hit frame (motion.ts willHit), and he
+// stands in the guard where he landed.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { breath } from "./King";
-import { gameSpeed, moving } from "./motion";
+import { gameSpeed, moving, willHit } from "./motion";
+import { strikeFrame, strikePlan, strikeTravel } from "./strike";
+import type { StrikeInfo } from "./strike";
 
 // dev: `?kingsheet=name` loads a trial sheet from diorama/_t/name/ instead
 const BASE = import.meta.env.DEV && /kingsheet=([\w-]+)/.test(location.search) ? `diorama/_t/${RegExp.$1}/` : "diorama/";
@@ -36,19 +41,23 @@ type RunSheet = KingSheet & { frames: number; cps: number; cycle: number; have: 
 const Q = new URLSearchParams(location.search);
 const GAIT = "walk";
 const CPS = +(Q.get("kingcps") ?? 0) || 0;
-let runP: Promise<RunSheet | null> | null = null;
-const runSheet = () => (runP ??= fetch(`${BASE}king-${GAIT}.json`).then(r => (r.ok ? r.json() as Promise<RunSheet> : null))
-  .then(r => (r && CPS ? { ...r, cps: CPS } : r)).catch(() => null));
-const runTex = new Map<number, Promise<[THREE.Texture, THREE.Texture]>>();
-const loadRun = (k: number) => {
-  if (!runTex.has(k)) {
+/** The jump attack: `frames` per heading at `fps`, the blow on frame `hit`, the leap `travel` stage units long. */
+type StrikeSheet = KingSheet & StrikeInfo & { have: number[] };
+const sheets = new Map<string, Promise<unknown>>();
+const sheetOf = <T,>(name: string) => (sheets.get(name) ?? sheets.set(name, fetch(`${BASE}king-${name}.json`)
+  .then(r => (r.ok ? r.json() : null)).catch(() => null)).get(name)!) as Promise<T | null>;
+const runSheet = () => sheetOf<RunSheet>(GAIT).then(r => (r && CPS ? { ...r, cps: CPS } : r));
+const tex = new Map<string, Promise<[THREE.Texture, THREE.Texture]>>();
+const loadSheet = (name: string, k: number) => {
+  const key = `${name}${k}`;
+  if (!tex.has(key)) {
     const L = new THREE.TextureLoader();
-    runTex.set(k, Promise.all([L.loadAsync(`${BASE}king-${GAIT}${k}.webp`), L.loadAsync(`${BASE}king-${GAIT}${k}-glow.webp`)]).then(([m, g]) => {
+    tex.set(key, Promise.all([L.loadAsync(`${BASE}king-${key}.webp`), L.loadAsync(`${BASE}king-${key}-glow.webp`)]).then(([m, g]) => {
       m.colorSpace = THREE.SRGBColorSpace; m.generateMipmaps = true; g.colorSpace = THREE.NoColorSpace;
       return [m, g] as [THREE.Texture, THREE.Texture];
     }));
   }
-  return runTex.get(k)!;
+  return tex.get(key)!;
 };
 
 // Depth only is pulled depthBias toward the camera (the image stays put): the set plate has leaves floating in
@@ -129,10 +138,10 @@ function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Textur
 /** `at`: his square's centre in stage units (Blender axes); `yaw` as for <King>. Clicks where he is opaque.
  * When `at` changes he turns, runs there and stops; `follow` (his blob and shadow, placed at `at`) is moved
  * along with him. */
-export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null> }) {
+export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean }) {
   const s = useSheet();
   const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}king8.webp`, `${BASE}king8-glow.png`]);
-  const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null);
+  const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null);
   const { geometry, material, onCards, basis, alpha } = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace; map.generateMipmaps = true; map.needsUpdate = true;
     glow.colorSpace = THREE.NoColorSpace;
@@ -146,25 +155,32 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
   }, [map, glow, s]);
   useEffect(() => () => { geometry.dispose(); material.dispose(); onCards.dispose(); }, [geometry, material, onCards]);
 
-  // The run sheets come in after he first stands, one per heading baked so far.
-  const run = useRef<{ s: RunSheet; meshes: ReturnType<typeof sheetMeshes>; tex: Map<number, [THREE.Texture, THREE.Texture]> } | null>(null);
+  // The run sheets come in after he first stands, one per heading baked so far; then the strike sheets.
+  const run = useRef<Loaded<RunSheet> | null>(null), hit = useRef<Loaded<StrikeSheet> | null>(null);
   const [, ping] = useStateTick();
   useEffect(() => {
     let live = true;
-    const t = setTimeout(() => runSheet().then(rs => {
-      if (!rs || !live) return;
-      run.current = { s: rs, meshes: sheetMeshes(rs, null, null), tex: new Map() };
+    const into = <T extends KingSheet & { have: number[] },>(ref: { current: Loaded<T> | null }, name: string, sh: T | null) => {
+      if (!sh || !live) return;
+      ref.current = { s: sh, meshes: sheetMeshes(sh, null, null), tex: new Map() };
       ping();
-      for (const k of rs.have) loadRun(k).then(tx => { if (live && run.current) run.current.tex.set(k, tx); }, () => {});
-    }), 800);
-    return () => { live = false; clearTimeout(t); const r = run.current; if (r) { r.meshes.geometry.dispose(); r.meshes.material.dispose(); r.meshes.onCards.dispose(); } run.current = null; };
+      return Promise.all(sh.have.map(k => loadSheet(name, k).then(tx => { if (live && ref.current) ref.current.tex.set(k, tx); }, () => {})));
+    };
+    const t = setTimeout(() => runSheet().then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>("strike")).then(ss => into(hit, "strike", ss)), 800);
+    return () => {
+      live = false; clearTimeout(t);
+      for (const ref of [run, hit] as { current: Loaded<KingSheet> | null }[]) {
+        const r = ref.current; if (r) { r.meshes.geometry.dispose(); r.meshes.material.dispose(); r.meshes.onCards.dispose(); } ref.current = null;
+      }
+    };
   }, [ping]);
 
   // The heading on show steps one tile at a time toward the target, the whole turn in about STEP seconds.
   const n = s.headings;
   const turn = useRef({ shown: tileOf(yaw, n), wait: 0, dt: 0, to: tileOf(yaw, n) });
   // The move: from where he was to `at`; "turn" to face it, "run", then standing again.
-  const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0 });
+  // A capture runs only to `stop` (short of `to` by the leap), then "strike" plays the attack there.
+  const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], stop: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run" | "strike", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0, strike: false });
   const cam = useMemo(() => new THREE.Vector3(), []), F = useMemo(() => new THREE.Vector3(), []), fwd = useMemo(() => new THREE.Vector3(...s.fwd), [s]);
   // Slide the quad along the ray to his feet so it keeps the bake's gap in front of them, and scale it so
   // he subtends what he would standing there (camera in Blender axes: three (x, y, z) is Blender (x, -z, y)).
@@ -186,9 +202,19 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       M.from = [...M.pos]; M.to = [at[0], at[1]];
       const dx = M.to[0] - M.from[0], dy = M.to[1] - M.from[1], d = Math.hypot(dx, dy) / s.S;
       if (d > 1e-3) {
-        M.k = tileOf(Math.atan2(dx, -dy), n); M.v = run.current ? run.current.s.cycle * run.current.s.cps : PACE; M.D = d * s.S; M.dur = M.D / M.v + RAMP; M.t = 0; M.f = 0;
+        M.k = tileOf(Math.atan2(dx, -dy), n); M.v = run.current ? run.current.s.cycle * run.current.s.cps : PACE; M.t = 0; M.f = 0;
+        // A capture plays the strike when its heading is in; otherwise he walks onto the square and the blow
+        // lands as he arrives.
+        const h = hit.current, st = strike && h?.tex.has(M.k) ? { ...h.s, travel: h.s.travel * s.S / h.s.S } : null;
+        const plan = st ? strikePlan(d * s.S, st) : null;
+        M.strike = !!plan; M.D = plan ? plan.walk : d * s.S;
+        const e = M.D / (d * s.S);
+        M.stop = [M.from[0] + dx * e, M.from[1] + dy * e];
+        M.dur = M.D > 1e-3 ? M.D / M.v + RAMP : 0;
         M.phase = M.k === t.shown ? "run" : "turn";
-        moving(((M.phase === "turn" ? TURN : 0) + M.dur) * SLOW / gameSpeed());
+        const go = (M.phase === "turn" ? TURN : 0) + M.dur, k = SLOW / gameSpeed();
+        moving((go + (plan ? plan.length : 0)) * k);
+        if (strike) willHit(M.to[0], M.to[1], (go + (plan ? plan.hitAt : 0)) * k);
       }
     }
     if (M.phase === "turn") {
@@ -199,10 +225,21 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       // Steady pace, eased in and out over RAMP; the frame follows the ground covered, so no skating.
       const T = M.dur, tt = Math.min(M.t, T), R = Math.min(RAMP, T / 2);
       const x = tt < R ? M.v * tt * tt / (2 * R) : tt > T - R ? M.D - M.v * (T - tt) ** 2 / (2 * R) : M.v * (tt - R / 2);
-      const e = Math.min(1, x / M.D);
-      M.pos = [M.from[0] + (M.to[0] - M.from[0]) * e, M.from[1] + (M.to[1] - M.from[1]) * e];
+      const e = M.D > 1e-3 ? Math.min(1, x / M.D) : 1;
+      M.pos = [M.from[0] + (M.stop[0] - M.from[0]) * e, M.from[1] + (M.stop[1] - M.from[1]) * e];
       if (run.current) M.f = (x / run.current.s.cycle) * run.current.s.frames;
-      if (M.t >= T) { M.phase = "idle"; M.pos = [...M.to]; }
+      if (M.t >= T) {
+        M.pos = [...M.stop]; M.t = 0;
+        M.phase = M.strike ? "strike" : "idle";
+        if (!M.strike) M.pos = [...M.to];
+      }
+    } else if (M.phase === "strike") {
+      // The attack is baked with him starting on the square's centre: the sprite stays at the stand-off point
+      // while the leap inside the frames carries him onto the enemy's square.
+      M.t += dt;
+      const h = hit.current!.s;
+      M.f = strikeFrame(M.t, h);
+      if (M.t >= h.frames / h.fps) { M.phase = "idle"; M.pos = [...M.to]; }
     }
     const want = M.phase === "idle" ? tileOf(yaw, n) : M.k;
     if (t.to !== want) { t.to = want; t.dt = 0; t.wait = 0; }
@@ -218,13 +255,23 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       }
     } else { t.wait = 0; t.dt = 0; }
     cam.set(camera.position.x, -camera.position.z, camera.position.y);
-    follow?.current?.position.set(M.pos[0] - at[0], M.pos[1] - at[1], 0);
-    // Running on a heading with its sheet in: the run frames; otherwise his still frame.
+    // Striking: his blob and shadow follow the leap from the stand-off point onto the square.
+    const sh = M.phase === "strike" && hit.current ? hit.current : null, ht = sh?.tex.get(M.k);
+    const lf = sh ? strikeTravel(M.f, sh.s) : 0;
+    follow?.current?.position.set(M.pos[0] + (M.to[0] - M.pos[0]) * lf - at[0], M.pos[1] + (M.to[1] - M.pos[1]) * lf - at[1], 0);
+    // Running on a heading with its sheet in: the run frames; striking: the strike frames; else his still frame.
     const r = run.current, rt = M.phase === "run" && r ? r.tex.get(M.k) : undefined;
-    const g = mesh.current, rg = runMesh.current;
-    if (g) g.visible = !rt;
+    const g = mesh.current, rg = runMesh.current, hg = hitMesh.current;
+    if (g) g.visible = !rt && !ht;
     if (rg) rg.visible = !!rt;
-    if (rt && r && rg) {
+    if (hg) hg.visible = !!ht;
+    if (ht && sh && hg) {
+      const u = sh.meshes.material.uniforms;
+      if (u.map.value !== ht[0]) { u.map.value = ht[0]; u.glow.value = ht[1]; }
+      const [tx, ty] = sh.s.tiles, i = M.f;
+      (u.tile.value as THREE.Vector2).set(i % tx, ty - 1 - Math.floor(i / tx));
+      place(hg, sh.s, 1);
+    } else if (rt && r && rg) {
       const u = r.meshes.material.uniforms;
       if (u.map.value !== rt[0]) { u.map.value = rt[0]; u.glow.value = rt[1]; }
       const [tx, ty] = r.s.tiles, i = Math.floor(M.f) % r.s.frames;
@@ -251,7 +298,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       }
     };
   }, [s, alpha]);
-  const rm = run.current?.meshes;
+  const rm = run.current?.meshes, hm = hit.current?.meshes;
   return <>
     <group ref={mesh}>
       <mesh geometry={geometry} material={material} renderOrder={10} frustumCulled={false} raycast={raycast}
@@ -262,8 +309,15 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       <mesh geometry={rm.geometry} material={rm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />
       <mesh geometry={rm.geometry} material={rm.onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
     </group>}
+    {hm && <group ref={hitMesh} visible={false}>
+      <mesh geometry={hm.geometry} material={hm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+      <mesh geometry={hm.geometry} material={hm.onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+    </group>}
   </>;
 }
+
+/** A frame sheet that came in: its info, its quad meshes, and its textures per heading as they load. */
+type Loaded<T extends KingSheet> = { s: T; meshes: ReturnType<typeof sheetMeshes>; tex: Map<number, [THREE.Texture, THREE.Texture]> };
 
 /** A re-render on demand. */
 function useStateTick(): [number, () => void] {

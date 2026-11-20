@@ -16,6 +16,17 @@ export function snapDir(dx: number, dy: number): Facing {
 /** The king's yaw for a facing: 0 looks at the camera (Blender -y), pi/2 looks right. */
 export const yawOf = (f: Facing) => (f ? Math.atan2(f[0], -f[1]) : 0);
 
+/** The capture the last move made, if any: `by` is the taker's index in the last state's pieces, `victim` the
+ * taken piece's index in the state before. A statue's strike (it stays put) counts too. */
+export function lastCapture(states: { pieces: At[] }[], moves: Step[]): { by: number; victim: number } | null {
+  const n = Math.min(moves.length, states.length - 1), m = n > 0 ? moves[n - 1] : null;
+  if (!m) return null;
+  const same = (a: At) => (p: At) => p.x === a.x && p.y === a.y;
+  const victim = states[n - 1].pieces.findIndex(same(m.to));
+  const by = states[n].pieces.findIndex(same(m.strike ? m.from : m.to));
+  return victim >= 0 && by >= 0 ? { by, victim } : null;
+}
+
 /** Stable ids and facings for the pieces of the last state, replaying `moves` from `states[0]`.
  * states[i + 1] is states[i] after moves[i] (null: a pass). Pieces keep their id from the start position;
  * a piece that appears from nowhere gets a fresh one. A statue's strike turns it toward its target. */

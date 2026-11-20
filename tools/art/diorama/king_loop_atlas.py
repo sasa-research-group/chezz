@@ -1,5 +1,6 @@
-# king_loop_atlas.py DIR OUTDIR [name=walk] [scale=0.8] [q=88] [cps=2]: pack a bake_king_sprites.py --gait loop
-# (DIR/{name}{k}_{i}.png) into public/diorama/king-{name}{k}.webp (one sheet per heading, frames on a 2-row grid,
+# king_loop_atlas.py DIR OUTDIR [name=walk] [scale=0.8] [q=88] [cps=2] [rows=2]: pack a bake_king_sprites.py --gait loop
+# or --strike (DIR/{name}{k}_{i}.png) into public/diorama/king-{name}{k}.webp (one sheet per heading, frames on a grid
+# of `rows` rows: 4 for the 29-frame strike, so a sheet stays under 8192 px wide for phone GPUs;
 # lossy with exact alpha, colours bled under the transparent pixels), king-{name}{k}-glow.webp (same layout) and
 # king-{name}.json ({name}.json + the grid, the headings that have a sheet, cps: loops per second at the game's
 # pace). The game moves him at cycle * cps stage units a second, so the feet stay planted.
@@ -29,12 +30,13 @@ info = json.load(open(f"{src}/{name}.json"))
 nf = info["frames"]
 have = sorted({int(re.match(name + r"(\d)_", os.path.basename(p)).group(1)) for p in glob.glob(f"{src}/{name}?_00.png")})
 have = [k for k in have if all(os.path.exists(f"{src}/{name}{k}_{i:02d}.png") for i in range(nf))]
-cols = (nf + 1) // 2
+rows = int(kv.get("rows", 2))
+cols = -(-nf // rows)
 w0, h0 = Image.open(f"{src}/{name}{have[0]}_00.png").size
 w, h = round(w0 * scale), round(h0 * scale)
 sizes = {}
 for k in have:
-    at = Image.new("RGBA", (cols * w, 2 * h)); gl = Image.new("RGB", (cols * w, 2 * h))
+    at = Image.new("RGBA", (cols * w, rows * h)); gl = Image.new("RGB", (cols * w, rows * h))
     for i in range(nf):
         im = Image.open(f"{src}/{name}{k}_{i:02d}.png").convert("RGBA").resize((w, h), Image.LANCZOS)
         g = Image.open(f"{src}/{name}{k}_{i:02d}-glow.png").convert("RGB").resize((w, h), Image.LANCZOS)
@@ -42,6 +44,8 @@ for k in have:
     at.save(f"{out}/king-{name}{k}.webp", quality=q, alpha_quality=100, method=6, exact=True)
     gl.save(f"{out}/king-{name}{k}-glow.webp", quality=80, method=6)
     sizes[k] = (os.path.getsize(f"{out}/king-{name}{k}.webp"), os.path.getsize(f"{out}/king-{name}{k}-glow.webp"))
-info.update(tiles=[cols, 2], tile=[w, h], scale=scale, cps=cps, fps=cps * nf, have=have)
+info.update(tiles=[cols, rows], tile=[w, h], scale=scale, have=have)
+if info.get("cycle"):  # a gait loop plays at the game's pace; a strike keeps the fps it was baked at
+    info.update(cps=cps, fps=cps * nf)
 json.dump(info, open(f"{out}/king-{name}.json", "w"), indent=1)
-print("SHEET", cols * w, 2 * h, "tile", w, h, "sizes", sizes, "speed", info.get("cycle") and info["cycle"] * cps, "stage/s")
+print("SHEET", cols * w, rows * h, "tile", w, h, "sizes", sizes, "speed", info.get("cycle") and info["cycle"] * cps, "stage/s")

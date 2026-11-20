@@ -17,3 +17,17 @@ export const setGameSpeed = (v: 1 | 2) => {
 export const moving = (seconds: number) => { until = Math.max(until, performance.now() + seconds * 1000); };
 /** Milliseconds until the king's move lands; 0 when he is standing. */
 export const motionLeft = () => Math.max(0, until - performance.now());
+
+// When the king's blade lands on a square (stage coordinates), so the piece he takes falls on the hit.
+const hits = new Map<string, { set: number; at: number }>();
+const hitKey = (x: number, y: number) => `${x.toFixed(2)},${y.toFixed(2)}`;
+/** KingSprite: his blow lands on the square at stage (x, y) `seconds` from now. */
+export const willHit = (x: number, y: number, seconds: number) => {
+  const now = performance.now();
+  hits.set(hitKey(x, y), { set: now, at: now + seconds * 1000 });
+};
+/** When (performance.now() time) the blow announced at or after `since` lands on (x, y); null when none is. */
+export const hitTime = (x: number, y: number, since: number) => {
+  const h = hits.get(hitKey(x, y));
+  return h && h.set >= since ? h.at : null;
+};
