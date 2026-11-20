@@ -8,6 +8,7 @@ import type { Analysis, Solver } from "../puzzle/solve";
 import { SpriteStill } from "./kit";
 import { spriteBox } from "../components/SpriteRig";
 import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
+import { motionLeft } from "../diorama/motion";
 import { track } from "../diorama/facing";
 import "./puzzles.css";
 
@@ -243,11 +244,15 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
   const targets = play?.picked ? movesFrom(pz, b, cur, play.picked).map(m => m.to) : [];
   useEffect(() => {
     if (!play || !sv || result || cur.turn !== "black") return;
-    const t = setTimeout(() => {
+    // In 3D the reply waits until the king's run has landed (motion.ts), then a short beat.
+    const go = () => {
+      const left = motionLeft();
+      if (left > 0) { t = setTimeout(go, left + 150); return; }
       let reply: Move | null;
       try { reply = bestReply(sv, cur); } catch { reply = legalMoves(pz, b, cur)[0] ?? null; }
       setPlay(p => p && { ...p, states: [...p.states, reply ? apply(pz, cur, reply) : pass(cur)], moves: [...p.moves, reply] });
-    }, 450);
+    };
+    let t = setTimeout(go, 450);
     return () => clearTimeout(t);
   }, [play, sv, cur, result, pz, b]);
   const playSquare = (p: Pos) => {

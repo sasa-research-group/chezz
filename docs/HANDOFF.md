@@ -28,6 +28,15 @@
   is used. Gotcha: OIIO un-premultiplies on PNG write unless
   `oiio:UnassociatedAlpha=1` (white fringe). Pieces face their last move
   (`src/diorama/facing.ts`). Dev-only: `?shells=N`, `?kingsheet=name`.
+- **Branch `claude/puzzle-run` (Nov 19, on puzzle/dungeon):** the king
+  turns (~0.15 s), runs (0.35 s a square, at least 0.5 s, eased) and stops
+  into the idle; the dungeon's reply waits for him (`src/diorama/motion.ts`).
+  Run cycle: 14 frames baked with `bake_king_sprites.py --clip
+  <running glb>` (`king_motion.py`: chibi run shaping, skirt and cape fixes,
+  felt fibres re-bound to the posed mesh each frame; `PROP=glb` for a held
+  prop later), packed by `king_run_atlas.py` (0.8 scale, lossy webp, ~257 KB
+  a heading, lazy-loaded). Only headings 0 and 2 are baked so far; the others
+  slide his still frame. Dev: `?kingslow=8`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then

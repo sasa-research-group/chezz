@@ -12,6 +12,12 @@
 #   king{k}.png        straight-alpha RGBA, Standard view + exposure, like set{N}.webp
 #   king{k}-glow.png   what is brighter than 1.0 (the crown), sqrt((L - 1) / glowK), like set{N}-glow.png
 #   king.json          crop, the camera-parallel quad the browser draws him on, anchors and timings
+#
+# --clip GLB --frames N bakes a loop instead (king_motion.py): the Meshy clip is resampled to N frames and reshaped
+# for the chibi body (CHIBI_RUN), the cape and hem reweighted so they don't swing like boards, and the felt fibres
+# (built in the r17 pose exactly as for the still king, then bound to their root triangles) re-seated on the
+# posed body every frame. Writes run{k}_{i}.png / -glow.png and run.json; the crop holds every frame.
+# PROP=path.glb puts a held prop (the sword, later) in his right hand for any bake (king_motion.attach_prop).
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
 from mathutils import Vector, Matrix
@@ -28,19 +34,37 @@ ap.add_argument("--res", type=int, default=3600)
 ap.add_argument("--samples", type=int, default=256)
 ap.add_argument("--only", default="")  # headings to (re)render, e.g. "3,4"; default all missing
 ap.add_argument("--glow_k", type=float, default=16.0)
+ap.add_argument("--clip", default="")  # a Meshy animation glb (same mesh and rig): bake its loop
+ap.add_argument("--frames", type=int, default=14)
 a = ap.parse_args(argv)
 EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0
 KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
 T0 = time.time()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import king_motion as km
+NAME = "run" if a.clip else "king"
 
 # --- the king, posed and measured exactly as tools/render_v4.py does for the hero
 bpy.ops.wm.read_factory_settings(use_empty=True)
-bpy.ops.import_scene.gltf(filepath=KING)
+bpy.ops.import_scene.gltf(filepath=a.clip or KING)
 for o in list(bpy.data.objects):
     if o.type == "MESH" and o.parent is None:
         bpy.data.objects.remove(o)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+body = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm)
+poses = []
+if a.clip:
+    km.fix_skirt(arm, body)
+    km.fix_cape(arm, body)
+    poses = km.loop_poses(arm, frames=a.frames)
+    for pb in arm.pose.bones:  # back to rest, then the r17 pose: the stage, felt and lights are built in it
+        pb.rotation_mode = "QUATERNION"
+        pb.location = (0, 0, 0); pb.rotation_quaternion = (1, 0, 0, 0); pb.scale = (1, 1, 1)
+    bpy.context.view_layer.update()
 stage.relax_arms(arm)
+if a.clip:
+    for side in ("Left", "Right"):
+        arm.pose.bones[side + "CapeArm"].rotation_quaternion = arm.pose.bones[side + "Arm"].rotation_quaternion.copy()
 bpy.context.view_layer.update()
 def under(o):
     while o is not None:
@@ -72,6 +96,25 @@ sc = bpy.context.scene
 t = time.time()
 stage.build_stage(sc, H, center=(0, 0), board=5)
 stage.clay_ify(arm)
+binder = None
+if a.clip:
+    binder = km.FibreBinder(body, bpy.data.objects["felt_fibres"])  # bound in the pose they were grown in
+    # stand the loop on the floor: the lowest point over the cycle touches it (the rest is airborne bounce)
+    zlo = []
+    for ps in poses:
+        km.apply_pose(arm, ps)
+        zlo.append(float(king_points()[:, 2].min()))
+    arm.location.z -= min(zlo)
+    print("CHECK loop floor lift %.4f (H %.3f), airborne max %.4f" % (-min(zlo), H, max(zlo) - min(zlo)), flush=True)
+def pose(i):
+    if binder is not None:
+        km.apply_pose(arm, poses[i])
+        binder.update()
+if a.clip:
+    pose(0)
+if os.environ.get("PROP"):
+    pr = km.attach_prop(arm, os.environ["PROP"], H)
+    print("CHECK prop", pr.name, flush=True)
 print("BUILD_SECONDS %.1f" % (time.time() - t), flush=True)
 cam = stage.build_camera(sc, H, aspect=ASPECT, zoom=ZOOM5, elevation=EL, look_ahead=LA, focal=FOCAL)
 cam.data.dof.use_dof = False  # as the set bake
@@ -142,8 +185,13 @@ if os.environ.get("CROWN_RIM"):
 if rim is not None:
     print("CHECK rim", tuple(round(x, 3) for x in rim.location), "energy", round(rim.data.energy, 1), "size", round(rim.data.size, 3), flush=True)
 
-# --- one crop for all headings: a cylinder round his axis (fibres and halo stick out a little), projected
-P = king_points()
+# --- one crop for all headings (and loop frames): a cylinder round his axis (fibres and halo stick out a little)
+P = []
+for i in range(max(1, len(poses))):
+    pose(i)
+    P.append(king_points())
+P = np.concatenate(P)
+pose(0)
 r = float(np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2).max()) * 1.12
 top = float(P[:, 2].max()) + 0.04 * H
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
@@ -179,8 +227,11 @@ d0 = (Vector((0, 0, 0)) - cpos).dot(fwd)  # depth of his feet (the anchor)
 near = []  # his nearest point over all headings (meshes; fibres add a hair)
 for k in range(8):
     heading(k)
-    near.append(float(((king_points() - np.array(cpos)) @ np.array(fwd)).min()))
+    for i in range(0, max(1, len(poses)), 2):
+        pose(i)
+        near.append(float(((king_points() - np.array(cpos)) @ np.array(fwd)).min()))
 heading(0)
+pose(0)
 dq = min(near) - 0.03 * H
 tanX = 18.0 / FOCAL
 tanY = tanX / ASPECT
@@ -204,17 +255,20 @@ def srgb(x):
 expo = 2.0 ** float(os.environ.get("EXPO", 0))
 only = [int(k) for k in a.only.split(",") if k != ""] or list(range(8))
 times = {}
-for k in only:
-    png = os.path.join(a.out, "king%d.png" % k)
-    if not a.only and os.path.exists(png):
+jobs = [(k, i) for k in only for i in range(len(poses))] if a.clip else [(k, None) for k in only]
+for k, i in jobs:
+    tag = "%d" % k if i is None else "%d_%02d" % (k, i)
+    png = os.path.join(a.out, "%s%s.png" % (NAME, tag))
+    if os.path.exists(png) and (not a.only or a.clip):  # a loop resumes after a Metal crash
         continue
     heading(k)
-    exr = os.path.join(a.out, "king%d.exr" % k)
+    pose(i) if i is not None else None
+    exr = os.path.join(a.out, "%s%s.exr" % (NAME, tag))
     sc.render.filepath = exr
     t = time.time()
     bpy.ops.render.render(write_still=True)
-    times[k] = time.time() - t
-    print("RENDER_SECONDS %d %.1f" % (k, times[k]), flush=True)
+    times[tag] = time.time() - t
+    print("RENDER_SECONDS %s %.1f" % (tag, times[tag]), flush=True)
     img = oiio.ImageInput.open(exr)
     chans, j = {}, 0
     while img.seek_subimage(j, 0):
@@ -240,7 +294,7 @@ for k in only:
     glow = np.clip((straight - 1.0) / a.glow_k, 0, 1) * (al > 0.02)
     gb = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 3, "uint8"))
     gb.set_pixels(oiio.ROI(), (np.sqrt(glow) * 255 + 0.5).astype(np.uint8))
-    gb.write(os.path.join(a.out, "king%d-glow.png" % k))
+    gb.write(os.path.join(a.out, "%s%s-glow.png" % (NAME, tag)))
     if not os.environ.get("KEEP_EXR"):
         os.remove(exr)
 
@@ -249,8 +303,10 @@ info = {
     "right": list(right), "up": list(up), "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq,
     "anchor": list(P0), "quad": quad, "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
     "headings": 8, "samples": a.samples,
+    "frames": len(poses) or None, "clip": os.path.basename(a.clip) or None, "shape": km.CHIBI_RUN if a.clip else None,
+    "prop": os.environ.get("PROP"),
     "rim": {k: os.environ.get(k) for k in ("KING_RIM", "KING_RIM_S", "KING_RIM_FIBONLY", "RIM_PLAY", "RIM_EL", "RIM_D", "CROWN_RIM", "CROWN_EL", "CROWN_D", "CROWN_R")},
 }
-json.dump(info, open(os.path.join(a.out, "king.json"), "w"), indent=1)
+json.dump(info, open(os.path.join(a.out, NAME + ".json"), "w"), indent=1)
 print("RENDER_TOTAL %.1f" % sum(times.values()), "WALL %.1f" % (time.time() - T0), json.dumps(times), flush=True)
 print("DONE", flush=True)

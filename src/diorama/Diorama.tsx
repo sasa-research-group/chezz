@@ -226,6 +226,19 @@ function Card({ pc, S, onClick }: { pc: DioramaPiece & { sprite: NonNullable<Dio
   </group>;
 }
 
+/** The pre-rendered king: he runs from square to square (KingSprite), his blob and shadow go with him. */
+function RunningKing({ pc, at, S, onClick }: { pc: DioramaPiece; at: [number, number]; S: number; onClick: () => void }) {
+  const follow = useRef<THREE.Group>(null);
+  const yaw = yawOf(pc.facing ?? null);
+  return <>
+    <KingSprite at={at} yaw={yaw} onClick={onClick} follow={follow} />
+    <group ref={follow}>
+      <Blob x={0} y={0} r={0.2 * S} o={0.35} />
+      <King position={[0, 0, 0]} yaw={yaw} shadowOnly />
+    </group>
+  </>;
+}
+
 function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
   const { S, H } = data.info;
   const at = (x: number, y: number) => [(x - (w - 1) / 2) * S, ((h - 1) / 2 - y) * S] as const;
@@ -256,10 +269,10 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {pieces.map(pc => {
         const [x, y] = at(pc.x, pc.y);
         const isKing = pc.kind === "king" && pc.side === "white";
+        if (isKing && !KING_LIVE) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
         return <group key={pc.id} position={[x, y, 0]}>
           <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />
-          {isKing ? (KING_LIVE ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
-            : <><KingSprite at={[x, y]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} /><King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} shadowOnly /></>)
+          {isKing ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
             : pc.sprite ? <Card pc={pc as DioramaPiece & { sprite: NonNullable<DioramaPiece["sprite"]> }} S={S} onClick={() => onSquare(pc.x, pc.y)} /> : null}
         </group>;
       })}
