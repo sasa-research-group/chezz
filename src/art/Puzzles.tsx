@@ -151,7 +151,34 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
   const [side, setSide] = useState<Side>("black");
   const [status, setStatus] = useState<string>("");
   const [speed, setSpeed] = useState(gameSpeed);
+  // Full screen while playing: the browser's own full screen where it has one (desktop, Android, iPad);
+  // on iPhone, which has none for pages, the board just fills the window.
+  const [full, setFull] = useState(false);
+  const canvasRef = useRef<HTMLElement>(null);
+  const fsEl = () => document.fullscreenElement ?? (document as { webkitFullscreenElement?: Element }).webkitFullscreenElement ?? null;
+  const leaveFull = () => {
+    setFull(false);
+    if (!fsEl()) return;
+    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    else (document as { webkitExitFullscreen?: () => void }).webkitExitFullscreen?.();
+  };
+  const enterFull = () => {
+    setFull(true);
+    const el = canvasRef.current as (HTMLElement & { webkitRequestFullscreen?: () => void }) | null;
+    try {
+      if (el?.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else el?.webkitRequestFullscreen?.();
+    } catch { /* no browser full screen: the window fill still applies */ }
+  };
+  useEffect(() => {
+    // Esc (or the browser's own exit) leaves our full screen too.
+    const off = () => { if (!fsEl()) setFull(false); };
+    document.addEventListener("fullscreenchange", off); document.addEventListener("webkitfullscreenchange", off);
+    return () => { document.removeEventListener("fullscreenchange", off); document.removeEventListener("webkitfullscreenchange", off); };
+  }, []);
+  useEffect(() => { if (!full) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") leaveFull(); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [full]); // eslint-disable-line react-hooks/exhaustive-deps
   const [play, setPlay] = useState<Play | null>(null);
+  useEffect(() => { if (!play && full) leaveFull(); }, [play]); // eslint-disable-line react-hooks/exhaustive-deps
   const [view3d, setView3d] = useState(() => (new URLSearchParams(location.search).get("view") ?? localStorage.getItem("chezz-puzzle-view")) === "3d");
   useEffect(() => { localStorage.setItem("chezz-puzzle-view", view3d ? "3d" : "2d"); }, [view3d]);
   const past = useRef<Puzzle[][]>([]), future = useRef<Puzzle[][]>([]);
@@ -305,7 +332,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
       </div>
     </aside>
 
-    <section className="level-canvas" aria-label="Board">
+    <section ref={canvasRef} className={`level-canvas${full && play ? " full" : ""}`} aria-label="Board">
       <p className="puzzle-goal"><b>{goalText(g, pz.moves)}</b>{play && <> · moves left {Math.max(0, pz.moves - cur.played)}</>}</p>
       {!play ? <>
         <div className="seg level-tools" role="group" aria-label="Tool">{TOOLS.map(([t, label]) => <button key={t} type="button" disabled={t === "goal" && !hasSquares} aria-pressed={tool === t} onClick={() => setTool(t)}>{label}</button>)}</div>
@@ -341,6 +368,8 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
           <button type="button" className="level-play" onClick={() => setPlay(null)}>■ Edit</button>
           <button type="button" className="game-speed" aria-pressed={speed === 2} aria-label="Fast forward" title="Play moves twice as fast"
             onClick={() => { const v = speed === 2 ? 1 : 2; setGameSpeed(v); setSpeed(v); }}>{speed === 2 ? "⏩ 2x" : "▶ 1x"}</button>
+          <button type="button" className="full-screen" aria-pressed={full} aria-label={full ? "Exit full screen" : "Full screen"} title={full ? "Exit full screen (Esc)" : "Full screen"}
+            onClick={() => (full ? leaveFull() : enterFull())}>{full ? "✕ Exit full screen" : "⛶ Full screen"}</button>
         </> : <>
           <button type="button" aria-label="Undo" disabled={!past.current.length} onClick={undo}>↶ Undo</button>
           <button type="button" aria-label="Redo" disabled={!future.current.length} onClick={redo}>↷ Redo</button>

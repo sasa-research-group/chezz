@@ -61,3 +61,11 @@
 .diorama-loading{display:grid;place-items:center;color:#c9bfa6;font-size:14px}
 .diorama-fps{position:absolute;right:8px;top:6px;font:12px/1 ui-monospace,monospace;color:#cfe;background:#0008;padding:3px 6px;border-radius:4px}
 .diorama-note { margin: 6px 0 0; font-size: 13px; opacity: .7; text-align: center; }
+
+/* Full screen play: the board section covers the window (and the screen, where the browser allows it). */
+.level-canvas.full{position:fixed;inset:0;z-index:1000;margin:0;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+  background:#020306;color:#e9e1cc;overflow:auto;align-content:center;justify-items:center}
+.level-canvas.full .puzzle-view{display:none}
+.level-canvas.full .diorama{width:min(100%,calc((100dvh - 150px)*4/3));border-radius:0}
+.studio .level-canvas.full .board-camera{max-width:min(100%,calc(100dvh - 150px))!important;width:100%}
+.level-canvas.full .level-actions,.level-canvas.full .puzzle-log{width:100%}
