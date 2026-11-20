@@ -17,7 +17,7 @@
   (`KingSprite.tsx`, `public/diorama/king8.*`) on a camera-facing quad
   The idle king now holds the royal blade in a two-handed middle guard (Wesley's picks, Nov 2026): sword built by
   `tools/art/diorama/build_sword.py` (royal_blade.glb), pose by `guard_pose.py` (king_guard.json, clay fists from
-  `king_motion.attach_fists`), baked with `runguard.sh`. The walk and jog loops still have no sword.
+  `king_motion.attach_fists`), baked with `runguard.sh`. He walks with it too (below).
   slid and scaled to his square; turns step through the in-between
   headings in ~0.2 s; idle is still plus ~1% breathing. The rigged glTF
   still casts his live VSM shadow (shadow-only), and `?king=live` shows it
@@ -34,14 +34,18 @@
 - **Branch `claude/puzzle-run` (Nov 19, on puzzle/dungeon):** the king
   turns (~0.15 s), then walks to the square at a steady pace and stops into
   the idle; the dungeon's reply waits for him (`src/diorama/motion.ts`).
-  Gaits (`king_motion.GAITS`): `walk` (A, brisk walk, default) and `jog`
-  (B, light jog; `?kinggait=jog`), 16-frame loops baked with
-  `tools/art/diorama/runbake.sh GAIT OUT` (one bake at a time), packed by
-  `king_loop_atlas.py DIR public/diorama name=walk cps=2`. He moves at the
-  loop's own ground speed (`cycle` x `cps`, frame from distance, so the feet
-  stay planted), which makes a move about 1.5 s a square (`?kingcps=` to
-  try another cadence). Only headings 0 and 2 are baked; the others slide
-  his still frame. Dev: `?kingslow=8`.
+  Gait: Wesley picked the walk (Nov 20); the jog sheets are gone. The walk
+  carries the sword: `king_motion.hold_guard` keeps the guard from the spine
+  up over the walk's hips and legs. 16-frame loops, all 8 headings, baked with
+  `GUARD=king_guard.json PROP=royal_blade.glb tools/art/diorama/runbake.sh
+  walk OUT 3600 256 0,1,2,3,4,5,6,7` (Metal crashes several times a bake;
+  rerun the same line, it resumes), packed by `king_loop_atlas.py DIR
+  public/diorama name=walk cps=2`. He moves at the loop's own ground speed
+  (`cycle` x `cps`, frame from distance, so the feet stay planted): about
+  1.4 s a square. Players can toggle **fast forward (2x)** on the play bar
+  (`gameSpeed()` in motion.ts, kept in localStorage `chezz.speed`): about
+  0.7 s a square, and the dungeon answers sooner. Dev: `?kingslow=8`,
+  `?kingcps=`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then

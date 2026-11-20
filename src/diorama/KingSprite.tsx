@@ -3,7 +3,7 @@
 // KING_RIM halo and the crown glow included. Drawn on a quad parallel to the image plane, a little in front
 // of his nearest point, so the set and the other pieces still sort against him; on any square the quad is
 // slid and scaled so his feet land on the square and he keeps the size he has there.
-// A move is a turn to face the new square, a steady walk (or jog) there on the gait loop sheets
+// A move is a turn to face the new square, a steady walk there (sword held in the guard) on the gait loop sheets
 // (king-walk*.webp, loaded after he first stands; a heading without a sheet slides his still frame), and a stop
 // into the still idle. He moves at the loop's own ground speed (cycle x cps), with the frame taken from the
 // distance covered, so his feet stay planted: the gait sets the move's length, not the other way round.
@@ -32,9 +32,9 @@ function useSheet(): KingSheet {
 /** A gait loop: `frames` per heading on a tiles[0] x tiles[1] sheet each, for the headings in `have`; one loop
  * covers `cycle` stage units with the feet planted, and plays `cps` times a second. */
 type RunSheet = KingSheet & { frames: number; cps: number; cycle: number; have: number[] };
-// `?kinggait=jog` swaps the brisk walk for the light jog; `?kingcps=1.8` changes the cadence (loops a second)
+// `?kingcps=1.8` changes the cadence (loops a second)
 const Q = new URLSearchParams(location.search);
-const GAIT = Q.get("kinggait") === "jog" ? "jog" : "walk";
+const GAIT = "walk";
 const CPS = +(Q.get("kingcps") ?? 0) || 0;
 let runP: Promise<RunSheet | null> | null = null;
 const runSheet = () => (runP ??= fetch(`${BASE}king-${GAIT}.json`).then(r => (r.ok ? r.json() as Promise<RunSheet> : null))

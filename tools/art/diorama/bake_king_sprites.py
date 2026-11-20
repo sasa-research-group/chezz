@@ -333,7 +333,7 @@ info = {
     "frames": len(poses) or None, "clip": os.path.basename(a.clip) or None, "shape": SHAPE, "gait": a.gait or None,
     # cycle: ground covered per loop with the feet planted, in stage units (and in squares, S = 1.2 H)
     "cycle": GAIT and GAIT["cycle"] * H / 100, "cycleSquares": GAIT and GAIT["cycle"] / 120, "stats": GAIT,
-    "prop": os.environ.get("PROP"),
+    "prop": os.path.basename(os.environ["PROP"]) if os.environ.get("PROP") else None,
     "rim": {k: os.environ.get(k) for k in ("KING_RIM", "KING_RIM_S", "KING_RIM_FIBONLY", "RIM_PLAY", "RIM_EL", "RIM_D", "CROWN_RIM", "CROWN_EL", "CROWN_D", "CROWN_R")},
 }
 json.dump(info, open(os.path.join(a.out, NAME + ".json"), "w"), indent=1)
