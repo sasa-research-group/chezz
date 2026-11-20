@@ -14,6 +14,10 @@
   `tools/art/diorama/bake.sh` and `bake_king.py`, which need `stage.py`
   and the Meshy assets in `~/.dos/scratch/d84406ef/` (not in the repo).
   No WebGL: falls back to 2D. Debug: `?fps`, `?dio=nobloom,nograde,nolut`.
+  In play, pieces face their last move (`src/diorama/facing.ts`, derived
+  from the play history; the king turns in ~0.2 s, cards mirror on left
+  moves); the Idle clip's stance is calmed by `calmIdle.ts`. Live VSM
+  shadows on a ShadowMaterial catcher. Dev-only: `?calm=0`, `?shells=N`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then

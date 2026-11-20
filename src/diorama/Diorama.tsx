@@ -9,6 +9,8 @@ import * as THREE from "three";
 import { BloomEffect, Effect, EffectComposer, EffectPass, LUT3DEffect, LUTCubeLoader, RenderPass } from "postprocessing";
 import { GradeEffect } from "./grade";
 import { King } from "./King";
+import { yawOf } from "./facing";
+import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
 import type { SetData } from "./set";
 
@@ -63,6 +65,33 @@ function Lights({ data, w, h }: { data: SetData; w: number; h: number }) {
     <spotLight ref={r => spot(r, [0, 0.82, -0.58])} position={[0, -6.34 * H, 4.5 * H]} intensity={3757 / (4 * Math.PI)} angle={0.96} penumbra={0.8} color={new THREE.Color(1.0, 0.7, 0.42)} decay={2} />
     <spotLight ref={r => spot(r, [-0.1, -0.56, -0.82])} position={[-1.2 * H, Math.min(1.92 * H, h * data.info.S / 2), 3.4 * H]} intensity={101 / Math.PI} angle={1.3} penumbra={1} color={new THREE.Color(0.4, 0.58, 1.0)} decay={2} />
     {bulbs.map((b, i) => <pointLight key={i} position={b} intensity={22 / (4 * Math.PI)} color={new THREE.Color(1.0, 0.62, 0.32)} decay={2} />)}
+    <ShadowCatcher data={data} w={w} h={h} />
+  </>;
+}
+
+/** Live shadows on the baked floor: a shadow-only light along the stage's key (stage.py's pool spot, high over
+ * the front edge and tipped 32 degrees toward the back, so shadows fall short and behind the piece, a touch
+ * right from the lantern on the left) and a ShadowMaterial plane over the board that shows nothing but the
+ * shadow. The light adds no light (intensity 0): the bake already has it. VSM blurs it as soft as Cycles'. */
+const KEY_DIR = new THREE.Vector3(0.04, 0.55, -0.83).normalize();
+function ShadowCatcher({ data, w, h }: { data: SetData; w: number; h: number }) {
+  const { S, H } = data.info, r = Math.max(w, h) * S * 0.75 + H, far = 4 * r;
+  const light = useMemo(() => {
+    const l = new THREE.DirectionalLight(0xffffff, 0);
+    l.castShadow = true;
+    l.shadow.mapSize.set(1024, 1024);
+    Object.assign(l.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 0.1, far });
+    l.shadow.camera.updateProjectionMatrix();
+    l.shadow.radius = 9; l.shadow.blurSamples = 16; l.shadow.bias = -0.0005;
+    return l;
+  }, [r, far]);
+  useEffect(() => () => light.dispose(), [light]);
+  return <>
+    <primitive object={light} position={KEY_DIR.clone().multiplyScalar(-far / 2).toArray()} />
+    <mesh position={[0, 0, 0.03]} receiveShadow renderOrder={1}>
+      <planeGeometry args={[w * S + 0.2 * S, h * S + 0.2 * S]} />
+      <shadowMaterial color={new THREE.Color(0.02, 0.014, 0.01)} opacity={0.8} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-1} />
+    </mesh>
   </>;
 }
 
@@ -118,7 +147,7 @@ const shadowTex = (() => {
     return t;
   };
 })();
-/** A soft dark blob under a piece (the baked floor can't take live shadows). */
+/** A small soft dark patch right under a piece: contact shadow where the feet meet the floor. */
 export const Blob = ({ x, y, r, o = 0.6 }: { x: number; y: number; r: number; o?: number }) =>
   <mesh position={[x, y, 0.035]} renderOrder={2}>
     <planeGeometry args={[r * 2, r * 1.6]} />
@@ -132,7 +161,8 @@ export type DioramaSquare = {
   goal?: "star" | "exit"; watched?: boolean; picked?: boolean; target?: "move" | "capture"; last?: boolean; flag?: boolean; wired?: boolean;
   label: string;
 };
-export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; x: number; y: number; sprite?: { href: string; x: number; y: number; w: number; h: number }; asleep?: boolean; statue?: boolean; picked?: boolean };
+export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; x: number; y: number;
+  /** The way its last move went (facing.ts); null or missing: toward the camera. */ facing?: Facing; sprite?: { href: string; x: number; y: number; w: number; h: number }; asleep?: boolean; statue?: boolean; picked?: boolean };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
 function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) {
@@ -152,7 +182,7 @@ function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) 
   switch (sq.kind) {
     case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
     case "wall": case "eye":
-      out.push(<mesh key="w" position={[0, 0, 0.3 * H]}><boxGeometry args={[0.94 * S, 0.94 * S, 0.6 * H]} />{stone}</mesh>);
+      out.push(<mesh key="w" castShadow position={[0, 0, 0.3 * H]}><boxGeometry args={[0.94 * S, 0.94 * S, 0.6 * H]} />{stone}</mesh>);
       if (sq.kind === "eye") out.push(<mesh key="e" position={[0, -0.47 * S, 0.34 * H]}><sphereGeometry args={[0.14 * S, 20, 12]} /><meshBasicMaterial color={new THREE.Color(2.2, 0.25, 0.15)} /></mesh>);
       break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
@@ -180,12 +210,13 @@ function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) 
 function Card({ pc, S, onClick }: { pc: DioramaPiece & { sprite: NonNullable<DioramaPiece["sprite"]> }; S: number; onClick: () => void }) {
   const tex = useLoader(THREE.TextureLoader, pc.sprite.href);
   useMemo(() => { tex.colorSpace = THREE.SRGBColorSpace; }, [tex]);
-  const k = 0.85 * S / 100, b = pc.sprite, w = b.w * k, h = b.h * k, mirror = pc.side === "black";
+  // Sprites are painted facing right; a card can't turn, so it mirrors after a move left or right.
+  const k = 0.85 * S / 100, b = pc.sprite, w = b.w * k, h = b.h * k, mirror = pc.facing?.[0] ? pc.facing[0] < 0 : pc.side === "black";
   const tint = pc.statue ? new THREE.Color(0.32, 0.32, 0.32) : pc.asleep ? new THREE.Color(0.28, 0.3, 0.42) : new THREE.Color(0.5, 0.47, 0.43);
   return <group position={[0, 0, 0]} onClick={e => { e.stopPropagation(); onClick(); }}>
-    <mesh position={[(b.x + b.w / 2 - 50) * k * (mirror ? -1 : 1), 0, (108 - b.y - b.h / 2) * k]} rotation={[Math.PI / 2, 0, 0]} scale={[mirror ? -1 : 1, 1, 1]}>
+    <mesh castShadow position={[(b.x + b.w / 2 - 50) * k * (mirror ? -1 : 1), 0, (108 - b.y - b.h / 2) * k]} rotation={[Math.PI / 2, 0, 0]} scale={[mirror ? -1 : 1, 1, 1]}>
       <planeGeometry args={[w, h]} />
-      <meshBasicMaterial map={tex} color={tint} alphaTest={0.5} side={THREE.DoubleSide} />
+      <meshBasicMaterial map={tex} color={tint} alphaTest={0.5} side={THREE.DoubleSide} shadowSide={THREE.DoubleSide} />
     </mesh>
   </group>;
 }
@@ -221,8 +252,8 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
         const [x, y] = at(pc.x, pc.y);
         const isKing = pc.kind === "king" && pc.side === "white";
         return <group key={pc.id} position={[x, y, 0]}>
-          <Blob x={0} y={0} r={0.36 * S} o={isKing ? 0.4 : 0.32} />
-          {isKing ? <King position={[0, 0, 0]} onClick={() => onSquare(pc.x, pc.y)} />
+          <Blob x={0} y={0} r={0.2 * S} o={isKing ? 0.45 : 0.35} />
+          {isKing ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
             : pc.sprite ? <Card pc={pc as DioramaPiece & { sprite: NonNullable<DioramaPiece["sprite"]> }} S={S} onClick={() => onSquare(pc.x, pc.y)} /> : null}
         </group>;
       })}
@@ -242,7 +273,7 @@ export function Diorama({ w, h, squares, pieces, onSquare, showFps }: { w: numbe
   const [fps, setFps] = useState(0);
   const n = sourceFor(w, h);
   return <div className="diorama">
-    <Canvas flat dpr={[1, 2]} camera={{ fov: 30, position: [0, 10, 30] }} gl={{ antialias: false, powerPreference: "high-performance" }}
+    <Canvas flat shadows={{ type: THREE.VSMShadowMap }} dpr={[1, 2]} camera={{ fov: 30, position: [0, 10, 30] }} gl={{ antialias: false, powerPreference: "high-performance" }}
       onCreated={({ gl, scene, camera }) => {
         if (import.meta.env.DEV) (window as unknown as { __dio: unknown }).__dio = { gl, scene, camera }; gl.setClearColor(new THREE.Color(0.0008, 0.0012, 0.0024), 1); scene.background = new THREE.Color(0.0008, 0.0012, 0.0024); }}>
       <Suspense fallback={null}>

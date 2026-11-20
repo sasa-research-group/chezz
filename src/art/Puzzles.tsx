@@ -8,6 +8,7 @@ import type { Analysis, Solver } from "../puzzle/solve";
 import { SpriteStill } from "./kit";
 import { spriteBox } from "../components/SpriteRig";
 import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
+import { track } from "../diorama/facing";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -91,7 +92,7 @@ const canWebGL = () => { try { return !!document.createElement("canvas").getCont
 
 const Diorama = lazy(() => import("../diorama/Diorama").then(m => ({ default: m.Diorama })));
 /** The same board as PuzzleBoard, in the 3D diorama (src/diorama/). Same squares, same clicks. */
-function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], onSquare }: Parameters<typeof PuzzleBoard>[0]) {
+function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], onSquare, history }: Parameters<typeof PuzzleBoard>[0] & { history?: { states: State[]; moves: (Move | null)[] } }) {
   const bd = boardOf(pz), goals = goalSquares(pz.goal), eyes = pz.eyes ?? [], seen = sight(bd, state);
   const squares: DioramaSquare[] = Array.from({ length: pz.width * pz.height }, (_, i) => {
     const p = { x: i % pz.width, y: Math.floor(i / pz.width) }, has = (l: Pos[] | undefined) => (l ?? []).some(q => same(q, p));
@@ -101,9 +102,11 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
     return { ...p, kind, label: squareName(pz, p), goal: has(goals) ? (pz.goal.type === "escort" ? "exit" : "star") : undefined, watched: has(seen),
       picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired) };
   });
-  const pieces: DioramaPiece[] = state.pieces.map(pc => {
+  // In play each piece keeps an id and faces its last move; in the editor everything faces the camera.
+  const seen3d = history ? track(history.states, history.moves) : null;
+  const pieces: DioramaPiece[] = state.pieces.map((pc, i) => {
     const kind = pc.kind === "peasant" || pc.kind === "coward" ? "pawn" : pc.kind;
-    return { id: `${pc.side}${pc.kind}${pc.x},${pc.y}`, kind: pc.kind, side: pc.side, x: pc.x, y: pc.y, sprite: spriteBox(kind, pc.side === "white"), asleep: pc.asleep, statue: pc.statue };
+    return { id: seen3d?.[i].id ?? `${pc.side}${pc.kind}${pc.x},${pc.y}`, facing: seen3d?.[i].facing ?? null, kind: pc.kind, side: pc.side, x: pc.x, y: pc.y, sprite: spriteBox(kind, pc.side === "white"), asleep: pc.asleep, statue: pc.statue };
   });
   return <No3D fallback={<PuzzleBoard pz={pz} state={state} picked={picked} targets={targets} last={last} flags={flags} wired={wired} onSquare={onSquare} />}>
     <Suspense fallback={<div className="diorama diorama-loading">Loading 3D…</div>}>
@@ -313,7 +316,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
 
       <div className="seg puzzle-view" role="group" aria-label="View">{([["2d", "2D"], ["3d", "3D"]] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={view3d === (v === "3d")} onClick={() => setView3d(v === "3d")}>{label}</button>)}</div>
       {(() => { const props = { pz, state: cur, picked: play?.picked ?? null, targets, last: lastMove, flags: issues.flatMap(i => (i.at ? [i.at] : [])), wired: play ? [] : wiredSquares, onSquare: play ? playSquare : wiring !== null ? wire : paint };
-        return view3d ? <PuzzleBoard3D {...props} /> : <PuzzleBoard {...props} />; })()}
+        return view3d ? <PuzzleBoard3D {...props} history={play ?? undefined} /> : <PuzzleBoard {...props} />; })()}
       {!play && wiring !== null && <p className="level-hint wiring-hint">Wiring {pz.switches?.[wiring] ? squareName(pz, pz.switches[wiring]) : ""}: click {pz.switches?.[wiring]?.effect.type === "gates" ? "gates" : "squares"} to connect or disconnect them. <button type="button" onClick={() => setWiring(null)}>Done</button></p>}
       {play && result && <p className={`puzzle-result ${result}`} role="status">{result === "win" ? "Solved!" : "Failed. Try again."}</p>}
       {play && !result && cur.turn === "black" && <p className="puzzle-result thinking" role="status">The dungeon is thinking…</p>}
