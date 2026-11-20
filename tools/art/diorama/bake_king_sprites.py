@@ -68,12 +68,15 @@ if a.clip:
     km.fix_skirt(arm, body)
     km.fix_cape(arm, body)
     poses = km.loop_poses(arm, frames=a.frames, **SHAPE)
+    if os.environ.get("GUARD"):  # carrying the sword: the gait's legs under the idle guard's upper body
+        _gp, GUARD_LOOP = km.load_guard(os.environ["GUARD"])
+        poses = km.hold_guard(arm, poses, _gp, steady=float(os.environ.get("STEADY", "0.5")))
     for pb in arm.pose.bones:  # back to rest, then the r17 pose: the stage, felt and lights are built in it
         pb.rotation_mode = "QUATERNION"
         pb.location = (0, 0, 0); pb.rotation_quaternion = (1, 0, 0, 0); pb.scale = (1, 1, 1)
     bpy.context.view_layer.update()
 stage.relax_arms(arm)
-GUARD = None
+GUARD = GUARD_LOOP if a.clip and os.environ.get("GUARD") else None
 if os.environ.get("GUARD") and not a.clip:  # the idle guard with the sword (sword/guard_pose.py)
     _gp, GUARD = km.load_guard(os.environ["GUARD"])
     km.apply_pose(arm, _gp)

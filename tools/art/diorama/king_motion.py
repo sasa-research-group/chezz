@@ -108,6 +108,40 @@ def loop_poses(arm, frames=14, period=None, start=None, **shape):
     return out
 
 
+UPPER = ("Spine", "Spine01", "Spine02", "neck", "Head", "head_end", "headfront", "LeftShoulder", "LeftArm",
+         "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand")
+
+
+def hold_guard(arm, poses, guard, steady=0.0):
+    """A gait loop carrying the sword: the hips and legs walk, everything from the spine up stays in the idle
+    guard (load_guard's pose, hand scale included), so both fists stay on the grip. The cape's CapeArm bones
+    follow the guard arms. `steady` (0..1) takes that share of the hips' sway (turn and roll round the loop's mean
+    hips) back out at the spine, so the blade sways less than the hips do. Leaves the last pose applied."""
+    out = []
+    hm = _qmean([p["Hips"][1] for p in poses])
+    for p in poses:
+        q = dict(p)
+        for n in UPPER:
+            if n in guard:
+                q[n] = guard[n]
+        for side in ("Left", "Right"):
+            if side + "CapeArm" in p and side + "Arm" in guard:
+                q[side + "CapeArm"] = (Vector(), guard[side + "Arm"][1])
+        if steady:
+            # the spine's armature-space matrix with the mean hips, versus this frame's hips
+            apply_pose(arm, dict(q, Hips=(p["Hips"][0], hm)))
+            want = arm.pose.bones["Spine"].matrix.to_3x3().normalized()
+            apply_pose(arm, q)
+            pb = arm.pose.bones["Spine"]
+            have = pb.matrix.to_3x3().normalized()
+            R = have.to_quaternion().slerp(want.to_quaternion(), steady).to_matrix()
+            m = R.to_4x4(); m.translation = pb.matrix.translation
+            pb.matrix = m
+            bpy.context.view_layer.update()
+            q["Spine"] = (guard["Spine"][0], pb.rotation_quaternion.copy()) + tuple(guard["Spine"][2:])
+        out.append(q)
+    return out
+
 def gait_stats(arm, poses, H=1.7):
     """Numbers for a loop, in % of his height H: hips bounce, crown (head) bob, lean range (deg, + forward),
     heel lift, the narrowest gap between the feet, the longest stride, and `cycle`: how far the planted foot
