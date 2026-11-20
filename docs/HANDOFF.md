@@ -7,17 +7,22 @@
 - **Branch `claude/puzzle-3d` (Nov 19, on top of puzzle/dungeon):** a 2D/3D
   toggle on the Puzzles board. 3D is `src/diorama/` (R3F): three Cycles
   "plate" bakes of the set (3, 5, 8 squares; `public/diorama/`) rebuilt as
-  depth meshes, other sizes cut at grout lines from the next bake up; the
-  white king is the rigged glTF with the Idle clip, lit live; other pieces
-  are sprite cards; special squares are placeholder tints and blocks. Post:
-  bloom, the stage compositor grade, the concept LUT. Rebake with
+  depth meshes, other sizes cut at grout lines from the next bake up; other
+  pieces are sprite cards; special squares are placeholder tints and blocks.
+  Post: bloom, the stage compositor grade, the concept LUT. Rebake with
   `tools/art/diorama/bake.sh` and `bake_king.py`, which need `stage.py`
   and the Meshy assets in `~/.dos/scratch/d84406ef/` (not in the repo).
   No WebGL: falls back to 2D. Debug: `?fps`, `?dio=nobloom,nograde,nolut`.
-  In play, pieces face their last move (`src/diorama/facing.ts`, derived
-  from the play history; the king turns in ~0.2 s, cards mirror on left
-  moves); the Idle clip's stance is calmed by `calmIdle.ts`. Live VSM
-  shadows on a ShadowMaterial catcher. Dev-only: `?calm=0`, `?shells=N`.
+  The white king is Cycles king A pre-rendered at 8 headings
+  (`KingSprite.tsx`, `public/diorama/king8.*`) on a camera-facing quad
+  slid and scaled to his square; turns step through the in-between
+  headings in ~0.2 s; idle is still plus ~1% breathing. The rigged glTF
+  still casts his live VSM shadow (shadow-only), and `?king=live` shows it
+  instead. Rebake: `bake_king_sprites.py` with `KING_RIM=5000 RIM_PLAY=1`
+  (rim placed behind him for the play camera; the haze must stay in), then
+  `king_atlas.py`. Gotcha: OIIO un-premultiplies on PNG write unless
+  `oiio:UnassociatedAlpha=1` (white fringe). Pieces face their last move
+  (`src/diorama/facing.ts`). Dev-only: `?shells=N`, `?kingsheet=name`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then

@@ -1,6 +1,7 @@
-// The white king, version A: Meshy's rigged figure with the Idle clip, colours and clay relief baked
-// from the stage's Cycles material (tools/art/diorama/bake_king.py), lit live. Felt: sheen in a lighter
-// tint of the base colour, a fresnel rim for the fuzz halo, and a few shell layers. Crown: matte gold
+// The live white king, version A: Meshy's rigged figure, colours and clay relief baked from the stage's
+// Cycles material (tools/art/diorama/bake_king.py), lit live. The board shows the pre-rendered Cycles king
+// (KingSprite.tsx); this one stays for `?king=live` and, drawn into the shadow map only, casts his shadow.
+// Felt: sheen in a lighter tint of the base colour, a fresnel rim for the fuzz halo, and a few shell layers. Crown: matte gold
 // with a warm glow, picked out by height in the bind pose.
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -12,8 +13,6 @@ import { calmIdle } from "./calmIdle";
 export const KING_URL = "diorama/king.glb";
 const CROWN = 0.82;  // bind-pose height fraction where the crown starts
 const KING_TURN = import.meta.env.DEV && /kingrot=(-?\d+)/.test(location.search) ? +RegExp.$1 * Math.PI / 180 : 0;
-const KING_CALM = !(import.meta.env.DEV && /calm=0/.test(location.search));
-const KING_W = import.meta.env.DEV && /kingw=([\d.]+)/.test(location.search) ? +RegExp.$1 : 1;
 // Felt: shells to SHELL_LEN x SHELLS of his height face-on, FRINGE times longer where the surface turns
 // away (the silhouette), so fibres stand out against the dark like Cycles' hair; FIBRE fibre cells across the UVs.
 const SHELLS = import.meta.env.DEV && /shells=(\d+)/.test(location.search) ? +RegExp.$1 : 7, SHELL_LEN = 0.0065, FRINGE = 2.2, FIBRE = 520.0;
@@ -54,16 +53,21 @@ totalEmissiveRadiance += vec3(1.0, 0.62, 0.25) * 0.04 * crown;`);
   m.customProgramCacheKey = () => `felt${shell}`;
 }
 
-/** `yaw`: his heading about the floor's up axis, 0 toward the camera; he turns to it over about 0.2 s. */
-export function King({ position, scale = 1, yaw = 0, onClick }: { position: [number, number, number]; scale?: number; yaw?: number; onClick?: () => void }) {
+/** A piece at rest stands still and only breathes: a 1% rise of his height, feet planted, every 3.5 s. */
+export const breath = (t: number) => 1 + 0.01 * (0.5 - 0.5 * Math.cos(t * 2 * Math.PI / 3.5));
+
+/** `yaw`: his heading about the floor's up axis, 0 toward the camera; he turns to it over about 0.2 s.
+ * `shadowOnly`: drawn into the shadow map and nowhere else. */
+export function King({ position, scale = 1, yaw = 0, onClick, shadowOnly = false }: { position: [number, number, number]; scale?: number; yaw?: number; onClick?: () => void; shadowOnly?: boolean }) {
   const gltf = useGLTF(KING_URL);
   const root = useMemo(() => cloneSkinned(gltf.scene), [gltf.scene]);
   const group = useRef<THREE.Group>(null);
-  const clips = useMemo(() => gltf.animations.map(c => (KING_CALM && /idle/i.test(c.name) ? calmIdle(c, gltf.scene) : c)), [gltf]);
+  // Still: the Idle clip's first frame with the stance squared to the front (calmIdle), held.
+  const clips = useMemo(() => gltf.animations.map(c => (/idle/i.test(c.name) ? calmIdle(c, gltf.scene) : c)), [gltf]);
   const { actions, names } = useAnimations(clips, group);
   useEffect(() => {
     const a = actions[names.find(n => /idle/i.test(n)) ?? names[0]];
-    a?.reset().setEffectiveWeight(KING_W).setEffectiveTimeScale(0.7).play();
+    if (a) { a.reset().play(); a.time = 0; a.paused = true; }
     return () => { a?.stop(); };
   }, [actions, names]);
   useMemo(() => {
@@ -86,6 +90,7 @@ export function King({ position, scale = 1, yaw = 0, onClick }: { position: [num
       mesh.material = make(0);
       mesh.castShadow = true;
       mesh.frustumCulled = false;
+      if (shadowOnly) { Object.assign(mesh.material as THREE.Material, { colorWrite: false, depthWrite: false }); continue; }
       for (let i = 1; i <= SHELLS; i++) {
         const sh = new THREE.SkinnedMesh(mesh.geometry, make(i));
         sh.bind(mesh.skeleton, mesh.bindMatrix);
@@ -94,14 +99,13 @@ export function King({ position, scale = 1, yaw = 0, onClick }: { position: [num
         mesh.parent!.add(sh);
       }
     }
-  }, [root]);
-  // Turn the short way to the heading (95% there in 0.2 s), with a slow sway on top so he never looks
-  // frozen between loops (dev: ?kingrot=deg adds a turn).
+  }, [root, shadowOnly]);
+  // Turn the short way to the heading (95% there in 0.2 s), and breathe (dev: ?kingrot=deg adds a turn).
   const heading = useRef(yaw);
   useFrame(({ clock }, dt) => {
     const d = Math.atan2(Math.sin(yaw - heading.current), Math.cos(yaw - heading.current));
     heading.current += d * (1 - Math.exp(-Math.min(dt, 0.1) * 15));
-    if (group.current) group.current.rotation.y = heading.current + KING_TURN + Math.sin(clock.elapsedTime * 0.4) * 0.05;
+    if (group.current) { group.current.rotation.y = heading.current + KING_TURN; group.current.scale.y = breath(clock.elapsedTime); }
   });
   return <group position={position} rotation={[Math.PI / 2, 0, 0]} scale={scale}>
     <group ref={group} onClick={onClick ? e => { e.stopPropagation(); onClick(); } : undefined}><primitive object={root} /></group>

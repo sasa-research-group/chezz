@@ -9,12 +9,15 @@ import * as THREE from "three";
 import { BloomEffect, Effect, EffectComposer, EffectPass, LUT3DEffect, LUTCubeLoader, RenderPass } from "postprocessing";
 import { GradeEffect } from "./grade";
 import { King } from "./King";
+import { KingSprite } from "./KingSprite";
 import { yawOf } from "./facing";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
 import type { SetData } from "./set";
 
 const BASE = "diorama/";
+/** `?king=live` swaps the pre-rendered Cycles king for the live glTF one, to compare. */
+const KING_LIVE = /[?&]king=live\b/.test(location.search);
 /** Blender's axes (z up) to three's (y up): every child of <Blender> is placed in stage units. */
 const Blender = ({ children }: { children: ReactNode }) => <group rotation={[-Math.PI / 2, 0, 0]}>{children}</group>;
 const toThree = (v: THREE.Vector3) => new THREE.Vector3(v.x, v.z, -v.y);
@@ -252,8 +255,9 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
         const [x, y] = at(pc.x, pc.y);
         const isKing = pc.kind === "king" && pc.side === "white";
         return <group key={pc.id} position={[x, y, 0]}>
-          <Blob x={0} y={0} r={0.2 * S} o={isKing ? 0.45 : 0.35} />
-          {isKing ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
+          <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />
+          {isKing ? (KING_LIVE ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
+            : <><KingSprite at={[x, y]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} /><King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} shadowOnly /></>)
             : pc.sprite ? <Card pc={pc as DioramaPiece & { sprite: NonNullable<DioramaPiece["sprite"]> }} S={S} onClick={() => onSquare(pc.x, pc.y)} /> : null}
         </group>;
       })}
