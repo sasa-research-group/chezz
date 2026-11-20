@@ -8,7 +8,7 @@ import type { Analysis, Solver } from "../puzzle/solve";
 import { SpriteStill } from "./kit";
 import { spriteBox } from "../components/SpriteRig";
 import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
-import { motionLeft } from "../diorama/motion";
+import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
 import { track } from "../diorama/facing";
 import "./puzzles.css";
 
@@ -150,6 +150,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
   const [kind, setKind] = useState<PKind>("pawn");
   const [side, setSide] = useState<Side>("black");
   const [status, setStatus] = useState<string>("");
+  const [speed, setSpeed] = useState(gameSpeed);
   const [play, setPlay] = useState<Play | null>(null);
   const [view3d, setView3d] = useState(() => (new URLSearchParams(location.search).get("view") ?? localStorage.getItem("chezz-puzzle-view")) === "3d");
   useEffect(() => { localStorage.setItem("chezz-puzzle-view", view3d ? "3d" : "2d"); }, [view3d]);
@@ -247,12 +248,12 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
     // In 3D the reply waits until the king's run has landed (motion.ts), then a short beat.
     const go = () => {
       const left = motionLeft();
-      if (left > 0) { t = setTimeout(go, left + 150); return; }
+      if (left > 0) { t = setTimeout(go, left + 150 / gameSpeed()); return; }
       let reply: Move | null;
       try { reply = bestReply(sv, cur); } catch { reply = legalMoves(pz, b, cur)[0] ?? null; }
       setPlay(p => p && { ...p, states: [...p.states, reply ? apply(pz, cur, reply) : pass(cur)], moves: [...p.moves, reply] });
     };
-    let t = setTimeout(go, 450);
+    let t = setTimeout(go, 450 / gameSpeed());
     return () => clearTimeout(t);
   }, [play, sv, cur, result, pz, b]);
   const playSquare = (p: Pos) => {
@@ -338,6 +339,8 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
           <button type="button" onClick={() => setPlay({ states: [start(pz)], moves: [], picked: null })}>↺ Retry</button>
           <button type="button" disabled={play.states.length < 2} onClick={takeBack}>↶ Take back</button>
           <button type="button" className="level-play" onClick={() => setPlay(null)}>■ Edit</button>
+          <button type="button" className="game-speed" aria-pressed={speed === 2} aria-label="Fast forward" title="Play moves twice as fast"
+            onClick={() => { const v = speed === 2 ? 1 : 2; setGameSpeed(v); setSpeed(v); }}>{speed === 2 ? "⏩ 2x" : "▶ 1x"}</button>
         </> : <>
           <button type="button" aria-label="Undo" disabled={!past.current.length} onClick={undo}>↶ Undo</button>
           <button type="button" aria-label="Redo" disabled={!future.current.length} onClick={redo}>↷ Redo</button>

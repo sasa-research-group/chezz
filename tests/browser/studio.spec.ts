@@ -125,3 +125,23 @@ test("studio: style guide and mechanics render without errors and fit a phone", 
   await expect(page.locator(".ref-grid img")).toHaveCount(18);
   expect(errors).toEqual([]);
 });
+
+
+test("puzzles: the fast-forward toggle switches to 2x and stays on after a reload", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/art.html#puzzles/2");
+  await page.getByRole("button", { name: "▶ Play" }).click();
+  const ff = page.getByRole("button", { name: "Fast forward" });
+  await expect(ff).toHaveAttribute("aria-pressed", "false");
+  await expect(ff).toHaveText("▶ 1x");
+  await ff.click();
+  await expect(ff).toHaveAttribute("aria-pressed", "true");
+  await expect(ff).toHaveText("⏩ 2x");
+  expect(await page.evaluate(() => localStorage.getItem("chezz.speed"))).toBe("2");
+  await page.reload();
+  await page.getByRole("button", { name: "▶ Play" }).click();
+  await expect(page.getByRole("button", { name: "Fast forward" })).toHaveAttribute("aria-pressed", "true");
+  // and back off
+  await page.getByRole("button", { name: "Fast forward" }).click();
+  await expect(page.getByRole("button", { name: "Fast forward" })).toHaveText("▶ 1x");
+});

@@ -12,7 +12,7 @@ import type { RefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { breath } from "./King";
-import { moving } from "./motion";
+import { gameSpeed, moving } from "./motion";
 
 // dev: `?kingsheet=name` loads a trial sheet from diorama/_t/name/ instead
 const BASE = import.meta.env.DEV && /kingsheet=([\w-]+)/.test(location.search) ? `diorama/_t/${RegExp.$1}/` : "diorama/";
@@ -180,7 +180,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
   };
   useFrame(({ camera, clock }, dt) => {
     const M = mv.current, t = turn.current;
-    dt = Math.min(dt, 0.1) / SLOW;
+    dt = Math.min(dt, 0.1) * gameSpeed() / SLOW;
     if (M.to[0] !== at[0] || M.to[1] !== at[1]) {
       // A new square (or a take-back mid-run): run from wherever he is now.
       M.from = [...M.pos]; M.to = [at[0], at[1]];
@@ -188,7 +188,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow }: { at: [number, numb
       if (d > 1e-3) {
         M.k = tileOf(Math.atan2(dx, -dy), n); M.v = run.current ? run.current.s.cycle * run.current.s.cps : PACE; M.D = d * s.S; M.dur = M.D / M.v + RAMP; M.t = 0; M.f = 0;
         M.phase = M.k === t.shown ? "run" : "turn";
-        moving(((M.phase === "turn" ? TURN : 0) + M.dur) * SLOW);
+        moving(((M.phase === "turn" ? TURN : 0) + M.dur) * SLOW / gameSpeed());
       }
     }
     if (M.phase === "turn") {
