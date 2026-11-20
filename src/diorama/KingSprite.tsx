@@ -35,19 +35,40 @@ void main(){
 }`;
 const frag = /* glsl */ `
 uniform sampler2D map; uniform sampler2D glow; uniform float invExpo; uniform float glowK; uniform vec2 tile; uniform vec2 tiles;
+uniform float kExp; uniform float kSatHi; uniform float kSatLo; uniform float kCon; uniform float kGlow;
 varying vec2 vUv;
 void main(){
   vec2 uv = (tile + vUv) / tiles;
   vec4 c = texture2D(map, uv);
   if (c.a < 0.004) discard;
   vec3 g = texture2D(glow, uv).rgb;
-  gl_FragColor = vec4(c.rgb * invExpo + g * g * glowK, c.a);
+  vec3 col = c.rgb * invExpo * kExp;
+  // Richer colour at the same value: chroma scaled about luma, kSatHi where he is coloured and lit (collar,
+  // shoulders, crown, skin), kSatLo where he is greyish (tunic) or dark (beard), then put back to the max
+  // channel it had so he gets no brighter.
+  float mx = max(col.r, max(col.g, col.b)), mn = min(col.r, min(col.g, col.b));
+  float sat = mx > 0.0 ? (mx - mn) / mx : 0.0;
+  float L = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  float w = smoothstep(0.45, 0.75, sat) * smoothstep(0.15, 0.4, mx);  // coloured and lit: not the dark beard
+  vec3 o = max(vec3(L) + (col - L) * mix(kSatLo, kSatHi, w), 0.0);
+  float mo = max(o.r, max(o.g, o.b));
+  if (mo > 0.0) o *= mx / mo;
+  o = pow(max(o, 0.0) / 0.18, vec3(kCon)) * 0.18;  // contrast about mid grey (linear)
+  gl_FragColor = vec4(o + g * g * glowK * kGlow, c.a);
 }`;
 
 // Against the set he is tested DEPTH_BIAS nearer than he is; that is more than one square, so where a card is
 // drawn (cards write CARD_STENCIL) a second pass tests him at his true depth instead.
 const DEPTH_BIAS = 2.0;  // stage units; 1.5 still let a few leaf specks through on a5/e5/c5
 export const CARD_STENCIL = 1;
+// Colour trims on the sheet, judged after bloom + grade + LUT against the r16 "A: as is" target (see the
+// patch table in the commit). Dev: `?kexp= ?ksat= ?klow= ?kcon= ?kglow=` override them to tune live.
+const TRIM = { kExp: 1, kSatHi: 2.2, kSatLo: 1.1, kCon: 1, kGlow: 1 };
+const FLAG = { kExp: "kexp", kSatHi: "ksat", kSatLo: "klow", kCon: "kcon", kGlow: "kglow" } as const;
+const trim = (k: keyof typeof TRIM) => {
+  const v = import.meta.env.DEV ? new URLSearchParams(location.search).get(FLAG[k]) : null;
+  return v === null ? TRIM[k] : +v;
+};
 const STEP = 0.2;  // a turn walks through the headings in between over this long
 const tileOf = (yaw: number, n: number) => ((Math.round(yaw / (2 * Math.PI / n)) % n) + n) % n;
 
@@ -69,6 +90,7 @@ export function KingSprite({ at, yaw = 0, onClick }: { at: [number, number]; yaw
       uniforms: {
         map: { value: map }, glow: { value: glow }, invExpo: { value: Math.pow(2, -s.exposure) }, glowK: { value: s.glowK },
         tile: { value: new THREE.Vector2() }, depthBias: { value: DEPTH_BIAS }, tiles: { value: new THREE.Vector2(...s.tiles) },
+        ...Object.fromEntries((Object.keys(TRIM) as (keyof typeof TRIM)[]).map(k => [k, { value: trim(k) }])),
       },
       stencilWrite: true, stencilRef: CARD_STENCIL, stencilFunc: THREE.NotEqualStencilFunc,
     });
