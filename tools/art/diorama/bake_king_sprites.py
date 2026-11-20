@@ -19,6 +19,8 @@
 # posed body every frame. --gait walk|jog|run picks shape and clip from king_motion.GAITS. Writes {gait}{k}_{i}.png /
 # -glow.png and {gait}.json (with `cycle`, the ground one loop covers with the feet planted); the crop holds every frame.
 # PROP=path.glb puts a held prop (the sword, later) in his right hand for any bake (king_motion.attach_prop).
+# GUARD=guard.json (with PROP=the sword) bakes the still king in the sword guard instead of arms relaxed: the pose
+# and the sword's place in his hand come from sword/guard_pose.py (king_motion.load_guard / attach_held).
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
 from mathutils import Vector, Matrix
@@ -71,6 +73,10 @@ if a.clip:
         pb.location = (0, 0, 0); pb.rotation_quaternion = (1, 0, 0, 0); pb.scale = (1, 1, 1)
     bpy.context.view_layer.update()
 stage.relax_arms(arm)
+GUARD = None
+if os.environ.get("GUARD") and not a.clip:  # the idle guard with the sword (sword/guard_pose.py)
+    _gp, GUARD = km.load_guard(os.environ["GUARD"])
+    km.apply_pose(arm, _gp)
 if a.clip:
     for side in ("Left", "Right"):
         arm.pose.bones[side + "CapeArm"].rotation_quaternion = arm.pose.bones[side + "Arm"].rotation_quaternion.copy()
@@ -124,7 +130,13 @@ def pose(i):
         binder.update()
 if a.clip:
     pose(0)
-if os.environ.get("PROP"):
+if os.environ.get("PROP") and GUARD is not None:  # after clay_ify: the sword is clay, not felt
+    pr = km.attach_held(arm, os.environ["PROP"], GUARD)
+    for o_ in [pr] + [o for o in bpy.data.objects if o.name.startswith("fist_")]:
+        for s_ in o_.material_slots:
+            stage._clay_material(s_.material, stage._local_dims_world(o_), H, 1.0, 1.0)
+    print("CHECK held prop", pr.name, tuple(round(x, 3) for x in pr.matrix_world.translation), flush=True)
+elif os.environ.get("PROP"):
     pr = km.attach_prop(arm, os.environ["PROP"], H)
     print("CHECK prop", pr.name, flush=True)
 print("BUILD_SECONDS %.1f" % (time.time() - t), flush=True)

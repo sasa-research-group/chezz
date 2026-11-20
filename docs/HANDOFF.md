@@ -15,6 +15,9 @@
   No WebGL: falls back to 2D. Debug: `?fps`, `?dio=nobloom,nograde,nolut`.
   The white king is Cycles king A pre-rendered at 8 headings
   (`KingSprite.tsx`, `public/diorama/king8.*`) on a camera-facing quad
+  The idle king now holds the royal blade in a two-handed middle guard (Wesley's picks, Nov 2026): sword built by
+  `tools/art/diorama/build_sword.py` (royal_blade.glb), pose by `guard_pose.py` (king_guard.json, clay fists from
+  `king_motion.attach_fists`), baked with `runguard.sh`. The walk and jog loops still have no sword.
   slid and scaled to his square; turns step through the in-between
   headings in ~0.2 s; idle is still plus ~1% breathing. The rigged glTF
   still casts his live VSM shadow (shadow-only), and `?king=live` shows it

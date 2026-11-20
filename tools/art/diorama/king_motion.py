@@ -193,11 +193,13 @@ def fix_cape(arm, body, keep=0.15):
 
 
 def apply_pose(arm, pose):
-    for n, (loc, q) in pose.items():
+    for n, v in pose.items():
         pb = arm.pose.bones[n]
         pb.rotation_mode = "QUATERNION"
-        pb.location = loc
-        pb.rotation_quaternion = q
+        pb.location = v[0]
+        pb.rotation_quaternion = v[1]
+        if len(v) > 2:
+            pb.scale = v[2]
     bpy.context.view_layer.update()
 
 
@@ -227,6 +229,145 @@ def attach_prop(arm, path, H, bone="RightHand", length=0.75, grip=0.86, palm=0.0
         if o is not pr:
             bpy.data.objects.remove(o)
     return pr
+
+
+def load_guard(path):
+    """sword/guard_pose.py's output: the idle guard pose ({bone: (loc, quat)}) and how the sword sits in the hand"""
+    import json
+    g = json.load(open(path))
+    pose = {n: (Vector(v[0]), Quaternion(v[1])) + ((Vector(v[2]),) if len(v) > 2 else ()) for n, v in g["pose"].items()}
+    return pose, g
+
+
+def attach_held(arm, path, g, bone=None):
+    """Put the sword (a glb, long axis X, blade toward -X) where guard_pose.py placed it: scaled to
+    g["sword_world_length"], its grip point (g["grip"] along it) at the origin, then g["sword_in_hand"] relative to
+    the hand bone, parented to that bone. Call with the guard pose applied. Returns the object."""
+    bone = bone or g.get("bone", "RightHand")  # the forearm when the hands are shrunk into fists
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    pr = next(o for o in new if o.type == "MESH")
+    pr.parent = None
+    me = pr.data
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    lo, hi = co.min(0), co.max(0)
+    L = hi[0] - lo[0]
+    grip = Vector((lo[0] + g["grip"] * L, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2))
+    me.transform(Matrix.Scale(g["sword_world_length"] / L, 4) @ Matrix.Translation(-grip))
+    for o in new:
+        if o is not pr:
+            bpy.data.objects.remove(o)
+    bpy.context.view_layer.update()
+    mw = arm.matrix_world @ arm.pose.bones[bone].matrix @ Matrix(g["sword_in_hand"])
+    pr.parent = arm; pr.parent_type = "BONE"; pr.parent_bone = bone
+    pr.matrix_world = mw
+    bpy.context.view_layer.update()
+    attach_fists(arm, g, bone)
+    return pr
+
+
+SKIN = (0.88, 0.56, 0.42)  # linear; his clay hands and face
+
+
+def attach_fists(arm, g, bone="RightHand"):
+    """The rig's hands are open mitts that can't close on a grip, so guard_pose.py shrinks them into the wrist
+    and stores a fist per hand (g["fists"]: frame relative to `bone`, x along the grip toward the tip, radius r,
+    optional grip radius "gr", fist length "len" along the grip and "wrist" point in the fist frame).
+    Each fist is modelled like a clay hand closed on a handle: a back-of-hand pad on the wrist side, four
+    finger rolls curled round the grip (index by the guard), a thumb wrapped over the index finger, and a
+    short wrist that runs to the forearm so the fist never floats. The parts are voxel-fused into one smooth
+    clay piece. Returns the objects."""
+    import bmesh
+    m = bpy.data.materials.get("clay_fist") or bpy.data.materials.new("clay_fist")
+    m.use_nodes = True
+    b = m.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = (*SKIN, 1); b.inputs["Roughness"].default_value = 0.6
+    out = []
+
+    def tube(bm, pts, rad, seg=12):
+        """a round tube through pts (Vectors) with radius rad (float or list), capped with half-spheres"""
+        rads = rad if isinstance(rad, list) else [rad] * len(pts)
+        rings = []
+        for i, p in enumerate(pts):
+            t = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+            a = t.orthogonal().normalized(); c = t.cross(a)
+            rings.append([bm.verts.new(p + rads[i] * (a * math.cos(k * 2 * math.pi / seg) + c * math.sin(k * 2 * math.pi / seg)))
+                          for k in range(seg)])
+        for r0, r1 in zip(rings, rings[1:]):
+            for k in range(seg):
+                bm.faces.new((r0[k], r0[(k + 1) % seg], r1[(k + 1) % seg], r1[k]))
+        for p, r in ((pts[0], rads[0]), (pts[-1], rads[-1])):
+            s = bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=8, radius=r)
+            for v in s["verts"]:
+                v.co += p
+
+    for f in g.get("fists", []):
+        r = f["r"]
+        L = f.get("len", 2.1 * r) * 0.95          # along the grip
+        gr = f.get("gr", 0.35 * r)         # grip radius
+        ft = L / 4.0                       # one finger's width
+        wr = Vector(f.get("wrist", (0.0, 0.0, -2.0 * r)))
+        w = Vector((0.0, wr.y, wr.z))
+        w = w.normalized() if w.length > 1e-6 else Vector((0, 0, -1))
+        phw = math.atan2(w.z, w.y)        # angle of the wrist side round the grip (in the y-z plane)
+        # the back of the hand faces out, toward the viewer (+z), turned a little toward the wrist, like a
+        # sword guard: knuckles forward, fingers curled round the far side of the grip
+        pv = Vector((0, 0.45 * w.y, 1.0)).normalized()
+        php = math.atan2(pv.z, pv.y)
+        tg = Vector((0, -math.sin(php), math.cos(php)))
+        sg = -1.0 if tg.dot(w) > 0 else 1.0  # sweep away from the wrist first
+        def ring(x, ang, rad):
+            return Vector((x, rad * math.cos(ang), rad * math.sin(ang)))
+        bm = bmesh.new()
+        # the fist: one rounded, slightly boxy clay block round the grip (no separate finger pieces, which
+        # read as beads), shifted toward the back of the hand, with three shallow grooves between the fingers
+        # on the side where the fingers curl round
+        n, t = Vector((0, math.cos(php), math.sin(php))), Vector((0, -math.sin(php), math.cos(php)))
+        R0 = gr + ft * 1.15
+        c = n * (R0 * 0.6)  # inside the back of the hand: where the wrist starts
+        blk = bmesh.ops.create_uvsphere(bm, u_segments=48, v_segments=32, radius=1.0)
+        for v in blk["verts"]:
+            q = v.co.copy()
+            sx = math.copysign(abs(q.x) ** 0.55, q.x)
+            sy = math.copysign(abs(q.y) ** 0.8, q.y)
+            sz = math.copysign(abs(q.z) ** 0.8, q.z)
+            x = sx * L * 0.5
+            p_ = n * (sy * R0 * 1.0 + ft * 0.35) + t * (sz * R0 * 1.05)
+            ang = math.atan2(p_.dot(t), p_.dot(n)) * sg  # 0 at the back of the hand, + toward the curl side
+            # grooves between fingers, only where the fingers wrap (not on the back of the hand)
+            wrap = max(0.0, min(1.0, (math.degrees(ang) - 25) / 30)) if ang > 0 else max(0.0, min(1.0, (-math.degrees(ang) - 120) / 30))
+            gdep = 0.0
+            for k in (1, 2, 3):
+                gdep += math.exp(-((x - (L / 2 - ft * k)) / (ft * 0.13)) ** 2)
+            rad = p_.length * (1 - 0.06 * wrap * gdep)
+            v.co = Vector((x, 0, 0)) + p_.normalized() * rad
+        # thumb: along the guard edge, from behind the pad on the wrist side, over the index finger to the front
+        a0, a1 = php - sg * math.radians(40), php + sg * math.radians(55)
+        pts = [ring(L / 2 - ft * 0.55, a0 + (a1 - a0) * k / 10, R0 * (0.75 + 0.35 * min(1.0, k / 4)) + ft * 0.1) for k in range(11)]
+        tube(bm, pts, [ft * (0.55 - 0.08 * k / 10) for k in range(11)])
+        # wrist: from the pad to the forearm's end
+        p0 = c + Vector((0, 0, 0)); p1 = wr
+        n = max(3, int((p1 - p0).length / (ft * 0.5)))
+        tube(bm, [p0.lerp(p1, k / n) for k in range(n + 1)], [ft * (1.05 + 0.15 * k / n) for k in range(n + 1)])
+        me = bpy.data.meshes.new("fist_" + f["side"]); bm.to_mesh(me); bm.free()
+        o = bpy.data.objects.new("fist_" + f["side"], me)
+        bpy.context.scene.collection.objects.link(o)
+        # fuse the parts into one clay piece, then smooth it
+        rm = o.modifiers.new("fuse", "REMESH"); rm.mode = "VOXEL"; rm.voxel_size = ft * 0.10; rm.adaptivity = 0
+        sm = o.modifiers.new("soft", "SMOOTH"); sm.factor = 0.6; sm.iterations = 5
+        dg = bpy.context.evaluated_depsgraph_get()
+        me2 = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
+        o.modifiers.clear(); o.data = me2
+        for p in me2.polygons:
+            p.use_smooth = True
+        me2.materials.append(m)
+        mw = arm.matrix_world @ arm.pose.bones[bone].matrix @ Matrix(f["m"])
+        o.parent = arm; o.parent_type = "BONE"; o.parent_bone = bone
+        o.matrix_world = mw
+        out.append(o)
+    bpy.context.view_layer.update()
+    return out
 
 
 class FibreBinder:
