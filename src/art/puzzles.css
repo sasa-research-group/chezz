@@ -54,3 +54,10 @@
 .statue-tag{background:#d9d4cc;color:#3f3a35;border-color:#3f3a35}
 .exile-piece.coward .rig{filter:hue-rotate(160deg) saturate(.8)}
 .coward-tag{background:#f6e7a8;color:#6a5413;border-color:#6a5413}
+/* 2D / 3D board toggle and the 3D diorama (src/diorama/) */
+.puzzle-view{width:max-content;margin:0 0 8px}.puzzle-view button{flex:0 0 auto;padding:4px 14px}
+.diorama{position:relative;width:100%;aspect-ratio:4/3;background:#020306;border-radius:10px;overflow:hidden}
+.diorama canvas{display:block}
+.diorama-loading{display:grid;place-items:center;color:#c9bfa6;font-size:14px}
+.diorama-fps{position:absolute;right:8px;top:6px;font:12px/1 ui-monospace,monospace;color:#cfe;background:#0008;padding:3px 6px;border-radius:4px}
+.diorama-note { margin: 6px 0 0; font-size: 13px; opacity: .7; text-align: center; }

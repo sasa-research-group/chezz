@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { apply, boardOf, fallen, gateOpen, legalMoves, sight, toxic, moveName, movesFrom, outcome, pass, pieceAt, same, squareName, start } from "../puzzle/engine";
 import type { Move, PKind, Pos, Puzzle, Side, State, Switch, SwitchKind } from "../puzzle/engine";
 import { EFFECTS, effectOf, switchText, GOALS, MAX_MOVES, MAX_SIDE, MIN_SIDE, PUZZLES, P_KINDS, formatPuzzles, goalOf, goalSquares, goalText, puzzleIssues, withGoalSquares } from "../puzzle/puzzles";
 import { NEVER, analyze, bestReply, solver } from "../puzzle/solve";
 import type { Analysis, Solver } from "../puzzle/solve";
 import { SpriteStill } from "./kit";
+import { spriteBox } from "../components/SpriteRig";
+import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
+import { track } from "../diorama/facing";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -77,6 +80,41 @@ function PuzzleBoard({ pz, state, picked, targets, last, flags, wired = [], onSq
   </div>;
 }
 
+/** Falls back to the 2D board when the 3D view can't start (no WebGL, e.g. a browser whose GPU process gave up). */
+class No3D extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: !canWebGL() };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    return this.state.failed ? <>{this.props.fallback}<p className="diorama-note">3D needs WebGL, which this browser has turned off. Showing the 2D board.</p></> : this.props.children;
+  }
+}
+const canWebGL = () => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch { return false; } };
+
+const Diorama = lazy(() => import("../diorama/Diorama").then(m => ({ default: m.Diorama })));
+/** The same board as PuzzleBoard, in the 3D diorama (src/diorama/). Same squares, same clicks. */
+function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], onSquare, history }: Parameters<typeof PuzzleBoard>[0] & { history?: { states: State[]; moves: (Move | null)[] } }) {
+  const bd = boardOf(pz), goals = goalSquares(pz.goal), eyes = pz.eyes ?? [], seen = sight(bd, state);
+  const squares: DioramaSquare[] = Array.from({ length: pz.width * pz.height }, (_, i) => {
+    const p = { x: i % pz.width, y: Math.floor(i / pz.width) }, has = (l: Pos[] | undefined) => (l ?? []).some(q => same(q, p));
+    const gi = bd.gate[i], sw = (pz.switches ?? []).find(q => same(q, p)), door = has(pz.trapdoors), pc = pieceAt(state, p);
+    const kind: DioramaSquare["kind"] = has(pz.holes) ? "hole" : has(eyes) ? "eye" : has(pz.walls) ? "wall" : door ? (fallen(bd, state, p) ? "fallen" : "trapdoor")
+      : gi >= 0 ? (gateOpen(bd, state, gi) ? "gate-open" : "gate") : sw ? sw.kind : toxic(bd, state, i) ? "sludge" : has(pz.snares) ? "snare" : undefined;
+    return { ...p, kind, label: squareName(pz, p), goal: has(goals) ? (pz.goal.type === "escort" ? "exit" : "star") : undefined, watched: has(seen),
+      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired) };
+  });
+  // In play each piece keeps an id and faces its last move; in the editor everything faces the camera.
+  const seen3d = history ? track(history.states, history.moves) : null;
+  const pieces: DioramaPiece[] = state.pieces.map((pc, i) => {
+    const kind = pc.kind === "peasant" || pc.kind === "coward" ? "pawn" : pc.kind;
+    return { id: seen3d?.[i].id ?? `${pc.side}${pc.kind}${pc.x},${pc.y}`, facing: seen3d?.[i].facing ?? null, kind: pc.kind, side: pc.side, x: pc.x, y: pc.y, sprite: spriteBox(kind, pc.side === "white"), asleep: pc.asleep, statue: pc.statue };
+  });
+  return <No3D fallback={<PuzzleBoard pz={pz} state={state} picked={picked} targets={targets} last={last} flags={flags} wired={wired} onSquare={onSquare} />}>
+    <Suspense fallback={<div className="diorama diorama-loading">Loading 3D…</div>}>
+      <Diorama w={pz.width} h={pz.height} squares={squares} pieces={pieces} onSquare={(x, y) => onSquare({ x, y })} showFps={new URLSearchParams(location.search).has("fps")} />
+    </Suspense>
+  </No3D>;
+}
+
 /** The solver's verdict on a puzzle: can it be forced, in how many, is the key unique, and the traps. */
 function Verdict({ pz, a }: { pz: Puzzle; a: Analysis | null }) {
   if (!a) return <p className="verdict">Fix the problems to check the puzzle.</p>;
@@ -107,6 +145,8 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
   const [side, setSide] = useState<Side>("black");
   const [status, setStatus] = useState<string>("");
   const [play, setPlay] = useState<Play | null>(null);
+  const [view3d, setView3d] = useState(() => (new URLSearchParams(location.search).get("view") ?? localStorage.getItem("chezz-puzzle-view")) === "3d");
+  useEffect(() => { localStorage.setItem("chezz-puzzle-view", view3d ? "3d" : "2d"); }, [view3d]);
   const past = useRef<Puzzle[][]>([]), future = useRef<Puzzle[][]>([]);
   const sel = Math.min(Math.max(0, index), puzzles.length - 1);
   const pz = puzzles[sel];
@@ -274,7 +314,9 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
         {tool === "goal" && <p className="level-hint">Click squares to mark them as {g.type === "escort" ? "exits (the village)" : "squares to reach"}.</p>}
       </> : <div className="puzzle-log" aria-label="Moves">{log.map((m, i) => <span key={i} className={i % 2 ? "black" : "white"}>{i % 2 ? "" : `${i / 2 + 1}. `}{m}</span>)}</div>}
 
-      <PuzzleBoard pz={pz} state={cur} picked={play?.picked ?? null} targets={targets} last={lastMove} flags={issues.flatMap(i => (i.at ? [i.at] : []))} wired={play ? [] : wiredSquares} onSquare={play ? playSquare : wiring !== null ? wire : paint} />
+      <div className="seg puzzle-view" role="group" aria-label="View">{([["2d", "2D"], ["3d", "3D"]] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={view3d === (v === "3d")} onClick={() => setView3d(v === "3d")}>{label}</button>)}</div>
+      {(() => { const props = { pz, state: cur, picked: play?.picked ?? null, targets, last: lastMove, flags: issues.flatMap(i => (i.at ? [i.at] : [])), wired: play ? [] : wiredSquares, onSquare: play ? playSquare : wiring !== null ? wire : paint };
+        return view3d ? <PuzzleBoard3D {...props} history={play ?? undefined} /> : <PuzzleBoard {...props} />; })()}
       {!play && wiring !== null && <p className="level-hint wiring-hint">Wiring {pz.switches?.[wiring] ? squareName(pz, pz.switches[wiring]) : ""}: click {pz.switches?.[wiring]?.effect.type === "gates" ? "gates" : "squares"} to connect or disconnect them. <button type="button" onClick={() => setWiring(null)}>Done</button></p>}
       {play && result && <p className={`puzzle-result ${result}`} role="status">{result === "win" ? "Solved!" : "Failed. Try again."}</p>}
       {play && !result && cur.turn === "black" && <p className="puzzle-result thinking" role="status">The dungeon is thinking…</p>}
