@@ -16,7 +16,7 @@
 #   set{N}.json     camera, grid, scene units, bulb positions
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 STAGE = os.environ.get("STAGE_DIR", os.path.expanduser("~/.dos/scratch/d84406ef/stage"))
 sys.path.insert(0, STAGE)
@@ -67,6 +67,73 @@ zoom = ZOOM5 * (5 + 1.24) / (a.n + 1.24) * a.zoom_k
 cam = stage.build_camera(sc, H, aspect=ASPECT, zoom=zoom, elevation=EL, look_ahead=LA, focal=FOCAL)
 cam.data.dof.use_dof = False  # f/8 on a 5 cm king is near-sharp; the browser view stays sharp
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
+
+
+def clear_bulbs(sc, cam, S):
+    """Slides any fairy bulb a birch trunk (or a solid hank of moss) hides from the play camera sideways until the camera sees all of it.
+    Moves the bulb, its light and the bottom of its drop wire together. Returns (name, dx) for each move."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    eye = cam.matrix_world.translation.copy()
+    wire = bpy.data.objects.get("FairyWire2")
+    def centre(o):
+        bb = [o.matrix_world @ Vector(b) for b in o.bound_box]
+        return sum(bb, Vector()) / 8, (max(v.x for v in bb) - min(v.x for v in bb)) / 2
+    def blocked(p, r, any_hit):
+        """Does something stand between the camera and p? A trunk always counts; with any_hit, so does moss."""
+        d = p - eye
+        o_, left = eye.copy(), d.length - 0.5 * r
+        for _ in range(64):  # walk on through haze (and moss, unless it counts)
+            hit, loc, _, _, ob, _ = sc.ray_cast(dg, o_, d.normalized(), distance=left)
+            if not hit:
+                return False
+            if ob.name.startswith("Birch") or (any_hit and not ob.name.startswith(("Haze", "FairyWire", "FairyBulb", "FairyPin"))):
+                return True
+            step = (loc - o_).length + 1e-4
+            o_, left = o_ + d.normalized() * step, left - step
+            if left <= 0:
+                return False
+        return False
+
+    def hidden(c, r):
+        # a trunk over any part of the bulb, or moss over most of it (a strand or two across it is fine)
+        offs = [Vector(), Vector((r, 0, 0)), Vector((-r, 0, 0)), Vector((0, 0, r)), Vector((0, 0, -r))]
+        if any(blocked(c + o_, r, False) for o_ in offs):
+            return True
+        return sum(blocked(c + o_, r, True) for o_ in offs) >= 3
+    moved = []
+    for o in sorted((o for o in bpy.data.objects if o.name.startswith("FairyBulb2_")), key=lambda o: o.name):
+        c, r = centre(o)
+        if not hidden(c, r):
+            continue
+        dx = None
+        for k in range(1, 40):  # nearest clear spot, either side, plus a bulb's width of margin
+            for sg in (1, -1):
+                t = sg * k * 0.02 * S
+                if not hidden(c + Vector((t, 0, 0)), r) and not hidden(c + Vector((t + sg * 2 * r, 0, 0)), r):
+                    dx = t + sg * 2 * r
+                    break
+            if dx is not None:
+                break
+        if dx is None:
+            print("BULB_STILL_HIDDEN", o.name, flush=True)
+            continue
+        o.data.transform(Matrix.Translation((dx, 0, 0)))
+        lo = bpy.data.objects.get("fairy2_" + o.name.split("_")[-1])
+        if lo:
+            lo.location.x += dx
+        if wire:
+            for sp in wire.data.splines:
+                if len(sp.points) == 2:
+                    q = Vector(sp.points[1].co[:3])
+                    if abs(q.x - c.x) < 1e-3 and abs(q.y - c.y) < 1e-3 and 0 < q.z - c.z < 4 * r:
+                        sp.points[1].co = (q.x + dx, q.y, q.z, 1.0)
+        moved.append((o.name, round(dx, 4)))
+        dg = bpy.context.evaluated_depsgraph_get()
+    return moved
+
+
+if os.environ.get("FAIRY_CLEAR", "1") == "1":
+    print("BULBS_MOVED", clear_bulbs(sc, cam, S), flush=True)
 sc.render.film_transparent = True
 vl = sc.view_layers[0]
 vl.use_pass_position = True

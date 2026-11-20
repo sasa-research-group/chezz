@@ -32,6 +32,27 @@ describe("diorama set", () => {
     const i = info(5);
     expect(playCamera(i, 5, 5, 4 / 3).zoom).toBeCloseTo(i.camera.zoom, 6);
   });
+  it("the play camera sees every fairy bulb (no trunk or solid moss in front)", () => {
+    for (const n of [3, 5, 8]) {
+      const i = info(n), depth = new Uint16Array(fs.readFileSync(`public/diorama/set${n}.depth`).buffer.slice(0));
+      const M = i.camera.matrixWorld, f = i.camera.sensor / i.camera.lens, [w, h] = i.res, [gw, gh] = i.grid, st = i.stride;
+      const hidden = i.bulbs.filter(b => {
+        // into camera space (the matrix is a rotation plus a move), then onto the depth grid
+        const v = [0, 1, 2].map(r => b[r] - M[r][3]);
+        const [xc, yc, zc] = [0, 1, 2].map(c => M[0][c] * v[0] + M[1][c] * v[1] + M[2][c] * v[2]);
+        const d = -zc, px = (xc / (f * d) + 0.5) * w, py = (0.5 - yc / (f * (h / w) * d)) * h;
+        const ci = Math.round(px / st), cj = Math.round(py / st);
+        // somewhere within a bulb's width the camera reaches the bulb (or past it)
+        for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+          const k = (cj + dj) * gw + ci + di;
+          if (ci + di < 0 || ci + di >= gw || cj + dj < 0 || cj + dj >= gh) continue;
+          if (i.near + (depth[k] - 1) / 65534 * (i.far - i.near) >= d - 0.04 * i.H) return false;
+        }
+        return true;
+      });
+      expect(hidden, `set${n}`).toEqual([]);
+    }
+  });
   it("small boards back the camera off no further than their bake", () => {
     for (const [w, h] of [[2, 2], [3, 3], [2, 3]]) expect(playCamera(info(3), w, h, 4 / 3).zoom).toBeGreaterThanOrEqual(info(3).camera.zoom);
   });

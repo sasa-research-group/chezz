@@ -68,8 +68,37 @@ function Lights({ data, w, h }: { data: SetData; w: number; h: number }) {
     <spotLight ref={r => spot(r, [0, 0.82, -0.58])} position={[0, -6.34 * H, 4.5 * H]} intensity={3757 / (4 * Math.PI)} angle={0.96} penumbra={0.8} color={new THREE.Color(1.0, 0.7, 0.42)} decay={2} />
     <spotLight ref={r => spot(r, [-0.1, -0.56, -0.82])} position={[-1.2 * H, Math.min(1.92 * H, h * data.info.S / 2), 3.4 * H]} intensity={101 / Math.PI} angle={1.3} penumbra={1} color={new THREE.Color(0.4, 0.58, 1.0)} decay={2} />
     {bulbs.map((b, i) => <pointLight key={i} position={b} intensity={22 / (4 * Math.PI)} color={new THREE.Color(1.0, 0.62, 0.32)} decay={2} />)}
+    <BulbHalos bulbs={bulbs} H={H} />
     <ShadowCatcher data={data} w={w} h={h} />
   </>;
+}
+
+/** One soft warm halo per fairy bulb, the same on every bulb: the baked glow depends on how much moss hangs
+ * near a bulb, so a bulb in the open looked like a bare white dot next to its glowing neighbours. Depth-tested
+ * against the set, so moss and trunks in front still cover it; additive and brighter than white at the
+ * core, so the bloom picks it up like the baked glow. */
+export const HALO = { size: 0.42, core: 1.6, pull: 0.2 } as const; // size and pull in units of H; core = brightness at the centre
+let haloTex: THREE.Texture | null = null;
+function haloTexture() {
+  if (haloTex) return haloTex;
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const x = c.getContext("2d")!, g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, "rgba(255,236,190,1)"); g.addColorStop(0.18, "rgba(255,190,105,0.7)"); g.addColorStop(0.5, "rgba(255,150,60,0.18)"); g.addColorStop(1, "rgba(255,130,40,0)");
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  haloTex = new THREE.CanvasTexture(c); haloTex.colorSpace = THREE.SRGBColorSpace;
+  return haloTex;
+}
+function BulbHalos({ bulbs, H }: { bulbs: [number, number, number][]; H: number }) {
+  // pulled toward the camera so loose moss right around a bulb doesn't nibble its halo (three's y-up camera
+  // position back into Blender axes: x, -z, y)
+  const cam = useThree(s => s.camera.position);
+  const at = useMemo(() => bulbs.map(b => {
+    const v = new THREE.Vector3(...b), eye = new THREE.Vector3(cam.x, -cam.z, cam.y);
+    return v.addScaledVector(eye.sub(v).normalize(), HALO.pull * H).toArray() as [number, number, number];
+  }), [bulbs, H, cam.x, cam.y, cam.z]);
+  const mat = useMemo(() => new THREE.SpriteMaterial({ map: haloTexture(), color: new THREE.Color(HALO.core, HALO.core, HALO.core), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }), []);
+  useEffect(() => () => mat.dispose(), [mat]);
+  return <>{at.map((b, i) => <sprite key={i} position={b} scale={[HALO.size * H, HALO.size * H, 1]} material={mat} name="bulb-halo" />)}</>;
 }
 
 /** Live shadows on the baked floor: a shadow-only light along the stage's key (stage.py's pool spot, high over

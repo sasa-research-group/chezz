@@ -13,6 +13,11 @@
   `tools/art/diorama/bake.sh` and `bake_king.py`, which need `stage.py`
   and the Meshy assets in `~/.dos/scratch/d84406ef/` (not in the repo).
   No WebGL: falls back to 2D. Debug: `?fps`, `?dio=nobloom,nograde,nolut`.
+  Fairy lights (Nov 20): the bake tucks every bulb just inside the moss at even brightness
+  (`FAIRY_TUCK`, `BULB_EVEN` in bake.sh; the stage.py switches) and `bake_set.py` slides any bulb a trunk or
+  thick moss hides until the camera sees it (`BULBS_MOVED` in the log; test in diorama-set.test.ts). The
+  browser adds one identical warm halo per bulb (`BulbHalos`, `HALO` in Diorama.tsx).
+  Play mode has a Full screen button (browser full screen; fills the window on iPhone).
   The white king is Cycles king A pre-rendered at 8 headings
   (`KingSprite.tsx`, `public/diorama/king8.*`) on a camera-facing quad
   The idle king now holds the royal blade in a two-handed middle guard (Wesley's picks, Nov 2026): sword built by
