@@ -9,6 +9,9 @@
 import bpy, sys, os, json, math
 import numpy as np
 from mathutils import Vector, Matrix
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import gpu_retry  # renders again in place after a Metal GPU reset
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
@@ -153,5 +156,5 @@ for name, el, az, tgt, d in (("game", 35, 0, Vector((0, 0, 0.95)), 5.0), ("front
     cam.location = tgt + dirv * d
     cam.rotation_euler = (-dirv).to_track_quat("-Z", "Y").to_euler()
     sc.render.filepath = os.path.join(OUT, "spear-%s.png" % name)
-    bpy.ops.render.render(write_still=True)
+    gpu_retry.render()
 print("DONE", flush=True)

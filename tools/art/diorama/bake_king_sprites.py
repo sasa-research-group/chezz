@@ -32,6 +32,9 @@
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
 from mathutils import Vector, Matrix, Quaternion
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import gpu_retry  # renders again in place after a Metal GPU reset
 # CYCLES_KOPT=OFF|INTERSECT|FULL sets Cycles' Metal kernel optimization for this run (not saved). Unset: Blender's
 # default. The "full" background compiles ran MTLCompilerService out of memory (2026-11-18, -20), but the GPU
 # resets ("InnocentVictim") went on with OFF too, so it is not the fix.
@@ -356,7 +359,7 @@ for k, i in jobs:
     exr = os.path.join(a.out, "%s%s.exr" % (NAME, tag))
     sc.render.filepath = exr
     t = time.time()
-    bpy.ops.render.render(write_still=True)
+    gpu_retry.render()
     times[tag] = time.time() - t
     print("RENDER_SECONDS %s %.1f" % (tag, times[tag]), flush=True)
     img = oiio.ImageInput.open(exr)

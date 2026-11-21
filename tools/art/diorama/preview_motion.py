@@ -2,6 +2,9 @@
 # the numbers that matter for a small figure. Blender -b --python preview_motion.py -- CLIP.glb OUTDIR [k=v ...]
 #   k=v are king_motion shape knobs (leg=0.6 ...); raw=1 leaves the clip untouched. frames=N.
 import bpy, sys, os, math
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import gpu_retry  # renders again in place after a Metal GPU reset
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import king_motion as km
 from mathutils import Vector
@@ -59,5 +62,5 @@ for view, loc in (("side", (6, 0, 0.85)), ("front", (0, -6, 0.85))):
     for i, p in enumerate(poses):
         km.apply_pose(arm, p)
         sc.render.filepath = os.path.join(out, "%s%02d.png" % (view, i))
-        bpy.ops.render.render(write_still=True)
+        gpu_retry.render()
 print("DONE", flush=True)

@@ -5,6 +5,9 @@
 #   Blender -b --python build_sword.py -- OUT.glb [preview.png]
 import bpy, bmesh, math, sys
 from mathutils import Vector, Matrix
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import gpu_retry  # renders again in place after a Metal GPU reset
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
@@ -153,4 +156,4 @@ if PREVIEW:
     sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN")); sc.collection.objects.link(sun)
     sun.data.energy = 3.5; sun.rotation_euler = (math.radians(30), math.radians(-20), 0)
     sc.render.filepath = PREVIEW
-    bpy.ops.render.render(write_still=True)
+    gpu_retry.render()
