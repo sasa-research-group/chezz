@@ -1,8 +1,10 @@
-// The white king as Cycles drew him: king A pre-rendered at 8 headings on the 5x5 centre square with the
+// A figure as Cycles drew him (the white king; the patrol guard uses the same machinery, `figure="guard"`): king A pre-rendered at 8 headings on the 5x5 centre square with the
 // locked play camera (tools/art/diorama/bake_king_sprites.py, packed by king_atlas.py), felt fibres, the
 // KING_RIM halo and the crown glow included. Drawn on a quad parallel to the image plane, a little in front
 // of his nearest point, so the set and the other pieces still sort against him; on any square the quad is
 // slid and scaled so his feet land on the square and he keeps the size he has there.
+// `figure` is the file prefix (default "king"): <figure>8.json/.webp/-glow.png, <figure>-walk.json, <figure>-strike* ...;
+// the sheet and texture caches are keyed by it, so each figure loads (and suspends) on its own.
 // A move is a turn to face the new square, a steady walk there (sword held in the guard) on the gait loop sheets
 // (king-walk*.webp, loaded after he first stands; a heading without a sheet slides his still frame), and a stop
 // into the still idle. He moves at the loop's own ground speed (cycle x cps), with the frame taken from the
@@ -31,13 +33,17 @@ export type KingSheet = {
   right: number[]; up: number[]; fwd: number[]; d0: number; dq: number;
   exposure: number; glowK: number; headings: number; tiles: [number, number]; S: number;
 };
-const sheetP = fetch(`${BASE}king8.json`).then(r => r.json() as Promise<KingSheet>);
-let sheet: KingSheet | null = null;
-sheetP.then(s => { sheet = s; }, () => {});
-/** Suspends until king8.json is in. */
-function useSheet(): KingSheet {
-  if (!sheet) throw sheetP;
-  return sheet;
+const stills = new Map<string, { p: Promise<KingSheet>; sheet: KingSheet | null }>();
+/** Suspends until <figure>8.json is in. */
+function useSheet(figure: string): KingSheet {
+  let e = stills.get(figure);
+  if (!e) {
+    const en: { p: Promise<KingSheet>; sheet: KingSheet | null } = { p: fetch(`${BASE}${figure}8.json`).then(r => r.json() as Promise<KingSheet>), sheet: null };
+    en.p.then(s => { en.sheet = s; }, () => {});
+    stills.set(figure, e = en);
+  }
+  if (!e.sheet) throw e.p;
+  return e.sheet;
 }
 /** A gait loop: `frames` per heading on a tiles[0] x tiles[1] sheet each, for the headings in `have`; one loop
  * covers `cycle` stage units with the feet planted, and plays `cps` times a second. */
@@ -51,15 +57,18 @@ type StrikeSheet = KingSheet & StrikeInfo & { have: number[] };
 /** The nervous loop in check: `frames` per heading at `fps`, played round and round. */
 type CheckSheet = KingSheet & LoopInfo & { have: number[] };
 const sheets = new Map<string, Promise<unknown>>();
-const sheetOf = <T,>(name: string) => (sheets.get(name) ?? sheets.set(name, fetch(`${BASE}king-${name}.json`)
-  .then(r => (r.ok ? r.json() : null)).catch(() => null)).get(name)!) as Promise<T | null>;
-const runSheet = () => sheetOf<RunSheet>(GAIT).then(r => (r && CPS ? { ...r, cps: CPS } : r));
+const sheetOf = <T,>(figure: string, name: string) => {
+  const key = `${figure}-${name}`;
+  return (sheets.get(key) ?? sheets.set(key, fetch(`${BASE}${key}.json`)
+    .then(r => (r.ok ? r.json() : null)).catch(() => null)).get(key)!) as Promise<T | null>;
+};
+const runSheet = (figure: string) => sheetOf<RunSheet>(figure, GAIT).then(r => (r && CPS ? { ...r, cps: CPS } : r));
 const tex = new Map<string, Promise<[THREE.Texture, THREE.Texture]>>();
-const loadSheet = (name: string, k: number) => {
-  const key = `${name}${k}`;
+const loadSheet = (figure: string, name: string, k: number) => {
+  const key = `${figure}-${name}${k}`;
   if (!tex.has(key)) {
     const L = new THREE.TextureLoader();
-    tex.set(key, Promise.all([L.loadAsync(`${BASE}king-${key}.webp`), L.loadAsync(`${BASE}king-${key}-glow.webp`)]).then(([m, g]) => {
+    tex.set(key, Promise.all([L.loadAsync(`${BASE}${key}.webp`), L.loadAsync(`${BASE}${key}-glow.webp`)]).then(([m, g]) => {
       m.colorSpace = THREE.SRGBColorSpace; m.generateMipmaps = true; g.colorSpace = THREE.NoColorSpace;
       return [m, g] as [THREE.Texture, THREE.Texture];
     }));
@@ -142,12 +151,12 @@ function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Textur
   return { geometry: g, material: m, onCards: mc };
 }
 
-/** `at`: his square's centre in stage units (Blender axes); `yaw` as for <King>. Clicks where he is opaque.
+/** `figure`: the file prefix ("king", "guard"). `at`: his square's centre in stage units (Blender axes); `yaw` as for <King>. Clicks where he is opaque.
  * When `at` changes he turns, runs there and stops; `follow` (his blob and shadow, placed at `at`) is moved
  * along with him. */
-export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check = false, dead = false }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean; dead?: boolean }) {
-  const s = useSheet();
-  const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}king8.webp`, `${BASE}king8-glow.png`]);
+export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, strike = false, check = false, dead = false }: { figure?: string; at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean; dead?: boolean }) {
+  const s = useSheet(figure);
+  const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}${figure}8.webp`, `${BASE}${figure}8-glow.png`]);
   const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null), chkMesh = useRef<THREE.Group>(null), dthMesh = useRef<THREE.Group>(null);
   const { geometry, material, onCards, basis, alpha } = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace; map.generateMipmaps = true; map.needsUpdate = true;
@@ -171,18 +180,18 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
       if (!sh || !live) return;
       ref.current = { s: sh, meshes: sheetMeshes(sh, null, null), tex: new Map() };
       ping();
-      return Promise.all(sh.have.map(k => loadSheet(name, k).then(tx => { if (live && ref.current) ref.current.tex.set(k, tx); }, () => {})));
+      return Promise.all(sh.have.map(k => loadSheet(figure, name, k).then(tx => { if (live && ref.current) ref.current.tex.set(k, tx); }, () => {})));
     };
-    const t = setTimeout(() => runSheet().then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>("strike")).then(ss => into(hit, "strike", ss))
-      .then(() => sheetOf<CheckSheet>("check")).then(cs => into(chk, "check", cs))
-      .then(() => sheetOf<CheckSheet>("death")).then(ds => into(dth, "death", ds)), 800);
+    const t = setTimeout(() => runSheet(figure).then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>(figure, "strike")).then(ss => into(hit, "strike", ss))
+      .then(() => sheetOf<CheckSheet>(figure, "check")).then(cs => into(chk, "check", cs))
+      .then(() => sheetOf<CheckSheet>(figure, "death")).then(ds => into(dth, "death", ds)), 800);
     return () => {
       live = false; clearTimeout(t);
       for (const ref of [run, hit, chk, dth] as { current: Loaded<KingSheet> | null }[]) {
         const r = ref.current; if (r) { r.meshes.geometry.dispose(); r.meshes.material.dispose(); r.meshes.onCards.dispose(); } ref.current = null;
       }
     };
-  }, [ping]);
+  }, [ping, figure]);
 
   // The heading on show steps one tile at a time toward the target, the whole turn in about STEP seconds.
   const n = s.headings;
@@ -371,3 +380,5 @@ function useStateTick(): [number, () => void] {
   const [n, set] = useState(0);
   return [n, useCallback(() => set(x => x + 1), [])];
 }
+
+export { KingSprite as FigureSprite };

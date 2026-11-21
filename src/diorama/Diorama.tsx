@@ -10,6 +10,8 @@ import { BloomEffect, Effect, EffectComposer, EffectPass, LUT3DEffect, LUTCubeLo
 import { GradeEffect } from "./grade";
 import { King } from "./King";
 import { CARD_STENCIL, KingSprite } from "./KingSprite";
+import { spriteFigure } from "./figures";
+export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
 import { hitTime } from "./motion";
 import type { Facing } from "./facing";
@@ -280,15 +282,16 @@ function Falling({ at, away, children }: { at: [number, number]; away: Facing; c
   return <group ref={g}>{children}</group>;
 }
 
-/** The pre-rendered king: he runs from square to square (KingSprite), his blob and shadow go with him. */
-function RunningKing({ pc, at, S, onClick }: { pc: DioramaPiece; at: [number, number]; S: number; onClick: () => void }) {
+/** A pre-rendered figure (the king, the patrol guard): it runs from square to square (KingSprite), its blob goes
+ * with it, and the king's shadow-only 3D model too. */
+function RunningKing({ pc, figure, at, S, onClick }: { pc: DioramaPiece; figure: string; at: [number, number]; S: number; onClick: () => void }) {
   const follow = useRef<THREE.Group>(null);
   const yaw = yawOf(pc.facing ?? null);
   return <>
-    <KingSprite at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} check={pc.check} dead={pc.dead} />
+    <KingSprite figure={figure} at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} check={pc.check} dead={pc.dead} />
     <group ref={follow}>
       <Blob x={0} y={0} r={0.2 * S} o={0.35} />
-      <King position={[0, 0, 0]} yaw={yaw} shadowOnly />
+      {figure === "king" && <King position={[0, 0, 0]} yaw={yaw} shadowOnly />}
     </group>
   </>;
 }
@@ -323,7 +326,8 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {pieces.map(pc => {
         const [x, y] = at(pc.x, pc.y);
         const isKing = pc.kind === "king" && pc.side === "white";
-        if (isKing && !KING_LIVE) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
+        const figure = spriteFigure(pc);
+        if (figure && !(isKing && KING_LIVE) && (isKing || pc.falling === undefined)) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} figure={figure} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
         return <group key={pc.id} position={[x, y, 0]}>
           {pc.falling === undefined && <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />}
           {isKing ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
