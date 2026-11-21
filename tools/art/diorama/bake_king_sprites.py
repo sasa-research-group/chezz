@@ -18,6 +18,8 @@
 # (built in the r17 pose exactly as for the still king, then bound to their root triangles) re-seated on the
 # posed body every frame. --gait walk|jog|run picks shape and clip from king_motion.GAITS. Writes {gait}{k}_{i}.png /
 # -glow.png and {gait}.json (with `cycle`, the ground one loop covers with the feet planted); the crop holds every frame.
+# --check check.json bakes the "in check" loop (check_pose.py) the same way, with nervous_face.py's worried face
+# applied at rest first. Writes check{k}_{i}.png and check.json.
 # PROP=path.glb puts a held prop (the sword, later) in his right hand for any bake (king_motion.attach_prop).
 # GUARD=guard.json (with PROP=the sword) bakes the still king in the sword guard instead of arms relaxed: the pose
 # and the sword's place in his hand come from sword/guard_pose.py (king_motion.load_guard / attach_held).
@@ -43,6 +45,7 @@ ap.add_argument("--glow_k", type=float, default=16.0)
 ap.add_argument("--clip", default="")  # a Meshy animation glb (same mesh and rig): bake its loop
 ap.add_argument("--frames", type=int, default=14)
 ap.add_argument("--strike", default="")  # strike_pose.py's strike.json: bake the sword strike
+ap.add_argument("--check", default="")  # check_pose.py's check.json: bake the "in check" loop, with the worried face
 ap.add_argument("--gait", default="")  # run|walk|jog: shape (and clip, unless --clip) from king_motion.GAITS
 a = ap.parse_args(argv)
 EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0
@@ -56,8 +59,9 @@ if a.gait:
     a.clip = a.clip or os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/" + _g)
 elif a.clip:
     SHAPE = km.CHIBI_RUN
-NAME = "strike" if a.strike else (a.gait or "run") if a.clip else "king"
-STRIKE = json.load(open(a.strike)) if a.strike else None
+NAME = "strike" if a.strike else "check" if a.check else (a.gait or "run") if a.clip else "king"
+# the check loop is baked like the strike: one whole guard_pose solve per frame (it just never leaves the spot)
+STRIKE = json.load(open(a.strike or a.check)) if (a.strike or a.check) else None
 GAIT = None
 
 # --- the king, posed and measured exactly as tools/render_v4.py does for the hero
@@ -68,6 +72,9 @@ for o in list(bpy.data.objects):
         bpy.data.objects.remove(o)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 body = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm)
+if a.check:  # at rest, before the felt is built on him: the warp and the repainted eyes go into the shells too
+    import nervous_face
+    FACE = nervous_face.apply(arm, body)
 poses = []
 if a.clip:
     km.fix_skirt(arm, body)
@@ -358,7 +365,7 @@ info = {
     "frames": len(poses) or None, "clip": os.path.basename(a.clip) or None, "shape": SHAPE, "gait": a.gait or None,
     # cycle: ground covered per loop with the feet planted, in stage units (and in squares, S = 1.2 H)
     "cycle": GAIT and GAIT["cycle"] * H / 100, "cycleSquares": GAIT and GAIT["cycle"] / 120, "stats": GAIT,
-    "fps": STRIKE and STRIKE["fps"], "hit": STRIKE and STRIKE["hit"],
+    "fps": STRIKE and STRIKE["fps"], "hit": STRIKE and STRIKE.get("hit"), "cycle_loop": bool(STRIKE and STRIKE.get("cycle")),
     # the leap carries him forward: stage units and squares (S = 1.2 H) he ends ahead of where he started
     "travel": STRIKE and STRIKE.get("travel", 0), "travelSquares": STRIKE and STRIKE.get("travel", 0) / (1.2 * H),
     "prop": os.path.basename(os.environ["PROP"]) if os.environ.get("PROP") else None,

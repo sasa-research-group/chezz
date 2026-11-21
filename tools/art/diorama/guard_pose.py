@@ -16,7 +16,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 K = dict(hips=0.07, lean=14.0, chin=12.0, stance=0.27, stagger=0.13, gx=-0.02, gy=-0.36, gz=0.50,
          tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, roll=0.0,
-         air=0.0, ahead=0.0, tuck=0.0, step=0.0, render=1)
+         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
 KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
@@ -30,6 +30,11 @@ for o in list(bpy.data.objects):
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 body = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm)
 arm.animation_data_clear()
+# nervous=1: the worried face of the "in check" loop (nervous_face.py), applied at rest before posing
+if K["nervous"]:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import nervous_face
+    nervous_face.apply(arm, body)
 H = 1.7
 MW = arm.matrix_world
 def W(b, tail=False):  # world position of a pose bone's head/tail
@@ -77,6 +82,10 @@ if K["twist"]:
         if W("LeftArm").y > before:
             rot_world(bn, "Z", -2 * K["twist"] * share)
     pb = arm.pose.bones["Head"]; m = hr.to_4x4(); m.translation = pb.matrix.translation; pb.matrix = m
+    bpy.context.view_layer.update()
+# look: turn the head (neck 40%, head 60%) about the vertical, degrees; + turns his face toward the camera's right
+if K["look"]:
+    rot_world("neck", "Z", K["look"] * 0.4); rot_world("Head", "Z", K["look"] * 0.6)
     bpy.context.view_layer.update()
 # shoulders roll forward so the short arms reach the grip in front of the belly
 for s, sg in (("Left", 1), ("Right", -1)):

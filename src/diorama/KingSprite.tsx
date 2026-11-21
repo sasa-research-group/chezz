@@ -10,6 +10,8 @@
 // A capture (`strike`) walks to a stand-off point short of the enemy and plays the jump attack (king-strike*.webp,
 // strike.ts): the leap lands him on the square, the blow falls on the hit frame (motion.ts willHit), and he
 // stands in the guard where he landed.
+// Standing in check (`check`), he plays the nervous loop on the spot (king-check*.webp, check.ts) instead of
+// his still frame.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
@@ -18,6 +20,8 @@ import { breath } from "./King";
 import { gameSpeed, moving, willHit } from "./motion";
 import { strikeFrame, strikePlan, strikeTravel } from "./strike";
 import type { StrikeInfo } from "./strike";
+import { loopFrame, showsCheck } from "./check";
+import type { LoopInfo } from "./check";
 
 // dev: `?kingsheet=name` loads a trial sheet from diorama/_t/name/ instead
 const BASE = import.meta.env.DEV && /kingsheet=([\w-]+)/.test(location.search) ? `diorama/_t/${RegExp.$1}/` : "diorama/";
@@ -43,6 +47,8 @@ const GAIT = "walk";
 const CPS = +(Q.get("kingcps") ?? 0) || 0;
 /** The jump attack: `frames` per heading at `fps`, the blow on frame `hit`, the leap `travel` stage units long. */
 type StrikeSheet = KingSheet & StrikeInfo & { have: number[] };
+/** The nervous loop in check: `frames` per heading at `fps`, played round and round. */
+type CheckSheet = KingSheet & LoopInfo & { have: number[] };
 const sheets = new Map<string, Promise<unknown>>();
 const sheetOf = <T,>(name: string) => (sheets.get(name) ?? sheets.set(name, fetch(`${BASE}king-${name}.json`)
   .then(r => (r.ok ? r.json() : null)).catch(() => null)).get(name)!) as Promise<T | null>;
@@ -138,10 +144,10 @@ function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Textur
 /** `at`: his square's centre in stage units (Blender axes); `yaw` as for <King>. Clicks where he is opaque.
  * When `at` changes he turns, runs there and stops; `follow` (his blob and shadow, placed at `at`) is moved
  * along with him. */
-export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean }) {
+export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check = false }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean }) {
   const s = useSheet();
   const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}king8.webp`, `${BASE}king8-glow.png`]);
-  const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null);
+  const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null), chkMesh = useRef<THREE.Group>(null);
   const { geometry, material, onCards, basis, alpha } = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace; map.generateMipmaps = true; map.needsUpdate = true;
     glow.colorSpace = THREE.NoColorSpace;
@@ -155,8 +161,8 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
   }, [map, glow, s]);
   useEffect(() => () => { geometry.dispose(); material.dispose(); onCards.dispose(); }, [geometry, material, onCards]);
 
-  // The run sheets come in after he first stands, one per heading baked so far; then the strike sheets.
-  const run = useRef<Loaded<RunSheet> | null>(null), hit = useRef<Loaded<StrikeSheet> | null>(null);
+  // The run sheets come in after he first stands, one per heading baked so far; then the strike sheets, then check.
+  const run = useRef<Loaded<RunSheet> | null>(null), hit = useRef<Loaded<StrikeSheet> | null>(null), chk = useRef<Loaded<CheckSheet> | null>(null);
   const [, ping] = useStateTick();
   useEffect(() => {
     let live = true;
@@ -166,10 +172,11 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
       ping();
       return Promise.all(sh.have.map(k => loadSheet(name, k).then(tx => { if (live && ref.current) ref.current.tex.set(k, tx); }, () => {})));
     };
-    const t = setTimeout(() => runSheet().then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>("strike")).then(ss => into(hit, "strike", ss)), 800);
+    const t = setTimeout(() => runSheet().then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>("strike")).then(ss => into(hit, "strike", ss))
+      .then(() => sheetOf<CheckSheet>("check")).then(cs => into(chk, "check", cs)), 800);
     return () => {
       live = false; clearTimeout(t);
-      for (const ref of [run, hit] as { current: Loaded<KingSheet> | null }[]) {
+      for (const ref of [run, hit, chk] as { current: Loaded<KingSheet> | null }[]) {
         const r = ref.current; if (r) { r.meshes.geometry.dispose(); r.meshes.material.dispose(); r.meshes.onCards.dispose(); } ref.current = null;
       }
     };
@@ -178,6 +185,8 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
   // The heading on show steps one tile at a time toward the target, the whole turn in about STEP seconds.
   const n = s.headings;
   const turn = useRef({ shown: tileOf(yaw, n), wait: 0, dt: 0, to: tileOf(yaw, n) });
+  // When he went into check (clock seconds, game speed applied), so the loop starts on its first frame.
+  const nerve = useRef({ t: 0, on: false });
   // The move: from where he was to `at`; "turn" to face it, "run", then standing again.
   // A capture runs only to `stop` (short of `to` by the leap), then "strike" plays the attack there.
   const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], stop: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run" | "strike", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0, strike: false });
@@ -261,10 +270,17 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
     follow?.current?.position.set(M.pos[0] + (M.to[0] - M.pos[0]) * lf - at[0], M.pos[1] + (M.to[1] - M.pos[1]) * lf - at[1], 0);
     // Running on a heading with its sheet in: the run frames; striking: the strike frames; else his still frame.
     const r = run.current, rt = M.phase === "run" && r ? r.tex.get(M.k) : undefined;
-    const g = mesh.current, rg = runMesh.current, hg = hitMesh.current;
-    if (g) g.visible = !rt && !ht;
+    // Standing in check on a heading with its sheet in: the nervous loop, from its first frame.
+    const c = chk.current, N = nerve.current;
+    const ct = c && showsCheck(check, M.phase === "idle", t.shown !== want, c.tex.has(t.shown)) ? c.tex.get(t.shown) : undefined;
+    if (ct && !N.on) N.t = 0;
+    N.on = !!ct;
+    if (ct) N.t += dt;
+    const g = mesh.current, rg = runMesh.current, hg = hitMesh.current, cg = chkMesh.current;
+    if (g) g.visible = !rt && !ht && !ct;
     if (rg) rg.visible = !!rt;
     if (hg) hg.visible = !!ht;
+    if (cg) cg.visible = !!ct;
     if (ht && sh && hg) {
       const u = sh.meshes.material.uniforms;
       if (u.map.value !== ht[0]) { u.map.value = ht[0]; u.glow.value = ht[1]; }
@@ -277,6 +293,12 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
       const [tx, ty] = r.s.tiles, i = Math.floor(M.f) % r.s.frames;
       (u.tile.value as THREE.Vector2).set(i % tx, ty - 1 - Math.floor(i / tx));
       place(rg, r.s, 1);
+    } else if (ct && c && cg) {
+      const u = c.meshes.material.uniforms;
+      if (u.map.value !== ct[0]) { u.map.value = ct[0]; u.glow.value = ct[1]; }
+      const [tx, ty] = c.s.tiles, i = loopFrame(N.t, c.s);
+      (u.tile.value as THREE.Vector2).set(i % tx, ty - 1 - Math.floor(i / tx));
+      place(cg, c.s, 1);
     } else if (g) {
       const [tx, ty] = s.tiles, k = t.shown;
       (material.uniforms.tile.value as THREE.Vector2).set(k % tx, ty - 1 - Math.floor(k / tx));
@@ -298,7 +320,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
       }
     };
   }, [s, alpha]);
-  const rm = run.current?.meshes, hm = hit.current?.meshes;
+  const rm = run.current?.meshes, hm = hit.current?.meshes, cm = chk.current?.meshes;
   return <>
     <group ref={mesh}>
       <mesh geometry={geometry} material={material} renderOrder={10} frustumCulled={false} raycast={raycast}
@@ -312,6 +334,10 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false }: { a
     {hm && <group ref={hitMesh} visible={false}>
       <mesh geometry={hm.geometry} material={hm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />
       <mesh geometry={hm.geometry} material={hm.onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+    </group>}
+    {cm && <group ref={chkMesh} visible={false}>
+      <mesh geometry={cm.geometry} material={cm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+      <mesh geometry={cm.geometry} material={cm.onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
     </group>}
   </>;
 }
