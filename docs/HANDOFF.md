@@ -1,6 +1,56 @@
 # Handoff
 
 ## State
+- **Branch `puzzle/dungeon` (exploration, Nov 13):** chess-rule dungeon
+  puzzles with a perfect-play enemy, a Puzzles studio tab and solver. See
+  `docs/puzzles.md`. Not merged into main.
+- **Branch `claude/puzzle-3d` (Nov 19, on top of puzzle/dungeon):** a 2D/3D
+  toggle on the Puzzles board. 3D is `src/diorama/` (R3F): three Cycles
+  "plate" bakes of the set (3, 5, 8 squares; `public/diorama/`) rebuilt as
+  depth meshes, other sizes cut at grout lines from the next bake up; other
+  pieces are sprite cards; special squares are placeholder tints and blocks.
+  Post: bloom, the stage compositor grade, the concept LUT. Rebake with
+  `tools/art/diorama/bake.sh` and `bake_king.py`, which need `stage.py`
+  and the Meshy assets in `~/.dos/scratch/d84406ef/` (not in the repo).
+  No WebGL: falls back to 2D. Debug: `?fps`, `?dio=nobloom,nograde,nolut`.
+  Fairy lights (Nov 20): the bake tucks every bulb just inside the moss at even brightness
+  (`FAIRY_TUCK`, `BULB_EVEN` in bake.sh; the stage.py switches) and `bake_set.py` slides any bulb a trunk or
+  thick moss hides until the camera sees it (`BULBS_MOVED` in the log; test in diorama-set.test.ts). The
+  browser adds one identical warm halo per bulb (`BulbHalos`, `HALO` in Diorama.tsx).
+  Play mode has a Full screen button (browser full screen; fills the window on iPhone).
+  The white king is Cycles king A pre-rendered at 8 headings
+  (`KingSprite.tsx`, `public/diorama/king8.*`) on a camera-facing quad
+  The idle king now holds the royal blade in a two-handed middle guard (Wesley's picks, Nov 2026): sword built by
+  `tools/art/diorama/build_sword.py` (royal_blade.glb), pose by `guard_pose.py` (king_guard.json, clay fists from
+  `king_motion.attach_fists`), baked with `runguard.sh`. He walks with it too (below).
+  slid and scaled to his square; turns step through the in-between
+  headings in ~0.2 s; idle is still plus ~1% breathing. The rigged glTF
+  still casts his live VSM shadow (shadow-only), and `?king=live` shows it
+  instead. Rebake: `bake_king_sprites.py` with `KING_RIM=1100
+  KING_RIM_FIBONLY=1 RIM_PLAY=1 CROWN_RIM=2500 CROWN_EL=8.5` (rim behind
+  him for the play camera on the felt only, plus a crown-only spot; the
+  haze must stay in), then `king_atlas.py`. The shader lifts
+  saturation (`TRIM` in KingSprite; dev `?ksat= ?klow= ?kexp= ?kcon=`). The set's depth mesh puts
+  floating leaves in front of the back wall, so the sprite is depth-tested
+  2 units nearer than it is, except over cards (stencil), where true depth
+  is used. Gotcha: OIIO un-premultiplies on PNG write unless
+  `oiio:UnassociatedAlpha=1` (white fringe). Pieces face their last move
+  (`src/diorama/facing.ts`). Dev-only: `?shells=N`, `?kingsheet=name`.
+- **Branch `claude/puzzle-run` (Nov 19, on puzzle/dungeon):** the king
+  turns (~0.15 s), then walks to the square at a steady pace and stops into
+  the idle; the dungeon's reply waits for him (`src/diorama/motion.ts`).
+  Gait: Wesley picked the walk (Nov 20); the jog sheets are gone. The walk
+  carries the sword: `king_motion.hold_guard` keeps the guard from the spine
+  up over the walk's hips and legs. 16-frame loops, all 8 headings, baked with
+  `GUARD=king_guard.json PROP=royal_blade.glb tools/art/diorama/runbake.sh
+  walk OUT 3600 256 0,1,2,3,4,5,6,7` (Metal crashes several times a bake;
+  rerun the same line, it resumes), packed by `king_loop_atlas.py DIR
+  public/diorama name=walk cps=2`. He moves at the loop's own ground speed
+  (`cycle` x `cps`, frame from distance, so the feet stay planted): about
+  1.4 s a square. Players can toggle **fast forward (2x)** on the play bar
+  (`gameSpeed()` in motion.ts, kept in localStorage `chezz.speed`): about
+  0.7 s a square, and the dungeon answers sooner. Dev: `?kingslow=8`,
+  `?kingcps=`.
 Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then

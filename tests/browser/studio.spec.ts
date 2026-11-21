@@ -125,3 +125,45 @@ test("studio: style guide and mechanics render without errors and fit a phone", 
   await expect(page.locator(".ref-grid img")).toHaveCount(18);
   expect(errors).toEqual([]);
 });
+
+
+test("puzzles: the fast-forward toggle switches to 2x and stays on after a reload", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/art.html#puzzles/2");
+  await page.getByRole("button", { name: "▶ Play" }).click();
+  const ff = page.getByRole("button", { name: "Fast forward" });
+  await expect(ff).toHaveAttribute("aria-pressed", "false");
+  await expect(ff).toHaveText("▶ 1x");
+  await ff.click();
+  await expect(ff).toHaveAttribute("aria-pressed", "true");
+  await expect(ff).toHaveText("⏩ 2x");
+  expect(await page.evaluate(() => localStorage.getItem("chezz.speed"))).toBe("2");
+  await page.reload();
+  await page.getByRole("button", { name: "▶ Play" }).click();
+  await expect(page.getByRole("button", { name: "Fast forward" })).toHaveAttribute("aria-pressed", "true");
+  // and back off
+  await page.getByRole("button", { name: "Fast forward" }).click();
+  await expect(page.getByRole("button", { name: "Fast forward" })).toHaveText("▶ 1x");
+});
+
+test("puzzles: full screen in play mode fills the window, exits with its button, Esc or Edit", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/art.html#puzzles/2");
+  await expect(page.getByRole("button", { name: "Full screen" })).toHaveCount(0); // only while playing
+  await page.getByRole("button", { name: "▶ Play" }).click();
+  const board = page.getByRole("region", { name: "Board" });
+  await page.getByRole("button", { name: "Full screen" }).click();
+  await expect(board).toHaveClass(/\bfull\b/);
+  const box = await board.boundingBox();
+  expect(box).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
+  // the game still plays from full screen: the play bar is on screen
+  await expect(page.getByRole("button", { name: "↺ Retry" })).toBeInViewport();
+  await page.getByRole("button", { name: "Exit full screen" }).click();
+  await expect(board).not.toHaveClass(/\bfull\b/);
+  await page.getByRole("button", { name: "Full screen" }).click();
+  await page.keyboard.press("Escape");
+  await expect(board).not.toHaveClass(/\bfull\b/);
+  await page.getByRole("button", { name: "Full screen" }).click();
+  await page.getByRole("button", { name: "■ Edit" }).click();
+  await expect(board).not.toHaveClass(/\bfull\b/);
+});

@@ -1,0 +1,71 @@
+/* Studio Puzzles tab: the board's dungeon squares and the solver panel. Layout reuses the Levels tab's classes. */
+.puzzle-board .exile-cell.hole{background:transparent!important;box-shadow:inset 0 0 0 2px #00000010;cursor:pointer}
+.puzzle-board .exile-cell.hole::after{content:"";position:absolute;inset:8%;border-radius:4px;background:radial-gradient(circle at 50% 40%,#1b1614,#2e2622 70%,#3d332d);box-shadow:inset 0 4px 8px #000a}
+.puzzle-board .exile-cell.last-move{box-shadow:inset 0 0 0 999px #f2c94c40}
+.puzzle-board .exile-cell.picked{box-shadow:inset 0 0 0 3px #397869}
+.goal-mark{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(14px,4vw,30px);font-weight:900;color:#2d6755;opacity:.8;pointer-events:none}
+.goal-escort,.goal-reach{background-image:radial-gradient(circle,#ffe9a066 0,#ffe9a000 70%)!important}
+.capture-ring{position:absolute;inset:10%;border:4px solid #8d2c27aa;border-radius:50%;pointer-events:none}
+.exile-piece.peasant .rig{filter:sepia(.7) saturate(1.6) hue-rotate(-15deg)}
+.peasant-tag{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;background:#fcf5de;color:#5a4636;border:1.5px solid #5a4636;border-radius:6px;padding:0 4px;white-space:nowrap}
+.puzzle-goal{text-align:center;margin:4px 0 8px;font-size:15px}
+.puzzle-log{display:flex;flex-wrap:wrap;gap:4px 8px;justify-content:center;min-height:22px;font:600 13px ui-monospace,monospace}
+.puzzle-log .black,.verdict .line .black{opacity:.6}
+.puzzle-result{text-align:center;font-weight:900;font-size:18px;margin:6px 0}
+.puzzle-result.win{color:#2d6755}.puzzle-result.lose{color:#8d2c27}.puzzle-result.thinking{opacity:.6;font-size:14px}
+.verdict{margin:4px 0;font-size:13px}
+.verdict p{margin:0 0 6px;font-weight:800}
+.verdict .good{color:#2d6755}.verdict .warn,.verdict.warn{color:#9a6a12}.verdict.bad{color:#8d2c27;font-weight:800}
+.verdict dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0}
+.verdict dt{font-weight:700;opacity:.7}.verdict dd{margin:0}
+.verdict .line{display:flex;flex-wrap:wrap;gap:2px 6px;font-family:ui-monospace,monospace}
+.seg-gap{display:inline-block;width:10px}
+.puzzle-board .exile-cell.eye{background:#4f4560!important}
+.eye-mark{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(16px,4.5vw,34px);filter:drop-shadow(0 2px 0 #0006);pointer-events:none}
+.puzzle-board .exile-cell.in-sight{box-shadow:inset 0 0 0 999px #c0507a2e}
+.puzzle-board .exile-cell.in-sight.calm{box-shadow:inset 0 0 0 999px #7a6a9a1a}
+.exile-piece.asleep .rig{filter:saturate(.35) brightness(.85)}
+.sleep-tag{position:absolute;top:-4px;right:2px;font:900 16px ui-rounded,system-ui;color:#4f4560;text-shadow:0 0 3px #fff}
+.sleep-tag small{font-size:11px;vertical-align:super}
+.puzzle-board .exile-cell.sludge{background:#6f8f3a!important;background-image:radial-gradient(circle at 30% 35%,#a9c95a 0 9%,transparent 10%),radial-gradient(circle at 68% 62%,#a9c95a 0 7%,transparent 8%),radial-gradient(circle at 55% 25%,#8fb04a 0 5%,transparent 6%)!important;box-shadow:inset 0 0 12px #3b5a1a}
+.puzzle-board .exile-cell.sludge .tile-coord{color:#dbe8b0}
+.puzzle-board .exile-cell.trapdoor{background:#a5774a!important;background-image:repeating-linear-gradient(90deg,#00000022 0 2px,transparent 2px 25%)!important;box-shadow:inset 0 0 0 3px #6d4a2b,inset 0 0 0 5px #c49a6a}
+.puzzle-board .exile-cell.trapdoor .tile-coord{color:#f3dfc0}
+.puzzle-board .exile-cell.fallen{background:transparent!important}
+.puzzle-board .exile-cell.fallen::after{content:"";position:absolute;inset:8%;border-radius:4px;background:radial-gradient(circle at 50% 40%,#1b1614,#2e2622 70%,#3d332d);box-shadow:inset 0 4px 8px #000a,0 0 0 3px #6d4a2b}
+.snare-mark{position:absolute;inset:18%;border:4px dashed #5b5148;border-radius:50%;box-shadow:inset 0 0 0 4px #8a7c6c55;pointer-events:none}
+.gate-mark{position:absolute;inset:6%;pointer-events:none;border:3px solid #5b5148;border-radius:3px;opacity:.35}
+.exile-cell.gate.shut{background:#7d6f62!important}
+.exile-cell.gate.shut .gate-mark{opacity:1;background:repeating-linear-gradient(90deg,#3b332d 0 4px,transparent 4px 22%);border-color:#3b332d}
+.switch-mark{position:absolute;inset:26%;pointer-events:none;border-radius:4px}
+.switch-mark.plate{background:#b8a98f;border:3px solid #6b5d4c;box-shadow:inset 0 -3px 0 #8d7f69}
+.switch-mark.lever{border-radius:50%;background:radial-gradient(circle,#c7a040 0 30%,#5b4a2c 32% 45%,transparent 47%)}
+.switch-mark.lever::after{content:"";position:absolute;left:46%;top:-30%;width:9%;height:70%;background:#5b4a2c;border-radius:3px;transform:rotate(25deg);transform-origin:50% 100%}
+.switch-mark.inline{position:relative;display:inline-block;inset:auto;width:16px;height:16px;vertical-align:middle}
+.exile-cell.wired{outline:3px solid #c7a040;outline-offset:-3px}
+.puzzle-switches li{flex-wrap:wrap}.puzzle-switches li.wiring{background:#c7a04022;border-radius:6px}
+.switch-say{width:100%;opacity:.7}
+.wiring-hint{background:#c7a04022;border-radius:6px;padding:4px 8px}
+.puzzles-area .level-tools{flex-wrap:wrap;justify-content:center}
+.puzzles-area .level-tools>button{flex:0 0 auto}
+.puzzle-switches li{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;padding:4px}
+.puzzle-switches .switch-say{flex-basis:100%}
+.exile-piece.statue .rig{filter:grayscale(1) contrast(1.1) brightness(1.05) drop-shadow(0 0 0 #777)}
+.statue-tag{background:#d9d4cc;color:#3f3a35;border-color:#3f3a35}
+.exile-piece.coward .rig{filter:hue-rotate(160deg) saturate(.8)}
+.coward-tag{background:#f6e7a8;color:#6a5413;border-color:#6a5413}
+/* 2D / 3D board toggle and the 3D diorama (src/diorama/) */
+.puzzle-view{width:max-content;margin:0 0 8px}.puzzle-view button{flex:0 0 auto;padding:4px 14px}
+.diorama{position:relative;width:100%;aspect-ratio:4/3;background:#020306;border-radius:10px;overflow:hidden}
+.diorama canvas{display:block}
+.diorama-loading{display:grid;place-items:center;color:#c9bfa6;font-size:14px}
+.diorama-fps{position:absolute;right:8px;top:6px;font:12px/1 ui-monospace,monospace;color:#cfe;background:#0008;padding:3px 6px;border-radius:4px}
+.diorama-note { margin: 6px 0 0; font-size: 13px; opacity: .7; text-align: center; }
+
+/* Full screen play: the board section covers the window (and the screen, where the browser allows it). */
+.level-canvas.full{position:fixed;inset:0;z-index:1000;margin:0;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+  background:#020306;color:#e9e1cc;overflow:auto;align-content:center;justify-items:center}
+.level-canvas.full .puzzle-view{display:none}
+.level-canvas.full .diorama{width:min(100%,calc((100dvh - 150px)*4/3));border-radius:0}
+.studio .level-canvas.full .board-camera{max-width:min(100%,calc(100dvh - 150px))!important;width:100%}
+.level-canvas.full .level-actions,.level-canvas.full .puzzle-log{width:100%}

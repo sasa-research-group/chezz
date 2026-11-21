@@ -86,3 +86,20 @@ export function rulesPlugin(file: string): Plugin {
     },
   };
 }
+
+type PuzzleChecks = { parsePuzzles: (raw: unknown) => { ok: true; puzzles: unknown[] } | { ok: false; errors: string[] }; formatPuzzles: (p: never[]) => string };
+/** The studio's Puzzles tab saves here, under the same guards. */
+export const PUZZLES_ENDPOINT = "/__studio/puzzles";
+/** Dev-only: lets the studio write `src/puzzle/puzzles.json`. */
+export function puzzlesPlugin(file: string): Plugin {
+  return {
+    name: "chezz-puzzles",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use(PUZZLES_ENDPOINT, saveHandler(file, async () => {
+        const { parsePuzzles, formatPuzzles } = await server.ssrLoadModule("/src/puzzle/puzzles.ts") as PuzzleChecks;
+        return raw => { const parsed = parsePuzzles(raw); return parsed.ok ? { ok: true, text: formatPuzzles(parsed.puzzles as never[]) } : parsed; };
+      }));
+    },
+  };
+}
