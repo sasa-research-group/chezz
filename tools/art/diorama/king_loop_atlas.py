@@ -1,4 +1,4 @@
-# king_loop_atlas.py DIR OUTDIR [name=walk] [scale=0.8] [q=88] [cps=2] [rows=2]: pack a bake_king_sprites.py --gait loop
+# king_loop_atlas.py DIR OUTDIR [name=walk] [scale=0.8] [q=88] [cps=2] [rows=2] [figure=king]: pack a bake_king_sprites.py --gait loop
 # or --strike (DIR/{name}{k}_{i}.png) into public/diorama/king-{name}{k}.webp (one sheet per heading, frames on a grid
 # of `rows` rows: 4 for the 29-frame strike, so a sheet stays under 8192 px wide for phone GPUs;
 # lossy with exact alpha, colours bled under the transparent pixels), king-{name}{k}-glow.webp (same layout) and
@@ -25,6 +25,7 @@ def bleed(im, n=12):
 src, out = sys.argv[1], sys.argv[2]
 kv = dict(a.split("=") for a in sys.argv[3:])
 name = kv.get("name", "walk")
+fig = kv.get("figure", "king")  # the file prefix: king-walk*, guard-walk*
 scale, q, cps = float(kv.get("scale", 0.8)), int(kv.get("q", 88)), float(kv.get("cps", 2))
 info = json.load(open(f"{src}/{name}.json"))
 nf = info["frames"]
@@ -41,11 +42,11 @@ for k in have:
         im = Image.open(f"{src}/{name}{k}_{i:02d}.png").convert("RGBA").resize((w, h), Image.LANCZOS)
         g = Image.open(f"{src}/{name}{k}_{i:02d}-glow.png").convert("RGB").resize((w, h), Image.LANCZOS)
         at.paste(bleed(im), ((i % cols) * w, (i // cols) * h)); gl.paste(g, ((i % cols) * w, (i // cols) * h))
-    at.save(f"{out}/king-{name}{k}.webp", quality=q, alpha_quality=100, method=6, exact=True)
-    gl.save(f"{out}/king-{name}{k}-glow.webp", quality=80, method=6)
-    sizes[k] = (os.path.getsize(f"{out}/king-{name}{k}.webp"), os.path.getsize(f"{out}/king-{name}{k}-glow.webp"))
+    at.save(f"{out}/{fig}-{name}{k}.webp", quality=q, alpha_quality=100, method=6, exact=True)
+    gl.save(f"{out}/{fig}-{name}{k}-glow.webp", quality=80, method=6)
+    sizes[k] = (os.path.getsize(f"{out}/{fig}-{name}{k}.webp"), os.path.getsize(f"{out}/{fig}-{name}{k}-glow.webp"))
 info.update(tiles=[cols, rows], tile=[w, h], scale=scale, have=have)
 if info.get("cycle"):  # a gait loop plays at the game's pace; a strike keeps the fps it was baked at
     info.update(cps=cps, fps=cps * nf)
-json.dump(info, open(f"{out}/king-{name}.json", "w"), indent=1)
+json.dump(info, open(f"{out}/{fig}-{name}.json", "w"), indent=1)
 print("SHEET", cols * w, rows * h, "tile", w, h, "sizes", sizes, "speed", info.get("cycle") and info["cycle"] * cps, "stage/s")

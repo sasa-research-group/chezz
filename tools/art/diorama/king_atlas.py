@@ -1,9 +1,10 @@
-# king_atlas.py DIR OUTDIR: pack bake_king_sprites.py's 8 headings into public/diorama/king8.webp (4 x 2 tiles,
+# king_atlas.py DIR OUTDIR [FIGURE=king]: pack bake_king_sprites.py's 8 headings into public/diorama/king8.webp (4 x 2 tiles,
 # straight alpha, colours bled under the transparent pixels), king8-glow.png (same layout) and king8.json (king.json + the tile grid).
 import json, sys
 import numpy as np
 from PIL import Image
 src, out = sys.argv[1], sys.argv[2]
+fig = sys.argv[3] if len(sys.argv) > 3 else "king"  # the file prefix: king8.*, guard8.*
 def bleed(im, n=12):
     """Spread edge colours under the fully transparent pixels, so texture filtering at his edge never mixes in
     black (the browser samples straight alpha)."""
@@ -23,8 +24,8 @@ w, h = ims[0].size
 at = Image.new("RGBA", (4 * w, 2 * h)); gl = Image.new("RGB", (4 * w, 2 * h))
 for k in range(8):
     at.paste(ims[k], ((k % 4) * w, (k // 4) * h)); gl.paste(gls[k], ((k % 4) * w, (k // 4) * h))
-at.save(f"{out}/king8.webp", lossless=True, quality=100, method=6, exact=True)
-gl.save(f"{out}/king8-glow.png", optimize=True)
+at.save(f"{out}/{fig}8.webp", lossless=True, quality=100, method=6, exact=True)
+gl.save(f"{out}/{fig}8-glow.png", optimize=True)
 info = json.load(open(f"{src}/king.json")); info["tiles"] = [4, 2]; info["tile"] = [w, h]
-json.dump(info, open(f"{out}/king8.json", "w"), indent=1)
+json.dump(info, open(f"{out}/{fig}8.json", "w"), indent=1)
 print(at.size)

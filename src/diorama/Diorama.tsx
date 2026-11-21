@@ -198,7 +198,7 @@ export type DioramaSquare = {
 };
 export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; x: number; y: number;
   /** The way its last move went (facing.ts); null or missing: toward the camera. */ facing?: Facing; sprite?: { href: string; x: number; y: number; w: number; h: number }; asleep?: boolean; statue?: boolean; picked?: boolean;
-  /** Your king is taking a piece with this move: he plays his sword strike. */ strike?: boolean;
+  /** This figure is taking a piece with this move: it plays its attack (strike sheet). */ strike?: boolean;
   /** Your king stands in check: he plays the nervous loop. */ check?: boolean;
   /** Your king is checkmated: he plays his death once and holds its last frame. */ dead?: boolean;
   /** A piece just taken: it stays up until the king's blow lands, then falls away from him (his move's way). */ falling?: Facing };

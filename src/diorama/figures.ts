@@ -3,8 +3,13 @@
 // Keyed "<side> <kind>". A piece not listed here is drawn as before (the 3D king, or a card).
 export const SPRITE_FIGURES: Record<string, string> = {
   "white king": "king",
-  // The patrol guard goes in as `"black pawn": "guard",` once public/diorama/guard8.json (and its sheets) is installed.
+  // The patrol guard (enemy pawn): idle, walk and the two-handed spear lunge (strike); no check or death sheets yet.
+  "black pawn": "guard",
 };
 
 /** The figure prefix a piece is drawn with, or null when it has no pre-rendered sprite. */
 export const spriteFigure = (pc: { kind: string; side: string }): string | null => SPRITE_FIGURES[`${pc.side} ${pc.kind}`] ?? null;
+
+/** A capture plays the taker's attack (the king's sword strike, the guard's spear lunge) when it has a baked figure;
+ *  any other taker just moves, and the piece it takes falls on its own. */
+export const playsStrike = (pc: { kind: string; side: string }): boolean => spriteFigure(pc) !== null;

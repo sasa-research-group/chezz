@@ -11,6 +11,7 @@ import { spriteBox } from "../components/SpriteRig";
 import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
 import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
 import { lastCapture, snapDir, track } from "../diorama/facing";
+import { playsStrike } from "../diorama/figures";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -120,10 +121,11 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
     return { id: seen3d?.[i].id ?? `${pc.side}${pc.kind}${pc.x},${pc.y}`, facing: seen3d?.[i].facing ?? null, kind: pc.kind, side: pc.side, x: pc.x, y: pc.y, sprite: spriteBox(kind, pc.side === "white"), asleep: pc.asleep, statue: pc.statue,
       check: pc.kind === "king" && pc.side === "white" && whiteInCheck, dead: pc.kind === "king" && pc.side === "white" && whiteMated };
   });
-  // Your king's capture: he plays his sword strike, and the piece he takes stays up until his blow lands.
+  // A capture by a baked figure (your king's sword strike, the patrol guard's spear lunge): the piece it takes
+  // stays up until the blow lands.
   const cap = history ? lastCapture(history.states, history.moves) : null;
   const taker = cap && pieces[cap.by], move = history?.moves[history.moves.length - 1];
-  if (cap && taker && move && taker.kind === "king" && taker.side === "white" && !move.strike) {
+  if (cap && taker && move && playsStrike(taker) && !move.strike) {
     const v = history!.states[history.moves.length - 1].pieces[cap.victim];
     const kind = v.kind === "peasant" || v.kind === "coward" ? "pawn" : v.kind;
     taker.strike = true;
