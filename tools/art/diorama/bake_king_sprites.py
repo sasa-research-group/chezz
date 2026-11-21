@@ -20,6 +20,9 @@
 # -glow.png and {gait}.json (with `cycle`, the ground one loop covers with the feet planted); the crop holds every frame.
 # --check check.json bakes the "in check" loop (check_pose.py) the same way, with nervous_face.py's worried face
 # applied at rest first. Writes check{k}_{i}.png and check.json.
+# --death death.json bakes the checkmate death (death_pose.py) the same way, played once: the face (nervous_face.py)
+# is woe (worried brows, open frown) until he lands and dead (X eyes, tongue out) after; both sets are built at rest
+# and each frame shows the one its solve asked for (knobs.nervous 3 = dead). Writes death{k}_{i}.png and death.json.
 # PROP=path.glb puts a held prop (the sword, later) in his right hand for any bake (king_motion.attach_prop).
 # GUARD=guard.json (with PROP=the sword) bakes the still king in the sword guard instead of arms relaxed: the pose
 # and the sword's place in his hand come from sword/guard_pose.py (king_motion.load_guard / attach_held).
@@ -46,6 +49,7 @@ ap.add_argument("--clip", default="")  # a Meshy animation glb (same mesh and ri
 ap.add_argument("--frames", type=int, default=14)
 ap.add_argument("--strike", default="")  # strike_pose.py's strike.json: bake the sword strike
 ap.add_argument("--check", default="")  # check_pose.py's check.json: bake the "in check" loop, with the worried face
+ap.add_argument("--death", default="")  # death_pose.py's death.json: bake the checkmate death, woe then dead face
 ap.add_argument("--gait", default="")  # run|walk|jog: shape (and clip, unless --clip) from king_motion.GAITS
 a = ap.parse_args(argv)
 EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0
@@ -59,9 +63,9 @@ if a.gait:
     a.clip = a.clip or os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/" + _g)
 elif a.clip:
     SHAPE = km.CHIBI_RUN
-NAME = "strike" if a.strike else "check" if a.check else (a.gait or "run") if a.clip else "king"
+NAME = "strike" if a.strike else "check" if a.check else "death" if a.death else (a.gait or "run") if a.clip else "king"
 # the check loop is baked like the strike: one whole guard_pose solve per frame (it just never leaves the spot)
-STRIKE = json.load(open(a.strike or a.check)) if (a.strike or a.check) else None
+STRIKE = json.load(open(a.strike or a.check or a.death)) if (a.strike or a.check or a.death) else None
 GAIT = None
 
 # --- the king, posed and measured exactly as tools/render_v4.py does for the hero
@@ -75,6 +79,11 @@ body = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm)
 if a.check:  # at rest, before the felt is built on him: the warp and the repainted eyes go into the shells too
     import nervous_face
     FACE = nervous_face.apply(arm, body)
+MOOD = {}  # the death's two faces, shown per frame
+if a.death:
+    import nervous_face
+    MOOD["woe"] = nervous_face.apply(arm, body, "woe")
+    MOOD["dead"] = nervous_face.pieces(arm, body, "dead")
 poses = []
 if a.clip:
     km.fix_skirt(arm, body)
@@ -158,6 +167,12 @@ def pose(i):
             HELD["sword"].matrix_world = B @ Matrix(g["sword_in_hand"])
             for f in g["fists"]:
                 HELD["fist_" + f["side"]].matrix_world = B @ Matrix(f["m"])
+            bpy.context.view_layer.update()
+        if MOOD:
+            dead = STRIKE["frames"][i]["knobs"].get("nervous", 0) >= 3
+            for n, obs in MOOD.items():
+                for o in obs:
+                    o.hide_render = o.hide_viewport = (n == "dead") != dead
             bpy.context.view_layer.update()
         binder.update()
 if a.clip or STRIKE:

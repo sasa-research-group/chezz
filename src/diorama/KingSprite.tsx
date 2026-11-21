@@ -22,6 +22,7 @@ import { strikeFrame, strikePlan, strikeTravel } from "./strike";
 import type { StrikeInfo } from "./strike";
 import { loopFrame, showsCheck } from "./check";
 import type { LoopInfo } from "./check";
+import { deathFrame, showsDeath } from "./death";
 
 // dev: `?kingsheet=name` loads a trial sheet from diorama/_t/name/ instead
 const BASE = import.meta.env.DEV && /kingsheet=([\w-]+)/.test(location.search) ? `diorama/_t/${RegExp.$1}/` : "diorama/";
@@ -144,10 +145,10 @@ function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Textur
 /** `at`: his square's centre in stage units (Blender axes); `yaw` as for <King>. Clicks where he is opaque.
  * When `at` changes he turns, runs there and stops; `follow` (his blob and shadow, placed at `at`) is moved
  * along with him. */
-export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check = false }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean }) {
+export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check = false, dead = false }: { at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean; dead?: boolean }) {
   const s = useSheet();
   const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}king8.webp`, `${BASE}king8-glow.png`]);
-  const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null), chkMesh = useRef<THREE.Group>(null);
+  const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null), chkMesh = useRef<THREE.Group>(null), dthMesh = useRef<THREE.Group>(null);
   const { geometry, material, onCards, basis, alpha } = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace; map.generateMipmaps = true; map.needsUpdate = true;
     glow.colorSpace = THREE.NoColorSpace;
@@ -162,7 +163,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
   useEffect(() => () => { geometry.dispose(); material.dispose(); onCards.dispose(); }, [geometry, material, onCards]);
 
   // The run sheets come in after he first stands, one per heading baked so far; then the strike sheets, then check.
-  const run = useRef<Loaded<RunSheet> | null>(null), hit = useRef<Loaded<StrikeSheet> | null>(null), chk = useRef<Loaded<CheckSheet> | null>(null);
+  const run = useRef<Loaded<RunSheet> | null>(null), hit = useRef<Loaded<StrikeSheet> | null>(null), chk = useRef<Loaded<CheckSheet> | null>(null), dth = useRef<Loaded<CheckSheet> | null>(null);
   const [, ping] = useStateTick();
   useEffect(() => {
     let live = true;
@@ -173,10 +174,11 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
       return Promise.all(sh.have.map(k => loadSheet(name, k).then(tx => { if (live && ref.current) ref.current.tex.set(k, tx); }, () => {})));
     };
     const t = setTimeout(() => runSheet().then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>("strike")).then(ss => into(hit, "strike", ss))
-      .then(() => sheetOf<CheckSheet>("check")).then(cs => into(chk, "check", cs)), 800);
+      .then(() => sheetOf<CheckSheet>("check")).then(cs => into(chk, "check", cs))
+      .then(() => sheetOf<CheckSheet>("death")).then(ds => into(dth, "death", ds)), 800);
     return () => {
       live = false; clearTimeout(t);
-      for (const ref of [run, hit, chk] as { current: Loaded<KingSheet> | null }[]) {
+      for (const ref of [run, hit, chk, dth] as { current: Loaded<KingSheet> | null }[]) {
         const r = ref.current; if (r) { r.meshes.geometry.dispose(); r.meshes.material.dispose(); r.meshes.onCards.dispose(); } ref.current = null;
       }
     };
@@ -187,6 +189,8 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
   const turn = useRef({ shown: tileOf(yaw, n), wait: 0, dt: 0, to: tileOf(yaw, n) });
   // When he went into check (clock seconds, game speed applied), so the loop starts on its first frame.
   const nerve = useRef({ t: 0, on: false });
+  // When he was mated, so the death plays once from its first frame; it stays on its last.
+  const dying = useRef({ t: 0, on: false });
   // The move: from where he was to `at`; "turn" to face it, "run", then standing again.
   // A capture runs only to `stop` (short of `to` by the leap), then "strike" plays the attack there.
   const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], stop: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run" | "strike", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0, strike: false });
@@ -272,15 +276,22 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
     const r = run.current, rt = M.phase === "run" && r ? r.tex.get(M.k) : undefined;
     // Standing in check on a heading with its sheet in: the nervous loop, from its first frame.
     const c = chk.current, N = nerve.current;
-    const ct = c && showsCheck(check, M.phase === "idle", t.shown !== want, c.tex.has(t.shown)) ? c.tex.get(t.shown) : undefined;
+    // Mated: the death, once, on the heading he faces; it wins over the nervous loop.
+    const d = dth.current, D = dying.current;
+    const dtex = d && showsDeath(dead, M.phase === "idle", d.tex.has(t.shown)) ? d.tex.get(t.shown) : undefined;
+    if (dtex && !D.on) D.t = 0;
+    D.on = !!dtex;
+    if (dtex) D.t += dt;
+    const ct = !dtex && c && showsCheck(check, M.phase === "idle", t.shown !== want, c.tex.has(t.shown)) ? c.tex.get(t.shown) : undefined;
     if (ct && !N.on) N.t = 0;
     N.on = !!ct;
     if (ct) N.t += dt;
-    const g = mesh.current, rg = runMesh.current, hg = hitMesh.current, cg = chkMesh.current;
-    if (g) g.visible = !rt && !ht && !ct;
+    const g = mesh.current, rg = runMesh.current, hg = hitMesh.current, cg = chkMesh.current, dg = dthMesh.current;
+    if (g) g.visible = !rt && !ht && !ct && !dtex;
     if (rg) rg.visible = !!rt;
     if (hg) hg.visible = !!ht;
     if (cg) cg.visible = !!ct;
+    if (dg) dg.visible = !!dtex;
     if (ht && sh && hg) {
       const u = sh.meshes.material.uniforms;
       if (u.map.value !== ht[0]) { u.map.value = ht[0]; u.glow.value = ht[1]; }
@@ -293,6 +304,12 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
       const [tx, ty] = r.s.tiles, i = Math.floor(M.f) % r.s.frames;
       (u.tile.value as THREE.Vector2).set(i % tx, ty - 1 - Math.floor(i / tx));
       place(rg, r.s, 1);
+    } else if (dtex && d && dg) {
+      const u = d.meshes.material.uniforms;
+      if (u.map.value !== dtex[0]) { u.map.value = dtex[0]; u.glow.value = dtex[1]; }
+      const [tx, ty] = d.s.tiles, i = deathFrame(D.t, d.s);
+      (u.tile.value as THREE.Vector2).set(i % tx, ty - 1 - Math.floor(i / tx));
+      place(dg, d.s, 1);
     } else if (ct && c && cg) {
       const u = c.meshes.material.uniforms;
       if (u.map.value !== ct[0]) { u.map.value = ct[0]; u.glow.value = ct[1]; }
@@ -320,7 +337,7 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
       }
     };
   }, [s, alpha]);
-  const rm = run.current?.meshes, hm = hit.current?.meshes, cm = chk.current?.meshes;
+  const rm = run.current?.meshes, hm = hit.current?.meshes, cm = chk.current?.meshes, dm = dth.current?.meshes;
   return <>
     <group ref={mesh}>
       <mesh geometry={geometry} material={material} renderOrder={10} frustumCulled={false} raycast={raycast}
@@ -334,6 +351,10 @@ export function KingSprite({ at, yaw = 0, onClick, follow, strike = false, check
     {hm && <group ref={hitMesh} visible={false}>
       <mesh geometry={hm.geometry} material={hm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />
       <mesh geometry={hm.geometry} material={hm.onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+    </group>}
+    {dm && <group ref={dthMesh} visible={false}>
+      <mesh geometry={dm.geometry} material={dm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />
+      <mesh geometry={dm.geometry} material={dm.onCards} renderOrder={10} frustumCulled={false} raycast={() => {}} />
     </group>}
     {cm && <group ref={chkMesh} visible={false}>
       <mesh geometry={cm.geometry} material={cm.material} renderOrder={10} frustumCulled={false} raycast={() => {}} />

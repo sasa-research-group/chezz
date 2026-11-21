@@ -11,7 +11,7 @@
 # Call apply(arm, body) on the king at rest (right after import, before posing). Returns the added objects.
 import bpy, math
 import numpy as np
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 BROW = dict(x=0.102, z=1.252, rx=0.088, rz=0.046)  # each old brow's middle and half-size (rest pose, m)
 EYE = dict(x=0.112, z=1.163, w=0.034, h=0.042)     # each old painted eye: centre and half-size
@@ -185,12 +185,14 @@ def clearance(body, p, d):
     return dist if n.dot(d) > 0 else -dist
 
 
-def _bead(name, loc, nrm, sx, sy, sz, mat, arm, segs=24, skin=None):
+def _bead(name, loc, nrm, sx, sy, sz, mat, arm, segs=24, skin=None, roll=0.0):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segs, ring_count=segs // 2, radius=1)
     o = bpy.context.active_object
     o.name = name
     o.scale = (sx, sy, sz)
-    o.rotation_euler = nrm.to_track_quat("-Y", "Z").to_euler()  # local -y along the surface normal
+    # local -y along the surface normal, then turned `roll` degrees about it (the bars of an X)
+    q = nrm.to_track_quat("-Y", "Z") @ Quaternion((0, 1, 0), math.radians(roll))
+    o.rotation_euler = q.to_euler()
     o.location = loc
     o.data.materials.append(mat)
     bpy.ops.object.shade_smooth()
@@ -250,10 +252,37 @@ def _to_skin(o, arm, body, verts):
     o.modifiers.new("arm", "ARMATURE").object = arm
 
 
-def apply(arm, body):
+MOODS = ("nervous", "woe", "dead")
+# woe (the death, Wesley 2026-11-20: "stammer a little, look distraught ... dramatic but kind of comedic"): the
+# worried brows and glossy eyes, but the mouth hangs open in a wobbly frown instead of clenched teeth.
+# dead (once he lands): the same open mouth, a tongue lolling out of one corner, and X eyes.
+WOE_MOUTH = (0.056, 0.030, 0.030)  # open mouth half-width, half-height, how far under TEETH_Z its middle sits
+X_LEN, X_W = 0.054, 0.012  # each X bar's half-length and half-thickness
+
+
+def apply(arm, body, mood="nervous"):
+    """the worried face on the king at rest; returns the added pieces"""
     co, uv, col, px = _vertex_data(body)
     painted, skin = _paint_out(body, co, col, px)
     warped = _warp(body, co)
+    out = pieces(arm, body, mood, co)
+    print("NERVOUS_FACE %s painted %d px (skin %s), warped %d verts, %d pieces" % (mood, painted, np.round(skin, 2), warped, len(out)), flush=True)
+    return out
+
+
+def pieces(arm, body, mood="nervous", co=None):
+    """just the clay pieces of a face mood (eyes, mouth, drop), on a king already painted out and warped by apply:
+    the death bake builds woe and dead both and shows one per frame. Every piece is named nf_<mood>_..."""
+    assert mood in MOODS, mood
+    if co is None:
+        co = _vertex_data(body)[0]
+    out = _pieces(arm, body, mood, co)
+    for o in out:
+        o.name = "nf_%s_%s" % (mood, o.name[3:]) if mood != "nervous" else o.name
+    return out
+
+
+def _pieces(arm, body, mood, co):
     black = _mat("nf_eye", (0.015, 0.012, 0.012), 0.25)
     white = _mat("nf_white", (0.95, 0.93, 0.88), 0.35)
     teeth = _mat("nf_teeth", (0.93, 0.9, 0.82), 0.5)
@@ -263,6 +292,11 @@ def apply(arm, body):
     for side in (-1, 1):
         loc, nrm = _surface(body, side * EYE["x"], EYE["z"])
         w, h = EYE["w"] * EYE_GROW, EYE["h"] * EYE_GROW
+        if mood == "dead":  # X eyes: two crossed black bars over each eye
+            for k, r in ((0, 45), (1, -45)):
+                out.append(_bead("nf_x%+d%d" % (side, k), loc + nrm * (0.004 + 0.002 * k), nrm, X_LEN, 0.010, X_W,
+                                 black, arm, roll=r))
+            continue
         eye = _bead("nf_eye%+d" % side, loc + nrm * 0.002, nrm, w, 0.012, h, black, arm)
         out.append(eye)
         # glint: up and toward the viewer's left on both eyes (one light), sat on the eye's own front surface.
@@ -277,6 +311,8 @@ def apply(arm, body):
     loc, nrm = _surface(body, 0.0, TEETH_Z)
     pin = (body, _tri(body, co, loc))  # every mouth piece rides the same beard triangle
     mc = loc + nrm * 0.004
+    if mood != "nervous":
+        return out + _open_mouth(arm, body, mood, loc, nrm, pin, mouth)
     out.append(_bead("nf_mouth", mc, nrm, 0.07, 0.006, 0.03, mouth, arm, skin=pin))
     # rows go up/down along the beard's slope, not straight up/down: the beard leans out under the mustache,
     # so a row stacked straight down sank into it and only one tooth tip poked out below the mouth
@@ -312,5 +348,22 @@ def apply(arm, body):
             k = 1 - 0.85 * v.co.z ** 1.5
             v.co.x *= k; v.co.y *= k; v.co.z *= 1 + 0.6 * v.co.z
     out.append(d)
-    print("NERVOUS_FACE painted %d px (skin %s), warped %d verts, %d pieces" % (painted, np.round(skin, 2), warped, len(out)), flush=True)
+    return out
+
+
+def _open_mouth(arm, body, mood, loc, nrm, pin, mat):
+    """woe and dead: the mouth hangs open in a frown (corners bent down) under the mustache; dead adds a tongue
+    lolling out of one corner"""
+    w, h, dz = WOE_MOUTH
+    loc, nrm = _surface(body, 0.0, TEETH_Z - dz)  # the beard leans out below the mustache: sit on it there
+    mc = loc + nrm * 0.004
+    dark = _mat("nf_mouth_open", (0.05, 0.012, 0.012), 0.7)
+    m = _bead("nf_mouth", mc, nrm, w, 0.008, h, dark, arm, skin=pin)
+    for v in m.data.vertices:  # frown: the corners droop, the middle stays
+        v.co.z -= 0.6 * v.co.x ** 2
+    out = [m]
+    if mood == "dead":  # out of the lower corner (viewer's right), over the lip
+        tongue = _mat("nf_tongue", (0.80, 0.25, 0.30), 0.45)
+        t, tn = _surface(body, -0.022, TEETH_Z - dz - 0.028)
+        out.append(_bead("nf_tongue", t + tn * 0.012, tn, 0.022, 0.010, 0.030, tongue, arm, 16, skin=pin, roll=15))
     return out

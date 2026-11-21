@@ -198,6 +198,7 @@ export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; 
   /** The way its last move went (facing.ts); null or missing: toward the camera. */ facing?: Facing; sprite?: { href: string; x: number; y: number; w: number; h: number }; asleep?: boolean; statue?: boolean; picked?: boolean;
   /** Your king is taking a piece with this move: he plays his sword strike. */ strike?: boolean;
   /** Your king stands in check: he plays the nervous loop. */ check?: boolean;
+  /** Your king is checkmated: he plays his death once and holds its last frame. */ dead?: boolean;
   /** A piece just taken: it stays up until the king's blow lands, then falls away from him (his move's way). */ falling?: Facing };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
@@ -284,7 +285,7 @@ function RunningKing({ pc, at, S, onClick }: { pc: DioramaPiece; at: [number, nu
   const follow = useRef<THREE.Group>(null);
   const yaw = yawOf(pc.facing ?? null);
   return <>
-    <KingSprite at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} check={pc.check} />
+    <KingSprite at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} check={pc.check} dead={pc.dead} />
     <group ref={follow}>
       <Blob x={0} y={0} r={0.2 * S} o={0.35} />
       <King position={[0, 0, 0]} yaw={yaw} shadowOnly />

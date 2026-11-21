@@ -1,5 +1,6 @@
 import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { mated } from "../diorama/death";
 import { apply, boardOf, fallen, gateOpen, inCheck, legalMoves, sight, toxic, moveName, movesFrom, outcome, pass, pieceAt, same, squareName, start } from "../puzzle/engine";
 import type { Move, PKind, Pos, Puzzle, Side, State, Switch, SwitchKind } from "../puzzle/engine";
 import { EFFECTS, effectOf, switchText, GOALS, MAX_MOVES, MAX_SIDE, MIN_SIDE, PUZZLES, P_KINDS, formatPuzzles, goalOf, goalSquares, goalText, puzzleIssues, withGoalSquares } from "../puzzle/puzzles";
@@ -112,10 +113,12 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
   const seen3d = history ? track(history.states, history.moves) : null;
   // Your king in check plays the nervous loop until he gets out of it.
   const whiteInCheck = inCheck(bd, state, "white");
+  // Mated in play: he plays his death once and lies there.
+  const whiteMated = !!history && mated(whiteInCheck, state.turn === "white", whiteInCheck && state.turn === "white" ? legalMoves(pz, bd, state).length : 1);
   const pieces: DioramaPiece[] = state.pieces.map((pc, i) => {
     const kind = pc.kind === "peasant" || pc.kind === "coward" ? "pawn" : pc.kind;
     return { id: seen3d?.[i].id ?? `${pc.side}${pc.kind}${pc.x},${pc.y}`, facing: seen3d?.[i].facing ?? null, kind: pc.kind, side: pc.side, x: pc.x, y: pc.y, sprite: spriteBox(kind, pc.side === "white"), asleep: pc.asleep, statue: pc.statue,
-      check: pc.kind === "king" && pc.side === "white" && whiteInCheck };
+      check: pc.kind === "king" && pc.side === "white" && whiteInCheck, dead: pc.kind === "king" && pc.side === "white" && whiteMated };
   });
   // Your king's capture: he plays his sword strike, and the piece he takes stays up until his blow lands.
   const cap = history ? lastCapture(history.states, history.moves) : null;

@@ -16,7 +16,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 K = dict(hips=0.07, lean=14.0, chin=12.0, stance=0.27, stagger=0.13, gx=-0.02, gy=-0.36, gz=0.50,
          tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, roll=0.0,
-         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, render=1)
+         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
 KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
@@ -30,11 +30,12 @@ for o in list(bpy.data.objects):
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 body = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm)
 arm.animation_data_clear()
-# nervous=1: the worried face of the "in check" loop (nervous_face.py), applied at rest before posing
+# nervous: a face from nervous_face.py, applied at rest before posing: 1 the worried face of the "in check" loop,
+# 2 woe (the death's stumble: open frown), 3 dead (X eyes, tongue out)
 if K["nervous"]:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import nervous_face
-    nervous_face.apply(arm, body)
+    nervous_face.apply(arm, body, nervous_face.MOODS[min(2, max(0, int(round(K["nervous"])) - 1))])
 H = 1.7
 MW = arm.matrix_world
 def W(b, tail=False):  # world position of a pose bone's head/tail
@@ -151,10 +152,16 @@ w = min(1.0, abs(K["roll"]) / 90.0)
 if w:
     px = (Vector((1, 0, 0)) - up * up.x).normalized()
     side = (side * (1 - w) + px * w).normalized()
+# let (0..1): his hands leave the grip and the arms fall open to the sides (the death); the targets are in his
+# standing frame, so once `fall` tips him onto his back they lie spread on the floor
+# (lx, ly, lz: where the open hands go; the stumble raises and flails them)
+LET = {"Left": Vector((K["lx"], K["ly"], K["lz"])), "Right": Vector((-K["lx"], K["ly"], K["lz"]))}
 for s, sx in (("Left", 1), ("Right", -1)):
     wrist = hands[s] + side * sx * K["wrist"] + Vector((0, 0.02, 0))
+    wrist = wrist.lerp(LET[s], K["let"])
     print("ARM %s miss %.3f" % (s, ik2(s + "Arm", s + "ForeArm", s + "Hand", wrist, Vector((sx * 1.2, 0.4, 0.2)))), flush=True)
-    aim(s + "Hand", s + "Hand", hands[s] + Vector((0, -0.03, 0)), end_tail=True)  # fist closes around the grip
+    if K["let"] < 0.5:
+        aim(s + "Hand", s + "Hand", hands[s] + Vector((0, -0.03, 0)), end_tail=True)  # fist closes around the grip
 bpy.ops.object.mode_set(mode="OBJECT")
 for o in list(bpy.data.objects):
     if o.type == "EMPTY":
@@ -201,6 +208,11 @@ for s_ in ("Left", "Right"):
     fz = flat(up)
     fy = fz.cross(up)
     F = Matrix((up, fy, fz)).transposed().to_4x4(); F.translation = hands[s_]
+    if K["let"]:  # an open-handed fist off the grip: along the forearm, just past the wrist
+        fa = (W(s_ + "Hand") - W(s_ + "ForeArm")).normalized()
+        fy2 = fa.cross(Vector((0, 0, 1))).normalized() if abs(fa.z) < 0.99 else Vector((0, 1, 0))
+        F2 = Matrix((fa, fy2, fa.cross(fy2))).transposed().to_4x4(); F2.translation = W(s_ + "Hand") + fa * 0.05
+        F = F if K["let"] < 0.5 else F2
     wl = F.inverted() @ W(s_ + "Hand")  # the forearm's end, in the fist frame
     fists.append(dict(side=s_, m=[list(r) for r in HB @ F], r=K["fist"], len=K["gap"] * 0.98,
                       gr=0.0215 / 1.018 * K["length"] * H, wrist=list(wl)))
@@ -210,8 +222,67 @@ if K["air"] or K["ahead"]:
     m = hips.matrix.copy(); m.translation += MW.to_3x3().inverted() @ Vector((0, -K["ahead"], K["air"])); hips.matrix = m
     bpy.context.view_layer.update()
     pose = {pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones}
+# fall (degrees): the whole body tips back about his back heel (the death), then is lifted so nothing sinks
+# through the floor (`floor`: the standing guard's lowest point, where the bake puts the floor); drop (0..1): the sword leaves his hand and lands flat on the floor at his right side
+def body_min_z():
+    dg = bpy.context.evaluated_depsgraph_get()
+    e = body.evaluated_get(dg); m_ = e.to_mesh()
+    z = min((e.matrix_world @ v.co).z for v in m_.vertices); e.to_mesh_clear()
+    return z
+if K["fall"]:
+    piv = Vector((0, max(W("LeftFoot").y, W("RightFoot").y) + 0.06, min(W("LeftFoot").z, W("RightFoot").z)))
+    R4 = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(-K["fall"]), 4, "X") @ Matrix.Translation(-piv)
+    hips.matrix = MW.inverted() @ R4 @ MW @ hips.matrix
+    bpy.context.view_layer.update()
+    z = body_min_z()
+    if z < K["floor"]:
+        m = hips.matrix.copy(); m.translation += MW.to_3x3().inverted() @ Vector((0, 0, K["floor"] - z)); hips.matrix = m
+        bpy.context.view_layer.update()
+    print("FALL %.0f head %s lift %.3f" % (K["fall"], tuple(round(v, 2) for v in W("Head")), max(0, K["floor"] - z)), flush=True)
+    pose = {pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones}
+# spin (degrees): the whole body turns about the vertical through his hips (the death's dizzy half-turn), after
+# the fall, so a fall is always back in his own frame. Plus is counterclockwise seen from above.
+if K["spin"]:
+    c = W("Hips"); c.z = 0
+    R4 = Matrix.Translation(c) @ Matrix.Rotation(math.radians(K["spin"]), 4, "Z") @ Matrix.Translation(-c)
+    hips.matrix = MW.inverted() @ R4 @ MW @ hips.matrix
+    bpy.context.view_layer.update()
+    print("SPIN %.0f about %s" % (K["spin"], tuple(round(v, 2) for v in c)), flush=True)
+    pose = {pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones}
+if K["drop"]:
+    # drop (0..1, time through the fall): it slips out of his opening hands and falls like a dropped thing, from
+    # rest at the release pose (hx..hqz, the sword's world pose on the frame his hands open; unset: where it is in
+    # his hand now), speeding up (gravity: the height goes as drop^2), tipping over flat as it falls, onto the floor
+    # by his right foot (sdx, sdy). clat (0..1, after it lands): it clatters, the heavy hilt end bouncing twice off
+    # the floor about the blade's tip. (Draft 4 slid it along an arc that slowed into the floor: "unnatural", Wesley)
+    held = MW @ rh.matrix @ rel  # where it is in his hand now (world)
+    if K["hqw"] or K["hqx"] or K["hqy"] or K["hqz"]:
+        held = Matrix.Translation(Vector((K["hx"], K["hy"], K["hz"]))) @ Quaternion((K["hqw"], K["hqx"], K["hqy"], K["hqz"])).to_matrix().to_4x4()
+    xa = Vector((-0.30, -0.95, 0)).normalized()  # pommel -> tip: forward and out to his right, flat on the floor
+    lie = Matrix((-xa, Vector((0, 0, 1)).cross(-xa), Vector((0, 0, 1)))).transposed().to_4x4()
+    lie.translation = Vector((K["sdx"], K["sdy"], 0))
+    sw.matrix_world = lie; bpy.context.view_layer.update()
+    zs_ = [(sw.matrix_world @ v.co).z for v in sw.data.vertices]
+    lie.translation.z -= min(zs_) - K["floor"]  # lowest point of the sword on the floor
+    u = min(1.0, K["drop"])
+    a, b = held.to_translation(), lie.to_translation()
+    T = a.lerp(b, u)
+    T.z = a.z + (b.z - a.z) * u * u
+    Q = held.to_quaternion().slerp(lie.to_quaternion(), u)
+    want = Matrix.Translation(T) @ Q.to_matrix().to_4x4()
+    if K["clat"] and u >= 1:
+        p_ = min(1.0, K["clat"])
+        tip = lie.translation + xa * (0.835 * K["length"] * H)
+        ax = xa.cross(Vector((0, 0, 1))).normalized()
+        if (Matrix.Rotation(0.1, 3, ax) @ (-xa)).z < 0:  # turn the way that lifts the hilt end
+            ax = -ax
+        ang = math.radians(9) * abs(math.sin(2 * math.pi * p_)) * (1 - p_) ** 1.5
+        want = Matrix.Translation(tip) @ Matrix.Rotation(ang, 4, ax) @ Matrix.Translation(-tip) @ want
+    rel = (MW @ rh.matrix).inverted() @ want
+    sw.matrix_world = want; bpy.context.view_layer.update()
+    print("DROP %.2f clat %.2f sword at %s" % (u, K["clat"], tuple(round(v, 2) for v in T)), flush=True)
 os.makedirs(OUT, exist_ok=True)
-json.dump(dict(knobs=K, pose=pose, sword_in_hand=[list(r) for r in rel], sword_world_length=K["length"] * H, grip=0.835, fists=fists, bone="RightForeArm"),
+json.dump(dict(knobs=K, pose=pose, sword_in_hand=[list(r) for r in rel], sword_world=[list(r) for r in MW @ rh.matrix @ rel], sword_world_length=K["length"] * H, grip=0.835, fists=fists, bone="RightForeArm"),
           open(os.path.join(OUT, "guard.json"), "w"), indent=1)
 
 sys.path.insert(0, os.path.expanduser("~/chezz-puzzle/tools/art/diorama"))
