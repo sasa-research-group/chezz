@@ -19,7 +19,7 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 K = dict(hips=0.07, lean=14.0, chin=12.0, stance=0.27, stagger=0.13, gx=-0.02, gy=-0.36, gz=0.50,
          tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, roll=0.0,
-         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spear=0.0, plen=2.0, pgrip=0.3, slide=0.0, flen=0.10, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1)
+         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spear=0.0, plen=2.0, pgrip=0.3, slide=0.0, flen=0.10, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, slay=17.5, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
 # spear=1 (the patrol guard's lunge, 2026-11-21): the held prop is a spear (CHAR_GLB / PROP_GLB: the guard's rig and
@@ -270,8 +270,10 @@ if K["drop"]:
     held = MW @ rh.matrix @ rel  # where it is in his hand now (world)
     if K["hqw"] or K["hqx"] or K["hqy"] or K["hqz"]:
         held = Matrix.Translation(Vector((K["hx"], K["hy"], K["hz"]))) @ Quaternion((K["hqw"], K["hqx"], K["hqy"], K["hqz"])).to_matrix().to_4x4()
-    xa = Vector((-0.30, -0.95, 0)).normalized()  # pommel -> tip: forward and out to his right, flat on the floor
-    lie = Matrix((-xa, Vector((0, 0, 1)).cross(-xa), Vector((0, 0, 1)))).transposed().to_4x4()
+    # pommel -> tip (the spear: butt -> head), flat on the floor, slay degrees out to his right from straight ahead
+    xa = Vector((-math.sin(math.radians(K["slay"])), -math.cos(math.radians(K["slay"])), 0))
+    xs = xa if SPEAR else -xa  # the spear's head is its +x, the sword's blade its -x
+    lie = Matrix((xs, Vector((0, 0, 1)).cross(xs), Vector((0, 0, 1)))).transposed().to_4x4()
     lie.translation = Vector((K["sdx"], K["sdy"], 0))
     sw.matrix_world = lie; bpy.context.view_layer.update()
     zs_ = [(sw.matrix_world @ v.co).z for v in sw.data.vertices]

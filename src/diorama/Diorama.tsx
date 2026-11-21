@@ -1,8 +1,8 @@
 // The 3D diorama board: the baked Cycles set (set.ts) with live pieces on it, graded like the stage
 // renders (bloom, the compositor grade, Standard view, the concept LUT). Shared: the studio's Puzzles tab
 // uses it now; the game can mount the same <Diorama> with its own squares and pieces later.
-import { Suspense, use, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
@@ -13,7 +13,8 @@ import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { spriteFigure } from "./figures";
 export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
-import { hitTime } from "./motion";
+import { gameSpeed, hitTime, moving } from "./motion";
+import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
 import type { SetData } from "./set";
@@ -201,7 +202,8 @@ export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; 
   /** This figure is taking a piece with this move: it plays its attack (strike sheet). */ strike?: boolean;
   /** Your king stands in check: he plays the nervous loop. */ check?: boolean;
   /** Your king is checkmated: he plays his death once and holds its last frame. */ dead?: boolean;
-  /** A piece just taken: it stays up until the king's blow lands, then falls away from him (his move's way). */ falling?: Facing };
+  /** A piece just taken: it stays up until the king's blow lands, then falls away from him (his move's way). */ falling?: Facing;
+  /** Taken by a piece with no attack to play: it falls (or dies) at once instead of waiting for a blow. */ hitNow?: boolean };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
 function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) {
@@ -262,38 +264,62 @@ function Card({ pc, S, onClick }: { pc: DioramaPiece & { sprite: NonNullable<Dio
   </group>;
 }
 
-const TIP = 0.3, SINK = 0.35;  // seconds: a taken piece tips over, then sinks through the floor
 const NO_HIT = 4000;  // ms: a taken piece falls anyway if no blow is announced (the live 3D king, no strike sheet)
-/** A taken piece: stands until the king's blow lands on its square (motion.ts), then tips over away from him
- * and sinks out of sight. */
-function Falling({ at, away, children }: { at: [number, number]; away: Facing; children: ReactNode }) {
-  const g = useRef<THREE.Group>(null), born = useMemo(() => performance.now(), []);
+/** When the blow lands on a taken piece at `at` (motion.ts), or after NO_HIT if none is announced. */
+const takenHit = (at: [number, number], born: number, now = false) => {
+  if (now) return born;
+  return hitTime(at[0], at[1], born - 50) ?? (performance.now() - born > NO_HIT ? born + NO_HIT : null);
+};
+/** A taken piece: stands until the blow lands on its square, then tips over away from it and sinks out of
+ * sight; a figure whose death sheet is in (`dying`, set by its KingSprite) plays its death instead of tipping,
+ * lies still a moment, then sinks (death.ts takenFall). */
+function Falling({ at, away, born: from, now, dying, children }: { at: [number, number]; away: Facing; born?: number; now?: boolean; dying?: RefObject<number | null>; children: ReactNode }) {
+  const own = useMemo(() => performance.now(), []), born = from ?? own;
+  const g = useRef<THREE.Group>(null), death = useRef<{ len: number | null; at: number } | null>(null);
   // tip about the floor line across his blow: the axis is the blow's direction turned a quarter
   const axis = useMemo(() => { const [x, y] = away ?? [0, 1], l = Math.hypot(x, y) || 1; return new THREE.Vector3(-y / l, x / l, 0); }, [away]);
   useFrame(() => {
     const o = g.current;
     if (!o) return;
-    const now = performance.now(), hit = hitTime(at[0], at[1], born - 50) ?? (now - born > NO_HIT ? born + NO_HIT : null);
-    const t = hit === null ? -1 : (now - hit) / 1000;
-    o.quaternion.setFromAxisAngle(axis, Math.PI / 2 * Math.min(1, Math.max(0, t / TIP)) ** 2);
-    o.position.z = -Math.max(0, t - TIP) / SINK * 1.2;
-    o.visible = t < TIP + SINK;
+    const ms = performance.now(), hit = takenHit(at, born, now);
+    // whether the death plays is settled when the blow lands (its sheet in for the heading he faces, or not;
+    // a figure just mounted gets SHEET_WAIT ms for it to come in); the dungeon's reply waits until he has gone
+    if (!death.current && deathSettles(ms, hit, dying ? dying.current : undefined)) {
+      const len = dying?.current ?? null;
+      death.current = { len, at: ms };
+      moving(((len === null ? TIP : len + LIE) + SINK) / gameSpeed());
+    }
+    const t = death.current ? (ms - death.current.at) / 1000 * gameSpeed() : -1;
+    const f = takenFall(t, death.current?.len ?? null);
+    o.quaternion.setFromAxisAngle(axis, Math.PI / 2 * f.tip);
+    o.position.z = -f.sink * 1.2;
+    o.visible = f.visible;
   });
   return <group ref={g}>{children}</group>;
 }
 
 /** A pre-rendered figure (the king, the patrol guard): it runs from square to square (KingSprite), its blob goes
  * with it, and the king's shadow-only 3D model too. */
-function RunningKing({ pc, figure, at, S, onClick }: { pc: DioramaPiece; figure: string; at: [number, number]; S: number; onClick: () => void }) {
+function RunningKing({ pc, figure, at, S, onClick, dieAt, dying }: { pc: DioramaPiece; figure: string; at: [number, number]; S: number; onClick: () => void; dieAt?: () => number | null; dying?: RefObject<number | null> }) {
   const follow = useRef<THREE.Group>(null);
-  const yaw = yawOf(pc.facing ?? null);
+  // taken: he turns to face his taker, so the death throws him back away from the blow
+  const yaw = yawOf(pc.falling !== undefined ? faceTaker(pc.falling ?? [0, 1]) : pc.facing ?? null);
   return <>
-    <KingSprite figure={figure} at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} check={pc.check} dead={pc.dead} />
+    <KingSprite figure={figure} at={at} yaw={yaw} onClick={onClick} follow={follow} strike={pc.strike} check={pc.check} dead={pc.dead} dieAt={dieAt} deathLen={dying} />
     <group ref={follow}>
       <Blob x={0} y={0} r={0.2 * S} o={0.35} />
       {figure === "king" && <King position={[0, 0, 0]} yaw={yaw} shadowOnly />}
     </group>
   </>;
+}
+
+/** A taken sprite figure (the patrol guard): faces his taker, plays his death from the blow, then sinks out. */
+function TakenFigure({ pc, figure, at, S, onClick }: { pc: DioramaPiece; figure: string; at: [number, number]; S: number; onClick: () => void }) {
+  const born = useMemo(() => performance.now(), []), dying = useRef<number | null>(null);
+  const [ax, ay] = at, now = !!pc.hitNow, dieAt = useCallback(() => takenHit([ax, ay], born, now), [ax, ay, born, now]);
+  return <Falling at={at} away={pc.falling ?? null} born={born} now={now} dying={dying}>
+    <RunningKing pc={pc} figure={figure} at={at} S={S} onClick={onClick} dieAt={dieAt} dying={dying} />
+  </Falling>;
 }
 
 function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
@@ -327,6 +353,7 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
         const [x, y] = at(pc.x, pc.y);
         const isKing = pc.kind === "king" && pc.side === "white";
         const figure = spriteFigure(pc);
+        if (figure && !isKing && pc.falling !== undefined) return <group key={pc.id} position={[x, y, 0]}><TakenFigure pc={pc} figure={figure} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
         if (figure && !(isKing && KING_LIVE) && (isKing || pc.falling === undefined)) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} figure={figure} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
         return <group key={pc.id} position={[x, y, 0]}>
           {pc.falling === undefined && <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />}

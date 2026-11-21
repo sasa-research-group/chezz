@@ -3,7 +3,7 @@
 // Keyed "<side> <kind>". A piece not listed here is drawn as before (the 3D king, or a card).
 export const SPRITE_FIGURES: Record<string, string> = {
   "white king": "king",
-  // The patrol guard (enemy pawn): idle, walk and the two-handed spear lunge (strike); no check or death sheets yet.
+  // The patrol guard (enemy pawn): idle, walk, the two-handed spear lunge (strike) and his death when taken.
   "black pawn": "guard",
 };
 
@@ -13,3 +13,8 @@ export const spriteFigure = (pc: { kind: string; side: string }): string | null 
 /** A capture plays the taker's attack (the king's sword strike, the guard's spear lunge) when it has a baked figure;
  *  any other taker just moves, and the piece it takes falls on its own. */
 export const playsStrike = (pc: { kind: string; side: string }): boolean => spriteFigure(pc) !== null;
+
+/** A capture keeps the taken piece on the board to fall (Diorama's Falling) when the taker plays an attack (it
+ *  falls on the blow) or the taken piece is a baked figure (the guard plays his death, from the blow or at once). */
+export const keepsTaken = (taker: { kind: string; side: string }, taken: { kind: string; side: string }): boolean =>
+  playsStrike(taker) || spriteFigure(taken) !== null;

@@ -154,7 +154,10 @@ function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Textur
 /** `figure`: the file prefix ("king", "guard"). `at`: his square's centre in stage units (Blender axes); `yaw` as for <King>. Clicks where he is opaque.
  * When `at` changes he turns, runs there and stops; `follow` (his blob and shadow, placed at `at`) is moved
  * along with him. */
-export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, strike = false, check = false, dead = false }: { figure?: string; at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean; dead?: boolean }) {
+/** `dieAt`: a taken figure: when (performance.now() time) the blow lands, or null while none is announced; its death
+ * plays from then. `deathLen`: gets the death's length in seconds while the sheet for the heading he faces is in, else
+ * null, so whoever takes him off the board knows whether it plays (Diorama's Falling). */
+export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, strike = false, check = false, dead = false, dieAt, deathLen }: { figure?: string; at: [number, number]; yaw?: number; onClick?: () => void; follow?: RefObject<THREE.Group | null>; strike?: boolean; check?: boolean; dead?: boolean; dieAt?: () => number | null; deathLen?: RefObject<number | null> }) {
   const s = useSheet(figure);
   const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}${figure}8.webp`, `${BASE}${figure}8-glow.png`]);
   const mesh = useRef<THREE.Group>(null), runMesh = useRef<THREE.Group>(null), hitMesh = useRef<THREE.Group>(null), chkMesh = useRef<THREE.Group>(null), dthMesh = useRef<THREE.Group>(null);
@@ -174,6 +177,8 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
   // The run sheets come in after he first stands, one per heading baked so far; then the strike sheets, then check.
   const run = useRef<Loaded<RunSheet> | null>(null), hit = useRef<Loaded<StrikeSheet> | null>(null), chk = useRef<Loaded<CheckSheet> | null>(null), dth = useRef<Loaded<CheckSheet> | null>(null);
   const [, ping] = useStateTick();
+  // a taken figure (just mounted for its death) loads its sheets at once: the death may be due right away
+  const taken = !!dieAt;
   useEffect(() => {
     let live = true;
     const into = <T extends KingSheet & { have: number[] },>(ref: { current: Loaded<T> | null }, name: string, sh: T | null) => {
@@ -184,14 +189,14 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
     };
     const t = setTimeout(() => runSheet(figure).then(rs => into(run, GAIT, rs)).then(() => sheetOf<StrikeSheet>(figure, "strike")).then(ss => into(hit, "strike", ss))
       .then(() => sheetOf<CheckSheet>(figure, "check")).then(cs => into(chk, "check", cs))
-      .then(() => sheetOf<CheckSheet>(figure, "death")).then(ds => into(dth, "death", ds)), 800);
+      .then(() => sheetOf<CheckSheet>(figure, "death")).then(ds => into(dth, "death", ds)), taken ? 0 : 800);
     return () => {
       live = false; clearTimeout(t);
       for (const ref of [run, hit, chk, dth] as { current: Loaded<KingSheet> | null }[]) {
         const r = ref.current; if (r) { r.meshes.geometry.dispose(); r.meshes.material.dispose(); r.meshes.onCards.dispose(); } ref.current = null;
       }
     };
-  }, [ping, figure]);
+  }, [ping, figure, taken]);
 
   // The heading on show steps one tile at a time toward the target, the whole turn in about STEP seconds.
   const n = s.headings;
@@ -287,7 +292,9 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
     const c = chk.current, N = nerve.current;
     // Mated: the death, once, on the heading he faces; it wins over the nervous loop.
     const d = dth.current, D = dying.current;
-    const dtex = d && showsDeath(dead, M.phase === "idle", d.tex.has(t.shown)) ? d.tex.get(t.shown) : undefined;
+    const hitAt = dieAt?.() ?? null, due = dead || (hitAt !== null && performance.now() >= hitAt);
+    if (deathLen) deathLen.current = d && d.tex.has(t.shown) ? d.s.frames / d.s.fps : null;
+    const dtex = d && showsDeath(due, M.phase === "idle", d.tex.has(t.shown)) ? d.tex.get(t.shown) : undefined;
     if (dtex && !D.on) D.t = 0;
     D.on = !!dtex;
     if (dtex) D.t += dt;

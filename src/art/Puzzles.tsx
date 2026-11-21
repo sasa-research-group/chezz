@@ -11,7 +11,7 @@ import { spriteBox } from "../components/SpriteRig";
 import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
 import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
 import { lastCapture, snapDir, track } from "../diorama/facing";
-import { playsStrike } from "../diorama/figures";
+import { keepsTaken, playsStrike } from "../diorama/figures";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -125,12 +125,13 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
   // stays up until the blow lands.
   const cap = history ? lastCapture(history.states, history.moves) : null;
   const taker = cap && pieces[cap.by], move = history?.moves[history.moves.length - 1];
-  if (cap && taker && move && playsStrike(taker) && !move.strike) {
-    const v = history!.states[history.moves.length - 1].pieces[cap.victim];
+  // A baked figure taken by anything else (the patrol guard by a rook) plays its death at once.
+  const v = cap && history ? history.states[history.moves.length - 1].pieces[cap.victim] : null;
+  if (cap && taker && move && v && !move.strike && keepsTaken(taker, v)) {
     const kind = v.kind === "peasant" || v.kind === "coward" ? "pawn" : v.kind;
-    taker.strike = true;
+    taker.strike = playsStrike(taker);
     pieces.push({ id: `taken${history!.moves.length}`, kind: v.kind, side: v.side, x: v.x, y: v.y, sprite: spriteBox(kind, v.side === "white"),
-      falling: snapDir(move.to.x - move.from.x, move.to.y - move.from.y) ?? [0, 1] });
+      falling: snapDir(move.to.x - move.from.x, move.to.y - move.from.y) ?? [0, 1], hitNow: !taker.strike || undefined });
   }
   return <No3D fallback={<PuzzleBoard pz={pz} state={state} picked={picked} targets={targets} last={last} flags={flags} wired={wired} onSquare={onSquare} />}>
     <Suspense fallback={<div className="diorama diorama-loading">Loading 3D…</div>}>

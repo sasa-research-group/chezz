@@ -94,12 +94,13 @@ for o in list(bpy.data.objects):
         bpy.data.objects.remove(o)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 body = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent is arm)
-if a.check:  # at rest, before the felt is built on him: the warp and the repainted eyes go into the shells too
+if a.check or a.death:
     import nervous_face
+    nervous_face.use(os.environ.get("FACE", ""))  # FACE=guard: the patrol guard's face measurements
+if a.check:  # at rest, before the felt is built on him: the warp and the repainted eyes go into the shells too
     FACE = nervous_face.apply(arm, body)
 MOOD = {}  # the death's two faces, shown per frame
 if a.death:
-    import nervous_face
     MOOD["woe"] = nervous_face.apply(arm, body, "woe")
     MOOD["dead"] = nervous_face.pieces(arm, body, "dead")
 poses = []

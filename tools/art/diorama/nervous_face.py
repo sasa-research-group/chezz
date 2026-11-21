@@ -69,7 +69,7 @@ def paint_regions(co):
     front = co[..., 1] < -0.2
     r = np.zeros(co.shape[:-1], bool)
     for s in (-1, 1):
-        r |= oval(co, s * EYE["x"], EYE["z"], EYE["w"] * 1.5, EYE["h"] * 1.45) < 1.0
+        r |= oval(co, s * EYE["x"] + EYE_CX, EYE["z"], EYE["w"] * 1.5, EYE["h"] * 1.45) < 1.0
     return r & front & (np.abs(co[..., 0]) < 0.186)
 
 
@@ -258,13 +258,25 @@ MOODS = ("nervous", "woe", "dead")
 # dead (once he lands): the same open mouth, a tongue lolling out of one corner, and X eyes.
 WOE_MOUTH = (0.056, 0.030, 0.030)  # open mouth half-width, half-height, how far under TEETH_Z its middle sits
 X_LEN, X_W = 0.054, 0.012  # each X bar's half-length and half-thickness
+EYE_CX = 0.0  # the face's middle (x): the guard's sits a little to one side
+WARP = True   # bend the brows (the king's worried and woe faces); the guard's brows stay as they are
+# Other figures' faces (use(name) before apply/pieces). The guard (2026-11-21, his death: X eyes): measured on a
+# straight-on render of his rest pose (round painted eyes under the helmet brim, a big mustache, a bare chin).
+FIGURES = dict(guard=dict(EYE=dict(x=0.093, z=1.21, w=0.026, h=0.027), EYE_CX=-0.002, TEETH_Z=1.05, WARP=False,
+                          X_LEN=0.040, X_W=0.010, WOE_MOUTH=(0.045, 0.024, 0.026)))
+
+
+def use(figure):
+    """switch the face measurements to another figure's (FIGURES); "king" or "" keeps the king's"""
+    if figure and figure != "king":
+        globals().update(FIGURES[figure])
 
 
 def apply(arm, body, mood="nervous"):
     """the worried face on the king at rest; returns the added pieces"""
     co, uv, col, px = _vertex_data(body)
     painted, skin = _paint_out(body, co, col, px)
-    warped = _warp(body, co)
+    warped = _warp(body, co) if WARP else 0
     out = pieces(arm, body, mood, co)
     print("NERVOUS_FACE %s painted %d px (skin %s), warped %d verts, %d pieces" % (mood, painted, np.round(skin, 2), warped, len(out)), flush=True)
     return out
@@ -290,7 +302,7 @@ def _pieces(arm, body, mood, co):
     drop = _mat("nf_drop", (0.35, 0.75, 0.95), 0.12, **{"Transmission Weight": 0.35, "Coat Weight": 0.6})
     out = []
     for side in (-1, 1):
-        loc, nrm = _surface(body, side * EYE["x"], EYE["z"])
+        loc, nrm = _surface(body, side * EYE["x"] + EYE_CX, EYE["z"])
         w, h = EYE["w"] * EYE_GROW, EYE["h"] * EYE_GROW
         if mood == "dead":  # X eyes: two crossed black bars over each eye
             for k, r in ((0, 45), (1, -45)):
@@ -355,7 +367,7 @@ def _open_mouth(arm, body, mood, loc, nrm, pin, mat):
     """woe and dead: the mouth hangs open in a frown (corners bent down) under the mustache; dead adds a tongue
     lolling out of one corner"""
     w, h, dz = WOE_MOUTH
-    loc, nrm = _surface(body, 0.0, TEETH_Z - dz)  # the beard leans out below the mustache: sit on it there
+    loc, nrm = _surface(body, EYE_CX, TEETH_Z - dz)  # the beard leans out below the mustache: sit on it there
     mc = loc + nrm * 0.004
     dark = _mat("nf_mouth_open", (0.05, 0.012, 0.012), 0.7)
     m = _bead("nf_mouth", mc, nrm, w, 0.008, h, dark, arm, skin=pin)
@@ -364,6 +376,6 @@ def _open_mouth(arm, body, mood, loc, nrm, pin, mat):
     out = [m]
     if mood == "dead":  # out of the lower corner (viewer's right), over the lip
         tongue = _mat("nf_tongue", (0.80, 0.25, 0.30), 0.45)
-        t, tn = _surface(body, -0.022, TEETH_Z - dz - 0.028)
+        t, tn = _surface(body, EYE_CX - 0.022, TEETH_Z - dz - 0.028)
         out.append(_bead("nf_tongue", t + tn * 0.012, tn, 0.022, 0.010, 0.030, tongue, arm, 16, skin=pin, roll=15))
     return out

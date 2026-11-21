@@ -1,15 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { SPRITE_FIGURES, playsStrike, spriteFigure } from "../src/diorama/figures";
+import { SPRITE_FIGURES, keepsTaken, playsStrike, spriteFigure } from "../src/diorama/figures";
 
 const dir = join(process.cwd(), "public/diorama");
 
 describe("sprite figures", () => {
   it("maps the white king to the king sprite", () => expect(spriteFigure({ kind: "king", side: "white" })).toBe("king"));
   it("maps the enemy pawn to the patrol guard", () => expect(spriteFigure({ kind: "pawn", side: "black" })).toBe("guard"));
-  it("the guard has a walk and a strike sheet for all 8 headings", () => {
-    for (const name of ["walk", "strike"]) {
+  it("the guard has a walk, a strike and a death sheet for all 8 headings", () => {
+    for (const name of ["walk", "strike", "death"]) {
       const info = JSON.parse(readFileSync(join(dir, `guard-${name}.json`), "utf8"));
       expect(info.have, name).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
       for (const k of info.have) for (const f of [`guard-${name}${k}.webp`, `guard-${name}${k}-glow.webp`]) expect(existsSync(join(dir, f)), f).toBe(true);
@@ -34,4 +34,13 @@ describe("sprite figures", () => {
       const sheet = JSON.parse(readFileSync(join(dir, `${figure}8.json`), "utf8"));
       for (const k of ["quad", "right", "up", "fwd", "d0", "dq", "exposure", "glowK", "headings", "tiles", "S"]) expect(sheet, k).toHaveProperty(k);
     });
+});
+
+describe("keepsTaken", () => {
+  it("keeps the taken piece to fall when the taker attacks or the taken piece is a baked figure", () => {
+    const king = { kind: "king", side: "white" }, rook = { kind: "rook", side: "white" }, guard = { kind: "pawn", side: "black" }, knight = { kind: "knight", side: "black" };
+    expect(keepsTaken(king, knight)).toBe(true);
+    expect(keepsTaken(rook, guard)).toBe(true);
+    expect(keepsTaken(rook, knight)).toBe(false);
+  });
 });

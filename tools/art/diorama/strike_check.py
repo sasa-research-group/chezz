@@ -65,6 +65,18 @@ def grp(o, fi):
             nm = o.vertex_groups[ge.group].name
             vg[nm] = vg.get(nm, 0) + ge.weight
     return max(vg, key=vg.get) if vg else o.name
+def inside(bvh, q):
+    """second vote for "inside him": a ray up from q crosses his surface an odd number of times. The nearest face's
+    normal alone misfires for a point well away from him (a prop lying on the floor beside a thin limb)"""
+    from mathutils import Vector
+    up, n, o = Vector((0.0001, 0.0002, 1.0)).normalized(), 0, q.copy()
+    for _ in range(64):
+        hit, _nrm, _fi, _d = bvh.ray_cast(o, up)
+        if hit is None:
+            break
+        n += 1
+        o = hit + up * 1e-4
+    return n % 2 == 1
 worst = (0.0, -1)
 floor0, sink = None, (0.0, -1)
 for f, g in enumerate(clip["frames"]):
@@ -89,7 +101,7 @@ for f, g in enumerate(clip["frames"]):
             if SKIP_GROUPS and fi is not None and grp(o, fi) in SKIP_GROUPS:
                 continue
             d = (o.matrix_world @ hit - p).length  # world units (he is ~1.4 tall)
-            sd = -d if (q - hit).dot(nrm) < 0 else d  # negative: inside him
+            sd = -d if (q - hit).dot(nrm) < 0 and inside(bvh, q) else d  # negative: inside him
             if MARGIN - sd > depth and os.environ.get("CLIP_WHERE"):
                 vg = {}
                 for vi in o.data.polygons[fi].vertices:

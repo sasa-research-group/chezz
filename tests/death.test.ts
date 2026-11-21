@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deathFrame, mated, showsDeath } from '../src/diorama/death'
+import { LIE, SHEET_WAIT, deathSettles, SINK, TIP, deathFrame, faceTaker, mated, showsDeath, takenFall } from '../src/diorama/death'
 import { boardOf, inCheck, legalMoves, start } from '../src/puzzle/engine'
 import type { Puzzle } from '../src/puzzle/engine'
 
@@ -47,3 +47,46 @@ describe('mated', () => {
     expect(isMated(pz([[4, 4]]))).toBe(false)
   })
 })
+
+describe('takenFall', () => {
+  it('stands until the blow lands', () => {
+    expect(takenFall(-0.5, null)).toEqual({ tip: 0, sink: 0, visible: true })
+    expect(takenFall(-0.5, 1.08)).toEqual({ tip: 0, sink: 0, visible: true })
+  })
+  it('without a death: tips over, then sinks out', () => {
+    expect(takenFall(TIP / 2, null).tip).toBeCloseTo(0.25)
+    expect(takenFall(TIP, null)).toMatchObject({ tip: 1, sink: 0, visible: true })
+    expect(takenFall(TIP + SINK / 2, null).sink).toBeCloseTo(0.5)
+    expect(takenFall(TIP + SINK + 0.01, null).visible).toBe(false)
+  })
+  it('with a death: never tips, lies still after it, then sinks out', () => {
+    const d = 26 / 24
+    expect(takenFall(0.5, d)).toEqual({ tip: 0, sink: 0, visible: true })
+    expect(takenFall(d + LIE - 0.01, d).sink).toBe(0)
+    expect(takenFall(d + LIE + SINK / 2, d).sink).toBeCloseTo(0.5)
+    expect(takenFall(d + LIE + SINK + 0.01, d).visible).toBe(false)
+  })
+})
+
+describe('faceTaker', () => {
+  it('faces back along the blow, toward the taker', () => {
+    expect(faceTaker([0, 1])).toEqual([0, -1])
+    expect(faceTaker([1, -1])).toEqual([-1, 1])
+    expect(faceTaker([0, 0])).toEqual([0, 0])
+  })
+})
+
+describe("deathSettles", () => {
+  it("waits for the blow to land", () => {
+    expect(deathSettles(100, null, 1)).toBe(false);
+    expect(deathSettles(99, 100, 1)).toBe(false);
+    expect(deathSettles(100, 100, 1)).toBe(true);
+  });
+  it("a piece with no death sheet settles on the blow", () => {
+    expect(deathSettles(100, 100, undefined)).toBe(true);
+  });
+  it("waits for a loading death sheet, but not forever", () => {
+    expect(deathSettles(100 + SHEET_WAIT, 100, null)).toBe(false);
+    expect(deathSettles(101 + SHEET_WAIT, 100, null)).toBe(true);
+  });
+});
