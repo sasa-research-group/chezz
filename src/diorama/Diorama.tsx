@@ -4,7 +4,6 @@
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { BloomEffect, Effect, EffectComposer, EffectPass, LUT3DEffect, LUTCubeLoader, RenderPass } from "postprocessing";
@@ -14,7 +13,9 @@ import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { spriteFigure } from "./figures";
 export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
-import { WALL_GLB, WALL_H, fadeStep, fadedWalls } from "./walls";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { WALL_H, fadeStep, fadedWalls, wallArms, wallBricks, type Arms } from "./walls";
 import { gameSpeed, hitTime, moving } from "./motion";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
@@ -221,24 +222,29 @@ function useWallFade(mats: THREE.Material[], faded: boolean) {
   });
 }
 
-/** A wall: the mossy stone block (wall.glb, Wesley's "low A"), filling the square and about half a figure tall. */
-function Wall({ faded, S, H }: { faded: boolean; S: number; H: number }) {
-  const gltf = useGLTF(WALL_GLB);
-  // each wall gets its own copy of the materials, so one can fade while the others stay solid
-  const { block, mats } = useMemo(() => {
-    const block = gltf.scene.clone(true), mats: THREE.Material[] = [];
-    block.traverse(o => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      m.material = (m.material as THREE.Material).clone();
-      mats.push(m.material);
-      m.castShadow = true; m.receiveShadow = true;
-    });
-    return { block, mats };
-  }, [gltf]);
-  useWallFade(mats, faded);
-  // the block is a unit cube standing on the floor, y up (pack_wall.py): turn it z-up and size it to the square
-  return <primitive object={block} rotation={[Math.PI / 2, 0, 0]} scale={[0.98 * S, WALL_H * H, 0.98 * S]} />;
+/** A wall: a thin stone wall through the middle of the square, joined to the walls next to it (walls.ts). Each
+ *  square's stones are one mesh with a colour per stone, and its moss cap another, so a board stays cheap. */
+function Wall({ arms, seed, faded, S, H }: { arms: Arms; seed: number; faded: boolean; S: number; H: number }) {
+  const { stoneGeo, mossGeo } = useMemo(() => {
+    const h = WALL_H * H, stones: THREE.BufferGeometry[] = [], moss: THREE.BufferGeometry[] = [];
+    const STONE = new THREE.Color(0.16, 0.155, 0.14), GREEN = new THREE.Color(0.07, 0.15, 0.03);
+    for (const b of wallBricks(arms, seed)) {
+      const w = b.sx * S, d = b.sy * S, t = b.sz * h;
+      const g = new RoundedBoxGeometry(w, d, t, 2, Math.min(w, d, t) * (b.moss ? 0.45 : 0.22));
+      g.translate(b.x * S, b.y * S, b.z * h);
+      const c = (b.moss ? GREEN : STONE).clone().multiplyScalar(b.tone), n = g.attributes.position.count;
+      g.setAttribute("color", new THREE.Float32BufferAttribute(Array.from({ length: n }, () => [c.r, c.g, c.b]).flat(), 3));
+      (b.moss ? moss : stones).push(g);
+    }
+    return { stoneGeo: mergeGeometries(stones), mossGeo: mergeGeometries(moss) };
+  }, [arms, seed, S, H]);
+  const stone = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), []);
+  const moss = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), []);
+  useWallFade([stone, moss], faded);
+  return <>
+    <mesh geometry={stoneGeo} material={stone} castShadow receiveShadow />
+    <mesh geometry={mossGeo} material={moss} castShadow receiveShadow />
+  </>;
 }
 
 /** An eye: a stone block with a glowing eye on its front (placeholder until the carved eye tile exists). */
@@ -253,7 +259,7 @@ function EyeBlock({ faded, S, H }: { faded: boolean; S: number; H: number }) {
   </>;
 }
 
-function SquareMarks({ sq, S, H, faded = false }: { sq: DioramaSquare; S: number; H: number; faded?: boolean }) {
+function SquareMarks({ sq, S, H, faded = false, arms }: { sq: DioramaSquare; S: number; H: number; faded?: boolean; arms?: Arms }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -268,7 +274,7 @@ function SquareMarks({ sq, S, H, faded = false }: { sq: DioramaSquare; S: number
   const out: ReactNode[] = [];
   switch (sq.kind) {
     case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
-    case "wall": out.push(<Wall key="w" faded={faded} S={S} H={H} />); break;
+    case "wall": if (arms) out.push(<Wall key="w" arms={arms} seed={sq.x * 131 + sq.y * 7919} faded={faded} S={S} H={H} />); break;
     case "eye": out.push(<EyeBlock key="w" faded={faded} S={S} H={H} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
     case "trapdoor": out.push(plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td"), ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")); break;
@@ -379,6 +385,9 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
   useEffect(() => { document.body.style.cursor = hover ? "pointer" : ""; return () => { document.body.style.cursor = ""; }; }, [hover]);
   const click = (x: number, y: number) => (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onSquare(x, y); };
   const faded = fadedWalls(squares, pieces);
+  const kinds = squares.map(q => `${q.x},${q.y}:${q.kind ?? ""}`).join(" ");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only the square kinds matter, not the marks on them
+  const arms = useMemo(() => wallArms(squares, w, h), [kinds, w, h]);
   return <>
     <PlayCamera data={data} w={w} h={h} />
     <Blender>
@@ -387,7 +396,7 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} faded={faded.has(`${sq.x},${sq.y}`)} />
+          <SquareMarks sq={sq} S={S} H={H} faded={faded.has(`${sq.x},${sq.y}`)} arms={arms.get(`${sq.x},${sq.y}`)} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
