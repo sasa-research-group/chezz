@@ -6,7 +6,7 @@
 /** Wall height as a share of the set's figure height H (the king is about 1 H). */
 export const WALL_H = 0.45;
 /** Opacity of a wall with a piece right behind it. */
-export const WALL_FADE = 0.3;
+export const WALL_FADE = 0.6;
 /** Seconds to fade in or out. */
 export const WALL_FADE_S = 0.25;
 
