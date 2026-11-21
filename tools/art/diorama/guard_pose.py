@@ -19,11 +19,16 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 K = dict(hips=0.07, lean=14.0, chin=12.0, stance=0.27, stagger=0.13, gx=-0.02, gy=-0.36, gz=0.50,
          tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, roll=0.0,
-         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1)
+         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spear=0.0, plen=2.0, pgrip=0.3, slide=0.0, flen=0.10, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
-KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
-SWORD = os.path.expanduser("~/.dos/scratch/d84406ef/sword/royal_blade.glb")
+# spear=1 (the patrol guard's lunge, 2026-11-21): the held prop is a spear (CHAR_GLB / PROP_GLB: the guard's rig and
+# spear), long axis X with its head toward +X. It is plen world units long; its point pgrip along it (from the butt)
+# sits at the grip centre G moved `slide` along the shaft toward the head; the right hand is the rear one (toward
+# the butt), the left the front one, gap apart; each clay fist is flen long. Everything else works as for the sword.
+SPEAR = bool(K["spear"])
+KING = os.path.expanduser(os.environ.get("CHAR_GLB") or "~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
+SWORD = os.path.expanduser(os.environ.get("PROP_GLB") or "~/.dos/scratch/d84406ef/sword/royal_blade.glb")
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=KING)
@@ -147,6 +152,8 @@ def flat(u):
         v = Vector((0, 0, 1)) - u * u.dot(Vector((0, 0, 1)))
     return v.normalized()
 hands = {"Right": G + up * K["gap"] * 0.5, "Left": G - up * K["gap"] * 0.5}  # right hand by the guard
+if SPEAR:  # the right hand pushes from the rear, the left steers in front
+    hands = {"Right": hands["Left"], "Left": hands["Right"]}
 side = up.cross(Vector((0, -1, 0))).normalized() if abs(up.y) < 0.999 else Vector((1, 0, 0))  # across the grip
 if side.x < 0:
     side = -side
@@ -183,14 +190,16 @@ sw = next(o for o in bpy.data.objects if o not in before and o.type == "MESH")
 me = sw.data
 co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
 lo, hi = co.min(0), co.max(0); L = hi[0] - lo[0]
-grip = Vector((lo[0] + 0.835 * L, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2))
-me.transform(Matrix.Scale(K["length"] * H / L, 4) @ Matrix.Translation(-grip))  # grip centre at the origin
+GRIP = K["pgrip"] if SPEAR else 0.835  # where the grip centre is along the prop, from lo
+PLEN = K["plen"] if SPEAR else K["length"] * H  # the prop's length in the world
+grip = Vector((lo[0] + GRIP * L, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2))
+me.transform(Matrix.Scale(PLEN / L, 4) @ Matrix.Translation(-grip))  # grip centre at the origin
 # local -x is the blade: map -x -> up; local z (the flat) faces the viewer as much as possible
-x_ax = -up
+x_ax = up if SPEAR else -up  # the spear's head is +x, the sword's blade -x
 z_ax = flat(up)
 y_ax = z_ax.cross(x_ax)
 R = Matrix((x_ax, y_ax, z_ax)).transposed().to_4x4()
-sw.matrix_world = Matrix.Translation(G) @ R
+sw.matrix_world = Matrix.Translation(G + up * (K["slide"] if SPEAR else 0)) @ R
 bpy.context.view_layer.update()
 mw = sw.matrix_world.copy()
 sw.parent = arm; sw.parent_type = "BONE"; sw.parent_bone = "RightForeArm"  # not the hand: it is shrunk below
@@ -217,8 +226,8 @@ for s_ in ("Left", "Right"):
         F2 = Matrix((fa, fy2, fa.cross(fy2))).transposed().to_4x4(); F2.translation = W(s_ + "Hand") + fa * 0.05
         F = F if K["let"] < 0.5 else F2
     wl = F.inverted() @ W(s_ + "Hand")  # the forearm's end, in the fist frame
-    fists.append(dict(side=s_, m=[list(r) for r in HB @ F], r=K["fist"], len=K["gap"] * 0.98,
-                      gr=0.0215 / 1.018 * K["length"] * H, wrist=list(wl)))
+    fists.append(dict(side=s_, m=[list(r) for r in HB @ F], r=K["fist"], len=K["flen"] if SPEAR else K["gap"] * 0.98,
+                      gr=0.0115 * PLEN if SPEAR else 0.0215 / 1.018 * K["length"] * H, wrist=list(wl)))
 # a jump or lunge: the whole body (and the sword and fists with it, as they hang off the forearm) rises by `air`
 # and travels forward by `ahead`, moved at the root bone after everything above is solved
 if K["air"] or K["ahead"]:
@@ -285,7 +294,7 @@ if K["drop"]:
     sw.matrix_world = want; bpy.context.view_layer.update()
     print("DROP %.2f clat %.2f sword at %s" % (u, K["clat"], tuple(round(v, 2) for v in T)), flush=True)
 os.makedirs(OUT, exist_ok=True)
-json.dump(dict(knobs=K, pose=pose, sword_in_hand=[list(r) for r in rel], sword_world=[list(r) for r in MW @ rh.matrix @ rel], sword_world_length=K["length"] * H, grip=0.835, fists=fists, bone="RightForeArm"),
+json.dump(dict(knobs=K, pose=pose, sword_in_hand=[list(r) for r in rel], sword_world=[list(r) for r in MW @ rh.matrix @ rel], sword_world_length=PLEN, grip=GRIP, fists=fists, bone="RightForeArm"),
           open(os.path.join(OUT, "guard.json"), "w"), indent=1)
 
 sys.path.insert(0, os.path.expanduser("~/chezz-puzzle/tools/art/diorama"))
