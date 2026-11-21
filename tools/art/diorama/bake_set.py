@@ -17,6 +17,9 @@
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
 from mathutils import Matrix, Vector
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import gpu_retry  # renders again in place after a Metal GPU reset
 
 STAGE = os.environ.get("STAGE_DIR", os.path.expanduser("~/.dos/scratch/d84406ef/stage"))
 sys.path.insert(0, STAGE)
@@ -146,7 +149,7 @@ sc.render.image_settings.color_depth = "32"
 sc.render.image_settings.color_mode = "RGBA"
 sc.render.filepath = exr
 t = time.time()
-bpy.ops.render.render(write_still=True)
+gpu_retry.render()
 print("RENDER_SECONDS %.1f" % (time.time() - t), flush=True)
 
 import OpenImageIO as oiio

@@ -11,6 +11,9 @@
 import bpy, sys, os, json, math
 import numpy as np
 from mathutils import Vector, Matrix, Quaternion
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import gpu_retry  # renders again in place after a Metal GPU reset
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
@@ -315,7 +318,7 @@ for name, el, az in (("game", 35, 0), ("front", 5, 0), ("side", 5, 90)):
     cam.location = tgt + dirv * d
     cam.rotation_euler = (-dirv).to_track_quat("-Z", "Y").to_euler()
     sc.render.filepath = os.path.join(OUT, "guard-%s.png" % name)
-    bpy.ops.render.render(write_still=True)
+    gpu_retry.render()
 # close-up of the hands on the grip, from the game camera and from the front
 fc = sum((o.matrix_world.translation for o in bpy.data.objects if o.name.startswith("fist_")), Vector()) / 2
 for name, el in (("hands", 35), ("hands-front", 8)):
@@ -323,5 +326,5 @@ for name, el in (("hands", 35), ("hands-front", 8)):
     cam.location = fc + dirv * 1.3
     cam.rotation_euler = (-dirv).to_track_quat("-Z", "Y").to_euler()
     sc.render.filepath = os.path.join(OUT, "guard-%s.png" % name)
-    bpy.ops.render.render(write_still=True)
+    gpu_retry.render()
 print("DONE", flush=True)
