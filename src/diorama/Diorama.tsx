@@ -15,7 +15,7 @@ export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { WALL_H, fadeStep, fadedWalls, wallArms, wallBricks, type Arms } from "./walls";
+import { WALL_H, wallArms, wallBricks, type Arms } from "./walls";
 import { gameSpeed, hitTime, moving } from "./motion";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
@@ -209,22 +209,9 @@ export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; 
   /** Taken by a piece with no attack to play: it falls (or dies) at once instead of waiting for a blow. */ hitNow?: boolean };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
-/** Fades the materials of a wall toward see-through while a piece stands right behind it (walls.ts). */
-function useWallFade(mats: THREE.Material[], faded: boolean) {
-  const o = useRef(1);
-  useFrame((_, dt) => {
-    o.current = fadeStep(o.current, faded, dt);
-    const see = o.current < 1;
-    for (const m of mats) {
-      if (m.transparent !== see) { m.transparent = see; m.depthWrite = !see; m.needsUpdate = true; }
-      m.opacity = o.current;
-    }
-  });
-}
-
 /** A wall: a thin stone wall through the middle of the square, joined to the walls next to it (walls.ts). Each
  *  square's stones are one mesh with a colour per stone, and its moss cap another, so a board stays cheap. */
-function Wall({ arms, seed, faded, S, H }: { arms: Arms; seed: number; faded: boolean; S: number; H: number }) {
+function Wall({ arms, seed, S, H }: { arms: Arms; seed: number; S: number; H: number }) {
   const { stoneGeo, mossGeo } = useMemo(() => {
     const h = WALL_H * H, stones: THREE.BufferGeometry[] = [], moss: THREE.BufferGeometry[] = [];
     const STONE = new THREE.Color(0.16, 0.155, 0.14), GREEN = new THREE.Color(0.07, 0.15, 0.03);
@@ -240,7 +227,6 @@ function Wall({ arms, seed, faded, S, H }: { arms: Arms; seed: number; faded: bo
   }, [arms, seed, S, H]);
   const stone = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), []);
   const moss = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), []);
-  useWallFade([stone, moss], faded);
   return <>
     <mesh geometry={stoneGeo} material={stone} castShadow receiveShadow />
     <mesh geometry={mossGeo} material={moss} castShadow receiveShadow />
@@ -248,10 +234,9 @@ function Wall({ arms, seed, faded, S, H }: { arms: Arms; seed: number; faded: bo
 }
 
 /** An eye: a stone block with a glowing eye on its front (placeholder until the carved eye tile exists). */
-function EyeBlock({ faded, S, H }: { faded: boolean; S: number; H: number }) {
+function EyeBlock({ S, H }: { S: number; H: number }) {
   const stone = useMemo(() => new THREE.MeshStandardMaterial({ color: new THREE.Color(0.16, 0.16, 0.15), roughness: 0.95 }), []);
   const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.25, 0.15) }), []);
-  useWallFade([stone, glow], faded);
   const h = WALL_H * H;
   return <>
     <mesh castShadow position={[0, 0, h / 2]} material={stone}><boxGeometry args={[0.94 * S, 0.94 * S, h]} /></mesh>
@@ -259,7 +244,7 @@ function EyeBlock({ faded, S, H }: { faded: boolean; S: number; H: number }) {
   </>;
 }
 
-function SquareMarks({ sq, S, H, faded = false, arms }: { sq: DioramaSquare; S: number; H: number; faded?: boolean; arms?: Arms }) {
+function SquareMarks({ sq, S, H, arms }: { sq: DioramaSquare; S: number; H: number; arms?: Arms }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -274,8 +259,8 @@ function SquareMarks({ sq, S, H, faded = false, arms }: { sq: DioramaSquare; S: 
   const out: ReactNode[] = [];
   switch (sq.kind) {
     case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
-    case "wall": if (arms) out.push(<Wall key="w" arms={arms} seed={sq.x * 131 + sq.y * 7919} faded={faded} S={S} H={H} />); break;
-    case "eye": out.push(<EyeBlock key="w" faded={faded} S={S} H={H} />); break;
+    case "wall": if (arms) out.push(<Wall key="w" arms={arms} seed={sq.x * 131 + sq.y * 7919} S={S} H={H} />); break;
+    case "eye": out.push(<EyeBlock key="w" S={S} H={H} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
     case "trapdoor": out.push(plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td"), ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")); break;
     case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;
@@ -384,7 +369,6 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
   const [hover, setHover] = useState(false);
   useEffect(() => { document.body.style.cursor = hover ? "pointer" : ""; return () => { document.body.style.cursor = ""; }; }, [hover]);
   const click = (x: number, y: number) => (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onSquare(x, y); };
-  const faded = fadedWalls(squares, pieces);
   const kinds = squares.map(q => `${q.x},${q.y}:${q.kind ?? ""}`).join(" ");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only the square kinds matter, not the marks on them
   const arms = useMemo(() => wallArms(squares, w, h), [kinds, w, h]);
@@ -396,7 +380,7 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} faded={faded.has(`${sq.x},${sq.y}`)} arms={arms.get(`${sq.x},${sq.y}`)} />
+          <SquareMarks sq={sq} S={S} H={H} arms={arms.get(`${sq.x},${sq.y}`)} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
