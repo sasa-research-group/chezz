@@ -32,6 +32,17 @@
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
 from mathutils import Vector, Matrix, Quaternion
+# Metal: Cycles' default "full" kernel optimization compiles scene-specialised kernels in the background; on this
+# Mac those compiles ran MTLCompilerService out of memory (abort in operator new, 2026-11-18 and -20) and the GPU
+# reset took the render down ("InnocentVictim"). Not saved to the user's preferences. CYCLES_KOPT=FULL restores it.
+# Set after read_factory_settings, which resets the preferences.
+def light_kernels():
+    try:
+        _cp = bpy.context.preferences.addons["cycles"].preferences
+        _cp.kernel_optimization_level = os.environ.get("CYCLES_KOPT", "INTERSECT")
+        print("CHECK cycles kernel optimization", _cp.kernel_optimization_level, flush=True)
+    except Exception as _e:
+        print("CHECK cycles kernel optimization not set:", _e, flush=True)
 
 STAGE = os.environ.get("STAGE_DIR", os.path.expanduser("~/.dos/scratch/d84406ef/stage"))
 sys.path.insert(0, STAGE)
@@ -53,14 +64,15 @@ ap.add_argument("--death", default="")  # death_pose.py's death.json: bake the c
 ap.add_argument("--gait", default="")  # run|walk|jog: shape (and clip, unless --clip) from king_motion.GAITS
 a = ap.parse_args(argv)
 EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0
-KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
+# CHAR_GLB=path bakes another rigged Meshy figure (same 24-bone rig) in place of the king, e.g. the patrol guard
+KING = os.path.expanduser(os.environ.get("CHAR_GLB") or "~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
 T0 = time.time()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import king_motion as km
 SHAPE = None
 if a.gait:
     SHAPE, _g = km.GAITS[a.gait]
-    a.clip = a.clip or os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/" + _g)
+    a.clip = a.clip or os.path.join(os.path.dirname(KING), _g)
 elif a.clip:
     SHAPE = km.CHIBI_RUN
 NAME = "strike" if a.strike else "check" if a.check else "death" if a.death else (a.gait or "run") if a.clip else "king"
@@ -70,6 +82,7 @@ GAIT = None
 
 # --- the king, posed and measured exactly as tools/render_v4.py does for the hero
 bpy.ops.wm.read_factory_settings(use_empty=True)
+light_kernels()
 bpy.ops.import_scene.gltf(filepath=a.clip or KING)
 for o in list(bpy.data.objects):
     if o.type == "MESH" and o.parent is None:
