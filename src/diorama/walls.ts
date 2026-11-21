@@ -3,6 +3,8 @@
 // stands on the square right behind it (y - 1: y = 0 is the back row; the camera looks square-on, so no other
 // square hides behind it).
 
+/** The mossy stone block (tools/art/diorama/pack_wall.py): a unit cube standing on the floor, y up. */
+export const WALL_GLB = "diorama/wall.glb";
 /** Wall height as a share of the set's figure height H (the king is about 1 H). */
 export const WALL_H = 0.45;
 /** Opacity of a wall with a piece right behind it. */

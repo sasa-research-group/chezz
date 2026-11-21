@@ -4,6 +4,7 @@
 import { Suspense, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { BloomEffect, Effect, EffectComposer, EffectPass, LUT3DEffect, LUTCubeLoader, RenderPass } from "postprocessing";
@@ -13,7 +14,7 @@ import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { spriteFigure } from "./figures";
 export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
-import { WALL_H, fadeStep, fadedWalls } from "./walls";
+import { WALL_GLB, WALL_H, fadeStep, fadedWalls } from "./walls";
 import { gameSpeed, hitTime, moving } from "./motion";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
@@ -207,24 +208,48 @@ export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; 
   /** Taken by a piece with no attack to play: it falls (or dies) at once instead of waiting for a blow. */ hitNow?: boolean };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
-/** A wall block (an eye is a wall with a glowing eye on its front): about half a figure tall, and see-through
- *  while a piece stands right behind it (walls.ts). */
-function Wall({ eye, faded, S, H }: { eye: boolean; faded: boolean; S: number; H: number }) {
-  const stone = useMemo(() => new THREE.MeshStandardMaterial({ color: new THREE.Color(0.16, 0.16, 0.15), roughness: 0.95 }), []);
-  const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.25, 0.15) }), []);
+/** Fades the materials of a wall toward see-through while a piece stands right behind it (walls.ts). */
+function useWallFade(mats: THREE.Material[], faded: boolean) {
   const o = useRef(1);
   useFrame((_, dt) => {
     o.current = fadeStep(o.current, faded, dt);
-    for (const m of [stone, glow]) {
-      const see = o.current < 1;
+    const see = o.current < 1;
+    for (const m of mats) {
       if (m.transparent !== see) { m.transparent = see; m.depthWrite = !see; m.needsUpdate = true; }
       m.opacity = o.current;
     }
   });
+}
+
+/** A wall: the mossy stone block (wall.glb, Wesley's "low A"), filling the square and about half a figure tall. */
+function Wall({ faded, S, H }: { faded: boolean; S: number; H: number }) {
+  const gltf = useGLTF(WALL_GLB);
+  // each wall gets its own copy of the materials, so one can fade while the others stay solid
+  const { block, mats } = useMemo(() => {
+    const block = gltf.scene.clone(true), mats: THREE.Material[] = [];
+    block.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.material = (m.material as THREE.Material).clone();
+      mats.push(m.material);
+      m.castShadow = true; m.receiveShadow = true;
+    });
+    return { block, mats };
+  }, [gltf]);
+  useWallFade(mats, faded);
+  // the block is a unit cube standing on the floor, y up (pack_wall.py): turn it z-up and size it to the square
+  return <primitive object={block} rotation={[Math.PI / 2, 0, 0]} scale={[0.98 * S, WALL_H * H, 0.98 * S]} />;
+}
+
+/** An eye: a stone block with a glowing eye on its front (placeholder until the carved eye tile exists). */
+function EyeBlock({ faded, S, H }: { faded: boolean; S: number; H: number }) {
+  const stone = useMemo(() => new THREE.MeshStandardMaterial({ color: new THREE.Color(0.16, 0.16, 0.15), roughness: 0.95 }), []);
+  const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.25, 0.15) }), []);
+  useWallFade([stone, glow], faded);
   const h = WALL_H * H;
   return <>
     <mesh castShadow position={[0, 0, h / 2]} material={stone}><boxGeometry args={[0.94 * S, 0.94 * S, h]} /></mesh>
-    {eye && <mesh position={[0, -0.47 * S, h * 0.57]} material={glow}><sphereGeometry args={[0.14 * S, 20, 12]} /></mesh>}
+    <mesh position={[0, -0.47 * S, h * 0.57]} material={glow}><sphereGeometry args={[0.14 * S, 20, 12]} /></mesh>
   </>;
 }
 
@@ -243,7 +268,8 @@ function SquareMarks({ sq, S, H, faded = false }: { sq: DioramaSquare; S: number
   const out: ReactNode[] = [];
   switch (sq.kind) {
     case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
-    case "wall": case "eye": out.push(<Wall key="w" eye={sq.kind === "eye"} faded={faded} S={S} H={H} />); break;
+    case "wall": out.push(<Wall key="w" faded={faded} S={S} H={H} />); break;
+    case "eye": out.push(<EyeBlock key="w" faded={faded} S={S} H={H} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
     case "trapdoor": out.push(plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td"), ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")); break;
     case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;

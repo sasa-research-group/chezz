@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { WALL_FADE, fadeStep, fadedWalls } from '../src/diorama/walls'
+import { WALL_GLB, WALL_FADE, fadeStep, fadedWalls } from '../src/diorama/walls'
 
 describe('fadedWalls', () => {
   const squares = [{ x: 1, y: 2, kind: 'wall' }, { x: 3, y: 2, kind: 'eye' }, { x: 2, y: 2, kind: 'gate' }, { x: 0, y: 2 }]
@@ -28,3 +28,12 @@ describe('fadeStep', () => {
     expect(o).toBe(1)
   })
 })
+
+describe("wall model", () => {
+  it("ships a binary glTF at WALL_GLB", async () => {
+    const { readFileSync } = await import("node:fs");
+    const b = readFileSync(`public/${WALL_GLB}`);
+    expect(b.subarray(0, 4).toString()).toBe("glTF");
+    expect(b.length).toBeLessThan(4_000_000); // a web asset, not the raw 16 MB Meshy export
+  });
+});
