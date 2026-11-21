@@ -10,6 +10,6 @@ export KING_RIM=1100 KING_RIM_FIBONLY=1 RIM_PLAY=1 RIM_EL=8.5
 P=~/.dos/scratch/d84406ef/paid/out
 export TILE_GLB=$P/tile/model_glb__model.glb,$P/tile2/model_glb__model.glb TILE_VAL=0.5 TILE_FILL=1.05 TILE_JIT=1.6 JOINT_MOSS=1.8
 export NOCAPE=1 CHAR_GLB=${CHAR_GLB:-$P/guardrig/rigged_character_glb__rigged_character.glb}
-/Applications/Blender.app/Contents/MacOS/Blender -b --python "$HERE/bake_king_sprites.py" -- --out "$OUT" \
+"${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}" -b --python "$HERE/bake_king_sprites.py" -- --out "$OUT" \
   --res "${2:-3600}" --samples "${3:-256}" --only "${4:-0,1,2,3,4,5,6,7}" "${@:5}" 2>&1 \
-  | grep -E "Error|Traceback|File .*py|line [0-9]|CHECK|FIG|FELT|_SECONDS|CROP|RENDER_TOTAL|DONE"
+  | grep -E "Error|Traceback|File .*py|line [0-9]|CHECK|FIG|FELT|_SECONDS|CROP|RENDER_TOTAL|DONE|^GPU"
