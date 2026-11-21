@@ -4,6 +4,7 @@
 # idle. Metal crashes now and then: this reruns the bake (it resumes at the missing frames) until it finishes.
 SJ=${1:?strike.json}; OUT=${2:?out dir}
 HERE=$(cd "$(dirname "$0")" && pwd)
+source "$HERE/abspaths.sh" # relative GUARD/PROP/CHAR_GLB from the caller's folder, before the cd below
 SJ=$(cd "$(dirname "$SJ")" && pwd)/$(basename "$SJ")
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
 cd ~/.dos/scratch/d84406ef/stage || exit 1

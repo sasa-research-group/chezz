@@ -4,6 +4,8 @@
 # no crown spot (he has none). CHAR_GLB points the king bake at the guard's rig; GUARD/PROP as for the king.
 OUT=${1:?out dir}
 HERE=$(cd "$(dirname "$0")" && pwd)
+source "$HERE/abspaths.sh" # relative GUARD/PROP/CHAR_GLB from the caller's folder, before the cd below
+OUT=$(abspath "$OUT")
 cd ~/.dos/scratch/d84406ef/stage || exit 1
 source tools/base_r78.env
 export KING_RIM=1100 KING_RIM_FIBONLY=1 RIM_PLAY=1 RIM_EL=8.5

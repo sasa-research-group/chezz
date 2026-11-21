@@ -3,6 +3,8 @@
 # Bakes the still king in his sword guard, in the locked king look (as runbake.sh).
 GJ=${1:?guard.json}; SW=${2:?sword glb}; OUT=${3:?out dir}
 HERE=$(cd "$(dirname "$0")" && pwd)
+source "$HERE/abspaths.sh" # relative GUARD/PROP/CHAR_GLB from the caller's folder, before the cd below
+GJ=$(abspath "$GJ"); SW=$(abspath "$SW"); OUT=$(abspath "$OUT")
 cd ~/.dos/scratch/d84406ef/stage || exit 1
 source tools/base_r78.env
 export KING_RIM=1100 KING_RIM_FIBONLY=1 RIM_PLAY=1 RIM_EL=8.5 CROWN_RIM=2500 CROWN_EL=8.5
