@@ -32,14 +32,16 @@
 import bpy, sys, os, math, json, time, argparse
 import numpy as np
 from mathutils import Vector, Matrix, Quaternion
-# Metal: Cycles' default "full" kernel optimization compiles scene-specialised kernels in the background; on this
-# Mac those compiles ran MTLCompilerService out of memory (abort in operator new, 2026-11-18 and -20) and the GPU
-# reset took the render down ("InnocentVictim"). Not saved to the user's preferences. CYCLES_KOPT=FULL restores it.
+# CYCLES_KOPT=OFF|INTERSECT|FULL sets Cycles' Metal kernel optimization for this run (not saved). Unset: Blender's
+# default. The "full" background compiles ran MTLCompilerService out of memory (2026-11-18, -20), but the GPU
+# resets ("InnocentVictim") went on with OFF too, so it is not the fix.
 # Set after read_factory_settings, which resets the preferences.
 def light_kernels():
     try:
+        if not os.environ.get("CYCLES_KOPT"):
+            return
         _cp = bpy.context.preferences.addons["cycles"].preferences
-        _cp.kernel_optimization_level = os.environ.get("CYCLES_KOPT", "INTERSECT")
+        _cp.kernel_optimization_level = os.environ["CYCLES_KOPT"]
         print("CHECK cycles kernel optimization", _cp.kernel_optimization_level, flush=True)
     except Exception as _e:
         print("CHECK cycles kernel optimization not set:", _e, flush=True)
@@ -100,7 +102,8 @@ if a.death:
 poses = []
 if a.clip:
     km.fix_skirt(arm, body)
-    km.fix_cape(arm, body)
+    if not os.environ.get("NOCAPE"):  # the guard has no cape (its red-cloth test would catch his brown hair)
+        km.fix_cape(arm, body)
     poses = km.loop_poses(arm, frames=a.frames, **SHAPE)
     if os.environ.get("GUARD"):  # carrying the sword: the gait's legs under the idle guard's upper body
         _gp, GUARD_LOOP = km.load_guard(os.environ["GUARD"])
@@ -121,7 +124,7 @@ if os.environ.get("GUARD") and not a.clip:  # the idle guard with the sword (swo
     _gp, GUARD = km.load_guard(os.environ["GUARD"])
     km.apply_pose(arm, _gp)
 if a.clip:
-    for side in ("Left", "Right"):
+    for side in ("Left", "Right") if not os.environ.get("NOCAPE") else ():
         arm.pose.bones[side + "CapeArm"].rotation_quaternion = arm.pose.bones[side + "Arm"].rotation_quaternion.copy()
 bpy.context.view_layer.update()
 def under(o):
