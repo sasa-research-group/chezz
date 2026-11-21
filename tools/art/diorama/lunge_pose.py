@@ -21,25 +21,39 @@ FPS = 24
 # can't reach across to the idle's upright spear (spear_pose.py, right fist at (-0.36, -0.10, 0.80)), so the idle
 # cuts to this.
 GAP = 0.30
-READY = dict(spear=1, plen=2.0, pgrip=0.3, flen=0.10, fist=0.085, mitt=0.12, gap=GAP, gx=-0.05, gy=-0.25, gz=0.85,
+READY = dict(spear=1, plen=2.0, pgrip=0.14, flen=0.10, fist=0.085, mitt=0.12, gap=GAP, gx=-0.05, gy=-0.35, gz=0.85,
              tilt=-30, fwd=0, roll=0, slide=0.0, wrist=0.05, shoulder=10, hips=0.0, lean=0, chin=4,
              stance=0.2, stagger=0.0, twist=0, air=0, ahead=0, tuck=0, step=0)
-# the spear level at his hip, pointing ahead (-y; fwd=90 is level): the grip centre by his right hip
-LEVEL = dict(gx=-0.16, gy=0.02, gz=0.74, fwd=88, tilt=-6, slide=0.0, hips=0.08, lean=6, chin=6, stance=0.26, stagger=0.06, twist=-12)
+# 2026-11-21 (Wesley: "the spear clips into his body", with stills): his arms are short and his beard and belly
+# stick out, so a spear held level at chest height ran through his shoulder, arm and beard wherever his hands could
+# reach (strike_check.py, searched with a grid of grip placements). So he holds it low, at his belly beside the right
+# hip, under the beard, the point angled 25-35 deg in across him (tilt; a bladed spearman's stance; nearer
+# straight ahead it cut his thigh, arm or beard), and near the butt (READY's pgrip 0.14), so
+# almost no shaft is left behind his hands.
+# the spear level at his hip, pointing ahead (-y; fwd=90 is level)
+LEVEL = dict(gx=-0.20, gy=-0.10, gz=0.60, fwd=88, tilt=-36, slide=0.0, hips=0.08, lean=6, chin=6, stance=0.26, stagger=0.06, twist=-12)
 # drawn back: the shaft pulled back past his hip, the weight on the back foot, the chest turned away
-DRAW = dict(LEVEL, gy=0.16, gz=0.76, twist=-22, lean=2, hips=0.12, stagger=0.10)
-# the thrust: a long step in on the front (left) foot, the whole body behind it, the spear driven ahead level
+DRAW = dict(LEVEL, gx=-0.20, gy=-0.10, gz=0.60, twist=-22, lean=2, hips=0.12, stagger=0.10)
+# the thrust: a long step in on the front (left) foot, the whole body behind it, the spear driven ahead and a little up
 STEP = dict(step=0.22, ahead=0.24)
-THRUST = dict(LEVEL, gx=0.02, gy=-0.36, gz=0.80, gap=0.24, fwd=90, tilt=-2, twist=14, lean=24, chin=10, hips=0.16, stance=0.28, stagger=0.14,
+THRUST = dict(LEVEL, gx=-0.10, gy=-0.26, gz=0.54, gap=0.24, fwd=90, tilt=-26, twist=14, lean=24, chin=30, hips=0.16, stance=0.28, stagger=0.14,
               **STEP)
-HOLD = dict(THRUST, gy=-0.38, lean=26, hips=0.17, ahead=0.25)
+HOLD = dict(THRUST, gx=-0.07, tilt=-24, lean=26, hips=0.17, ahead=0.25)
+# between the chest carry (READY) and the hip, his hands take the grip out past his right hip, the butt angled out
+# to his right, so it passes outside him both ways (it swung through his hip and belly going straight)
+OUT_HIP = dict(LEVEL, gx=-0.21, gy=-0.14, gz=0.66, fwd=60, tilt=-28)
+PULL = dict(LEVEL, ahead=0.25)  # drawn back to the hip after the hold
+RAISE = dict(READY, gx=-0.16, gy=-0.25, gz=0.85, fwd=20, tilt=-38, ahead=0.25)  # coming up the right side
 KEYS = [
     (0, {}, "io"),
-    (5, LEVEL, "io"),
+    (3, OUT_HIP, "in"),
+    (5, LEVEL, "out"),
     (9, DRAW, "out"),
     (12, THRUST, "in"),  # the hit: the spear point arrives as the front foot lands
     (14, HOLD, "out"),
     (18, HOLD, "io"),
+    (21, PULL, "io"),
+    (24, RAISE, "io"),
     (27, dict(ahead=0.25), "io"),  # back to attention where he landed
 ]
 HIT = 12

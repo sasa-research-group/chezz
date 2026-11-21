@@ -47,12 +47,23 @@ def main():
             d = c - P0
             off = (d - ax * d.dot(ax)).length
             assert off < g["fists"][0]["gr"] + 0.04, (f, n, off)
-        if f == lp.HIT:  # the hit: the spear level and pointing ahead (-y), its head well in front of him
-            assert math.degrees(ax.angle(Vector((0, -1, 0)))) < 12, (f, ax)
+        if f == lp.HIT:  # the hit: the spear level, its head well in front of him, angled 15-35 deg in across his
+            # body toward his left (+x) (2026-11-21: held straight ahead it ran through his arm, thigh or beard)
+            assert abs(ax.z) < 0.1, (f, ax)
+            assert ax.x > 0 and 15 < math.degrees(ax.angle(Vector((0, -1, 0)))) < 35, (f, ax)
             assert min(c.y for c in co) < -1.0, min(c.y for c in co)
         if f == 0:  # ready: the head up at his left (+x), the shaft across his chest
             assert ax.z > 0.7 and ax.x > 0.3, ax
-    print("TEST lunge pose OK %d keys" % len(lp.KEYS))
+    # every frame of the whole lunge keeps the spear out of his body (strike_check.py's spear mode: only the fists
+    # and the hand and forearm bones are skipped; depth includes its 0.03 margin, so under 0.03 is a touch at most)
+    full = tempfile.mkdtemp()
+    r = subprocess.run(["python3", os.path.join(HERE, "lunge_pose.py"), full, "--jobs", "8"], capture_output=True, text=True)
+    assert os.path.exists(os.path.join(full, "strike.json")), r.stdout[-2000:] + r.stderr[-2000:]
+    r = subprocess.run([bpy.app.binary_path, "-b", "--python", os.path.join(HERE, "strike_check.py"), "--",
+                        os.path.join(full, "strike.json")], capture_output=True, text=True, env=lp.ENV)
+    worst = [l for l in r.stdout.splitlines() if l.startswith("CLIP_MAX")]
+    assert worst and float(worst[0].split()[1]) < 0.03, (worst, r.stdout[-1500:])
+    print("TEST lunge pose OK %d keys, %s" % (len(lp.KEYS), worst[0]))
 
 
 try:
