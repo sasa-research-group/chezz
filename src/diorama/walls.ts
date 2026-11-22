@@ -1,10 +1,10 @@
 // Walls on the board (Wesley 2026-11-21): a wall is a thin, low stone wall through the middle of its square (solid
 // blocks "look more like short mounds"), and walls next to each other join up into one wall. Its look is style B,
-// a ruined castle wall (2026-11-22): two 3D pieces, a short straight stretch and a pillar (pack_wall.py). Thin and about half a
+// a ruined castle wall (2026-11-22): two 3D pieces, a short straight stretch and a pillar (pack_wall.py). Thin and about two thirds of a
 // figure tall, it leaves a piece on the square behind it in view, so walls don't fade (dropped 2026-11-21).
 
 /** Wall height as a share of the set's figure height H (the king is about 1 H). */
-export const WALL_H = 0.45;
+export const WALL_H = 0.65;
 
 type At = { x: number; y: number };
 const BLOCKS = new Set(["wall", "eye"]);
@@ -16,9 +16,9 @@ export const WALL_SEG_GLB = "diorama/wall-seg.glb";
 export const WALL_HALF_GLB = "diorama/wall-half.glb";
 export const WALL_PIL_GLB = "diorama/wall-pil.glb";
 /** Wall thickness, as a share of a square. */
-export const WALL_T = 0.2;
+export const WALL_T = 0.26;
 /** Pillar width (a share of a square) and height (a share of the wall's). */
-export const PILLAR_W = 0.3, PILLAR_H = 1.3;
+export const PILLAR_W = 0.36, PILLAR_H = 1.25;
 /** Which way a wall's square runs out from its middle: l/r along the row, b = away from the camera (board y - 1),
  *  f = toward the camera (board y + 1). `open` lists the runs that stop at the square's edge without meeting a wall
  *  or the frame (a lone wall's two ends): they end in a pillar. */
