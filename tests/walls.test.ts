@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { WALL_T, wallArms, wallBricks } from '../src/diorama/walls'
+import { WALL_HALF_GLB, WALL_PIL_GLB, WALL_SEG_GLB, wallArms, wallPieces } from '../src/diorama/walls'
 
 describe('wallArms', () => {
   const sq = (x: number, y: number, kind?: string) => ({ x, y, kind })
   it('runs a lone wall across its square, left to right', () => {
-    expect(wallArms([sq(2, 2, 'wall')], 5, 5).get('2,2')).toEqual({ l: true, r: true, b: false, f: false })
+    expect(wallArms([sq(2, 2, 'wall')], 5, 5).get('2,2')).toEqual({ l: true, r: true, b: false, f: false, open: ['l', 'r'] })
   })
   it('joins walls next to each other, and to gates', () => {
     const m = wallArms([sq(1, 2, 'wall'), sq(2, 2, 'gate'), sq(3, 2, 'wall'), sq(1, 1, 'wall'), sq(1, 3, 'hole')], 5, 5)
@@ -20,28 +20,39 @@ describe('wallArms', () => {
   })
 })
 
-describe('wallBricks', () => {
-  const ext = (bs: ReturnType<typeof wallBricks>) => ({
-    x0: Math.min(...bs.map(b => b.x - b.sx / 2)), x1: Math.max(...bs.map(b => b.x + b.sx / 2)),
-    y0: Math.min(...bs.map(b => b.y - b.sy / 2)), y1: Math.max(...bs.map(b => b.y + b.sy / 2)),
+describe('wallPieces', () => {
+  const kinds = (ps: ReturnType<typeof wallPieces>) => ps.map(p => p.kind).sort().join(' ')
+  it('lays a straight run as one whole stretch and no pillar', () => {
+    expect(kinds(wallPieces({ l: true, r: true, b: false, f: false }, 1))).toBe('seg')
+    const [p] = wallPieces({ l: false, r: false, b: true, f: true }, 1)
+    expect(p.turn).toBeCloseTo(Math.PI / 2)
   })
-  it('lays a straight wall thin, edge to edge, with a moss cap and no pier', () => {
-    const bs = wallBricks({ l: true, r: true, b: false, f: false }, 1), e = ext(bs)
-    expect(e.x0).toBeCloseTo(-0.5); expect(e.x1).toBeCloseTo(0.5)
-    expect(e.y1).toBeLessThanOrEqual(WALL_T * 0.6)
-    expect(bs.filter(b => b.moss)).toHaveLength(1)
-    expect(Math.max(...bs.map(b => b.z + b.sz / 2))).toBeCloseTo(1)
+  it('puts a pillar where the wall turns, with half stretches cut end to the pillar', () => {
+    const ps = wallPieces({ l: false, r: true, b: true, f: false }, 1)
+    expect(kinds(ps)).toBe('half half pil')
+    const right = ps.find(p => p.x === 0.25)!, back = ps.find(p => p.y === 0.25)!
+    expect(right).toMatchObject({ turn: 0, mirror: true })
+    expect(back.turn).toBeCloseTo(Math.PI / 2); expect(back.mirror).toBe(true)
+    const ends = wallPieces({ l: true, r: false, b: false, f: true }, 1)
+    expect(ends.filter(p => p.kind === 'half').every(p => !p.mirror)).toBe(true)
   })
-  it('stops at a pier in the middle when the wall ends there', () => {
-    const e = ext(wallBricks({ l: false, r: true, b: false, f: false }, 1))
-    expect(e.x0).toBeGreaterThan(-0.2); expect(e.x1).toBeCloseTo(0.5)
-  })
-  it('turns a corner: runs right and away from the camera', () => {
-    const e = ext(wallBricks({ l: false, r: true, b: true, f: false }, 1))
-    expect(e.x1).toBeCloseTo(0.5); expect(e.y1).toBeCloseTo(0.5); expect(e.y0).toBeGreaterThan(-0.2)
+  it('ends a lone wall in a pillar on each open end', () => {
+    const ps = wallPieces({ l: true, r: true, b: false, f: false, open: ['l', 'r'] }, 1)
+    expect(kinds(ps)).toBe('pil pil seg')
   })
   it('looks the same for the same seed', () => {
-    const a = { l: true, r: true, b: false, f: false }
-    expect(wallBricks(a, 7)).toEqual(wallBricks(a, 7))
+    const a = { l: true, r: true, b: true, f: false }
+    expect(wallPieces(a, 7)).toEqual(wallPieces(a, 7))
+  })
+})
+
+describe('wall models', () => {
+  it('ships all three pieces as small binary glTF files', async () => {
+    const { readFileSync } = await import('node:fs')
+    for (const f of [WALL_SEG_GLB, WALL_HALF_GLB, WALL_PIL_GLB]) {
+      const b = readFileSync(`public/${f}`)
+      expect(b.subarray(0, 4).toString()).toBe('glTF')
+      expect(b.length).toBeLessThan(2_000_000)
+    }
   })
 })

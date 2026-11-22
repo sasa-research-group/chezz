@@ -13,9 +13,8 @@ import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { spriteFigure } from "./figures";
 export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { WALL_H, wallArms, wallBricks, type Arms } from "./walls";
+import { useGLTF } from "@react-three/drei";
+import { PILLAR_H, PILLAR_W, WALL_H, WALL_HALF_GLB, WALL_PIL_GLB, WALL_SEG_GLB, WALL_T, wallArms, wallPieces, type Arms } from "./walls";
 import { gameSpeed, hitTime, moving } from "./motion";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
@@ -209,29 +208,26 @@ export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; 
   /** Taken by a piece with no attack to play: it falls (or dies) at once instead of waiting for a blow. */ hitNow?: boolean };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
-/** A wall: a thin stone wall through the middle of the square, joined to the walls next to it (walls.ts). Each
- *  square's stones are one mesh with a colour per stone, and its moss cap another, so a board stays cheap. */
+/** A wall: a thin ruined castle wall through the middle of the square, joined to the walls next to it (walls.ts),
+ *  built from 3D pieces: a stretch that fills a square, its half, and a pillar. */
 function Wall({ arms, seed, S, H }: { arms: Arms; seed: number; S: number; H: number }) {
-  const { stoneGeo, mossGeo } = useMemo(() => {
-    const h = WALL_H * H, stones: THREE.BufferGeometry[] = [], moss: THREE.BufferGeometry[] = [];
-    const STONE = new THREE.Color(0.16, 0.155, 0.14), GREEN = new THREE.Color(0.07, 0.15, 0.03);
-    for (const b of wallBricks(arms, seed)) {
-      const w = b.sx * S, d = b.sy * S, t = b.sz * h;
-      const g = new RoundedBoxGeometry(w, d, t, 2, Math.min(w, d, t) * (b.moss ? 0.45 : 0.22));
-      g.translate(b.x * S, b.y * S, b.z * h);
-      const c = (b.moss ? GREEN : STONE).clone().multiplyScalar(b.tone), n = g.attributes.position.count;
-      g.setAttribute("color", new THREE.Float32BufferAttribute(Array.from({ length: n }, () => [c.r, c.g, c.b]).flat(), 3));
-      (b.moss ? moss : stones).push(g);
-    }
-    return { stoneGeo: mergeGeometries(stones), mossGeo: mergeGeometries(moss) };
-  }, [arms, seed, S, H]);
-  const stone = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), []);
-  const moss = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), []);
-  return <>
-    <mesh geometry={stoneGeo} material={stone} castShadow receiveShadow />
-    <mesh geometry={mossGeo} material={moss} castShadow receiveShadow />
-  </>;
+  const seg = useGLTF(WALL_SEG_GLB), half = useGLTF(WALL_HALF_GLB), pil = useGLTF(WALL_PIL_GLB);
+  const pieces = useMemo(() => wallPieces(arms, seed).map(p => {
+    const o = { seg, half, pil }[p.kind].scene.clone(true);
+    o.traverse(m => { if ((m as THREE.Mesh).isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    return { p, o };
+  }), [arms, seed, seg, half, pil]);
+  const h = WALL_H * H;
+  return <>{pieces.map(({ p, o }, i) =>
+    // the pieces are y-up unit boxes: stand them up in the z-up stage, then turn a front-to-back stretch
+    <group key={i} position={[p.x * S, p.y * S, 0]} rotation={[0, 0, p.turn]}>
+      <primitive object={o} rotation={[Math.PI / 2, 0, 0]}
+        scale={p.kind === "pil" ? [PILLAR_W * S, PILLAR_H * h, PILLAR_W * S] : [(p.mirror ? -1 : 1) * (p.kind === "seg" ? 1 : 0.5) * S, h, WALL_T * S]} />
+    </group>)}</>;
 }
+useGLTF.preload(WALL_SEG_GLB);
+useGLTF.preload(WALL_HALF_GLB);
+useGLTF.preload(WALL_PIL_GLB);
 
 /** An eye: a stone block with a glowing eye on its front (placeholder until the carved eye tile exists). */
 function EyeBlock({ S, H }: { S: number; H: number }) {

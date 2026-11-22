@@ -1,5 +1,6 @@
 // Walls on the board (Wesley 2026-11-21): a wall is a thin, low stone wall through the middle of its square (solid
-// blocks "look more like short mounds"), and walls next to each other join up into one wall. Thin and about half a
+// blocks "look more like short mounds"), and walls next to each other join up into one wall. Its look is style B,
+// a ruined castle wall (2026-11-22): two 3D pieces, a short straight stretch and a pillar (pack_wall.py). Thin and about half a
 // figure tall, it leaves a piece on the square behind it in view, so walls don't fade (dropped 2026-11-21).
 
 /** Wall height as a share of the set's figure height H (the king is about 1 H). */
@@ -8,11 +9,21 @@ export const WALL_H = 0.45;
 type At = { x: number; y: number };
 const BLOCKS = new Set(["wall", "eye"]);
 
+/** The pieces (tools/art/diorama/pack_wall.py): unit boxes standing on the floor, y up, front facing +z. The
+ *  stretch runs along x and fills a square; the half is its left half (the cut end at +x), for runs that meet a
+ *  pillar in the middle of the square. */
+export const WALL_SEG_GLB = "diorama/wall-seg.glb";
+export const WALL_HALF_GLB = "diorama/wall-half.glb";
+export const WALL_PIL_GLB = "diorama/wall-pil.glb";
 /** Wall thickness, as a share of a square. */
 export const WALL_T = 0.2;
+/** Pillar width (a share of a square) and height (a share of the wall's). */
+export const PILLAR_W = 0.3, PILLAR_H = 1.3;
 /** Which way a wall's square runs out from its middle: l/r along the row, b = away from the camera (board y - 1),
- *  f = toward the camera (board y + 1). */
-export type Arms = { l: boolean; r: boolean; b: boolean; f: boolean };
+ *  f = toward the camera (board y + 1). `open` lists the runs that stop at the square's edge without meeting a wall
+ *  or the frame (a lone wall's two ends): they end in a pillar. */
+export type Arms = { l: boolean; r: boolean; b: boolean; f: boolean; open?: Side[] };
+type Side = "l" | "r" | "b" | "f";
 /** Squares a wall joins up with: walls, eyes and gates (a gate is the doorway in a wall). */
 const LINKS = new Set(["wall", "eye", "gate", "gate-open"]);
 
@@ -24,20 +35,23 @@ export function wallArms(squares: (At & { kind?: string })[], w: number, h: numb
   const out = new Map<string, Arms>();
   for (const q of squares) {
     if (!q.kind || !BLOCKS.has(q.kind)) continue;
-    const a = { l: links(q.x - 1, q.y), r: links(q.x + 1, q.y), b: links(q.x, q.y - 1), f: links(q.x, q.y + 1) };
+    const a: Arms = { l: links(q.x - 1, q.y), r: links(q.x + 1, q.y), b: links(q.x, q.y - 1), f: links(q.x, q.y + 1) };
     if (a.r && q.x === 0) a.l = true;
     if (a.l && q.x === w - 1) a.r = true;
     if (a.f && q.y === 0) a.b = true;
     if (a.b && q.y === h - 1) a.f = true;
-    if (!a.l && !a.r && !a.b && !a.f) a.l = a.r = true;
+    if (!a.l && !a.r && !a.b && !a.f) {
+      a.l = a.r = true;
+      a.open = (["l", "r"] as Side[]).filter(s => s === "l" ? q.x > 0 : q.x < w - 1);
+    }
     out.set(`${q.x},${q.y}`, a);
   }
   return out;
 }
 
-/** One stone of a wall: centre and size, x/y in squares (x right, y away from the camera), z in wall heights;
- *  tone is a brightness for the stone; moss marks the cap on top. */
-export type Brick = { x: number; y: number; z: number; sx: number; sy: number; sz: number; tone: number; moss?: boolean };
+/** One piece of a wall: where it stands in its square (x right, y away from the camera, in squares), how it turns
+ *  (0: the stretch runs left to right; PI/2: front to back) and whether it is mirrored, for variety. */
+export type WallPiece = { kind: "seg" | "half" | "pil"; x: number; y: number; turn: number; mirror: boolean };
 
 /** A small seeded random (mulberry32), so a wall looks the same every time it is drawn. */
 function rand(seed: number) {
@@ -45,41 +59,22 @@ function rand(seed: number) {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-const COURSES = 3, BRICK = 0.25, GAP = 0.014, MOSS = 0.12;
-
-/** The stones of one wall square: courses of staggered stones along each run, a squared pier where the wall turns,
- *  branches or ends, and a cap of moss on top. */
-export function wallBricks(a: Arms, seed: number): Brick[] {
-  const r = rand(seed), out: Brick[] = [];
-  const pier = !((a.l && a.r && !a.b && !a.f) || (a.b && a.f && !a.l && !a.r));
-  const course = (1 - MOSS) / COURSES;
-  // a run along x (or y) from lo to hi, cut into stones on a grid that lines up across squares
-  const run = (lo: number, hi: number, alongX: boolean) => {
-    if (hi - lo < 1e-6) return;
-    for (let c = 0; c < COURSES; c++) {
-      const off = (c % 2) * BRICK / 2, cuts = [lo];
-      for (let k = Math.ceil((lo - off) / BRICK + 1e-6); off + k * BRICK < hi - 1e-6; k++) cuts.push(off + k * BRICK);
-      cuts.push(hi);
-      for (let i = 0; i + 1 < cuts.length; i++) {
-        const len = cuts[i + 1] - cuts[i] - GAP, mid = (cuts[i] + cuts[i + 1]) / 2;
-        if (len < 0.03) continue;
-        const t = WALL_T * (0.92 + 0.12 * r()), sz = course * (0.86 + 0.08 * r()), z = (c + 0.5) * course;
-        const b = { z, sz, tone: 0.7 + 0.6 * r(), x: 0, y: 0, sx: 0, sy: 0 };
-        out.push(alongX ? { ...b, x: mid, sx: len, sy: t } : { ...b, y: mid, sx: t, sy: len });
-      }
-    }
-    const m = { z: 1 - MOSS / 2, sz: MOSS, tone: 0.85 + 0.3 * r(), moss: true };
-    out.push(alongX ? { ...m, x: (lo + hi) / 2, y: 0, sx: hi - lo, sy: WALL_T * 1.12 } : { ...m, x: 0, y: (lo + hi) / 2, sx: WALL_T * 1.12, sy: hi - lo });
-  };
-  const P = pier ? WALL_T * 0.7 : 0; // runs stop at the pier's face
-  if (a.l && a.r && !pier) run(-0.5, 0.5, true);
-  else { if (a.l) run(-0.5, -P, true); if (a.r) run(P, 0.5, true); }
-  if (a.b) run(P, 0.5, false);
-  if (a.f) run(-0.5, -P, false);
-  if (pier) {
-    const pc = (1.08 - MOSS) / COURSES;
-    for (let c = 0; c < COURSES; c++) out.push({ x: 0, y: 0, z: (c + 0.5) * pc, sx: 2 * P * (0.95 + 0.06 * r()), sy: 2 * P * (0.95 + 0.06 * r()), sz: pc * 0.9, tone: 0.75 + 0.3 * r() });
-    out.push({ x: 0, y: 0, z: 1.08 - MOSS / 2, sx: 2 * P * 1.1, sy: 2 * P * 1.1, sz: MOSS, tone: 0.85 + 0.3 * r(), moss: true });
+/** The pieces of one wall square: a straight run is one whole stretch across the square; where the wall ends, turns
+ *  or branches, a pillar stands in the middle with a half stretch out to each side it runs to (the cut end at the
+ *  pillar); and a pillar stands at each open end. */
+export function wallPieces(a: Arms, seed: number): WallPiece[] {
+  const r = rand(seed), out: WallPiece[] = [];
+  const across = a.l && a.r && !a.b && !a.f, along = a.b && a.f && !a.l && !a.r;
+  if (across || along) out.push({ kind: "seg", x: 0, y: 0, turn: along ? Math.PI / 2 : 0, mirror: r() < 0.5 });
+  else {
+    // a half's cut end is at its +x: mirror the halves that run right or back so it lands on the pillar
+    if (a.l) out.push({ kind: "half", x: -0.25, y: 0, turn: 0, mirror: false });
+    if (a.r) out.push({ kind: "half", x: 0.25, y: 0, turn: 0, mirror: true });
+    if (a.b) out.push({ kind: "half", x: 0, y: 0.25, turn: Math.PI / 2, mirror: true });
+    if (a.f) out.push({ kind: "half", x: 0, y: -0.25, turn: Math.PI / 2, mirror: false });
+    out.push({ kind: "pil", x: 0, y: 0, turn: 0, mirror: false });
   }
+  const e = 0.5 - PILLAR_W / 2;
+  for (const s of a.open ?? []) out.push({ kind: "pil", x: s === "l" ? -e : s === "r" ? e : 0, y: s === "b" ? e : s === "f" ? -e : 0, turn: 0, mirror: false });
   return out;
 }
