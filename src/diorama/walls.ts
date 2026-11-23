@@ -20,18 +20,20 @@ export const WALL_T = 0.26;
 /** Pillar width (a share of a square) and height (a share of the wall's). */
 export const PILLAR_W = 0.36, PILLAR_H = 1.25;
 /** Which way a wall's square runs out from its middle: l/r along the row, b = away from the camera (board y - 1),
- *  f = toward the camera (board y + 1). `open` lists the runs that stop at the square's edge without meeting a wall
- *  or the frame (a lone wall's two ends): they end in a pillar. */
-export type Arms = { l: boolean; r: boolean; b: boolean; f: boolean; open?: Side[] };
+ *  f = toward the camera (board y + 1). `posts` lists the runs that end in a pillar at the square's edge: a lone
+ *  wall's two ends (unless the frame is there), and every side that meets a gate (gate posts, Wesley 2026-11-22). */
+export type Arms = { l: boolean; r: boolean; b: boolean; f: boolean; posts?: Side[] };
 type Side = "l" | "r" | "b" | "f";
 /** Squares a wall joins up with: walls, eyes and gates (a gate is the doorway in a wall). */
-const LINKS = new Set(["wall", "eye", "gate", "gate-open"]);
+const GATES = new Set(["gate", "gate-open"]);
+const LINKS = new Set(["wall", "eye", ...GATES]);
 
 /** How each wall square ("x,y") runs: toward every wall, eye or gate next to it. A wall that reaches the board's edge
  *  on one side runs into the frame; a wall with nothing next to it runs across its square, left to right. */
 export function wallArms(squares: (At & { kind?: string })[], w: number, h: number): Map<string, Arms> {
   const kind = new Map(squares.map(q => [`${q.x},${q.y}`, q.kind]));
   const links = (x: number, y: number) => LINKS.has(kind.get(`${x},${y}`) ?? "");
+  const gate = (x: number, y: number) => GATES.has(kind.get(`${x},${y}`) ?? "");
   const out = new Map<string, Arms>();
   for (const q of squares) {
     if (!q.kind || !BLOCKS.has(q.kind)) continue;
@@ -40,10 +42,18 @@ export function wallArms(squares: (At & { kind?: string })[], w: number, h: numb
     if (a.l && q.x === w - 1) a.r = true;
     if (a.f && q.y === 0) a.b = true;
     if (a.b && q.y === h - 1) a.f = true;
+    const posts: Side[] = [];
     if (!a.l && !a.r && !a.b && !a.f) {
       a.l = a.r = true;
-      a.open = (["l", "r"] as Side[]).filter(s => s === "l" ? q.x > 0 : q.x < w - 1);
+      if (q.x > 0) posts.push("l");
+      if (q.x < w - 1) posts.push("r");
+    } else {
+      if (gate(q.x - 1, q.y)) posts.push("l");
+      if (gate(q.x + 1, q.y)) posts.push("r");
+      if (gate(q.x, q.y - 1)) posts.push("b");
+      if (gate(q.x, q.y + 1)) posts.push("f");
     }
+    if (posts.length) a.posts = posts;
     out.set(`${q.x},${q.y}`, a);
   }
   return out;
@@ -61,7 +71,7 @@ function rand(seed: number) {
 
 /** The pieces of one wall square: a straight run is one whole stretch across the square; where the wall ends, turns
  *  or branches, a pillar stands in the middle with a half stretch out to each side it runs to (the cut end at the
- *  pillar); and a pillar stands at each open end. */
+ *  pillar); and a pillar stands at the edge for each of `posts` (a lone wall's ends, gate posts). */
 export function wallPieces(a: Arms, seed: number): WallPiece[] {
   const r = rand(seed), out: WallPiece[] = [];
   const across = a.l && a.r && !a.b && !a.f, along = a.b && a.f && !a.l && !a.r;
@@ -75,6 +85,6 @@ export function wallPieces(a: Arms, seed: number): WallPiece[] {
     out.push({ kind: "pil", x: 0, y: 0, turn: 0, mirror: false });
   }
   const e = 0.5 - PILLAR_W / 2;
-  for (const s of a.open ?? []) out.push({ kind: "pil", x: s === "l" ? -e : s === "r" ? e : 0, y: s === "b" ? e : s === "f" ? -e : 0, turn: 0, mirror: false });
+  for (const s of a.posts ?? []) out.push({ kind: "pil", x: s === "l" ? -e : s === "r" ? e : 0, y: s === "b" ? e : s === "f" ? -e : 0, turn: 0, mirror: false });
   return out;
 }
