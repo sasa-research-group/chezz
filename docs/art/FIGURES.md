@@ -18,7 +18,7 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
 | 4 3D model | `meshy/v7.1/multi-image-to-3d`, front + back only | ~$1.20 | render front/side/back/top next to the sheet |
 | 5 Rig + clips | `meshy/rigging/multi-animation`, same 10 clip ids as the king | ~$0.80 | `paid/clip_sheet.py` contact sheet |
 | 6 Prop | `meshy/v7.1/image-to-3d` from the prop picture | small | four views |
-| 7 Idle pose | `tools/art/diorama/guard_pose.py` (IK, clay fists, prop) | free | side by side with step 2; `strike_check.py` clean |
+| 7 Idle pose | `tools/art/diorama/guard_pose.py` (sword/spear guard) or `rook_pose.py` (prop on the shoulder): IK, clay fists, prop | free | side by side with step 2; `strike_check.py` clean |
 | 8 Felt bake | `bake_king_sprites.py` via `runguard.sh`, 8 headings | free | in game, game camera |
 | 9 Moves | hand-made keys (`strike_pose.py`, `lunge_pose.py`, `death_pose.py`) | free | `strike_check.py` on every frame |
 
@@ -44,6 +44,10 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   end) bent oddly and sank the fists into the body.
 - Run `strike_check.py` before showing a pose. It fails on a prop or fist inside the body.
 - Match the approved pose draft from the same camera, side by side, before showing it.
+- A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`
+  prints CLIP per part with the body part it hits; tune until CLIP_MAX is near 0 (the rook needed the handle
+  0.34 x height behind the right shoulder). The clip test needs two votes (nearest-face normal and a ray), or
+  it reports false clips.
 
 **Motion**
 - Library mocap is for walking only. Attacks, hits and deaths are hand-made keys.
