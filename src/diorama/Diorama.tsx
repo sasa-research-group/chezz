@@ -13,6 +13,8 @@ import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { spriteFigure } from "./figures";
 export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
+import { useGLTF } from "@react-three/drei";
+import { PILLAR_H, PILLAR_W, WALL_H, WALL_HALF_GLB, WALL_PIL_GLB, WALL_SEG_GLB, WALL_T, wallArms, wallPieces, type Arms } from "./walls";
 import { gameSpeed, hitTime, moving } from "./motion";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
@@ -206,7 +208,39 @@ export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; 
   /** Taken by a piece with no attack to play: it falls (or dies) at once instead of waiting for a blow. */ hitNow?: boolean };
 
 /** Flat tints and blocks for squares that are not plain floor yet (no 3D art for them so far). */
-function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) {
+/** A wall: a thin ruined castle wall through the middle of the square, joined to the walls next to it (walls.ts),
+ *  built from 3D pieces: a stretch that fills a square, its half, and a pillar. */
+function Wall({ arms, seed, S, H }: { arms: Arms; seed: number; S: number; H: number }) {
+  const seg = useGLTF(WALL_SEG_GLB), half = useGLTF(WALL_HALF_GLB), pil = useGLTF(WALL_PIL_GLB);
+  const pieces = useMemo(() => wallPieces(arms, seed).map(p => {
+    const o = { seg, half, pil }[p.kind].scene.clone(true);
+    o.traverse(m => { if ((m as THREE.Mesh).isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    return { p, o };
+  }), [arms, seed, seg, half, pil]);
+  const h = WALL_H * H;
+  return <>{pieces.map(({ p, o }, i) =>
+    // the pieces are y-up unit boxes: stand them up in the z-up stage, then turn a front-to-back stretch
+    <group key={i} position={[p.x * S, p.y * S, 0]} rotation={[0, 0, p.turn]}>
+      <primitive object={o} rotation={[Math.PI / 2, 0, 0]}
+        scale={p.kind === "pil" ? [PILLAR_W * S, PILLAR_H * h, PILLAR_W * S] : [(p.mirror ? -1 : 1) * (p.kind === "seg" ? 1 : 0.5) * S, h, WALL_T * S]} />
+    </group>)}</>;
+}
+useGLTF.preload(WALL_SEG_GLB);
+useGLTF.preload(WALL_HALF_GLB);
+useGLTF.preload(WALL_PIL_GLB);
+
+/** An eye: a stone block with a glowing eye on its front (placeholder until the carved eye tile exists). */
+function EyeBlock({ S, H }: { S: number; H: number }) {
+  const stone = useMemo(() => new THREE.MeshStandardMaterial({ color: new THREE.Color(0.16, 0.16, 0.15), roughness: 0.95 }), []);
+  const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.25, 0.15) }), []);
+  const h = WALL_H * H;
+  return <>
+    <mesh castShadow position={[0, 0, h / 2]} material={stone}><boxGeometry args={[0.94 * S, 0.94 * S, h]} /></mesh>
+    <mesh position={[0, -0.47 * S, h * 0.57]} material={glow}><sphereGeometry args={[0.14 * S, 20, 12]} /></mesh>
+  </>;
+}
+
+function SquareMarks({ sq, S, H, arms }: { sq: DioramaSquare; S: number; H: number; arms?: Arms }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -218,14 +252,11 @@ function SquareMarks({ sq, S, H }: { sq: DioramaSquare; S: number; H: number }) 
       <ringGeometry args={[r0 * S, r1 * S, 40]} />
       <meshBasicMaterial color={new THREE.Color(color).multiplyScalar(k)} transparent opacity={0.9} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
     </mesh>;
-  const stone = <meshStandardMaterial color={new THREE.Color(0.16, 0.16, 0.15)} roughness={0.95} />;
   const out: ReactNode[] = [];
   switch (sq.kind) {
     case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
-    case "wall": case "eye":
-      out.push(<mesh key="w" castShadow position={[0, 0, 0.3 * H]}><boxGeometry args={[0.94 * S, 0.94 * S, 0.6 * H]} />{stone}</mesh>);
-      if (sq.kind === "eye") out.push(<mesh key="e" position={[0, -0.47 * S, 0.34 * H]}><sphereGeometry args={[0.14 * S, 20, 12]} /><meshBasicMaterial color={new THREE.Color(2.2, 0.25, 0.15)} /></mesh>);
-      break;
+    case "wall": if (arms) out.push(<Wall key="w" arms={arms} seed={sq.x * 131 + sq.y * 7919} S={S} H={H} />); break;
+    case "eye": out.push(<EyeBlock key="w" S={S} H={H} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
     case "trapdoor": out.push(plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td"), ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")); break;
     case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;
@@ -334,6 +365,9 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
   const [hover, setHover] = useState(false);
   useEffect(() => { document.body.style.cursor = hover ? "pointer" : ""; return () => { document.body.style.cursor = ""; }; }, [hover]);
   const click = (x: number, y: number) => (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onSquare(x, y); };
+  const kinds = squares.map(q => `${q.x},${q.y}:${q.kind ?? ""}`).join(" ");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only the square kinds matter, not the marks on them
+  const arms = useMemo(() => wallArms(squares, w, h), [kinds, w, h]);
   return <>
     <PlayCamera data={data} w={w} h={h} />
     <Blender>
@@ -342,7 +376,7 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} />
+          <SquareMarks sq={sq} S={S} H={H} arms={arms.get(`${sq.x},${sq.y}`)} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
