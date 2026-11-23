@@ -32,7 +32,7 @@ K = dict(
     wdrop=0.045, wout=0.01, rfist=0.03, rgr=0.02,
     px=0.3, py=-0.3,  # left elbow pole (out, back) per unit down; a natural carry is px~0.2, py~-0.4
     dqs=1,         # 1 = Preserve Volume skinning, so a tight elbow fold squashes instead of caving in
-    hands=1, curl=-1.0, k0=60.0, span=185.0, t0=30.0, t1=-95.0, fw=0.58, vox=0.13, kb=0.0, kp=0.0, smooth=10,  # fingered hands (hands.py)
+    hands=1, curl=-1.0, k0=60.0, span=185.0, t0=30.0, t1=-95.0, fw=0.58, vox=0.13, kb=0.0, kp=0.0, smooth=10, fsx=1.3,  # fingered hands (hands.py)
     render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
@@ -167,7 +167,7 @@ def fist_for(side, F, grip_r, bone):
     f = dict(side=side, m=[list(r) for r in pbm.inverted() @ F], r=K["fist"] * H, len=K["flen"] * H, gr=grip_r, wrist=list(wl))
     if K["hands"]:  # separate fingers, felt skin (hands.py)
         import hands
-        hk = {k: K[k] for k in ("curl", "k0", "span", "t0", "t1", "fw", "vox", "kb", "kp", "smooth")}
+        hk = {k: K[k] for k in ("curl", "k0", "span", "t0", "t1", "fw", "vox", "kb", "kp", "smooth", "fsx")}
         return hands.attach_fingered_fists(arm, body, [f], bone, hk), f
     return km.attach_fists(arm, dict(fists=[f]), bone), f
 FL = Matrix((d, out.cross(d), out)).transposed().to_4x4(); FL.translation = G

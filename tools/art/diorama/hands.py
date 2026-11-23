@@ -67,12 +67,13 @@ def skin_material(rgb):
     return m
 
 
-def _tube(bm, pts, rads, seg=14):
+def _tube(bm, pts, rads, seg=14, ax=None, sx=1.0):
+    """a tube through pts; with ax given, the cross-section is an oval sx times wider along ax"""
     rings = []
     for i, p in enumerate(pts):
         t = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
-        a = t.orthogonal().normalized(); c = t.cross(a)
-        rings.append([bm.verts.new(p + rads[i] * (a * math.cos(k * 2 * math.pi / seg) + c * math.sin(k * 2 * math.pi / seg)))
+        a = (ax - t * ax.dot(t)).normalized() if ax is not None else t.orthogonal().normalized(); c = t.cross(a)
+        rings.append([bm.verts.new(p + rads[i] * (a * sx * math.cos(k * 2 * math.pi / seg) + c * math.sin(k * 2 * math.pi / seg)))
                       for k in range(seg)])
     for r0, r1 in zip(rings, rings[1:]):
         for k in range(seg):
@@ -81,6 +82,8 @@ def _tube(bm, pts, rads, seg=14):
     for p, r in ((pts[0], rads[0]), (pts[-1], rads[-1])):
         s = bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=10, radius=r)
         for v in s["verts"]:
+            if ax is not None:  # oval end caps to match
+                v.co += ax * v.co.dot(ax) * (sx - 1.0)
             v.co += p
 
 
@@ -135,7 +138,7 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
                 rr = fr * thick[k] * (1.0 + bump - 0.18 * max(0.0, u - 0.8) / 0.2)
                 rad_c = R + (fr * K.get("kp", 0.0) if u < 0.12 else 0.0) * (1 - u / 0.12)  # the first knuckle sits proud of the grip
                 pts.append(at(x, th, rad_c + rr - fr)); rads.append(rr)
-            _tube(bm, pts, rads)
+            _tube(bm, pts, rads, ax=Vector((1, 0, 0)), sx=K.get("fsx", 1.0))
         # thumb: from the index end of the palm, over the index and middle fingers' middle segments
         tx0 = xs * (L / 2 + fr * 0.2)
         th0 = thw - sg * math.radians(K.get("t0", 30))
