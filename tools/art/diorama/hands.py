@@ -104,7 +104,8 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
     out = []
     for f in fists:
         L = f["len"]
-        gr = f["gr"]
+        # an empty fist closes tight: round a handle-sized grip it looks like it holds a tube (Wesley, 2026-11-23)
+        gr = f["gr"] * (K.get("empty_gr", 0.3) if f.get("solid") else 1.0)
         ft = L / 4.0                         # one finger's share of the grip length
         fr = ft * K.get("fw", 0.43)          # finger radius (leaves a small gap between fingers)
         R = gr + fr * 1.02                   # finger centreline radius round the grip axis
@@ -152,8 +153,9 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
             pts.append(at(x, th, R + fr * (0.9 + 0.6 * math.sin(math.pi * u)))); rads.append(fr * 1.05 * (1.0 - 0.15 * u + K.get("kb", 0.0) * 0.8 * math.exp(-((u - 0.5) / 0.08) ** 2)))
         _tube(bm, pts, rads)
         if f.get("solid"):  # an empty fist: fill the hole the grip would leave, or it shows as a ring
-            core = [Vector((xs * (L / 2 - ft * 0.3) * (1 - 2 * k / 8), 0, 0)) for k in range(9)]
-            _tube(bm, core, [gr + fr * 0.9] * 9)
+            # only between the index and pinky centres, so its ends stay inside the fingers (no tube end showing)
+            core = [Vector((xs * (L / 2 - ft * 0.6) * (1 - 2 * k / 8), 0, 0)) for k in range(9)]
+            _tube(bm, core, [gr + fr * 0.6] * 9)
         # wrist: from inside the palm pad to the forearm's end
         p0 = pc - nrm * fr * 0.3; p1 = wr
         n = max(3, int((p1 - p0).length / (ft * 0.5)))
@@ -177,7 +179,7 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
     return out
 
 
-HAND_KNOBS = ("curl", "k0", "span", "t0", "t1", "fw", "vox", "kb", "kp", "smooth", "fsx")
+HAND_KNOBS = ("empty_gr", "curl", "k0", "span", "t0", "t1", "fw", "vox", "kb", "kp", "smooth", "fsx")
 
 
 def fist_bone(f):

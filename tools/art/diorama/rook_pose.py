@@ -32,7 +32,7 @@ K = dict(
     wdrop=0.045, wout=0.01, rfist=0.03, rgr=0.02,
     px=0.3, py=-0.3,  # left elbow pole (out, back) per unit down; a natural carry is px~0.2, py~-0.4
     dqs=1,         # 1 = Preserve Volume skinning, so a tight elbow fold squashes instead of caving in
-    hands=1, curl=-1.0, k0=60.0, span=185.0, t0=30.0, t1=-95.0, fw=0.58, vox=0.13, kb=0.0, kp=0.0, smooth=10, fsx=1.3,  # fingered hands (hands.py)
+    hands=1, empty_gr=0.3, curl=-1.0, k0=60.0, span=185.0, t0=30.0, t1=-95.0, fw=0.58, vox=0.13, kb=0.0, kp=0.0, smooth=10, fsx=1.3,  # fingered hands (hands.py)
     render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)

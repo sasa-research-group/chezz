@@ -24,7 +24,12 @@ def fist(solid):
     bvh = BVHTree.FromObject(o, dg)
     # a ray along the grip, inside the hole on the fingers' side (the wrist is on -z), in the fist's own frame
     c = Vector((0, 0, 0.5 * f["gr"]))
-    return bvh.ray_cast(c + Vector((-1, 0, 0)), Vector((1, 0, 0)), 2.0)[0]
+    hit = bvh.ray_cast(c + Vector((-1, 0, 0)), Vector((1, 0, 0)), 2.0)[0]
+    fist.size[solid] = o.dimensions.y  # thickness across the grip
+    return hit
+
+
+fist.size = {}
 
 
 def skin():
@@ -61,6 +66,8 @@ def skin():
 def main():
     assert fist(True) is not None, "the empty fist has a hole through it"
     assert fist(False) is None, "the fist round a handle lost its hole"
+    # an empty fist closes tight, or it looks like it holds a tube (empty_gr)
+    assert fist.size[True] < 0.85 * fist.size[False], "the empty fist is as big as one round a handle: %r" % fist.size
     assert hands.fist_bone(dict(side="Left")) == "LeftForeArm"
     assert hands.fist_bone(dict(side="Left", bone="LeftHand")) == "LeftHand"
     skin()
