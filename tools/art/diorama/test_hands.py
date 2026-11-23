@@ -1,5 +1,6 @@
 # Headless check of hands.py: an empty ("solid") fist has no hole through it along the grip, a fist round a handle
-# keeps its hole, and fist_bone falls back to the side's forearm.
+# keeps its hole, fist_bone falls back to the side's forearm, and a hand wears the body's skin (skin_uv picks a pink
+# arm pixel, wear_body_skin puts every hand UV on it).
 #   Blender -b --python test_hands.py
 import bpy, os, sys
 from mathutils import Vector
@@ -26,11 +27,43 @@ def fist(solid):
     return bvh.ray_cast(c + Vector((-1, 0, 0)), Vector((1, 0, 0)), 2.0)[0]
 
 
+def skin():
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    me = bpy.data.meshes.new("body")  # two quads: one mapped onto the pink half of the texture, one onto the grey
+    me.from_pydata([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (2, 0, 0), (2, 1, 0)], [], [(0, 1, 2, 3), (1, 4, 5, 2)])
+    lay = me.uv_layers.new(name="UVMap")
+    uv = {0: (0.1, 0.1), 1: (0.4, 0.1), 2: (0.4, 0.9), 3: (0.1, 0.9), 4: (0.9, 0.1), 5: (0.9, 0.9)}
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            vi = me.loops[li].vertex_index
+            lay.data[li].uv = uv[vi] if poly.index == 0 or vi in (4, 5) else (0.6 + 0.1 * (vi == 2), 0.5)
+    body = bpy.data.objects.new("body", me); bpy.context.scene.collection.objects.link(body)
+    body.vertex_groups.new(name="LeftArm").add(list(range(6)), 1.0, "REPLACE")
+    img = bpy.data.images.new("tex", 4, 2)
+    px = []
+    for y in range(2):
+        for x in range(4):
+            px += [0.9, 0.6, 0.55, 1.0] if x < 2 else [0.5, 0.5, 0.5, 1.0]
+    img.pixels[:] = px
+    mat = bpy.data.materials.new("skin"); mat.use_nodes = True
+    mat.node_tree.nodes.new("ShaderNodeTexImage").image = img
+    me.materials.append(mat)
+    u, v = hands.skin_uv(body, groups=("LeftArm",))
+    assert u < 0.5, "skin_uv picked a grey pixel, not the pink arm skin: %r" % ((u, v),)
+    bpy.ops.mesh.primitive_cube_add()
+    hand = bpy.context.object
+    hands.wear_body_skin(hand, mat, (u, v))
+    assert list(hand.data.materials) == [mat], "the hand does not wear the body's material"
+    uvs = [tuple(round(c, 5) for c in d.uv) for d in hand.data.uv_layers.active.data]
+    assert set(uvs) == {(round(u, 5), round(v, 5))}, "the hand's UVs are not all on the skin pixel"
+
+
 def main():
     assert fist(True) is not None, "the empty fist has a hole through it"
     assert fist(False) is None, "the fist round a handle lost its hole"
     assert hands.fist_bone(dict(side="Left")) == "LeftForeArm"
     assert hands.fist_bone(dict(side="Left", bone="LeftHand")) == "LeftHand"
+    skin()
     print("test_hands OK")
 
 

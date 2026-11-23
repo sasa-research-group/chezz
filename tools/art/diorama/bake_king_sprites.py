@@ -160,6 +160,9 @@ os.environ["STAGE_NOCOMP"] = "1"  # bloom, grade, vignette and grain run in the 
 sc = bpy.context.scene
 t = time.time()
 stage.build_stage(sc, H, center=(0, 0), board=5)
+SKIN_MAT = None
+if os.environ.get("GUARD") and "hammer_in_forearm" in json.load(open(os.environ["GUARD"])):
+    SKIN_MAT = body.material_slots[0].material.copy()  # the hands' felt skin: the body's material, before clay_ify
 stage.clay_ify(arm)
 binder = None
 if STRIKE:  # the tunic hem follows the thighs; in his crouch it swung through the floor (king_motion.fix_skirt)
@@ -203,9 +206,48 @@ if os.environ.get("PROP") and GUARD is not None and "hammer_in_forearm" in GUARD
         if md.type == "ARMATURE":  # the shoulder carry's tight elbow keeps its volume (FIGURES.md)
             md.use_deform_preserve_volume = bool(GUARD.get("knobs", {}).get("dqs", 0))
     pr, _hs = hands.attach_carried(arm, body, os.environ["PROP"], GUARD)
-    for o_ in [pr] + _hs:
-        for s_ in o_.material_slots:
-            stage._clay_material(s_.material, stage._local_dims_world(o_), H, 1.0, 1.0)
+    for s_ in pr.material_slots:
+        stage._clay_material(s_.material, stage._local_dims_world(pr), H, 1.0, 1.0)
+    # the hands wear the body's own skin (same felt, tone and fibres as his arms). The body's height cuts (crown,
+    # collar, jewels) would hit a small hand by its own height, and a second rim light would double the rim: off here
+    _off = ("KCROWN_Z", "COLLAR_Z", "SKIN_HMAX", "CROWN_ALL", "FUR_CROWN_Z", "JEWEL_Z", "KING_RIM")
+    _saved = {k: os.environ.pop(k) for k in _off if k in os.environ}
+    os.environ["KCROWN_Z"] = os.environ["FUR_CROWN_Z"] = "9"
+    _uv = hands.skin_uv(body)
+    _hm = stage._clay_material(SKIN_MAT, stage._local_dims_world(body), H, 1.0, 1.0) or SKIN_MAT
+    for h_ in _hs:
+        hands.wear_body_skin(h_, SKIN_MAT, _uv)
+        if os.environ.get("KING_FUR"):
+            _before = set(bpy.data.objects)
+            # as dense as on his body: the fibre counts are per figure, so scale them by the hand's share of the area
+            def _area(o_):
+                sc_ = o_.matrix_world.to_scale()
+                return sum(p_.area for p_ in o_.data.polygons) * abs(sc_[0] * sc_[1])
+            _frac = _area(h_) / max(1e-9, _area(body) * 0.72)  # ~72% of his surface is felt (cloth and skin)
+            _n0 = {k: os.environ.get(k) for k in ("KING_FIBRES", "FLY_N", "FIB_L", "FLY_L", "SHELL_L")}
+            for k, d_ in (("KING_FIBRES", 120000), ("FLY_N", 900)):
+                os.environ[k] = str(max(1, int(float(_n0[k] or d_) * _frac)))
+            # lengths are per figure height too: body-length fibres turn a small hand into a pom-pom (felt/close5),
+            # so the hand's nap is HAND_FIB_K as long and it keeps only HAND_FLY of its share of stray hairs
+            _hk = float(os.environ.get("HAND_FIB_K", 0.4))
+            for k, d_ in (("FIB_L", 0.025), ("FLY_L", 0.07), ("SHELL_L", 0.008)):
+                os.environ[k] = str(float(_n0[k] or d_) * _hk)
+            os.environ["FLY_N"] = str(int(int(os.environ["FLY_N"]) * float(os.environ.get("HAND_FLY", 0.2))))
+            print("CHECK hand %s felt share %.3f fibres %s fly %s" % (h_.name, _frac, os.environ["KING_FIBRES"], os.environ["FLY_N"]), flush=True)
+            stage._felt_fur(h_, H)
+            for k, v_ in _n0.items():
+                if v_ is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v_
+            _rc = bpy.data.collections.get("KingRimRecv")
+            for o_ in set(bpy.data.objects) - _before:  # the hand's fibres and shells catch the body's rim light
+                if _rc is not None and o_.name not in _rc.objects:
+                    _rc.objects.link(o_)
+    for k in ("KCROWN_Z", "FUR_CROWN_Z"):
+        os.environ.pop(k, None)
+    os.environ.update(_saved)
+    print("CHECK hands wear body skin at uv", tuple(round(x, 3) for x in _uv), flush=True)
     print("CHECK carried prop", pr.name, tuple(round(x, 3) for x in pr.matrix_world.translation), len(_hs), "hands", flush=True)
 elif os.environ.get("PROP") and GUARD is not None:  # after clay_ify: the sword is clay, not felt
     pr = km.attach_held(arm, os.environ["PROP"], GUARD)

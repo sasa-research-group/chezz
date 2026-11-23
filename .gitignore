@@ -12,3 +12,4 @@ artifacts/
 
 # generated art, see docs/art/PAINTED.md
 art-out/
+__pycache__/

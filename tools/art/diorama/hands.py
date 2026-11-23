@@ -211,3 +211,35 @@ def attach_carried(arm, body, path, g):
         hs += attach_fingered_fists(arm, body, [f], fist_bone(f), hk)
     bpy.context.view_layer.update()
     return pr, hs
+
+
+def skin_uv(body, groups=("LeftArm", "RightArm", "LeftForeArm", "RightForeArm")):
+    """a UV on the body's base texture whose colour is the arms' typical skin (the pink median of arm_skin),
+    so a separate hand mesh can wear the body's own material and come out the same felt as the arms"""
+    mat = body.data.materials[0]
+    img = next(n.image for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and n.image
+               and n.image.colorspace_settings.name.lower().startswith("srgb"))
+    W, H = img.size
+    px = np.array(img.pixels[:]).reshape(H, W, -1)[:, :, :3]
+    gi = {g.index for g in body.vertex_groups if g.name in groups}
+    uvd = body.data.uv_layers.active.data
+    uvs, cols = [], []
+    for poly in body.data.polygons:
+        for li in poly.loop_indices:
+            vi = body.data.loops[li].vertex_index
+            if any(ge.group in gi and ge.weight > 0.8 for ge in body.data.vertices[vi].groups):
+                u, v = uvd[li].uv
+                uvs.append((u, v)); cols.append(px[min(H - 1, int(v * H)) % H, min(W - 1, int(u * W)) % W])
+    cs = np.array(cols)
+    pink = (cs[:, 0] > cs[:, 1] + 0.05) & (cs[:, 1] > cs[:, 2]) & (cs[:, 0] > 0.45)
+    med = np.median(cs[pink], 0)
+    d = np.linalg.norm(cs - med, axis=1) + np.where(pink, 0.0, 9.0)
+    return tuple(float(x) for x in uvs[int(np.argmin(d))])
+
+
+def wear_body_skin(hand, mat, uv):
+    """give a hand mesh `mat` (a copy of the body's material) with every UV on the skin pixel `uv`"""
+    me = hand.data
+    me.materials.clear(); me.materials.append(mat)
+    lay = me.uv_layers.new(name="UVMap") if not me.uv_layers else me.uv_layers.active
+    lay.data.foreach_set("uv", list(uv) * len(lay.data))

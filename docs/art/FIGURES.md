@@ -68,6 +68,11 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   `Blender -b --python felt_closeup.py -- scene.blend outdir` renders the hands (or `objs=...`) with the bake's own
   lights and materials (~2 min on the GPU). The felt test caught an empty fist with a hole through it that the
   EEVEE views hid: an empty fist needs `solid` (hands.py fills the grip's hole).
+- Separate hand meshes wear the body's own skin material (hands.skin_uv + wear_body_skin), so they match the arms.
+  Felt settings are per figure: fibre counts and lengths scale with the whole body. On a small separate mesh, scale
+  the count by its share of the area and shorten the nap (HAND_FIB_K 0.4, HAND_FLY 0.2), or the hand turns into a
+  fuzzy pom-pom with stray hairs (rook felt/close5). Body height cuts (crown, collar, jewels) misfire on a hand: off.
+- Pink felt skin (the rook, 2026-11-23): SKIN_FELT=1 in stage.py (scratch) puts fibres and the felt surface on skin.
 - Match the approved pose draft from the same camera, side by side, before showing it.
 - A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`
   prints CLIP per part with the body part it hits; tune until CLIP_MAX is near 0 (the rook needed the handle

@@ -11,6 +11,8 @@ source tools/base_r78.env
 export KING_RIM=1100 KING_RIM_FIBONLY=1 RIM_PLAY=1 RIM_EL=8.5
 P=~/.dos/scratch/d84406ef/paid/out
 export TILE_GLB=$P/tile/model_glb__model.glb,$P/tile2/model_glb__model.glb TILE_VAL=0.5 TILE_FILL=1.05 TILE_JIT=1.6 JOINT_MOSS=1.8
+# his skin is pink felt like the mockup (Wesley 2026-11-23): fuzz on skin, a warmer tone than the king's peach clay
+export SKIN_FELT=1 FELT_SKIN=0 KSKIN_SAT=${ROOK_SAT:-1.0} KSKIN_VAL=${ROOK_VAL:-0.95} KSKIN_HUE=${ROOK_HUE:--0.03}
 export NOCAPE=1 CHAR_GLB=${CHAR_GLB:-$P/rook2rig/rigged_character_glb__rigged_character.glb}
 export GUARD="$GJ" PROP=${PROP:-$P/hammer/model_glb__model.glb}
 "${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}" -b --python "$HERE/bake_king_sprites.py" -- --out "$OUT" \
