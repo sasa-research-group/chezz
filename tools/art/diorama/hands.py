@@ -151,6 +151,9 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
             x = tx0 - xs * ft * 1.5 * u
             pts.append(at(x, th, R + fr * (0.9 + 0.6 * math.sin(math.pi * u)))); rads.append(fr * 1.05 * (1.0 - 0.15 * u + K.get("kb", 0.0) * 0.8 * math.exp(-((u - 0.5) / 0.08) ** 2)))
         _tube(bm, pts, rads)
+        if f.get("solid"):  # an empty fist: fill the hole the grip would leave, or it shows as a ring
+            core = [Vector((xs * (L / 2 - ft * 0.3) * (1 - 2 * k / 8), 0, 0)) for k in range(9)]
+            _tube(bm, core, [gr + fr * 0.9] * 9)
         # wrist: from inside the palm pad to the forearm's end
         p0 = pc - nrm * fr * 0.3; p1 = wr
         n = max(3, int((p1 - p0).length / (ft * 0.5)))
@@ -172,3 +175,39 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
         out.append(o)
     bpy.context.view_layer.update()
     return out
+
+
+HAND_KNOBS = ("curl", "k0", "span", "t0", "t1", "fw", "vox", "kb", "kp", "smooth", "fsx")
+
+
+def fist_bone(f):
+    """the bone a fist is stored against: its own "bone", else the forearm of its side"""
+    return f.get("bone") or f["side"] + "ForeArm"
+
+
+def attach_carried(arm, body, path, g):
+    """The bake's side of rook_pose.py: put the carried prop (g["hammer_in_forearm"], relative to g["hammer_bone"])
+    and the fingered fists back on a figure posed with g["pose"]. The prop glb is imported and its mesh baked to
+    world exactly as rook_pose.py does, so the stored matrix fits it. Returns (prop, [hands])."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    pr = next(o for o in new if o.type == "MESH")
+    pr.parent = None
+    pr.data.transform(pr.matrix_world); pr.matrix_world = Matrix.Identity(4)
+    for o in new:
+        if o is not pr:
+            bpy.data.objects.remove(o)
+    bpy.context.view_layer.update()
+    bone = g.get("hammer_bone", "LeftForeArm")
+    mw = arm.matrix_world @ arm.pose.bones[bone].matrix @ Matrix(g["hammer_in_forearm"])
+    pr.parent = arm; pr.parent_type = "BONE"; pr.parent_bone = bone
+    pr.matrix_world = mw
+    pr.name = "held_prop"
+    kn = g.get("knobs", {})
+    hk = {k: kn[k] for k in HAND_KNOBS if k in kn}
+    hs = []
+    for f in g["fists"]:
+        hs += attach_fingered_fists(arm, body, [f], fist_bone(f), hk)
+    bpy.context.view_layer.update()
+    return pr, hs

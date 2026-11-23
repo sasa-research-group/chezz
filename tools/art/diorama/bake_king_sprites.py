@@ -197,7 +197,17 @@ def pose(i):
         binder.update()
 if a.clip or STRIKE:
     pose(0)
-if os.environ.get("PROP") and GUARD is not None:  # after clay_ify: the sword is clay, not felt
+if os.environ.get("PROP") and GUARD is not None and "hammer_in_forearm" in GUARD:  # rook_pose.py: a carried prop
+    import hands  # and fingered fists, clay like the king's (after clay_ify, as the sword below)
+    for md in body.modifiers:
+        if md.type == "ARMATURE":  # the shoulder carry's tight elbow keeps its volume (FIGURES.md)
+            md.use_deform_preserve_volume = bool(GUARD.get("knobs", {}).get("dqs", 0))
+    pr, _hs = hands.attach_carried(arm, body, os.environ["PROP"], GUARD)
+    for o_ in [pr] + _hs:
+        for s_ in o_.material_slots:
+            stage._clay_material(s_.material, stage._local_dims_world(o_), H, 1.0, 1.0)
+    print("CHECK carried prop", pr.name, tuple(round(x, 3) for x in pr.matrix_world.translation), len(_hs), "hands", flush=True)
+elif os.environ.get("PROP") and GUARD is not None:  # after clay_ify: the sword is clay, not felt
     pr = km.attach_held(arm, os.environ["PROP"], GUARD)
     for o_ in [pr] + [o for o in bpy.data.objects if o.name.startswith("fist_")]:
         for s_ in o_.material_slots:
@@ -350,6 +360,10 @@ expo = 2.0 ** float(os.environ.get("EXPO", 0))
 only = [int(k) for k in a.only.split(",") if k != ""] or list(range(8))
 times = {}
 jobs = [(k, i) for k in only for i in range(len(poses))] if a.clip or STRIKE else [(k, None) for k in only]
+if os.environ.get("SAVE_BLEND"):  # the built scene at the first heading, for close-ups (felt_closeup.py)
+    heading(only[0])
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(os.environ["SAVE_BLEND"]))
+    print("CHECK saved", os.environ["SAVE_BLEND"], flush=True)
 for k, i in jobs:
     tag = "%d" % k if i is None else "%d_%02d" % (k, i)
     png = os.path.join(a.out, "%s%s.png" % (NAME, tag))

@@ -161,13 +161,13 @@ gr = float(np.median(np.linalg.norm((co[near] - ctr)[:, oth], axis=1))) * S  # h
 print("HANDLE radius %.4f length %.3f" % (gr, K["plen"] * H), flush=True)
 
 # --- clay fists: left round the handle, right closed on nothing (a tiny grip) along the forearm
-def fist_for(side, F, grip_r, bone):
+def fist_for(side, F, grip_r, bone, solid=False):
     pbm = MW @ arm.pose.bones[bone].matrix
     wl = F.inverted() @ (MW @ arm.pose.bones[side + "Hand"].head)
-    f = dict(side=side, m=[list(r) for r in pbm.inverted() @ F], r=K["fist"] * H, len=K["flen"] * H, gr=grip_r, wrist=list(wl))
+    f = dict(side=side, bone=bone, m=[list(r) for r in pbm.inverted() @ F], r=K["fist"] * H, len=K["flen"] * H, gr=grip_r, wrist=list(wl), solid=solid)
     if K["hands"]:  # separate fingers, felt skin (hands.py)
         import hands
-        hk = {k: K[k] for k in ("curl", "k0", "span", "t0", "t1", "fw", "vox", "kb", "kp", "smooth", "fsx")}
+        hk = {k: K[k] for k in hands.HAND_KNOBS}
         return hands.attach_fingered_fists(arm, body, [f], bone, hk), f
     return km.attach_fists(arm, dict(fists=[f]), bone), f
 FL = Matrix((d, out.cross(d), out)).transposed().to_4x4(); FL.translation = G
@@ -178,7 +178,7 @@ fa = (W("RightHand") - W("RightForeArm")).normalized()
 fx = Vector((0, -1, 0)); fx = (fx - fa * fx.dot(fa)).normalized()
 FR = Matrix((fx, fa.cross(fx), -fa)).transposed().to_4x4()
 FR.translation = W("RightHand") + fa * K["rfist"] * H
-fr_objs, fr = fist_for("Right", FR, K["rgr"] * H, "RightForeArm")
+fr_objs, fr = fist_for("Right", FR, K["rgr"] * H, "RightForeArm", solid=True)  # closed on nothing
 json.dump(dict(knobs=K, height=H, pose={pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones},
                hammer_in_forearm=[list(r) for r in (MW @ arm.pose.bones["LeftForeArm"].matrix).inverted() @ ham.matrix_world],
                hammer_bone="LeftForeArm", fists=[fl, fr]), open(os.path.join(OUT, "rook_pose.json"), "w"), indent=1)

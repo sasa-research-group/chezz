@@ -63,6 +63,11 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   against each other: give each finger an oval cross-section wider along the grip (`fsx` 1.3) so only a shallow
   crease remains. 1.5 merges them into a mitten.
 - Render close-ups of feet, elbows, both hands and a hanging arm next to the same crop of the mockup before showing.
+- Judge close-ups in the final felt look, not the stand-in EEVEE shader: a quick one-heading bake with
+  `SAVE_BLEND=scene.blend` (e.g. `runrook.sh pose.json out 2400 128 0`), then
+  `Blender -b --python felt_closeup.py -- scene.blend outdir` renders the hands (or `objs=...`) with the bake's own
+  lights and materials (~2 min on the GPU). The felt test caught an empty fist with a hole through it that the
+  EEVEE views hid: an empty fist needs `solid` (hands.py fills the grip's hole).
 - Match the approved pose draft from the same camera, side by side, before showing it.
 - A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`
   prints CLIP per part with the body part it hits; tune until CLIP_MAX is near 0 (the rook needed the handle
