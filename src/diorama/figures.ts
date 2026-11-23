@@ -5,6 +5,9 @@ export const SPRITE_FIGURES: Record<string, string> = {
   "white king": "king",
   // The patrol guard (enemy pawn): idle, walk, the two-handed spear lunge (strike) and his death when taken.
   "black pawn": "guard",
+  // The rebel rook: hammer on his shoulder. Idle only so far: he slides on his still frame, a capture's blow lands
+  // when he arrives, and taken he falls without a death of his own (no walk, strike or death sheets yet).
+  "white rook": "rook",
 };
 
 /** The figure prefix a piece is drawn with, or null when it has no pre-rendered sprite. */

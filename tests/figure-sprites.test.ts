@@ -8,6 +8,10 @@ const dir = join(process.cwd(), "public/diorama");
 describe("sprite figures", () => {
   it("maps the white king to the king sprite", () => expect(spriteFigure({ kind: "king", side: "white" })).toBe("king"));
   it("maps the enemy pawn to the patrol guard", () => expect(spriteFigure({ kind: "pawn", side: "black" })).toBe("guard"));
+  it("maps the white rook to the rebel rook, and not the black one", () => {
+    expect(spriteFigure({ kind: "rook", side: "white" })).toBe("rook");
+    expect(spriteFigure({ kind: "rook", side: "black" })).toBeNull();
+  });
   it("the guard has a walk, a strike and a death sheet for all 8 headings", () => {
     for (const name of ["walk", "strike", "death"]) {
       const info = JSON.parse(readFileSync(join(dir, `guard-${name}.json`), "utf8"));
@@ -15,7 +19,7 @@ describe("sprite figures", () => {
       for (const k of info.have) for (const f of [`guard-${name}${k}.webp`, `guard-${name}${k}-glow.webp`]) expect(existsSync(join(dir, f)), f).toBe(true);
     }
   });
-  it("plays a capture attack for the king and the guard only", () => {
+  it("plays a capture for every baked figure, the black rook and white pawn excepted", () => {
     expect(playsStrike({ kind: "king", side: "white" })).toBe(true);
     expect(playsStrike({ kind: "pawn", side: "black" })).toBe(true);
     expect(playsStrike({ kind: "pawn", side: "white" })).toBe(false);
@@ -41,6 +45,7 @@ describe("keepsTaken", () => {
     const king = { kind: "king", side: "white" }, rook = { kind: "rook", side: "white" }, guard = { kind: "pawn", side: "black" }, knight = { kind: "knight", side: "black" };
     expect(keepsTaken(king, knight)).toBe(true);
     expect(keepsTaken(rook, guard)).toBe(true);
-    expect(keepsTaken(rook, knight)).toBe(false);
+    expect(keepsTaken(rook, knight)).toBe(true);  // the rook is a baked figure now: the taken piece stays to fall
+    expect(keepsTaken({ kind: "knight", side: "white" }, knight)).toBe(false);
   });
 });
