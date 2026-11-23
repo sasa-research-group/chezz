@@ -12,6 +12,7 @@
   Post: bloom, the stage compositor grade, the concept LUT. Rebake with
   `tools/art/diorama/bake.sh` and `bake_king.py`, which need `stage.py`
   and the Meshy assets in `~/.dos/scratch/d84406ef/` (not in the repo).
+  New figures: follow `docs/art/FIGURES.md` (steps, costs, lessons from redos).
   No WebGL: falls back to 2D. Debug: `?fps`, `?dio=nobloom,nograde,nolut`.
   Fairy lights (Nov 20): the bake tucks every bulb just inside the moss at even brightness
   (`FAIRY_TUCK`, `BULB_EVEN` in bake.sh; the stage.py switches) and `bake_set.py` slides any bulb a trunk or
