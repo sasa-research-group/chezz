@@ -2,7 +2,7 @@
 # rp.sh NAME [k=v ...]: rook idle pose -> rook/rp/NAME.jpg (draft | front | 3/4 | back | fist)
 cd ~/.dos/scratch/d84406ef/rook
 n=$1; shift
-/Applications/Blender.app/Contents/MacOS/Blender -b --python ~/chezz-puzzle/tools/art/diorama/rook_pose.py -- rp/$n "$@" 2>&1 | grep -E "REACH|HANDLE|CLIP|Error|Traceback|line [0-9]"
+/Applications/Blender.app/Contents/MacOS/Blender -b --python ~/chezz-puzzle/tools/art/diorama/rook_pose.py -- rp/$n "$@" 2>&1 | grep -E "REACH|HANDLE|CLIP|SELF|GROUPS|Error|Traceback|line [0-9]"
 python3 -c "
 from PIL import Image
 n='rp/$n'; ims=[Image.open('pose1.png').convert('RGB')]+[Image.open(f'{n}/{v}.png').convert('RGB') for v in ('front','34','back','fist')]

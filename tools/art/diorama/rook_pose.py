@@ -3,7 +3,8 @@
 # of his left shoulder, the head out past his right shoulder; his right arm hangs relaxed with a closed fist.
 # Arms by two-bone IK (guard_pose.py's method); the open Meshy hands shrink into the wrists and clay fists are
 # built by king_motion.attach_fists (palm toward him, knuckles out). Prints a clipping report: how deep any point of
-# the hammer or a fist sits inside his body (hands and forearms holding it excluded), "CLIP_MAX d".
+# the hammer or a fist sits inside his body (hands and forearms holding it excluded), and how many faces of his
+# body cross each other (feet, elbows, arms against the torso): "CLIP_MAX d SELF n". Both must be ~0.
 #   Blender -b --python rook_pose.py -- OUTDIR [key=value ...]
 #   env CHAR_GLB (rigged rook), PROP_GLB (hammer)
 import bpy, sys, os, json, math
@@ -103,7 +104,10 @@ miss_l = ik2("LeftArm", "LeftForeArm", "LeftHand", wrist, W("LeftArm") + Vector(
 hip = W("RightUpLeg")
 rw = hip + Vector((-K["rax"], -K["ray"], K["raz"])) * H
 miss_r = ik2("RightArm", "RightForeArm", "RightHand", rw, W("RightArm") + Vector((-0.4, 1.0, -0.3)))
-print("REACH left miss %.3f right miss %.3f" % (miss_l, miss_r), flush=True)
+def bend(s_):
+    a, b, c_ = W(s_ + "Arm"), W(s_ + "ForeArm"), W(s_ + "Hand")
+    return math.degrees((a - b).angle(c_ - b))
+print("REACH left miss %.3f right miss %.3f; elbow angle left %.0f right %.0f (180 = straight)" % (miss_l, miss_r, bend("Left"), bend("Right")), flush=True)
 for s in ("Left", "Right"):
     arm.pose.bones[s + "Hand"].scale = (K["mitt"],) * 3
 bpy.context.view_layer.update()
@@ -211,7 +215,33 @@ hp = [q for q in hp if abs((q - G).dot(d)) > K["flen"] * H * 0.6 or (q - G - d *
 cmax = max(depth_report("hammer", hp, {"LeftHand", "LeftForeArm"}),
            depth_report("fist_L", sum((obj_pts(o) for o in fl_objs), []), {"LeftHand", "LeftForeArm"}),
            depth_report("fist_R", sum((obj_pts(o) for o in fr_objs), []), {"RightHand", "RightForeArm"}))
-print("CLIP_MAX %.3f" % cmax, flush=True)
+# --- his body against itself (a pose can fold a limb into his body with nothing held at all): surface
+# crossings between two parts, by BVH overlap. Faces sharing a vertex (the seam where two parts join) don't count.
+LEGL = {"LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "LeftToe_End"}
+LEGR = {n.replace("Left", "Right") for n in LEGL}
+ARMR = {"RightArm", "RightForeArm", "RightHand"}
+TORSO = {"Hips", "Spine", "Spine01", "Spine02", "Spine1", "Spine2", "neck", "Neck", "LeftUpLeg", "RightUpLeg"}
+def part(names):
+    idx = [i for i, (p_, g) in enumerate(polys) if g in names]
+    return BVHTree.FromPolygons(verts, [polys[i][0] for i in idx]), idx
+def crossings(name, A, B):
+    ta, ia = part(A); tb, ib = part(B)
+    n = 0; zmax = 0.0
+    for i, j in ta.overlap(tb):
+        pa, pb = polys[ia[i]][0], polys[ib[j]][0]
+        if set(pa) & set(pb):
+            continue
+        n += 1
+    print("SELF %-14s %d crossing faces" % (name, n), flush=True)
+    return n
+gnames = set(g for _p, g in polys)
+selfn = (crossings("feet/legs", LEGL & gnames, LEGR & gnames)
+         + crossings("right arm/body", ARMR & gnames, TORSO & gnames)
+         + crossings("left elbow", {"LeftForeArm"}, {"LeftArm"})
+         + crossings("right elbow", {"RightForeArm"}, {"RightArm"})
+         + crossings("left arm/body", {"LeftArm", "LeftForeArm"}, TORSO & gnames))
+print("GROUPS", sorted(gnames), flush=True)
+print("CLIP_MAX %.3f SELF %d" % (cmax, selfn), flush=True)
 zs = [v.z for v in verts]; eb.to_mesh_clear()
 arm.location.z -= min(zs)
 if not K["render"]:
@@ -229,7 +259,9 @@ cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam")); sc.collection.ob
 cam.data.lens = 50
 tgt = Vector((0, 0, H * 0.5))
 for name, el, az, dist, t in (("front", 8, 0, 1.7, tgt), ("34", 15, -35, 1.7, tgt), ("back", 10, 160, 1.7, tgt),
-                              ("game", 35, 0, 1.7, tgt), ("fist", 10, -20, 0.5, G + Vector((0, 0, -0.02)))):
+                              ("game", 35, 0, 1.7, tgt), ("fist", 10, -20, 0.5, G + Vector((0, 0, -0.02))),
+                              ("feet", 25, 15, 0.7, (W("LeftFoot") + W("RightFoot")) * 0.5 - Vector((0, 0, 0.03))),
+                              ("elbowL", 5, 120, 0.7, W("LeftForeArm")), ("armR", 5, -100, 0.9, W("RightForeArm"))):
     v = Vector((math.sin(math.radians(az)) * math.cos(math.radians(el)), -math.cos(math.radians(az)) * math.cos(math.radians(el)), math.sin(math.radians(el))))
     cam.location = t + v * dist * H
     cam.rotation_euler = (-v).to_track_quat("-Z", "Y").to_euler()

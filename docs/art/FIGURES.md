@@ -43,6 +43,11 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
 - Aim the arms with its IK, not by hand-set bone directions. Hand-aimed arms (`rook/shoulder_pose.py`, a dead
   end) bent oddly and sank the fists into the body.
 - Run `strike_check.py` before showing a pose. It fails on a prop or fist inside the body.
+- Check his body against itself too, not only the prop. The rook's second pose passed the prop check but his
+  feet crossed, his hanging arm sank into his side and the hammer elbow folded to 42 degrees into his bicep
+  (Wesley caught all three). `rook_pose.py` prints `SELF` crossing faces for feet, each elbow and each arm vs
+  the torso, and the elbow angle. Keep crossings near 0 (a few are seam noise) and the elbow above ~85 degrees on
+  a muscular figure. Render close-ups of feet, elbows and a hanging arm before showing.
 - Match the approved pose draft from the same camera, side by side, before showing it.
 - A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`
   prints CLIP per part with the body part it hits; tune until CLIP_MAX is near 0 (the rook needed the handle
