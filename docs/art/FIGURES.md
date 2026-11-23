@@ -82,3 +82,7 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
 **Motion**
 - Library mocap is for walking only. Attacks, hits and deaths are hand-made keys.
 - Import clips at 30 fps (set the scene fps before import), or they play too slow.
+- Judge the felt in real renders, not in the .glb viewer: a live viewer can only fake felt with a few speckled
+  layers (flaky shingles, raw skin tone). For a 3D look-around, `felt_closeup.py ... objs=char1 spin=1
+  turns=0,30,...` spins the figure in the bake's own lights (the camera can't circle: the lights are front-set and the
+  stage walls block the back).
