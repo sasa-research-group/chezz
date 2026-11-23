@@ -55,6 +55,10 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   nub" up close on the rook (2026-11-23). Use `hands.attach_fingered_fists` (`rook_pose.py hands=1`): palm pad,
   four curled fingers with knuckles and small gaps, a thumb over them, coloured from the figure's own arm
   texture (sampled, sRGB to linear). A hanging empty fist's knuckle line runs front to back, not along the arm.
+- But no visible joints: knuckle bumps and segment ridges read as "skeletal" next to the mockup's soft felt
+  fingers. Each finger is one smooth plump roll, separated from its neighbours only by a soft crease, and wrapped
+  only partway (span ~185) so the curled tips don't show as a second row. Too much smoothing melts the fingers
+  back into a blob; the defaults (fw 0.58, vox 0.13, smooth 10, kb 0) sit between the two.
 - Render close-ups of feet, elbows, both hands and a hanging arm next to the same crop of the mockup before showing.
 - Match the approved pose draft from the same camera, side by side, before showing it.
 - A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`

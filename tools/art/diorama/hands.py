@@ -131,9 +131,9 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
                 u = j / seg_n
                 th = a0 + sg * span * u
                 # knuckles stand a little proud at the joints (u ~ 0, 0.42, 0.75); tip tapers
-                bump = sum(0.10 * math.exp(-((u - c) / 0.06) ** 2) for c in (0.0, 0.42, 0.75))
+                bump = sum(K.get("kb", 0.0) * math.exp(-((u - c) / 0.06) ** 2) for c in (0.0, 0.42, 0.75))
                 rr = fr * thick[k] * (1.0 + bump - 0.18 * max(0.0, u - 0.8) / 0.2)
-                rad_c = R + (fr * 0.35 if u < 0.12 else 0.0) * (1 - u / 0.12)  # the first knuckle sits proud of the grip
+                rad_c = R + (fr * K.get("kp", 0.0) if u < 0.12 else 0.0) * (1 - u / 0.12)  # the first knuckle sits proud of the grip
                 pts.append(at(x, th, rad_c + rr - fr)); rads.append(rr)
             _tube(bm, pts, rads)
         # thumb: from the index end of the palm, over the index and middle fingers' middle segments
@@ -146,7 +146,7 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
             u = j / n
             th = th0 + (th1 - th0) * u
             x = tx0 - xs * ft * 1.5 * u
-            pts.append(at(x, th, R + fr * (0.9 + 0.6 * math.sin(math.pi * u)))); rads.append(fr * 1.05 * (1.0 - 0.15 * u + 0.08 * math.exp(-((u - 0.5) / 0.08) ** 2)))
+            pts.append(at(x, th, R + fr * (0.9 + 0.6 * math.sin(math.pi * u)))); rads.append(fr * 1.05 * (1.0 - 0.15 * u + K.get("kb", 0.0) * 0.8 * math.exp(-((u - 0.5) / 0.08) ** 2)))
         _tube(bm, pts, rads)
         # wrist: from inside the palm pad to the forearm's end
         p0 = pc - nrm * fr * 0.3; p1 = wr
@@ -156,7 +156,7 @@ def attach_fingered_fists(arm, body, fists, bone, K=None):
         o = bpy.data.objects.new("hand_" + f["side"], me)
         bpy.context.scene.collection.objects.link(o)
         rm = o.modifiers.new("fuse", "REMESH"); rm.mode = "VOXEL"; rm.voxel_size = fr * K.get("vox", 0.09); rm.adaptivity = 0
-        sm = o.modifiers.new("soft", "SMOOTH"); sm.factor = 0.5; sm.iterations = 3
+        sm = o.modifiers.new("soft", "SMOOTH"); sm.factor = 0.5; sm.iterations = int(K.get("smooth", 3))
         dg = bpy.context.evaluated_depsgraph_get()
         me2 = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
         o.modifiers.clear(); o.data = me2
