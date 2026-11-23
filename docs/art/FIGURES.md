@@ -51,7 +51,11 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   clear the bicep pushed it out sideways into a stiff "flexing" arm that Wesley rejected (2026-11-23).
   Set the elbow pole down and a little forward (`px=0.3 py=-0.3`) and turn on Preserve Volume skinning
   (`dqs=1`, also in the bake) so the fold squashes instead of caving in. Judge the elbow by eye against the draft.
-- Render close-ups of feet, elbows and a hanging arm before showing.
+- Hands need real fingers. `king_motion.attach_fists` (one clay block with grooves) read as "a big blob ... a
+  nub" up close on the rook (2026-11-23). Use `hands.attach_fingered_fists` (`rook_pose.py hands=1`): palm pad,
+  four curled fingers with knuckles and small gaps, a thumb over them, coloured from the figure's own arm
+  texture (sampled, sRGB to linear). A hanging empty fist's knuckle line runs front to back, not along the arm.
+- Render close-ups of feet, elbows, both hands and a hanging arm next to the same crop of the mockup before showing.
 - Match the approved pose draft from the same camera, side by side, before showing it.
 - A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`
   prints CLIP per part with the body part it hits; tune until CLIP_MAX is near 0 (the rook needed the handle

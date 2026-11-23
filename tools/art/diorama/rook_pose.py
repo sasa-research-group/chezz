@@ -29,9 +29,10 @@ K = dict(
     rax=0.16, ray=0.04, raz=-0.02,  # right wrist: out from the hip, forward, up (share of height) from his hip side
     stance=0.10,   # feet apart, share of height
     chin=0.0,      # head up a little, degrees
-    wdrop=0.045, wout=0.01, rfist=0.03, rgr=0.015,
+    wdrop=0.045, wout=0.01, rfist=0.03, rgr=0.02,
     px=0.3, py=-0.3,  # left elbow pole (out, back) per unit down; a natural carry is px~0.2, py~-0.4
     dqs=1,         # 1 = Preserve Volume skinning, so a tight elbow fold squashes instead of caving in
+    hands=1, curl=-1.0, k0=60.0, span=215.0, t0=30.0, t1=-95.0, fw=0.49, vox=0.13,  # fingered hands (hands.py)
     render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
@@ -164,12 +165,18 @@ def fist_for(side, F, grip_r, bone):
     pbm = MW @ arm.pose.bones[bone].matrix
     wl = F.inverted() @ (MW @ arm.pose.bones[side + "Hand"].head)
     f = dict(side=side, m=[list(r) for r in pbm.inverted() @ F], r=K["fist"] * H, len=K["flen"] * H, gr=grip_r, wrist=list(wl))
+    if K["hands"]:  # separate fingers, felt skin (hands.py)
+        import hands
+        hk = {k: K[k] for k in ("curl", "k0", "span", "t0", "t1", "fw", "vox")}
+        return hands.attach_fingered_fists(arm, body, [f], bone, hk), f
     return km.attach_fists(arm, dict(fists=[f]), bone), f
 FL = Matrix((d, out.cross(d), out)).transposed().to_4x4(); FL.translation = G
 fl_objs, fl = fist_for("Left", FL, gr, "LeftForeArm")
 fa = (W("RightHand") - W("RightForeArm")).normalized()
-fy2 = fa.cross(Vector((0, 0, 1))).normalized() if abs(fa.z) < 0.99 else Vector((0, 1, 0))
-FR = Matrix((fa, fy2, fa.cross(fy2))).transposed().to_4x4()  # closed on nothing: grip along the forearm (the king's let-go fist)
+# a hanging closed fist: knuckle line runs front to back (x = forward, index at the front), palm toward the thigh,
+# the grip just past the wrist
+fx = Vector((0, -1, 0)); fx = (fx - fa * fx.dot(fa)).normalized()
+FR = Matrix((fx, fa.cross(fx), -fa)).transposed().to_4x4()
 FR.translation = W("RightHand") + fa * K["rfist"] * H
 fr_objs, fr = fist_for("Right", FR, K["rgr"] * H, "RightForeArm")
 json.dump(dict(knobs=K, height=H, pose={pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones},
@@ -266,6 +273,8 @@ cam.data.lens = 50
 tgt = Vector((0, 0, H * 0.5))
 for name, el, az, dist, t in (("front", 8, 0, 1.7, tgt), ("34", 15, -35, 1.7, tgt), ("back", 10, 160, 1.7, tgt),
                               ("game", 35, 0, 1.7, tgt), ("fist", 10, -20, 0.5, G + Vector((0, 0, -0.02))),
+                              ("fistF", 5, 10, 0.3, G), ("fistS", 25, 70, 0.3, G), ("fistB", 20, 160, 0.3, G),
+                              ("fistR", 5, -60, 0.3, W("RightHand")),
                               ("feet", 25, 15, 0.7, (W("LeftFoot") + W("RightFoot")) * 0.5 - Vector((0, 0, 0.03))),
                               ("elbowL", 5, 120, 0.7, W("LeftForeArm")), ("armR", 5, -100, 0.9, W("RightForeArm"))):
     v = Vector((math.sin(math.radians(az)) * math.cos(math.radians(el)), -math.cos(math.radians(az)) * math.cos(math.radians(el)), math.sin(math.radians(el))))
