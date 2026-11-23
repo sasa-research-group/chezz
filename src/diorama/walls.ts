@@ -69,19 +69,25 @@ function rand(seed: number) {
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-/** The pieces of one wall square: a straight run is one whole stretch across the square; where the wall ends, turns
- *  or branches, a pillar stands in the middle with a half stretch out to each side it runs to (the cut end at the
- *  pillar); and a pillar stands at the edge for each of `posts` (a lone wall's ends, gate posts). */
+/** The pieces of one wall square. A straight run is one whole stretch across the square, also where another wall
+ *  branches off it (no pillar midway through a wall, Wesley 2026-11-22): the branch is a half stretch from the
+ *  middle, its cut end inside the run. Where a wall turns a corner or ends, a pillar stands in the middle with a half
+ *  stretch out to each side it runs to (the cut end at the pillar). A pillar stands at the edge for each of `posts`
+ *  (a lone wall's ends, gate posts). */
 export function wallPieces(a: Arms, seed: number): WallPiece[] {
   const r = rand(seed), out: WallPiece[] = [];
-  const across = a.l && a.r && !a.b && !a.f, along = a.b && a.f && !a.l && !a.r;
-  if (across || along) out.push({ kind: "seg", x: 0, y: 0, turn: along ? Math.PI / 2 : 0, mirror: r() < 0.5 });
-  else {
-    // a half's cut end is at its +x: mirror the halves that run right or back so it lands on the pillar
-    if (a.l) out.push({ kind: "half", x: -0.25, y: 0, turn: 0, mirror: false });
-    if (a.r) out.push({ kind: "half", x: 0.25, y: 0, turn: 0, mirror: true });
-    if (a.b) out.push({ kind: "half", x: 0, y: 0.25, turn: Math.PI / 2, mirror: true });
-    if (a.f) out.push({ kind: "half", x: 0, y: -0.25, turn: Math.PI / 2, mirror: false });
+  const across = a.l && a.r, along = a.b && a.f && !across;
+  // a half's cut end is at its +x: mirror the halves that run right or back so it lands in the middle
+  const half = (s: "l" | "r" | "b" | "f") => out.push(
+    s === "l" ? { kind: "half", x: -0.25, y: 0, turn: 0, mirror: false } :
+    s === "r" ? { kind: "half", x: 0.25, y: 0, turn: 0, mirror: true } :
+    s === "b" ? { kind: "half", x: 0, y: 0.25, turn: Math.PI / 2, mirror: true } :
+    { kind: "half", x: 0, y: -0.25, turn: Math.PI / 2, mirror: false });
+  if (across || along) {
+    out.push({ kind: "seg", x: 0, y: 0, turn: along ? Math.PI / 2 : 0, mirror: r() < 0.5 });
+    for (const s of (across ? ["b", "f"] : ["l", "r"]) as ("l" | "r" | "b" | "f")[]) if (a[s]) half(s);
+  } else {
+    for (const s of ["l", "r", "b", "f"] as const) if (a[s]) half(s);
     out.push({ kind: "pil", x: 0, y: 0, turn: 0, mirror: false });
   }
   const e = 0.5 - PILLAR_W / 2;

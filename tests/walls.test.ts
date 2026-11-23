@@ -42,6 +42,13 @@ describe('wallPieces', () => {
     const ends = wallPieces({ l: true, r: false, b: false, f: true }, 1)
     expect(ends.filter(p => p.kind === 'half').every(p => !p.mirror)).toBe(true)
   })
+  it('keeps a run whole where another wall branches off it: no pillar midway', () => {
+    const ps = wallPieces({ l: true, r: true, b: false, f: true }, 1)
+    expect(kinds(ps)).toBe('half seg')
+    expect(ps.find(p => p.kind === 'half')).toMatchObject({ x: 0, y: -0.25, mirror: false })
+    expect(kinds(wallPieces({ l: true, r: false, b: true, f: true }, 1))).toBe('half seg')
+    expect(kinds(wallPieces({ l: true, r: true, b: true, f: true }, 1))).toBe('half half seg')
+  })
   it('ends a lone wall in a pillar on each end', () => {
     const ps = wallPieces({ l: true, r: true, b: false, f: false, posts: ['l', 'r'] }, 1)
     expect(kinds(ps)).toBe('pil pil seg')
