@@ -5,7 +5,7 @@ fights through small boards, recruits followers at the rebel hideout between
 battles, and keeps every wound and loss. You act, then the enemy acts. Rules:
 [docs/turn-based.md](docs/turn-based.md).
 
-Play at **[sasa-research-group.github.io/chezz](https://sasa-research-group.github.io/chezz/)**
+Play at **[sasa-research-group.github.io/chezz](https://sasa-research-group.github.io/chezz/)** (3D puzzles; the roguelike is at [/classic.html](https://sasa-research-group.github.io/chezz/classic.html))
 (deployed from `main`).
 
 ## Commands

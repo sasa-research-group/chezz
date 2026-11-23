@@ -85,7 +85,7 @@ export default function Lab() {
   return <main className="lab">
     <header className="lab-header"><div><p className="kicker">CHEZZ LAB · EXPERIMENT 1</p><h1>The Duel</h1>
       <p>One piece against one. Each turn you both pick secretly, then reveal. Change one rule at a time and notice whether a turn feels like reading your opponent or flipping a coin.</p></div>
-      <a href="./" className="text-button">← Back to the game</a></header>
+      <a href="./classic.html" className="text-button">← Back to the game</a></header>
 
     <section className="lab-settings" aria-label="Rules">
       <Field label="Combat rule"><Seg value={settings.rule} set={rule => change({ rule: rule as Rule })} items={[["trade", "Always trade"], ["free", "Free hits"]]} /></Field>

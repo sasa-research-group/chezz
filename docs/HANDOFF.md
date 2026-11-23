@@ -1,6 +1,10 @@
 # Handoff
 
 ## State
+- **Front page (Nov 23):** `index.html` forwards to the 3D puzzles
+  (`art.html?view=3d#puzzles/1`; a `#puzzles/N` hash carries over). The old
+  roguelike moved to `classic.html`. The rebel rook is the white rook (idle
+  only, no walk/strike/death sheets yet).
 - **Branch `puzzle/dungeon` (exploration, Nov 13):** chess-rule dungeon
   puzzles with a perfect-play enemy, a Puzzles studio tab and solver. See
   `docs/puzzles.md`. Not merged into main.
@@ -52,7 +56,7 @@
   (`gameSpeed()` in motion.ts, kept in localStorage `chezz.speed`): about
   0.7 s a square, and the dungeon answers sooner. Dev: `?kingslow=8`,
   `?kingcps=`.
-Live at sasa-research-group.github.io/chezz (Pages deploys from `main`).
+Live at sasa-research-group.github.io/chezz (Pages deploys from `main`; the front page is the 3D puzzles, the roguelike is `/classic.html`).
 - **Rules:** turn-based (`src/game/turns.ts`, `docs/turn-based.md`). One
   move per turn by default: each side acts with one piece (move, then
   strike); the turn passes on its own once that piece strikes. No defending

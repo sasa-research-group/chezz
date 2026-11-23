@@ -17,7 +17,7 @@ async function withTutorial(page: Page, run?: Run) {
 
 test("a new game starts the tutorial: its own battle count, no gold, the level's preset army", async ({ page }) => {
   await withTutorial(page);
-  await page.goto("/");
+  await page.goto("/classic.html");
   const intro = page.getByRole("dialog", { name: "New run" });
   await expect(intro.getByText("Tutorial")).toBeVisible();
   await intro.getByRole("button", { name: "Start" }).click();
@@ -31,7 +31,7 @@ test("a new game starts the tutorial: its own battle count, no gold, the level's
 test("between tutorial battles there's no hideout: the next battle deals its own army", async ({ page }) => {
   const won = tutorialRun(DATA);
   await withTutorial(page, { ...won, phase: "camp", units: won.units.filter(u => u.side === "white").map(u => ({ ...u, hp: 1 })) });
-  await page.goto("/");
+  await page.goto("/classic.html");
   const between = page.getByRole("dialog", { name: "Battle won" });
   await expect(between).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Rebel hideout" })).toHaveCount(0);
@@ -46,7 +46,7 @@ test("between tutorial battles there's no hideout: the next battle deals its own
 test("losing a tutorial battle retries it", async ({ page }) => {
   const started = begin(tutorialRun(DATA, 1));
   await withTutorial(page, { ...started, phase: "defeat", units: started.units.filter(u => u.id !== "king") });
-  await page.goto("/");
+  await page.goto("/classic.html");
   await page.getByRole("dialog", { name: "Defeat" }).getByRole("button", { name: "Retry" }).click();
   await expect.poll(async () => (await saved(page)).phase).toBe("deploy");
   expect((await saved(page)).encounter).toBe(1);
@@ -55,7 +55,7 @@ test("losing a tutorial battle retries it", async ({ page }) => {
 test("the game is only the tutorial for now: finishing it marks it done and starts it again", async ({ page }) => {
   const last = begin(tutorialRun(DATA, 1));
   await withTutorial(page, { ...last, phase: "victory", units: last.units.filter(u => u.side === "white") });
-  await page.goto("/");
+  await page.goto("/classic.html");
   const victory = page.getByRole("dialog", { name: "Victory" });
   await expect.poll(async () => (await meta(page)).tutorialDone).toBe(true);
   await expect(victory.getByRole("button", { name: "Roguelike" })).toHaveCount(0);

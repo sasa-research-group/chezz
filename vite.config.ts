@@ -6,5 +6,5 @@ const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 export default defineConfig({
   plugins: [react(), levelsPlugin(here("./src/game/levels/levels.json")), rulesPlugin(here("./src/game/rules.json")), puzzlesPlugin(here("./src/puzzle/puzzles.json"))],
   base: "./",
-  build: { rollupOptions: { input: { main: "index.html", lab: "lab.html", art: "art.html" } } },
+  build: { rollupOptions: { input: { main: "index.html", classic: "classic.html", lab: "lab.html", art: "art.html" } } },
 });
