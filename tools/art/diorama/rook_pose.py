@@ -18,18 +18,20 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 os.makedirs(OUT, exist_ok=True)
 K = dict(
-    plen=0.60,     # hammer length, as a share of his height
+    plen=0.70,     # hammer length, as a share of his height
     pgrip=0.10,    # where the left fist holds it, share of the length from the grip end
-    gx=0.10, gy=-0.10, gz=0.06,  # the left fist's grip point, from his left shoulder (LeftArm head), share of height
-    hx=-0.10, hy=0.10, hz=0.12,  # where the handle crosses: a point above-behind his right shoulder, share of height
+    gx=0.08, gy=-0.10, gz=0.04,  # the left fist's grip point, from his left shoulder (LeftArm head), share of height
+    hx=-0.20, hy=0.60, hz=0.36,  # where the handle crosses: a point above-behind his right shoulder, share of height
     roll=0.0,      # turns the hammer head about the handle, degrees
-    fist=0.075,    # clay fist size, share of height (his hands are big)
-    flen=0.07,     # fist length along the handle, share of height
+    fist=0.09,    # clay fist size, share of height (his hands are big)
+    flen=0.11,     # fist length along the handle, share of height
     mitt=0.12,     # how small the open Meshy hands shrink
-    rax=0.07, ray=0.02, raz=-0.02,  # right wrist: out from the hip, forward, up (share of height) from his hip side
-    stance=0.06,   # feet apart, share of height
-    chin=6.0,      # head up a little, degrees
+    rax=0.16, ray=0.04, raz=-0.02,  # right wrist: out from the hip, forward, up (share of height) from his hip side
+    stance=0.10,   # feet apart, share of height
+    chin=0.0,      # head up a little, degrees
     wdrop=0.045, wout=0.01, rfist=0.03, rgr=0.015,
+    px=0.3, py=-0.3,  # left elbow pole (out, back) per unit down; a natural carry is px~0.2, py~-0.4
+    dqs=1,         # 1 = Preserve Volume skinning, so a tight elbow fold squashes instead of caving in
     render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
@@ -99,7 +101,8 @@ c = (W("neck") + W("Spine")) * 0.5
 out = (G - c); out = (out - d * out.dot(d)).normalized()
 # --- left arm: wrist below the fist, elbow down and out
 wrist = G - Vector((0, 0, 1)) * K["wdrop"] * H + out * K["wout"] * H
-miss_l = ik2("LeftArm", "LeftForeArm", "LeftHand", wrist, W("LeftArm") + Vector((0.6, 0.2, -1.0)))
+# elbow pole: down and a little forward/out, as a real shoulder carry (upper arm near vertical, arm folded tight)
+miss_l = ik2("LeftArm", "LeftForeArm", "LeftHand", wrist, W("LeftArm") + Vector((K["px"], K["py"], -1.0)))
 # --- right arm: hangs at his side, a little out from the hip, elbow back
 hip = W("RightUpLeg")
 rw = hip + Vector((-K["rax"], -K["ray"], K["raz"])) * H
@@ -112,6 +115,9 @@ for s in ("Left", "Right"):
     arm.pose.bones[s + "Hand"].scale = (K["mitt"],) * 3
 bpy.context.view_layer.update()
 bpy.ops.object.mode_set(mode="OBJECT")
+for md in body.modifiers:
+    if md.type == "ARMATURE":
+        md.use_deform_preserve_volume = bool(K["dqs"])
 
 # --- the hammer, grip end -> head along d, faces turned by roll
 before = set(bpy.data.objects)

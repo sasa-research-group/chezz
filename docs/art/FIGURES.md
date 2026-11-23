@@ -44,10 +44,14 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   end) bent oddly and sank the fists into the body.
 - Run `strike_check.py` before showing a pose. It fails on a prop or fist inside the body.
 - Check his body against itself too, not only the prop. The rook's second pose passed the prop check but his
-  feet crossed, his hanging arm sank into his side and the hammer elbow folded to 42 degrees into his bicep
-  (Wesley caught all three). `rook_pose.py` prints `SELF` crossing faces for feet, each elbow and each arm vs
-  the torso, and the elbow angle. Keep crossings near 0 (a few are seam noise) and the elbow above ~85 degrees on
-  a muscular figure. Render close-ups of feet, elbows and a hanging arm before showing.
+  feet crossed and his hanging arm sank into his side (Wesley caught both). `rook_pose.py` prints `SELF`
+  crossing faces for feet, each elbow and each arm vs the torso. Feet and arm-vs-torso must be near 0.
+- An arm holding something at the shoulder folds tight, elbow pointing DOWN, forearm pressed against the
+  bicep: that squash is natural and the elbow's SELF count will be high; accept it. Opening the elbow to
+  clear the bicep pushed it out sideways into a stiff "flexing" arm that Wesley rejected (2026-11-23).
+  Set the elbow pole down and a little forward (`px=0.3 py=-0.3`) and turn on Preserve Volume skinning
+  (`dqs=1`, also in the bake) so the fold squashes instead of caving in. Judge the elbow by eye against the draft.
+- Render close-ups of feet, elbows and a hanging arm before showing.
 - Match the approved pose draft from the same camera, side by side, before showing it.
 - A prop across the shoulders must pass behind the helm, not through it: big helms reach far back. `rook_pose.py`
   prints CLIP per part with the body part it hits; tune until CLIP_MAX is near 0 (the rook needed the handle
