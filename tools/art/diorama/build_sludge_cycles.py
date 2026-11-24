@@ -60,6 +60,10 @@ ap.add_argument("--round", type=float, default=0.12)   # pond: the outside corne
 ap.add_argument("--fillet", type=float, default=0.1)   # pond: the inside corners' fillet, share of a square
 ap.add_argument("--ragged", type=float, default=0.015)  # pond: the edge's wobble, share of a square
 ap.add_argument("--stone", type=float, default=0.12)  # pond: the small rim stones, share of a square (big ones 1.6x)
+ap.add_argument("--kit_tilt", type=float, default=25)  # pond stones tip up to this many degrees into the pool
+ap.add_argument("--kit_sink", type=float, default=0.3)  # and sink up to this share of their thickness
+ap.add_argument("--kit_turn", type=float, default=0.15)  # and turn up to this many radians off the edge line
+ap.add_argument("--kit_thick", type=float, default=1.0)  # pond stones' thickness multiplier (chunkier slabs)
 ap.add_argument("--kit_glb", default="")  # pond: a Meshy model of loose broken shards for the rim (else code shards)
 ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
 a = ap.parse_args(argv)
@@ -631,13 +635,13 @@ def place_stone(name, slot, top, rng):
     else:
         o = code_shard(name, rng)
     me = o.data
-    me.transform(Matrix.Diagonal((size, size * rng.uniform(0.85, 1.1), size * rng.uniform(0.9, 1.15), 1)))
+    me.transform(Matrix.Diagonal((size, size * rng.uniform(0.85, 1.1), size * rng.uniform(0.9, 1.15) * a.kit_thick, 1)))
     ys = [v.co.y for v in me.vertices]; zs_ = [v.co.z for v in me.vertices]
     width, thick = max(ys) - min(ys), max(zs_) - min(zs_)
     if rng.random() < 0.5:
         me.transform(Matrix.Rotation(math.pi, 4, "Z"))  # either face toward the pool
-    tilt = math.radians(rng.uniform(10, 25))
-    sink = thick * rng.uniform(0.15, 0.3)
+    tilt = math.radians(rng.uniform(a.kit_tilt * 0.4, a.kit_tilt))
+    sink = thick * rng.uniform(a.kit_sink * 0.6, a.kit_sink)
     out = Vector((ox, oy, 0))
     tang = Vector((-oy, ox, 0))
     pivot = Vector((x, y, top - sink)) + out * (width / 2)
@@ -648,7 +652,7 @@ def place_stone(name, slot, top, rng):
     probe = base @ Vector((0, -width / 2, 0))
     if (T @ probe).z > probe.z:
         T = Matrix.Translation(pivot) @ Matrix.Rotation(-tilt, 4, tang) @ Matrix.Translation(-pivot)
-    o.matrix_world = T @ base @ Matrix.Rotation(rng.uniform(-0.15, 0.15), 4, "Z")
+    o.matrix_world = T @ base @ Matrix.Rotation(rng.uniform(-a.kit_turn, a.kit_turn), 4, "Z")
     return o
 
 
