@@ -68,7 +68,8 @@ ap.add_argument("--kit_thick", type=float, default=1.0)  # pond stones' thicknes
 ap.add_argument("--kit_glb", default="")  # pond: a Meshy model of loose broken shards for the rim (else code shards)
 ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
 ap.add_argument("--timed", type=int, default=1)  # 1: bubbles timed from the mudpot clips (sludge_bubbles.py); 0: the old even loop
-ap.add_argument("--frames", type=int, default=0)  # >0: render the whole loop as this many frames (sludge_bubbles.LOOP seconds)
+ap.add_argument("--frames", type=int, default=0)  # >0: render the whole loop (--loop_s) as this many frames
+ap.add_argument("--loop_s", type=float, default=8.0)  # the bubbling loop's length in seconds (the judge saw a 4 s loop repeat)
 ap.add_argument("--splat", type=int, default=10)  # tiny still lumps of old splatter per square
 ap.add_argument("--main_r", type=float, default=0.13)  # the main vent's biggest bubble radius, share of a square
 a = ap.parse_args(argv)
@@ -415,7 +416,7 @@ def timed_bubbles(rng, centers, clear, nsq):
             vents.append((x, y, min(0.065 * S * a.bub_scale, c / 1.5), False))
     if not vents:
         return Timed([], [])
-    events = sb.schedule(vents, nsq, rng, dome=a.dome)
+    events = sb.schedule(vents, nsq, rng, dome=a.dome, loop=a.loop_s)
     spots = []
     for _ in range(400):
         cx, cy = rng.choice(centers)
@@ -430,13 +431,13 @@ def timed_bubbles(rng, centers, clear, nsq):
 def bub_z(bubbles, x, y, t, z):
     """The surface height z at (x, y) with the bubbles at loop phase t merged in."""
     if isinstance(bubbles, Timed):
-        time = t * sb.LOOP
+        time = t * a.loop_s
         for s_ in bubbles.splat:
-            h = sb.splatter_height(s_, x, y, time)
+            h = sb.splatter_height(s_, x, y, time, a.loop_s)
             if h > 0:
                 z = smax(z, h, 0.3 * a.neck * S)
         for e in bubbles.events:
-            h = sb.event_height(e, x, y, time)
+            h = sb.event_height(e, x, y, time, a.loop_s)
             if h > 0:
                 z = smax(z, h, a.neck * S * (0.4 + 0.6 * e.sz))
             elif h < 0:
@@ -1047,7 +1048,7 @@ for gx0, gy0, gx1, gy1 in groups:
     boxes.append([min(q.x for q in uv_), 1 - max(q.y for q in uv_), max(q.x for q in uv_), 1 - min(q.y for q in uv_)])
 json.dump({"boxes": boxes}, open(os.path.join(a.out, "pools.json"), "w"))
 if a.frames:  # the whole loop, frame by frame: only the ooze sheets change
-    json.dump({"frames": a.frames, "fps": a.frames / sb.LOOP, "loop_s": sb.LOOP}, open(os.path.join(a.out, "anim.json"), "w"))
+    json.dump({"frames": a.frames, "fps": a.frames / a.loop_s, "loop_s": a.loop_s}, open(os.path.join(a.out, "anim.json"), "w"))
     for i in range(a.frames):
         for surf, rebuild in ANIM:
             fresh = rebuild(i / a.frames)

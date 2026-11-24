@@ -36,7 +36,7 @@ def test_every_event_fits_the_loop():
 def test_rate_and_mix():
     rng = random.Random(2)
     ev = sb.schedule(vents_for(1, rng), 1, rng)
-    assert 3 <= len(ev) <= 6, len(ev)
+    assert 7 <= len(ev) <= 11, len(ev)   # about 1.1 a second over the 8 s loop
     ev = [e for s in range(40) for e in sb.schedule(vents_for(1, random.Random(s)), 1, random.Random(s + 100))]
     share = sum(e.bursts for e in ev) / len(ev)
     assert 0.65 < share < 0.92, share
@@ -85,7 +85,22 @@ def test_stays_local():
     rng = random.Random(6)
     for e in sb.schedule(vents_for(2, rng), 2, rng):
         for t in (e.t0 + e.ts * 0.9, e.t0 + e.ts + e.tb * 0.5):
-            assert sb.event_height(e, e.x + 2.7 * e.r, e.y, t) == 0.0
+            assert sb.event_height(e, e.x + sb.FAR * e.r, e.y, t) == 0.0
+
+
+def test_no_groove_at_the_reach():
+    """The height fades smoothly to zero toward the event's reach: no step anywhere along a line out from it."""
+    rng = random.Random(8)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for f in (0.2, 0.6, 0.95, 1.05, 1.3, 1.8):
+            t = e.t0 + e.ts + (e.tb + e.tz if e.bursts else e.ts) * f / 2
+            n = 300
+            prev = sb.event_height(e, e.x, e.y, t)
+            for i in range(1, n + 1):
+                h = sb.event_height(e, e.x + sb.FAR * e.r * 1.1 * i / n, e.y, t)
+                assert abs(h - prev) < 0.06 * e.dome * e.r, (f, i, prev, h)
+                prev = h
+            assert sb.event_height(e, e.x + (sb.FAR - 0.02) * e.r, e.y, t) < 1e-3 * e.dome * e.r
 
 
 def test_splatter():

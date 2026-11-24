@@ -11,7 +11,7 @@ Tiny still lumps of old splatter dot the surface and bob a little with the loop.
 import math
 import random
 
-LOOP = 4.0          # seconds
+LOOP = 8.0          # seconds (a 4 s loop read as repetitive to the motion judge)
 RATE = 1.1          # events per second per square
 BURST_SHARE = 0.8   # the rest swell and sink back
 
@@ -58,6 +58,9 @@ def schedule(vents, squares, rng, dome=0.5, loop=LOOP, rate=RATE):
     return events
 
 
+FAR, FADE = 3.0, 2.2   # an event touches nothing beyond FAR radii; it fades out from FADE
+
+
 def _ease(p):
     return p * p * (3 - 2 * p)
 
@@ -68,9 +71,11 @@ def event_height(e, x, y, time, loop=LOOP):
     if tau >= e.length():
         return 0.0
     dx, dy = x - e.x, y - e.y
-    far = 2.6 * e.r
-    if dx * dx + dy * dy > far * far:
+    d2 = dx * dx + dy * dy
+    if d2 >= (FAR * e.r) ** 2:
         return 0.0
+    # everything fades to nothing before FAR, so no edge shows as a groove in the surface
+    w = 1 - _ease(min(1.0, max(0.0, (math.sqrt(d2) / e.r - FADE) / (FAR - FADE))))
     ca, sa = math.cos(e.ang), math.sin(e.ang)
     lx, ly = (dx * ca + dy * sa) / e.stretch, -dx * sa + dy * ca
     th = math.atan2(ly, lx)
@@ -93,11 +98,11 @@ def event_height(e, x, y, time, loop=LOOP):
         dome = blister(1.0) * (1 - p) ** 2
         crater = -0.35 * H * _ease(p) * math.exp(-(rho / 0.6) ** 2)
         lip = 0.4 * H * math.sin(math.pi * p) * math.exp(-((rho - (1 + 0.3 * p)) / 0.28) ** 2)
-        return dome + crater + lip
+        return (dome + crater + lip) * w
     q = (tau - e.tb) / e.tz  # settle: the crater fills, one wide ring spreads and dies
     crater = -0.35 * H * (1 - _ease(q)) * math.exp(-(rho / 0.6) ** 2)
-    ring = 0.12 * H * (1 - q) ** 2 * math.exp(-((rho - (1.3 + 0.9 * q)) / 0.4) ** 2)
-    return crater + ring
+    ring = 0.07 * H * (1 - q) ** 2 * math.sin(math.pi * min(1.0, 4 * q)) ** 0.5 * math.exp(-((rho - (1.2 + 0.6 * q)) / 0.5) ** 2)
+    return (crater + ring) * w
 
 
 def splatter(spots, rng, per_square, squares):
