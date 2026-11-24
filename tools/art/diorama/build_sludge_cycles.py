@@ -16,6 +16,8 @@ from bpy_extras.object_utils import world_to_camera_view
 STAGE = os.environ.get("STAGE_DIR", os.path.expanduser("~/.dos/scratch/d84406ef/stage"))
 sys.path.insert(0, STAGE)
 import stage
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sludge_pond as sp
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ap = argparse.ArgumentParser()
@@ -53,6 +55,11 @@ ap.add_argument("--c0", default="0.09,0.5,0.01")  # the ooze's deep and light co
 ap.add_argument("--c1", default="0.2,0.68,0.02")
 ap.add_argument("--rim_bump", type=float, default=0.0)  # fine chalky grain on the Meshy stone (bump strength)
 ap.add_argument("--edge_dark", type=float, default=0.0)  # the ooze darkens this much toward the stone (0..1)
+ap.add_argument("--margin", type=float, default=0.12)  # pond: the stone kept on free sides, share of a square
+ap.add_argument("--round", type=float, default=0.12)   # pond: the outside corners' radius, share of a square
+ap.add_argument("--fillet", type=float, default=0.1)   # pond: the inside corners' fillet, share of a square
+ap.add_argument("--ragged", type=float, default=0.015)  # pond: the edge's wobble, share of a square
+ap.add_argument("--kit_glb", default="")  # pond: a Meshy model of loose broken shards for the rim (else code shards)
 ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
@@ -445,7 +452,14 @@ def meshy_rim(k, slab, cx, cy, hw, top):
     P[:, 0] += cx; P[:, 1] += cy
     me.vertices.foreach_set("co", P.ravel()); me.update()
     slab.hide_render = True; slab.hide_viewport = True
-    for mt in me.materials:  # the same darkening the set gives its own tiles (stage.py, TILE_VAL / TILE_SAT)
+    tint_meshy(me.materials)
+    bvh = BVHTree.FromPolygons([tuple(v) for v in P], [tuple(p_.vertices) for p_ in me.polygons])
+    return finish_rim(k, bvh, cx, cy, hw, top, best, kk)
+
+
+def tint_meshy(mats):
+    """Meshy paint darkened as the set darkens its own tiles (stage.py, TILE_VAL / TILE_SAT), with a chalky grain."""
+    for mt in mats:
         nt = mt.node_tree
         bsdf = next((nd for nd in nt.nodes if nd.type == "BSDF_PRINCIPLED"), None)
         if bsdf and bsdf.inputs["Base Color"].links:
@@ -466,7 +480,10 @@ def meshy_rim(k, slab, cx, cy, hw, top):
             for l_ in list(bsdf.inputs["Roughness"].links):
                 nt.links.remove(l_)
             bsdf.inputs["Roughness"].default_value = 0.85
-    bvh = BVHTree.FromPolygons([tuple(v) for v in P], [tuple(p_.vertices) for p_ in me.polygons])
+
+
+def finish_rim(k, bvh, cx, cy, hw, top, best, kk):
+    """The Meshy rim's pool: its floor, the ooze height and the edge per angle (see meshy_rim)."""
 
     def hz(x, y):
         hit = bvh.ray_cast(Vector((x, y, top + H)), Vector((0, 0, -1)))
@@ -501,9 +518,296 @@ slabs = objs["slabs"]
 n_ = 5
 SLAB_TOP = max((s.matrix_world @ Vector(c)).z for s in slabs for c in s.bound_box) - 0.01 * H
 OOZE, BROKEN = ooze_mat(), broken_mat()
+
+
+# ---------- ponds: touching sludge squares as one pool (Wesley 2026-11-24) ----------
+def sq_center(i, j):
+    return ((i - (n_ - 1) / 2) * S, (j - (n_ - 1) / 2) * S)
+
+
+def stone_mat():
+    """Code shards' stone (only until the Meshy kit exists): the set's slate grey, chalky, lighter on the edges."""
+    m, nt, b = nodes("sludge_stone")
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    nz = nt.nodes.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 18 / S; nz.inputs["Detail"].default_value = 6
+    link(nt, geo.outputs["Position"], nz.inputs["Vector"])
+    mix = nt.nodes.new("ShaderNodeMix"); mix.data_type = "RGBA"
+    mix.inputs[6].default_value = (0.06, 0.06, 0.06, 1); mix.inputs[7].default_value = (0.12, 0.12, 0.115, 1)
+    link(nt, nz.outputs["Fac"], mix.inputs["Factor"])
+    edge = nt.nodes.new("ShaderNodeMapRange"); edge.inputs["From Min"].default_value = 0.45; edge.inputs["From Max"].default_value = 0.6
+    link(nt, geo.outputs["Pointiness"], edge.inputs["Value"])
+    mix2 = nt.nodes.new("ShaderNodeMix"); mix2.data_type = "RGBA"
+    link(nt, mix.outputs[2], mix2.inputs[6]); mix2.inputs[7].default_value = (0.17, 0.17, 0.16, 1)
+    link(nt, edge.outputs["Result"], mix2.inputs["Factor"])
+    link(nt, mix2.outputs[2], b.inputs["Base Color"])
+    b.inputs["Roughness"].default_value = 0.85
+    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.3
+    nz2 = nt.nodes.new("ShaderNodeTexNoise"); nz2.inputs["Scale"].default_value = 60 / S
+    link(nt, geo.outputs["Position"], nz2.inputs["Vector"]); link(nt, nz2.outputs["Fac"], bump.inputs["Height"])
+    link(nt, bump.outputs["Normal"], b.inputs["Normal"])
+    return m
+
+
+def code_shard(name, rng):
+    """A chunky angular broken slab, about 1 long (x), 0.6 wide (y), 0.3 thick, bottom at z=0, beveled a little."""
+    n = rng.randint(5, 7)
+    pts = []
+    for q in range(n):
+        t = 2 * math.pi * (q + rng.uniform(-0.25, 0.25)) / n
+        r = rng.uniform(0.8, 1.05)
+        pts.append((0.5 * r * math.cos(t), 0.3 * r * math.sin(t)))
+    th = rng.uniform(0.3, 0.42)
+    bm = bmesh.new()
+    lo = [bm.verts.new((x, y, 0)) for x, y in pts]
+    hi = [bm.verts.new((x * 0.96, y * 0.96, th * rng.uniform(0.9, 1.1))) for x, y in pts]
+    for q in range(n):
+        bm.faces.new((lo[q], lo[(q + 1) % n], hi[(q + 1) % n], hi[q]))
+    bm.faces.new(hi); bm.faces.new(lo[::-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    me.materials.append(STONE)
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
+    bv = o.modifiers.new("chip", "BEVEL"); bv.width = 0.01; bv.segments = 1; bv.limit_method = "ANGLE"
+    return o
+
+
+KIT = []
+
+
+def load_kit():
+    """The Meshy shards: welded, split into loose parts, the 7 biggest kept, each laid long side on x, centred, its
+    bottom at z=0, scaled to length 1. Hidden: copies go round the ponds."""
+    if KIT or not a.kit_glb:
+        return KIT
+    from mathutils import Matrix
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=a.kit_glb)
+    new = [o for o in bpy.data.objects if o not in before]
+    m = next(o for o in new if o.type == "MESH")
+    m.data.transform(m.matrix_world); m.parent = None; m.matrix_world = Matrix()
+    for o in new:
+        if o is not m:
+            bpy.data.objects.remove(o)
+    bm = bmesh.new(); bm.from_mesh(m.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-4)
+    bm.to_mesh(m.data); bm.free()
+    tint_meshy(m.data.materials)
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = m; m.select_set(True)
+    bpy.ops.mesh.separate(type="LOOSE")
+    parts = sorted([o for o in bpy.context.selected_objects], key=lambda o: -len(o.data.vertices))
+    for o in parts[7:]:
+        bpy.data.objects.remove(o)
+    for q, o in enumerate(parts[:7]):
+        me = o.data
+        P = np.empty(len(me.vertices) * 3); me.vertices.foreach_get("co", P); P = P.reshape(-1, 3)
+        P[:, :2] -= P[:, :2].mean(0)
+        w, V = np.linalg.eigh(np.cov(P[:, :2].T))
+        ax = V[:, np.argmax(w)]
+        ang = math.atan2(ax[1], ax[0])
+        R = np.array([[math.cos(-ang), -math.sin(-ang)], [math.sin(-ang), math.cos(-ang)]])
+        P[:, :2] = P[:, :2] @ R.T
+        P[:, :2] -= (P[:, :2].min(0) + P[:, :2].max(0)) / 2
+        P[:, 2] -= P[:, 2].min()
+        P /= np.ptp(P[:, 0])
+        me.vertices.foreach_set("co", P.ravel()); me.update()
+        o.name = "sludge_kit_%d" % q
+        o.hide_render = True; o.hide_viewport = True
+        KIT.append(o)
+    print("CHECK kit pieces", [round(float(np.ptp(np.array([v.co.y for v in o.data.vertices]))), 2) for o in KIT], flush=True)
+    return KIT
+
+
+def place_stone(name, slot, top, rng):
+    """One rim stone on its slot: long side along the edge, a third of it over the ooze, bedded into the slab and
+    tipped 10-25 degrees into the pool about its outer bottom edge."""
+    from mathutils import Matrix
+    x, y, along, size, (ox, oy) = slot
+    kit = load_kit()
+    if kit:
+        o = kit[rng.randrange(len(kit))].copy(); o.data = o.data.copy(); sc.collection.objects.link(o)
+        o.hide_render = False; o.hide_viewport = False; o.name = name
+    else:
+        o = code_shard(name, rng)
+    me = o.data
+    me.transform(Matrix.Diagonal((size, size * rng.uniform(0.85, 1.1), size * rng.uniform(0.9, 1.15), 1)))
+    ys = [v.co.y for v in me.vertices]; zs_ = [v.co.z for v in me.vertices]
+    width, thick = max(ys) - min(ys), max(zs_) - min(zs_)
+    if rng.random() < 0.5:
+        me.transform(Matrix.Rotation(math.pi, 4, "Z"))  # either face toward the pool
+    tilt = math.radians(rng.uniform(10, 25))
+    sink = thick * rng.uniform(0.15, 0.3)
+    out = Vector((ox, oy, 0))
+    tang = Vector((-oy, ox, 0))
+    pivot = Vector((x, y, top - sink)) + out * (width / 2)
+    # local: x along the edge, y across (+y outward), z up; then tip the inward side down about the outer edge
+    rot = Matrix.Rotation(math.atan2(oy, ox) - math.pi / 2, 4, "Z")
+    base = Matrix.Translation(Vector((x, y, top - sink))) @ rot
+    T = Matrix.Translation(pivot) @ Matrix.Rotation(tilt, 4, tang) @ Matrix.Translation(-pivot)
+    probe = base @ Vector((0, -width / 2, 0))
+    if (T @ probe).z > probe.z:
+        T = Matrix.Translation(pivot) @ Matrix.Rotation(-tilt, 4, tang) @ Matrix.Translation(-pivot)
+    o.matrix_world = T @ base @ Matrix.Rotation(rng.uniform(-0.15, 0.15), 4, "Z")
+    return o
+
+
+def pond_noise(x, y):
+    return noise.noise(Vector((x * 3.0 / S, y * 3.0 / S, 4.2)))
+
+
+def build_pond(k, comp):
+    """Touching sludge squares as one pool: one edge round the lot (straight across shared edges, inset on free
+    sides), every member slab cut by it, the moss in its joints taken out, one ooze sheet over it all, broken stones
+    round the edge, a green glow over each square."""
+    rng = random.Random(2000 + 31 * comp[0][0] + 7 * comp[0][1])
+    sdf = sp.pond_sdf(comp, S, margin=a.margin, round_=a.round, fillet=a.fillet, ragged=a.ragged, noise=pond_noise,
+                      center=sq_center)
+    cs = [sq_center(i, j) for i, j in comp]
+    box = (min(c[0] for c in cs) - S / 2, min(c[1] for c in cs) - S / 2, max(c[0] for c in cs) + S / 2, max(c[1] for c in cs) + S / 2)
+    loops = sp.outline(sdf, box, 0.01 * S)
+    tops, zbot = [], 1e9
+    members = []
+    for i, j in comp:
+        cx, cy = sq_center(i, j)
+        slab = next(s_ for s_ in slabs if s_.name == "Slab_%d_%d" % (i, j))
+        slab.data = slab.data.copy()
+        wv = [slab.matrix_world @ v.co for v in slab.data.vertices]
+        near = sorted(p_.z for p_ in wv if abs(p_.x - cx) < 0.3 * S and abs(p_.y - cy) < 0.3 * S)
+        tops.append(near[int(len(near) * 0.9)])
+        zbot = min(zbot, min(p_.z for p_ in wv))
+        members.append(slab)
+    top = sorted(tops)[len(tops) // 2]
+    zs = top - a.depth * H
+    outer = [L for L in loops if sp._area(L) > 0]
+    print("CHECK pond %d squares %d loops %d (outer %d, %d pts) top %.4f ooze %.4f" % (
+        k, len(comp), len(loops), len(outer), sum(len(L) for L in loops), top, zs), flush=True)
+    # the hole through every member slab
+    for q, L in enumerate(outer):
+        cut = prism("sludge_pcut_%d_%d" % (k, q), L, zbot - 0.1 * H, top + 0.3 * H)
+        for slab in members:
+            mod = slab.modifiers.new("pond%d" % q, "BOOLEAN"); mod.operation = "DIFFERENCE"; mod.object = cut
+            mod.solver = a.solver; mod.use_hole_tolerant = True; mod.material_mode = "TRANSFER"
+    # the moss in the joints inside the pond would poke through the ooze
+    for mo in [o for o in sc.objects if o.type == "MESH" and o.name in ("Moss", "GroutMoss")]:
+        bm = bmesh.new(); bm.from_mesh(mo.data)
+        mw = mo.matrix_world
+        kill = [v for v in bm.verts if sdf(*(mw @ v.co).xy) < 0.02 * S]
+        if kill:
+            bmesh.ops.delete(bm, geom=kill, context="VERTS")
+            bm.to_mesh(mo.data)
+        print("CHECK pond %d moss %s cut %d verts" % (k, mo.name, len(kill)), flush=True)
+        bm.free()
+    # a dark basin floor below the ooze (kept out of the glow, or it lights up through the ooze)
+    floors = []
+    for q, L in enumerate(outer):
+        fl = prism("sludge_pfloor_%d_%d" % (k, q), L, zs - 0.06 * S, zs - 0.05 * S)
+        fl.hide_render = False; fl.hide_viewport = False
+        fl.data.materials[0] = FLOOR
+        floors.append(fl)
+    # bubbles where they fit, about --bubbles per square
+    bubs = []
+    want = max(1, a.bubbles * len(comp))
+    for q in range(want * 30):
+        if len(bubs) >= want:
+            break
+        r = (rng.uniform(0.1, 0.14) if len(bubs) < 2 * len(comp) else rng.uniform(0.04, 0.09)) * S * a.bub_scale
+        x, y = rng.uniform(box[0], box[2]), rng.uniform(box[1], box[3])
+        if sdf(x, y) > -r * 1.1:
+            continue
+        if any(math.hypot(x - b_[0], y - b_[1]) < (r + b_[2]) * 0.8 for b_ in bubs):
+            continue
+        bubs.append((x, y, r, rng.uniform(0, 1), rng.uniform(0, 6.28), rng.uniform(1.0, 1.12), rng.uniform(-0.3, 0.3)))
+    surf = pond_sheet("sludge_pond_%d" % k, sdf, box, bubs, a.t, rng)
+    surf.location = (0, 0, zs)
+    sub = surf.modifiers.new("smooth", "SUBSURF"); sub.levels = 0; sub.render_levels = 1
+    # the rim stones
+    slots = sp.rim_slots(loops, sdf, S, rng)
+    for q, slot in enumerate(slots):
+        place_stone("sludge_pstone_%d_%d" % (k, q), slot, top, rng)
+    print("CHECK pond %d bubbles %d stones %d" % (k, len(bubs), len(slots)), flush=True)
+    for q, (cx, cy) in enumerate(cs):
+        pool_lights("%d_%d" % (k, q), surf, cx, cy, zs, ping=(q == 0), unlit=floors)
+        pools.append((cx, cy))
+    groups.append(box)
+
+
+def pond_sheet(name, sdf, box, bubbles, t, rng, step=0.012):
+    """The pond's ooze: a grid sheet over the pond in world xy (z from the object's location), reaching a little past
+    the edge under the stone, with the same swell, meniscus, bubbles and edge darkening as the single pool."""
+    off = Vector((rng.uniform(0, 50), rng.uniform(0, 50), 0))
+    tw = 2 * math.pi * t
+    h = step * S
+    tuck = 0.03 * S
+    x0, y0 = box[0] - tuck, box[1] - tuck
+    nx, ny = int((box[2] - box[0] + 2 * tuck) / h) + 2, int((box[3] - box[1] + 2 * tuck) / h) + 2
+    bm = bmesh.new()
+    vid = {}
+    dist = {}
+    for a_ in range(nx):
+        for b_ in range(ny):
+            x, y = x0 + a_ * h, y0 + b_ * h
+            d = sdf(x, y)
+            if d < tuck:
+                vid[(a_, b_)] = bm.verts.new((x, y, 0))
+                dist[(a_, b_)] = d
+    for a_ in range(nx - 1):
+        for b_ in range(ny - 1):
+            c = [(a_, b_), (a_ + 1, b_), (a_ + 1, b_ + 1), (a_, b_ + 1)]
+            if all(q in vid for q in c):
+                bm.faces.new([vid[q] for q in c])
+    edge = []
+    for key, v in vid.items():
+        x, y = v.co.x, v.co.y
+        d = dist[key]
+        z = a.swell * S * noise.noise(Vector((x * 2.2 / S, y * 2.2 / S, 0)) + off + Vector((0.4 * math.cos(tw), 0.4 * math.sin(tw), 0)))
+        z += 0.008 * S * min(1.0, max(0.0, (d + 0.06 * S) / (0.06 * S))) ** 2  # meniscus up the stone
+        for b_ in bubbles:
+            hb = bubble_h(b_, x, y, t)
+            if hb > 0:
+                z = smax(z, hb, a.neck * S)
+        v.co.z = z
+    bm.normal_update()
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
+    ed = me.attributes.new("edge", "FLOAT", "POINT")
+    ed.data.foreach_set("value", [min(1.0, max(0.0, 1 + sdf(v.co.x, v.co.y) / (0.4 * S))) for v in me.vertices])
+    for p_ in me.polygons:
+        p_.use_smooth = True
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
+    return o
+
+
+def pool_lights(tag, surf, cx, cy, zs, ping=True, unlit=()):
+    """The green glow over one square (kept off the ooze itself) and, with --ping, the small hard highlight on it."""
+    L = bpy.data.lights.new("sludge_glow_%s" % tag, "POINT"); L.energy = a.light; L.color = (0.45, 1.0, 0.15)
+    L.shadow_soft_size = 0.3 * S; L.use_shadow = False
+    lo = bpy.data.objects.new("sludge_glow_%s" % tag, L); sc.collection.objects.link(lo); lo.location = (cx, cy, zs + 0.06 * H)
+    ex = bpy.data.collections.get("sludge_unlit_%s" % surf.name) or bpy.data.collections.new("sludge_unlit_%s" % surf.name)
+    for o_ in (surf, *unlit):
+        if o_.name not in ex.objects:
+            ex.objects.link(o_)
+    lo.light_linking.receiver_collection = ex
+    for item in ex.collection_objects:
+        item.light_linking.link_state = "EXCLUDE"
+    if a.ping and ping:
+        v_ = (cam.matrix_world.translation - Vector((cx, cy, zs))).normalized()
+        A_ = bpy.data.lights.new("sludge_ping_%s" % tag, "AREA"); A_.energy = a.ping; A_.size = 0.03 * S
+        ao = bpy.data.objects.new("sludge_ping_%s" % tag, A_); sc.collection.objects.link(ao)
+        ao.location = Vector((cx, cy, zs)) + Vector((-v_.x, -v_.y, v_.z)) * 3 * S + Vector((0.15 * S, 0.1 * S, 0))
+        ao.rotation_euler = (Vector((cx, cy, zs)) - ao.location).to_track_quat("-Z", "Y").to_euler()
+        inc = bpy.data.collections.get("sludge_pinged_%s" % surf.name) or bpy.data.collections.new("sludge_pinged_%s" % surf.name)
+        if surf.name not in inc.objects:
+            inc.objects.link(surf)
+        ao.light_linking.receiver_collection = inc
+
+STONE = stone_mat()
+FLOOR, _nt, _b = nodes("sludge_floor"); _b.inputs["Base Color"].default_value = (0.01, 0.02, 0.008, 1); _b.inputs["Roughness"].default_value = 1
 pools = []
-for k, sq_ in enumerate(a.squares.split(";")):
-    i, j = (int(v) for v in sq_.split(","))
+groups = []  # (x0, y0, x1, y1) world box of each pool or pond, for the crops
+SQS = [tuple(int(v) for v in sq_.split(",")) for sq_ in a.squares.split(";") if sq_.strip()]
+COMPS = sp.components(SQS)
+LONE = [c[0] for c in COMPS if len(c) == 1]
+print("CHECK sludge groups", COMPS, flush=True)
+for k, (i, j) in enumerate(LONE):
     rng = random.Random(1000 + 31 * i + 7 * j)
     cx, cy = (i - (n_ - 1) / 2) * S, (j - (n_ - 1) / 2) * S
     slab = next(s for s in slabs if s.name == "Slab_%d_%d" % (i, j))
@@ -641,6 +945,9 @@ for k, sq_ in enumerate(a.squares.split(";")):
         inc = bpy.data.collections.new("sludge_pinged_%d" % k); inc.objects.link(surf)
         ao.light_linking.receiver_collection = inc
     pools.append((cx, cy))
+    groups.append((cx - S / 2, cy - S / 2, cx + S / 2, cy + S / 2))
+for k, comp in enumerate([c for c in COMPS if len(c) > 1]):
+    build_pond(100 + k, comp)
 print("CHECK slab top %.3f, pools %s, res %s -> %d x %d" % (SLAB_TOP, pools, a.res, sc.render.resolution_x, sc.render.resolution_y), flush=True)
 
 rx, ry = sc.render.resolution_x, sc.render.resolution_y
@@ -657,8 +964,9 @@ if a.zoom:
     r_.border_min_y, r_.border_max_y = max(0, cv - hh), min(1, cv + hh)
 import json
 boxes = []
-for x, y in pools:
-    uv_ = [world_to_camera_view(sc, cam, Vector((x + dx * S * 0.95, y + dy * S * 0.95, SLAB_TOP))) for dx in (-1, 1) for dy in (-1, 1)]
+for gx0, gy0, gx1, gy1 in groups:
+    uv_ = [world_to_camera_view(sc, cam, Vector((x, y, SLAB_TOP))) for x in (gx0 - 0.45 * S, gx1 + 0.45 * S)
+           for y in (gy0 - 0.45 * S, gy1 + 0.45 * S)]
     boxes.append([min(q.x for q in uv_), 1 - max(q.y for q in uv_), max(q.x for q in uv_), 1 - min(q.y for q in uv_)])
 json.dump({"boxes": boxes}, open(os.path.join(a.out, "pools.json"), "w"))
 sc.render.filepath = os.path.join(a.out, "sludge-zoom.png" if a.zoom else "sludge.png")
