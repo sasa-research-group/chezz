@@ -59,6 +59,7 @@ ap.add_argument("--margin", type=float, default=0.12)  # pond: the stone kept on
 ap.add_argument("--round", type=float, default=0.12)   # pond: the outside corners' radius, share of a square
 ap.add_argument("--fillet", type=float, default=0.1)   # pond: the inside corners' fillet, share of a square
 ap.add_argument("--ragged", type=float, default=0.015)  # pond: the edge's wobble, share of a square
+ap.add_argument("--stone", type=float, default=0.12)  # pond: the small rim stones, share of a square (big ones 1.6x)
 ap.add_argument("--kit_glb", default="")  # pond: a Meshy model of loose broken shards for the rim (else code shards)
 ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
 a = ap.parse_args(argv)
@@ -652,7 +653,8 @@ def place_stone(name, slot, top, rng):
 
 
 def pond_noise(x, y):
-    return noise.noise(Vector((x * 3.0 / S, y * 3.0 / S, 4.2)))
+    # broad bites plus a finer wobble, so the edge reads as broken floor, not a rounded box
+    return noise.noise(Vector((x * 1.2 / S, y * 1.2 / S, 9.1))) + 0.4 * noise.noise(Vector((x * 3.0 / S, y * 3.0 / S, 4.2)))
 
 
 def build_pond(k, comp):
@@ -721,7 +723,7 @@ def build_pond(k, comp):
     surf.location = (0, 0, zs)
     sub = surf.modifiers.new("smooth", "SUBSURF"); sub.levels = 0; sub.render_levels = 1
     # the rim stones
-    slots = sp.rim_slots(loops, sdf, S, rng)
+    slots = sp.rim_slots(loops, sdf, S, rng, sizes=(a.stone * 1.6, a.stone))
     for q, slot in enumerate(slots):
         place_stone("sludge_pstone_%d_%d" % (k, q), slot, top, rng)
     print("CHECK pond %d bubbles %d stones %d" % (k, len(bubs), len(slots)), flush=True)
