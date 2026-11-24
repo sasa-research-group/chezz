@@ -131,3 +131,26 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   top, but it reads as a man knocked flat toward you. The king and guard work the same way.
 - `rook_death.py OUT` solves the 29 frames (`--keys`/`--only` for drafts), `runrookdeath.sh` bakes them,
   `king_loop_atlas.py ... name=death figure=rook rows=4` packs them. test_rook_death.py checks keys and solves.
+
+## The eye square: a Meshy plinth, lids in code, baked in Cycles (2026-11-24)
+
+- Look: Wesley picked a glass eyeball in iron claws on a stone pedestal, with riveted iron lids. From the high,
+  square-on camera only a block's front and top show, so eyes carved on the sides or back would be wasted.
+- First try, all in code and drawn live by three.js: Wesley called it "GameCube" next to the felt and clay set.
+  Plain shapes under realtime light read as a video game prop, not a real object in a diorama. Any prop that
+  stands next to the baked figures has to be baked in Cycles too, with real materials.
+- What worked: Meshy for the plinth and claws (it models worn stone and rust well), the moving parts built in code
+  in Blender (`build_eye_cycles.py`: eyeball, iris, cornea, hammered iron lids with rivets) so they come out as
+  separate parts to pose, then the same sprite bake as the figures (`runeye.sh PED OUT RES SAMPLES` with
+  `EYE_ARGS=--bake`, packed by `king_atlas.py` and `king_loop_atlas.py`).
+- Meshy puts a grey stand-in ball where the eye goes: fit a sphere to it and cut those faces. Sit the real ball and
+  lids a little inside the claws (0.84 of the stand-in) or the lids clip the claws when they open.
+- Looking level, the eye showed the camera only the top of its lids. It tips its gaze up toward the camera (40°
+  dozing, 22° staring). Turned full side on, its iris faced away: it turns only 65% of the way.
+- Dozing keeps a slit open with a dim glow: the eye always watches, so it must never look safe to walk past.
+- A red iris read as a target. Gold to amber with a lighter ring around the pupil reads as an eye.
+- It sees only along its row and column, so wakes are baked for 4 headings; the 8 still headings give the turns
+  their in-betweens. Nodding off is the wake played backwards, slowly (6 fps against 24).
+- Timing (keyed by hand in `WAKE`, no clip reference pass yet): the lids snap open in about 3 frames at 24 fps
+  and overshoot a touch, the glow flares and settles, the head turns after the lids and lands around frame 6;
+  dozing, the lids drift over about 6 seconds.

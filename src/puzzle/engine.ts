@@ -154,6 +154,20 @@ export function sight(b: Board, s: State): Pos[] {
   }
   return out;
 }
+/** The piece of yours this eye looks at: the nearest one it sees along its row and column (sight's rules), or null
+ * when none is in view. The 3D eye dozes until then, and stares at it. */
+export function stareOf(b: Board, s: State, e: Pos): Pos | null {
+  let best: Pos | null = null, bestD = Infinity;
+  for (const [dx, dy] of ROOK) {
+    for (let x = e.x + dx, y = e.y + dy, d = 1; x >= 0 && y >= 0 && x < b.width && y < b.height && !b.solid[y * b.width + x] && !closedGate(b, s, y * b.width + x); x += dx, y += dy, d++) {
+      const q = s.pieces.find(p => p.x === x && p.y === y);
+      if (!q) continue;
+      if (q.side === "white" && d < bestD) { best = { x, y }; bestD = d; }
+      break;
+    }
+  }
+  return best;
+}
 /** If an eye sees one of your pieces, every sleeper wakes. */
 function alarm(b: Board, s: State): State {
   if (!s.pieces.some(q => q.asleep)) return s;

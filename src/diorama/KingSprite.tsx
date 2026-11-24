@@ -27,7 +27,7 @@ import type { LoopInfo } from "./check";
 import { deathFrame, showsDeath } from "./death";
 
 // dev: `?kingsheet=name` loads a trial sheet from diorama/_t/name/ instead
-const BASE = import.meta.env.DEV && /kingsheet=([\w-]+)/.test(location.search) ? `diorama/_t/${RegExp.$1}/` : "diorama/";
+export const BASE = import.meta.env.DEV && /kingsheet=([\w-]+)/.test(location.search) ? `diorama/_t/${RegExp.$1}/` : "diorama/";
 export type KingSheet = {
   quad: { x0: number; x1: number; y0: number; y1: number };
   right: number[]; up: number[]; fwd: number[]; d0: number; dq: number;
@@ -130,7 +130,7 @@ const SLOW = import.meta.env.DEV ? +(new URLSearchParams(location.search).get("k
 const tileOf = (yaw: number, n: number) => ((Math.round(yaw / (2 * Math.PI / n)) % n) + n) % n;
 
 /** The quad, its two materials (over the set, and at true depth over cards) for one sheet. */
-function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Texture | null) {
+export function sheetMeshes(s: KingSheet, map: THREE.Texture | null, glow: THREE.Texture | null) {
   const { x0, x1, y0, y1 } = s.quad;
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute([x0, y0, 0, x1, y0, 0, x1, y1, 0, x0, y1, 0], 3));

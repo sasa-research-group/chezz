@@ -1,7 +1,7 @@
 import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { mated } from "../diorama/death";
-import { apply, boardOf, fallen, gateOpen, inCheck, legalMoves, sight, toxic, moveName, movesFrom, outcome, pass, pieceAt, same, squareName, start } from "../puzzle/engine";
+import { apply, boardOf, fallen, gateOpen, inCheck, legalMoves, sight, stareOf, toxic, moveName, movesFrom, outcome, pass, pieceAt, same, squareName, start } from "../puzzle/engine";
 import type { Move, PKind, Pos, Puzzle, Side, State, Switch, SwitchKind } from "../puzzle/engine";
 import { EFFECTS, effectOf, switchText, GOALS, MAX_MOVES, MAX_SIDE, MIN_SIDE, PUZZLES, P_KINDS, formatPuzzles, goalOf, goalSquares, goalText, puzzleIssues, withGoalSquares } from "../puzzle/puzzles";
 import { NEVER, analyze, bestReply, solver } from "../puzzle/solve";
@@ -108,7 +108,7 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
     const kind: DioramaSquare["kind"] = has(pz.holes) ? "hole" : has(eyes) ? "eye" : has(pz.walls) ? "wall" : door ? (fallen(bd, state, p) ? "fallen" : "trapdoor")
       : gi >= 0 ? (gateOpen(bd, state, gi) ? "gate-open" : "gate") : sw ? sw.kind : toxic(bd, state, i) ? "sludge" : has(pz.snares) ? "snare" : undefined;
     return { ...p, kind, label: squareName(pz, p), goal: has(goals) ? (pz.goal.type === "escort" ? "exit" : "star") : undefined, watched: has(seen),
-      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired) };
+      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired), stare: kind === "eye" ? stareOf(bd, state, p) : undefined };
   });
   // In play each piece keeps an id and faces its last move; in the editor everything faces the camera.
   const seen3d = history ? track(history.states, history.moves) : null;

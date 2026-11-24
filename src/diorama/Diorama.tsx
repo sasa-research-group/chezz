@@ -16,6 +16,7 @@ import { yawOf } from "./facing";
 import { useGLTF } from "@react-three/drei";
 import { PILLAR_H, PILLAR_W, WALL_H, WALL_HALF_GLB, WALL_PIL_GLB, WALL_SEG_GLB, WALL_T, wallArms, wallPieces, type Arms } from "./walls";
 import { gameSpeed, hitTime, moving } from "./motion";
+import { EyeSprite } from "./EyeSprite";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
@@ -197,6 +198,8 @@ export type DioramaSquare = {
   /** What sits on the square, drawn as placeholders until the dungeon art exists. */
   kind?: "hole" | "wall" | "eye" | "sludge" | "trapdoor" | "fallen" | "snare" | "gate" | "gate-open" | "lever" | "plate";
   goal?: "star" | "exit"; watched?: boolean; picked?: boolean; target?: "move" | "capture"; last?: boolean; flag?: boolean; wired?: boolean;
+  /** An eye: the square of your piece it sees (it wakes and stares at it); null or missing, it dozes. */
+  stare?: { x: number; y: number } | null;
   label: string;
 };
 export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; x: number; y: number;
@@ -229,18 +232,7 @@ useGLTF.preload(WALL_SEG_GLB);
 useGLTF.preload(WALL_HALF_GLB);
 useGLTF.preload(WALL_PIL_GLB);
 
-/** An eye: a stone block with a glowing eye on its front (placeholder until the carved eye tile exists). */
-function EyeBlock({ S, H }: { S: number; H: number }) {
-  const stone = useMemo(() => new THREE.MeshStandardMaterial({ color: new THREE.Color(0.16, 0.16, 0.15), roughness: 0.95 }), []);
-  const glow = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.25, 0.15) }), []);
-  const h = WALL_H * H;
-  return <>
-    <mesh castShadow position={[0, 0, h / 2]} material={stone}><boxGeometry args={[0.94 * S, 0.94 * S, h]} /></mesh>
-    <mesh position={[0, -0.47 * S, h * 0.57]} material={glow}><sphereGeometry args={[0.14 * S, 20, 12]} /></mesh>
-  </>;
-}
-
-function SquareMarks({ sq, S, H, arms }: { sq: DioramaSquare; S: number; H: number; arms?: Arms }) {
+function SquareMarks({ sq, S, H, arms, pos }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number] }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -256,7 +248,7 @@ function SquareMarks({ sq, S, H, arms }: { sq: DioramaSquare; S: number; H: numb
   switch (sq.kind) {
     case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
     case "wall": if (arms) out.push(<Wall key="w" arms={arms} seed={sq.x * 131 + sq.y * 7919} S={S} H={H} />); break;
-    case "eye": out.push(<EyeBlock key="w" S={S} H={H} />); break;
+    case "eye": out.push(<EyeSprite key="w" at={sq} pos={pos} stare={sq.stare} S={S} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
     case "trapdoor": out.push(plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td"), ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")); break;
     case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;
@@ -376,7 +368,7 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} arms={arms.get(`${sq.x},${sq.y}`)} />
+          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
