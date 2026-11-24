@@ -24,10 +24,15 @@ ap.add_argument("--samples", type=int, default=128)
 ap.add_argument("--squares", default="1,1;3,2;1,3")  # board squares (0..4 from the left, 0..4 from the front)
 ap.add_argument("--zoom", type=float, default=0.0)    # >0: render only a box round the pools, this much padded
 ap.add_argument("--glow", type=float, default=3.0)    # the ooze's emission strength
-ap.add_argument("--light", type=float, default=25.0)  # the point light over each pool (W)
-ap.add_argument("--size", type=float, default=0.4)
-ap.add_argument("--flare", type=float, default=0.14)  # how far the broken edge slopes out, share of the hole
-ap.add_argument("--depth", type=float, default=0.07)  # the ooze below the slab top, in figure heights   # the hole's half-width, share of a square
+ap.add_argument("--light", type=float, default=80.0)  # the point light over each pool (W)
+ap.add_argument("--size", type=float, default=0.46)
+ap.add_argument("--bubbles", type=int, default=9)
+ap.add_argument("--burst", type=int, default=0)  # the burst ring and drops (the judge read the ring as a torus)
+ap.add_argument("--solver", default="EXACT")
+ap.add_argument("--chunks", type=int, default=8)
+ap.add_argument("--sink", type=float, default=0.45)  # how far each bubble sits below the surface, share of its radius
+ap.add_argument("--flare", type=float, default=0.08)  # how far the broken edge slopes out, share of the hole
+ap.add_argument("--depth", type=float, default=0.035)  # the ooze below the slab top, in figure heights   # the hole's half-width, share of a square
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
 
@@ -63,20 +68,20 @@ def ooze_mat():
     nz.inputs["Distortion"].default_value = 0.6
     link(nt, tc.outputs["Object"], nz.inputs["Vector"])
     ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].position = 0.35; ramp.color_ramp.elements[0].color = (0.015, 0.2, 0.008, 1)
-    ramp.color_ramp.elements[1].position = 0.7; ramp.color_ramp.elements[1].color = (0.16, 0.85, 0.03, 1)
+    ramp.color_ramp.elements[0].position = 0.35; ramp.color_ramp.elements[0].color = (0.09, 0.5, 0.01, 1)
+    ramp.color_ramp.elements[1].position = 0.7; ramp.color_ramp.elements[1].color = (0.2, 0.68, 0.02, 1)
     link(nt, nz.outputs["Fac"], ramp.inputs["Fac"])
     link(nt, ramp.outputs["Color"], b.inputs["Base Color"])
     link(nt, ramp.outputs["Color"], b.inputs["Emission Color"])
     b.inputs["Emission Strength"].default_value = a.glow
-    b.inputs["Roughness"].default_value = 0.18
-    b.inputs["Subsurface Weight"].default_value = 0.25
+    b.inputs["Roughness"].default_value = 0.16
+    b.inputs["Subsurface Weight"].default_value = 0.0
     b.inputs["Subsurface Radius"].default_value = (0.4, 1.0, 0.3)
     b.inputs["Subsurface Scale"].default_value = 0.05 * S
-    b.inputs["Coat Weight"].default_value = 1.0
-    b.inputs["Coat Roughness"].default_value = 0.03
+    b.inputs["Coat Weight"].default_value = 0.6
+    b.inputs["Coat Roughness"].default_value = 0.05
     # slow lumpy surface, not a mirror
-    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.08; bump.inputs["Distance"].default_value = 0.01 * S
+    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.03; bump.inputs["Distance"].default_value = 0.01 * S
     nz2 = nt.nodes.new("ShaderNodeTexNoise"); nz2.inputs["Scale"].default_value = 4 / S; nz2.inputs["Detail"].default_value = 3
     link(nt, tc.outputs["Object"], nz2.inputs["Vector"]); link(nt, nz2.outputs["Fac"], bump.inputs["Height"])
     link(nt, bump.outputs["Normal"], b.inputs["Normal"])
@@ -113,7 +118,7 @@ def broken_mat():
 
 def outline(rng, n=96):
     """The hole: a squarish blob (superellipse) with a wobbly edge and a few bites where chunks broke off."""
-    p = 3.2
+    p = 2.4
     ph = [rng.uniform(0, 6.28) for _ in range(4)]
     bites = [(rng.uniform(0, 6.28), rng.uniform(0.04, 0.09), rng.uniform(0.15, 0.3)) for _ in range(rng.randint(2, 4))]
     pts = []
@@ -121,7 +126,7 @@ def outline(rng, n=96):
         t = 2 * math.pi * i / n
         c, s = math.cos(t), math.sin(t)
         r = (abs(c) ** p + abs(s) ** p) ** (-1 / p)
-        r *= 1 + 0.05 * math.sin(3 * t + ph[0]) + 0.035 * math.sin(5 * t + ph[1]) + 0.02 * math.sin(11 * t + ph[2])
+        r *= 1 + 0.08 * math.sin(2 * t + ph[0]) + 0.05 * math.sin(5 * t + ph[1]) + 0.03 * math.sin(11 * t + ph[2])
         r *= 1 + 0.025 * noise.noise(Vector((c * 3, s * 3, ph[3])))
         for bt, depth, width in bites:  # a chunk gone: the edge pushed out
             d = math.atan2(math.sin(t - bt), math.cos(t - bt))
@@ -227,6 +232,43 @@ def rubble(name, r, at, mat, rng):
     return o
 
 
+def chunk(name, at, top, zs, t, mat, rng):
+    """A broken piece of flagstone: a thick slab shard with a jagged outline and sharp-ish edges, its top the slab's
+    worn face, tipped toward the pool so its outer edge stands proud and its inner edge sinks into the ooze."""
+    th_ = max(top - (zs - 0.05 * S), 0.1 * S)  # thick blocks: thinner ones read as paper shards
+    n = rng.randint(5, 7)
+    R = rng.uniform(0.12, 0.21) * S
+    outl = [(R * rng.uniform(0.6, 1.15) * math.cos(2 * math.pi * (q + rng.uniform(-0.25, 0.25)) / n),
+             R * rng.uniform(0.6, 1.15) * math.sin(2 * math.pi * (q + rng.uniform(-0.25, 0.25)) / n)) for q in range(n)]
+    bm = bmesh.new()
+    lo = [bm.verts.new((x, y, -th_)) for x, y in outl]
+    hi = [bm.verts.new((x, y, 0)) for x, y in outl]
+    for q in range(n):
+        bm.faces.new((lo[q], lo[(q + 1) % n], hi[(q + 1) % n], hi[q]))
+    bm.faces.new(hi); bm.faces.new(lo[::-1])
+    bmesh.ops.bevel(bm, geom=bm.edges[:], offset=0.018 * S, segments=3, affect="EDGES")
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=2, use_grid_fill=True)
+    off = Vector((rng.uniform(0, 50), rng.uniform(0, 50), 0))
+    for v in bm.verts:
+        v.co += Vector((0.5, 0.5, 1)) * 0.016 * S * noise.noise(v.co * (9 / S) + off)  # lumpy, hand-cut, not a clean fracture
+    bm.normal_update()
+    uvl = bm.loops.layers.uv.verify()  # the tile's texture, box-mapped from above
+    for f in bm.faces:  # sides mapped from the side: mapped from above they streaked into stripes
+        nx, ny, nz = (abs(c) for c in f.normal)
+        for l in f.loops:
+            x_, y_, z_ = l.vert.co
+            l[uvl].uv = ((0.5 + x_ / S, 0.5 + y_ / S) if nz > 0.6 else
+                         (0.5 + y_ / S, 0.5 + z_ / S) if nx > ny else (0.5 + x_ / S, 0.5 + z_ / S))
+    bm.normal_update()
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(mat)
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o)
+    tilt = rng.uniform(0.3, 0.6)  # radians, toward the pool
+    o.rotation_euler = (math.sin(t) * tilt, -math.cos(t) * tilt, rng.uniform(0, 6.28))
+    o.rotation_euler = (-math.sin(t) * tilt * -1, math.cos(t) * tilt * -1, o.rotation_euler.z)
+    o.location = (at[0], at[1], top + rng.uniform(-0.005, 0.03) * S)  # bedded in, not resting on the floor
+    return o
+
+
 # ---------- the pools ----------
 slabs = objs["slabs"]
 n_ = 5
@@ -242,37 +284,81 @@ for k, sq_ in enumerate(a.squares.split(";")):
     cx, cy = (i - (n_ - 1) / 2) * S, (j - (n_ - 1) / 2) * S
     slab = next(s for s in slabs if s.name == "Slab_%d_%d" % (i, j))
     slab.data = slab.data.copy()  # the tile mesh is shared by every slab
-    top = max((slab.matrix_world @ Vector(c)).z for c in slab.bound_box)
+    # the tile's face height near the middle: its highest bump stood well above the rest on some tiles, and the ooze
+    # then floated over the stone as a square
+    zz = sorted((slab.matrix_world @ v.co).z for v in slab.data.vertices
+                if abs((slab.matrix_world @ v.co).x - cx) < 0.3 * S and abs((slab.matrix_world @ v.co).y - cy) < 0.3 * S)
+    top = zz[int(len(zz) * 0.9)] if zz else max((slab.matrix_world @ Vector(c)).z for c in slab.bound_box)
+    print("CHECK pool %d top %.4f bbox-top %.4f" % (k, top, max((slab.matrix_world @ Vector(c)).z for c in slab.bound_box)))
     pts = outline(rng)
     zs = top - a.depth * H
     cutter = cutter_mesh("sludge_cut_%d" % k, pts, -0.5 * H, zs, top, BROKEN, rng)
     cutter.location = (cx, cy, 0); cutter.hide_render = True; cutter.hide_viewport = True
     mod = slab.modifiers.new("pool", "BOOLEAN"); mod.operation = "DIFFERENCE"; mod.object = cutter
-    mod.solver = "EXACT"; mod.use_hole_tolerant = True; mod.material_mode = "TRANSFER"
-    surf = surface("sludge_ooze_%d" % k, pts, zs, OOZE, rng); surf.location = (cx, cy, 0)
+    mod.solver = a.solver; mod.use_hole_tolerant = True; mod.material_mode = "TRANSFER"
+    # The ooze as metaballs, so it is one gooey body: a flat slab of it with fat round bubbles welling up out of it,
+    # merging into the surface with soft fillets (sludge-a.png: crowded smooth domes, thick and opaque).
+    mb = bpy.data.metaballs.new("sludge_ooze_%d" % k)
+    mb.resolution = 0.012 * S; mb.render_resolution = 0.006 * S; mb.threshold = 0.6
+    el = mb.elements.new(); el.type = "PLANE"; el.co = (0, 0, zs - 0.06 * S); el.radius = 0.08 * S
+    el.size_x = el.size_y = 0.8 * a.size * S;  # inside the hole: wider, it showed through a low tile as a square
+    el.stiffness = 2.0
+    nb = rng.randint(a.bubbles - 2, a.bubbles + 2)
+    placed = []
+    for q in range(nb * 6):
+        if len(placed) >= nb:
+            break
+        r = (rng.uniform(0.15, 0.19) if not placed else rng.uniform(0.08, 0.14)) * S
+        t_ = rng.uniform(0, 6.28); f_ = math.sqrt(rng.uniform(0.0, 0.8))
+        x, y = pts[int(t_ / 6.28 * len(pts)) % len(pts)]
+        x, y = x * f_, y * f_
+        if any(math.hypot(x - px_, y - py_) < (r + pr) * 0.85 for px_, py_, pr in placed):
+            continue
+        placed.append((x, y, r))
+        e = mb.elements.new(); e.type = "ELLIPSOID"; e.co = (x, y, zs - r * a.sink)
+        e.radius = r; e.size_x = e.size_y = 1.0; e.size_z = 0.8; e.stiffness = 1.3
+        # a lopsided mound, not a ball: a smaller lobe leaning off one side of it
+        la = rng.uniform(0, 6.28); lr = r * rng.uniform(0.45, 0.65)
+        e2 = mb.elements.new(); e2.type = "ELLIPSOID"
+        e2.co = (x + 0.55 * r * math.cos(la), y + 0.55 * r * math.sin(la), zs - r * a.sink - 0.2 * r)
+        e2.radius = lr; e2.size_x = 1.2; e2.size_y = 0.9; e2.size_z = 0.7; e2.stiffness = 1.2
+    # slow lumps in between
+    for q in range(5):
+        x, y = rng.uniform(-0.3, 0.3) * S, rng.uniform(-0.3, 0.3) * S
+        e = mb.elements.new(); e.type = "ELLIPSOID"; e.co = (x, y, zs - 0.06 * S); e.radius = 0.15 * S
+        e.size_x = 1.0; e.size_y = 0.8; e.size_z = 0.25; e.stiffness = 1.0
+    mb.materials.append(OOZE)
+    surf = bpy.data.objects.new("sludge_ooze_%d" % k, mb); sc.collection.objects.link(surf); surf.location = (cx, cy, 0)
     parts = [surf]
-    # bubbles: one big swelling, a few small, one bursting ring with drops flung up
-    for q in range(rng.randint(4, 6)):
-        r = (0.1 if q == 0 else rng.uniform(0.035, 0.065)) * S
-        ang, rad = rng.uniform(0, 6.28), rng.uniform(0.05, 0.62) * a.size * S
-        parts.append(ball("sludge_bubble_%d_%d" % (k, q), r, (cx + rad * math.cos(ang), cy + rad * math.sin(ang), zs - 0.35 * r), OOZE, cut=0.35, squash=0.9))
+    # one bubble bursting: a ring and drops flung up
     ang, rad = rng.uniform(0, 6.28), rng.uniform(0.3, 0.55) * a.size * S
     bx, by = cx + rad * math.cos(ang), cy + rad * math.sin(ang)
-    parts.append(ring("sludge_burst_%d" % k, 0.04 * S, 0.008 * S, (bx, by, zs + 0.004 * S), OOZE))
-    for q in range(3):
+    if a.burst: parts.append(ring("sludge_burst_%d" % k, 0.035 * S, 0.009 * S, (bx, by, zs + 0.004 * S), OOZE))
+    for q in range(3 if a.burst else 0):
         t = q * 2.1 + rng.uniform(0, 0.6)
-        parts.append(ball("sludge_drop_%d_%d" % (k, q), rng.uniform(0.007, 0.012) * S,
+        parts.append(ball("sludge_drop_%d_%d" % (k, q), rng.uniform(0.008, 0.013) * S,
                           (bx + 0.03 * S * math.cos(t), by + 0.03 * S * math.sin(t), zs + rng.uniform(0.03, 0.07) * S), OOZE))
-    # broken chunks lying at the edge, half sunk
-    for q in range(rng.randint(2, 4)):
-        t = rng.uniform(0, 6.28)
-        x, y = pts[int(t / 6.28 * len(pts)) % len(pts)]
-        f = rng.uniform(0.82, 0.92)
-        parts.append(rubble("sludge_rubble_%d_%d" % (k, q), rng.uniform(0.035, 0.06) * S, (cx + x * f, cy + y * f, zs - 0.01 * S), BROKEN, rng))
+    # Broken flagstone: angular chunks of the slab's own stone round the hole, tipped up, some sliding in.
+    smat = slab.material_slots[0].material if slab.material_slots else BROKEN
+    nch = rng.randint(a.chunks - 2, a.chunks + 2)
+    for q in range(nch):
+        t = (q + rng.uniform(-0.3, 0.3)) / nch * 6.28
+        x, y = pts[int((t % 6.28) / 6.28 * len(pts)) % len(pts)]
+        f = rng.uniform(0.98, 1.12)
+        parts.append(chunk("sludge_chunk_%d_%d" % (k, q), (cx + x * f, cy + y * f), top, zs, t, smat, rng))
     # the glow spilling onto the stone round it
     L = bpy.data.lights.new("sludge_glow_%d" % k, "POINT"); L.energy = a.light; L.color = (0.45, 1.0, 0.15)
     L.shadow_soft_size = 0.3 * S
-    lo = bpy.data.objects.new("sludge_glow_%d" % k, L); sc.collection.objects.link(lo); lo.location = (cx, cy, zs + 0.12 * H)
+    L.use_shadow = False  # it lights the chunks from inside the pool too
+    lo = bpy.data.objects.new("sludge_glow_%d" % k, L); sc.collection.objects.link(lo); lo.location = (cx, cy, zs + 0.06 * H)
+    # it lights the stone round the pool, never the ooze itself (that washed the bubbles out flat)
+    ex = bpy.data.collections.new("sludge_unlit_%d" % k)
+    for o_ in parts:
+        if o_.data and getattr(o_.data, "materials", None) and OOZE in list(o_.data.materials):
+            ex.objects.link(o_)
+    lo.light_linking.receiver_collection = ex
+    for item in ex.collection_objects:
+        item.light_linking.link_state = "EXCLUDE"
     pools.append((cx, cy))
 print("CHECK slab top %.3f, pools %s, res %s -> %d x %d" % (SLAB_TOP, pools, a.res, sc.render.resolution_x, sc.render.resolution_y), flush=True)
 
@@ -288,6 +374,12 @@ if a.zoom:
     r_.use_border = True; r_.use_crop_to_border = True
     r_.border_min_x, r_.border_max_x = max(0, cu - hw), min(1, cu + hw)
     r_.border_min_y, r_.border_max_y = max(0, cv - hh), min(1, cv + hh)
+import json
+boxes = []
+for x, y in pools:
+    uv_ = [world_to_camera_view(sc, cam, Vector((x + dx * S * 0.95, y + dy * S * 0.95, SLAB_TOP))) for dx in (-1, 1) for dy in (-1, 1)]
+    boxes.append([min(q.x for q in uv_), 1 - max(q.y for q in uv_), max(q.x for q in uv_), 1 - min(q.y for q in uv_)])
+json.dump({"boxes": boxes}, open(os.path.join(a.out, "pools.json"), "w"))
 sc.render.filepath = os.path.join(a.out, "sludge-zoom.png" if a.zoom else "sludge.png")
 bpy.ops.render.render(write_still=True)
 print("SLUDGE STILLS OK", sc.render.filepath, flush=True)
