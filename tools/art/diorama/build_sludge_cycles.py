@@ -18,6 +18,7 @@ sys.path.insert(0, STAGE)
 import stage
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sludge_pond as sp
+import sludge_bubbles as sb
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ap = argparse.ArgumentParser()
@@ -66,6 +67,10 @@ ap.add_argument("--kit_turn", type=float, default=0.15)  # and turn up to this m
 ap.add_argument("--kit_thick", type=float, default=1.0)  # pond stones' thickness multiplier (chunkier slabs)
 ap.add_argument("--kit_glb", default="")  # pond: a Meshy model of loose broken shards for the rim (else code shards)
 ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
+ap.add_argument("--timed", type=int, default=1)  # 1: bubbles timed from the mudpot clips (sludge_bubbles.py); 0: the old even loop
+ap.add_argument("--frames", type=int, default=0)  # >0: render the whole loop as this many frames (sludge_bubbles.LOOP seconds)
+ap.add_argument("--splat", type=int, default=10)  # tiny still lumps of old splatter per square
+ap.add_argument("--main_r", type=float, default=0.13)  # the main vent's biggest bubble radius, share of a square
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
 
@@ -383,6 +388,70 @@ def bubble_h(bub, x, y, t):
     return 0.0 if d >= 1 else grow * a.dome * r * math.sqrt(1 - d * d)
 
 
+class Timed:
+    """The timed bubbling for one pool or pond: its events and its splatter (sludge_bubbles.py)."""
+    def __init__(self, events, splat):
+        self.events, self.splat = events, splat
+
+
+def timed_bubbles(rng, centers, clear, nsq):
+    """Vents (a main one near each square's middle, two small ones per square), the loop's events, and the splatter.
+    clear(x, y) is how far (x, y) is inside the ooze's edge."""
+    vents = []
+    for cx, cy in centers:
+        for _ in range(60):
+            x, y = cx + rng.uniform(-0.15, 0.15) * S, cy + rng.uniform(-0.15, 0.15) * S
+            c = clear(x, y)
+            if c > 0.1 * S:
+                vents.append((x, y, min(a.main_r * S * a.bub_scale, c / 1.5), True))
+                break
+    for _ in range(200):
+        if len(vents) >= 3 * len(centers):
+            break
+        cx, cy = rng.choice(centers)
+        x, y = cx + rng.uniform(-0.4, 0.4) * S, cy + rng.uniform(-0.4, 0.4) * S
+        c = clear(x, y)
+        if c > 0.06 * S and all(math.hypot(x - v[0], y - v[1]) > 0.12 * S for v in vents):
+            vents.append((x, y, min(0.065 * S * a.bub_scale, c / 1.5), False))
+    if not vents:
+        return Timed([], [])
+    events = sb.schedule(vents, nsq, rng, dome=a.dome)
+    spots = []
+    for _ in range(400):
+        cx, cy = rng.choice(centers)
+        x, y = cx + rng.uniform(-0.45, 0.45) * S, cy + rng.uniform(-0.45, 0.45) * S
+        r = rng.uniform(0.012, 0.025) * S
+        if clear(x, y) > r + 0.03 * S:
+            spots.append((x, y, r))
+    print("CHECK timed: %d vents, %d events, %d splatter" % (len(vents), len(events), min(len(spots), a.splat * nsq)), flush=True)
+    return Timed(events, sb.splatter(spots, rng, a.splat, nsq))
+
+
+def bub_z(bubbles, x, y, t, z):
+    """The surface height z at (x, y) with the bubbles at loop phase t merged in."""
+    if isinstance(bubbles, Timed):
+        time = t * sb.LOOP
+        for s_ in bubbles.splat:
+            h = sb.splatter_height(s_, x, y, time)
+            if h > 0:
+                z = smax(z, h, 0.3 * a.neck * S)
+        for e in bubbles.events:
+            h = sb.event_height(e, x, y, time)
+            if h > 0:
+                z = smax(z, h, a.neck * S * (0.4 + 0.6 * e.sz))
+            elif h < 0:
+                z += h
+        return z
+    for b_ in bubbles:
+        hb = bubble_h(b_, x, y, t)
+        if hb > 0:
+            z = smax(z, hb, a.neck * S)
+    return z
+
+
+ANIM = []  # (object, rebuild(t) -> a fresh object of the same sheet at phase t): swapped in per frame
+
+
 def ooze_sheet(name, rfn, zs, bubbles, t, rng, rings=64, segs=200):
     """The ooze: one sheet filling the whole hole (a little past it, tucked under the stone), with a slow swell, a
     meniscus climbing the broken edge, and the bubbles merged in with soft fillets."""
@@ -406,11 +475,7 @@ def ooze_sheet(name, rfn, zs, bubbles, t, rng, rings=64, segs=200):
         # slow swell drifting round a loop (seamless: the noise walks a circle in its third axis)
         z = a.swell * S * noise.noise(Vector((x * 2.2 / S, y * 2.2 / S, 0)) + off + Vector((0.4 * math.cos(tw), 0.4 * math.sin(tw), 0)))
         z += 0.008 * S * max(0.0, (rr - 0.9) / 0.1) ** 2  # meniscus up the stone, still below its top
-        for b_ in bubbles:
-            hb = bubble_h(b_, x, y, t)
-            if hb > 0:
-                z = smax(z, hb, a.neck * S)
-        v.co.z = z
+        v.co.z = bub_z(bubbles, x, y, t, z)
     bm.normal_update()
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
     ed = me.attributes.new("edge", "FLOAT", "POINT")  # 0 in the middle, 1 at the stone: the ooze darkens there
@@ -723,14 +788,19 @@ def build_pond(k, comp):
         if any(math.hypot(x - b_[0], y - b_[1]) < (r + b_[2]) * 0.8 for b_ in bubs):
             continue
         bubs.append((x, y, r, rng.uniform(0, 1), rng.uniform(0, 6.28), rng.uniform(1.0, 1.12), rng.uniform(-0.3, 0.3)))
-    surf = pond_sheet("sludge_pond_%d" % k, sdf, box, bubs, a.t, rng)
+    if a.timed:
+        bubs = timed_bubbles(rng, cs, lambda x, y: -sdf(x, y), len(comp))
+    seed = rng.randrange(1 << 30)
+    surf = pond_sheet("sludge_pond_%d" % k, sdf, box, bubs, a.t, random.Random(seed))
+    ANIM.append((surf, lambda t, k=k, sdf=sdf, box=box, bubs=bubs, seed=seed:
+                 pond_sheet("sludge_pond_%d_f" % k, sdf, box, bubs, t, random.Random(seed))))
     surf.location = (0, 0, zs)
     sub = surf.modifiers.new("smooth", "SUBSURF"); sub.levels = 0; sub.render_levels = 1
     # the rim stones
     slots = sp.rim_slots(loops, sdf, S, rng, sizes=(a.stone * 1.6, a.stone))
     for q, slot in enumerate(slots):
         place_stone("sludge_pstone_%d_%d" % (k, q), slot, top, rng)
-    print("CHECK pond %d bubbles %d stones %d" % (k, len(bubs), len(slots)), flush=True)
+    print("CHECK pond %d bubbles %d stones %d" % (k, len(bubs.events) if a.timed else len(bubs), len(slots)), flush=True)
     for q, (cx, cy) in enumerate(cs):
         pool_lights("%d_%d" % (k, q), surf, cx, cy, zs, ping=(q == 0), unlit=floors)
         pools.append((cx, cy))
@@ -767,11 +837,7 @@ def pond_sheet(name, sdf, box, bubbles, t, rng, step=0.012):
         d = dist[key]
         z = a.swell * S * noise.noise(Vector((x * 2.2 / S, y * 2.2 / S, 0)) + off + Vector((0.4 * math.cos(tw), 0.4 * math.sin(tw), 0)))
         z += 0.008 * S * min(1.0, max(0.0, (d + 0.06 * S) / (0.06 * S))) ** 2  # meniscus up the stone
-        for b_ in bubbles:
-            hb = bubble_h(b_, x, y, t)
-            if hb > 0:
-                z = smax(z, hb, a.neck * S)
-        v.co.z = z
+        v.co.z = bub_z(bubbles, x, y, t, z)
     bm.normal_update()
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
     ed = me.attributes.new("edge", "FLOAT", "POINT")
@@ -931,7 +997,12 @@ for k, (i, j) in enumerate(LONE):
         return rout(t)
     if a.rim_glb:
         rooze = rooze_m
-    surf = ooze_sheet("sludge_ooze_%d" % k, rooze, zs, bubs, a.t, rng)
+    if a.timed:
+        bubs = timed_bubbles(rng, [(0.0, 0.0)], lambda x, y: rin(math.atan2(y, x)) - math.hypot(x, y), 1)
+    seed = rng.randrange(1 << 30)
+    surf = ooze_sheet("sludge_ooze_%d" % k, rooze, zs, bubs, a.t, random.Random(seed))
+    ANIM.append((surf, lambda t, k=k, rooze=rooze, zs=zs, bubs=bubs, seed=seed:
+                 ooze_sheet("sludge_ooze_%d_f" % k, rooze, zs, bubs, t, random.Random(seed))))
     sub = surf.modifiers.new("smooth", "SUBSURF"); sub.levels = 0; sub.render_levels = 1
     surf.location = (cx, cy, zs)
     # the glow spilling onto the stone round it (in game this is a live additive light on the floor)
@@ -975,6 +1046,20 @@ for gx0, gy0, gx1, gy1 in groups:
            for y in (gy0 - 0.45 * S, gy1 + 0.45 * S)]
     boxes.append([min(q.x for q in uv_), 1 - max(q.y for q in uv_), max(q.x for q in uv_), 1 - min(q.y for q in uv_)])
 json.dump({"boxes": boxes}, open(os.path.join(a.out, "pools.json"), "w"))
-sc.render.filepath = os.path.join(a.out, "sludge-zoom.png" if a.zoom else "sludge.png")
-bpy.ops.render.render(write_still=True)
-print("SLUDGE STILLS OK", sc.render.filepath, flush=True)
+if a.frames:  # the whole loop, frame by frame: only the ooze sheets change
+    json.dump({"frames": a.frames, "fps": a.frames / sb.LOOP, "loop_s": sb.LOOP}, open(os.path.join(a.out, "anim.json"), "w"))
+    for i in range(a.frames):
+        for surf, rebuild in ANIM:
+            fresh = rebuild(i / a.frames)
+            old = surf.data
+            surf.data = fresh.data
+            bpy.data.objects.remove(fresh)
+            bpy.data.meshes.remove(old)
+        sc.render.filepath = os.path.join(a.out, "frame_%03d.png" % i)
+        bpy.ops.render.render(write_still=True)
+        print("CHECK frame %d/%d" % (i + 1, a.frames), flush=True)
+    print("SLUDGE STILLS OK frames", a.frames, flush=True)
+else:
+    sc.render.filepath = os.path.join(a.out, "sludge-zoom.png" if a.zoom else "sludge.png")
+    bpy.ops.render.render(write_still=True)
+    print("SLUDGE STILLS OK", sc.render.filepath, flush=True)

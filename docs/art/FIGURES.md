@@ -154,3 +154,31 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
 - Timing (keyed by hand in `WAKE`, no clip reference pass yet): the lids snap open in about 3 frames at 24 fps
   and overshoot a touch, the glow flares and settles, the head turns after the lids and lands around frame 6;
   dozing, the lids drift over about 6 seconds.
+
+## The sludge square: Meshy stone, code ooze, a judge, a clip pass (2026-11-24)
+
+- Code-built props (stones from noise, a slab with a boolean hole) read as computer graphics next to the baked
+  figures, whatever the material. What worked: Meshy for anything stone (the broken rim tile `paid/out/sludgerim`,
+  a kit of 7 loose shards `paid/out/stonekit`), code only for placing them and for the ooze itself.
+- Joined sludge squares are one pond, not tiles side by side: `sludge_pond.py` groups touching squares, builds one
+  distance field (rounded outside corners, filleted inside corners, ragged by noise), and lays the kit shards
+  along its outline. A 2x2 block reads as a pond, three in a row as a channel, one alone keeps the Meshy rim.
+- Every look gets 2-3 blind Gemini judge rounds against the concept (`king3d/judge2.py`) before Wesley sees it.
+  The judge always caught the render (24/24); its confidence is the useful number (90 -> 82 for the stone kit).
+- Reference pass for the bubbling (two Wikimedia Commons clips: "Mudpot Yellowstone" and "Mudpot at Lassen
+  Volcanic National Park in August 2019"; Gemini timed both, and a 15 fps strip of Lassen checked it by eye):
+
+  | | Small plip | Medium | Large |
+  |---|---|---|---|
+  | Size (share of pool width) | 3-6% | 10-18% | 20-35% |
+  | Swell before it bursts | 0.1-0.4 s | 0.5-0.7 s | 0.8-0.9 s |
+  | Burst (tear, slump) | under 0.15 s | 0.3-0.4 s | 0.6 s |
+  | Settle (crater fills, a slow ring) | 0.2 s | 0.4-0.7 s | 0.7-0.9 s |
+
+  - About 1-1.6 bubbles a second per pool, in surges with quiet gaps of 1-2 s, not a steady beat.
+  - They come from a few fixed vents, one main one; never at the edges.
+  - Roughly 1 in 5 swells sinks back without bursting.
+  - A rising bubble is a lumpy skin-covered blister, not a smooth dome; a big one stretches and tears open, folding
+    in on itself, rather than popping. The surface between is never still: a slow heave, no fine ripples.
+  - The strip showed what Gemini's table missed: the main vent churns almost constantly (a surge every 0.6-0.9 s),
+    and the whole surface is dotted with tiny still lumps of old splatter.
