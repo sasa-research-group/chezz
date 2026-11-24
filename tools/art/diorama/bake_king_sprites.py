@@ -161,12 +161,12 @@ sc = bpy.context.scene
 t = time.time()
 stage.build_stage(sc, H, center=(0, 0), board=5)
 SKIN_MAT = None
-if os.environ.get("GUARD") and "hammer_in_forearm" in json.load(open(os.environ["GUARD"])):
+if GUARD is not None and "hammer_in_forearm" in GUARD:  # the rook (idle via GUARD, or his strike's frame 0)
     SKIN_MAT = body.material_slots[0].material.copy()  # the hands' felt skin: the body's material, before clay_ify
 stage.clay_ify(arm)
 binder = None
-if STRIKE:  # the tunic hem follows the thighs; in his crouch it swung through the floor (king_motion.fix_skirt)
-    km.fix_skirt(arm, body)
+if STRIKE and "hammer_in_forearm" not in GUARD:  # the king's tunic hem follows the thighs; in his crouch it swung
+    km.fix_skirt(arm, body)  # through the floor (king_motion.fix_skirt). The rook wears trousers: no hem to fix
 if a.clip or STRIKE:
     binder = km.FibreBinder(body, bpy.data.objects["felt_fibres"])  # bound in the pose they were grown in
     # stand the loop on the floor: the lowest point over the cycle touches it (the rest is airborne bounce)
@@ -184,7 +184,14 @@ HELD = {}  # the strike's sword and fists, re-placed per frame
 def pose(i):
     if binder is not None:
         km.apply_pose(arm, poses[i])
-        if HELD:
+        if HELD.get("hands") is not None:  # the rook's strike: the carried hammer and fingered fists, per frame
+            g = STRIKE["frames"][i]
+            hb = g.get("hammer_bone", "LeftForeArm")
+            HELD["prop"].matrix_world = arm.matrix_world @ arm.pose.bones[hb].matrix @ Matrix(g["hammer_in_forearm"])
+            for h_, f in zip(HELD["hands"], g["fists"]):
+                h_.matrix_world = arm.matrix_world @ arm.pose.bones[hands_mod.fist_bone(f)].matrix @ Matrix(f["m"])
+            bpy.context.view_layer.update()
+        elif HELD:
             g = STRIKE["frames"][i]
             B = arm.matrix_world @ arm.pose.bones[g.get("bone", "RightForeArm")].matrix
             HELD["sword"].matrix_world = B @ Matrix(g["sword_in_hand"])
@@ -244,9 +251,16 @@ if os.environ.get("PROP") and GUARD is not None and "hammer_in_forearm" in GUARD
             for o_ in set(bpy.data.objects) - _before:  # the hand's fibres and shells catch the body's rim light
                 if _rc is not None and o_.name not in _rc.objects:
                     _rc.objects.link(o_)
+                if o_.parent is None:  # the fibres are grown in world space: pin them to the hand, so they move with
+                    o_.parent = h_  # it when the strike re-places the hand every frame
+                    o_.matrix_parent_inverse = h_.matrix_world.inverted()
     for k in ("KCROWN_Z", "FUR_CROWN_Z"):
         os.environ.pop(k, None)
     os.environ.update(_saved)
+    if STRIKE:  # re-placed every frame by pose(): the hammer and fists move with each frame's solve
+        hands_mod = hands
+        HELD.update(prop=pr, hands=_hs)
+        pose(0)
     print("CHECK hands wear body skin at uv", tuple(round(x, 3) for x in _uv), flush=True)
     print("CHECK carried prop", pr.name, tuple(round(x, 3) for x in pr.matrix_world.translation), len(_hs), "hands", flush=True)
 elif os.environ.get("PROP") and GUARD is not None:  # after clay_ify: the sword is clay, not felt

@@ -19,6 +19,14 @@ describe("sprite figures", () => {
       for (const k of info.have) for (const f of [`guard-${name}${k}.webp`, `guard-${name}${k}-glow.webp`]) expect(existsSync(join(dir, f)), f).toBe(true);
     }
   });
+  it("the rebel rook has a strike (the one-handed hammer slam) for all 8 headings", () => {
+    const info = JSON.parse(readFileSync(join(dir, "rook-strike.json"), "utf8"));
+    expect(info.have).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(info.hit).toBeGreaterThan(0);
+    expect(info.hit).toBeLessThan(info.frames);
+    expect(info.travel).toBeGreaterThan(0);  // he steps in and lands on the target's square
+    for (const k of info.have) for (const f of [`rook-strike${k}.webp`, `rook-strike${k}-glow.webp`]) expect(existsSync(join(dir, f)), f).toBe(true);
+  });
   it("plays a capture for every baked figure, the black rook and white pawn excepted", () => {
     expect(playsStrike({ kind: "king", side: "white" })).toBe(true);
     expect(playsStrike({ kind: "pawn", side: "black" })).toBe(true);

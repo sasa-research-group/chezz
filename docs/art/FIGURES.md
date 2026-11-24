@@ -86,3 +86,20 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   layers (flaky shingles, raw skin tone). For a 3D look-around, `felt_closeup.py ... objs=char1 spin=1
   turns=0,30,...` spins the figure in the bake's own lights (the camera can't circle: the lights are front-set and the
   stage walls block the back).
+- Every animation starts with a reference pass: real clips of the move, a timing table, and the key poses drawn
+  next to the matching reference frames. The rook's slam took four rejected drafts that a closer look at the
+  references would have caught.
+- Turn the body. A swing with the hips and shoulders square looks like the arms are doing the work alone
+  (`rook_pose.py` yaw turns the hips and feet, twist the shoulders, look counter-turns the head).
+- Check the reach before choosing a grip. The rook's arms are about half what a two-handed sledge swing needs:
+  with both hands on the handle his fists bunch at the belly and the big arms crush or clip whatever the pose. One
+  hand, swung on its own side, fixed it.
+- A one-handed heavy swing keeps the wrist in line: the handle carries on from the forearm like one long lever.
+  Aiming the hammer freely (th/psi) bent the wrist sideways off the arm and Wesley spotted it at once. `lock=1`
+  holds the fist at a fixed angle `wa` to the forearm (35 in the swing; the shoulder carry's square grip is 92) and
+  only uses th/psi to choose which way round the arm it points. `WRIST left` prints the angle.
+- Interpolate angles the short way round: a key at th -170 after the carry's 161 swept the hammer through the
+  front (the wrist lock then jerked 90-100 degrees a frame). Write it as 190. test_rook_strike.py checks this.
+- A strike that re-places separate meshes every frame (the rook's hammer and hands) must take their felt fibres
+  with them: fibres are grown in world space, so bake_king_sprites.py parents each hand's fibres to the hand. A
+  one-heading test bake at 900 px / 24 samples (~3 min) showed the stray fuzz ball left at his shoulder.
