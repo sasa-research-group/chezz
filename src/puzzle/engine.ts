@@ -58,8 +58,8 @@ export type Puzzle = {
    * the end of a move (either side's), the alarm wakes every sleeping enemy. Walls, eyes and pieces
    * block the view; holes don't. */
   eyes?: Pos[];
-  /** Toxic sludge: a piece that ends its move here dies (an enemy counts as captured). Sliders cross it
-   * safely; a king may not step in. */
+  /** Toxic sludge: no piece may stop in it. A piece standing on a square when it floods (a sludge switch)
+   * dies there (an enemy counts as captured). Sliders cross it safely. */
   sludge?: Pos[];
   /** Trapdoors: floor until a piece standing on one moves off; then it falls open into a hole for good. */
   trapdoors?: Pos[];
@@ -247,7 +247,7 @@ export function movesFrom(pz: Puzzle, b: Board, s: State, p: Pos): Move[] {
   return reach(b, s, pc)
     .filter(to => pc.kind !== "coward" || !attacked(b, { ...s, pieces: s.pieces.filter(q => q !== pc) }, to, other(pc.side)))
     .map(to => ({ from: { x: pc.x, y: pc.y }, to, ...(pc.kind === "pawn" && to.y === last ? { promo: "queen" as const } : {}) }))
-    .filter(m => !(pc.kind === "king" && toxic(b, s, m.to.y * b.width + m.to.x)) && (!guarded || !inCheck(b, apply(pz, s, m), pc.side)));
+    .filter(m => !toxic(b, s, m.to.y * b.width + m.to.x) && (!guarded || !inCheck(b, apply(pz, s, m), pc.side)));
 }
 export function legalMoves(pz: Puzzle, b: Board, s: State): Move[] {
   return s.pieces.filter(q => q.side === s.turn).flatMap(q => movesFrom(pz, b, s, q));
@@ -282,7 +282,7 @@ export function apply(pz: Puzzle, s: State, m: Move): State {
     else if (q.kind === "king" || q.kind === "peasant") lost = true;
   };
   if (toxic(b, s, moved.y * b.width + moved.x)) {
-    // Stopped in the sludge: gone.
+    // Stopped in the sludge (never a legal move now; a hand-made one): gone.
     kill(moved);
   } else if (moved.kind === "peasant" && moved.side === "white" && has(exits, moved)) saved++;
   else {

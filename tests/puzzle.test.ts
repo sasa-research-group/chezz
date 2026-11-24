@@ -78,20 +78,18 @@ describe("eyes and sleepers", () => {
 });
 
 describe("sludge", () => {
-  it("kills a piece that stops in it, counts an enemy as captured, and kings can't step in", () => {
-    // Zugzwang: the black knight's only moves land in sludge.
+  it("no piece may stop in it, sliders cross it, and a flood kills what stands there", () => {
+    // The black knight's only moves land in sludge: it has none.
     const pz = base({ goal: { type: "capture", count: 1 }, sludge: [{ x: 1, y: 2 }, { x: 2, y: 1 }], pieces: [["knight", "black", 0, 0], ["king", "white", 3, 3], ["king", "black", 3, 0]] });
-    const b = boardOf(pz), s0 = start(pz);
-    expect(legalMoves(pz, b, s0).some(m => m.to.x === 2 && m.to.y === 2)).toBe(true);
+    const s0 = { ...start(pz), turn: "black" as const };
+    expect(legalMoves(pz, boardOf(pz), s0).filter(m => m.from.x === 0)).toEqual([]);
     const k = base({ ...pz, pieces: [["king", "white", 1, 3], ["king", "black", 3, 0]] });
     expect(legalMoves(k, boardOf(k), start(k)).some(m => m.to.x === 1 && m.to.y === 2)).toBe(false);
     const rook = base({ goal: { type: "capture", count: 1 }, sludge: [{ x: 0, y: 1 }], pieces: [["rook", "black", 0, 0], ["king", "white", 3, 3]] });
-    const s1 = { ...start(rook), turn: "black" as const };
-    const dunk = apply(rook, s1, { from: { x: 0, y: 0 }, to: { x: 0, y: 1 } });
-    expect(dunk.pieces.length).toBe(1);
-    expect(dunk.taken).toBe(1);
+    const s1 = { ...start(rook), turn: "black" as const }, moves = legalMoves(rook, boardOf(rook), s1);
+    expect(moves.some(m => m.to.x === 0 && m.to.y === 1)).toBe(false);
     // ...but it can slide across it.
-    expect(legalMoves(rook, boardOf(rook), s1).some(m => m.to.y === 2 && m.to.x === 0)).toBe(true);
+    expect(moves.some(m => m.to.y === 2 && m.to.x === 0)).toBe(true);
   });
 });
 

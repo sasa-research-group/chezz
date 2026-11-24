@@ -22,9 +22,10 @@ Lives beside the battle game; nothing in `src/game/` changes.
   pieces at the end of a move (either side's), every **sleeping** enemy wakes.
 - **Sleeping enemy** (5th piece field `"asleep"`): can't move, capture or give
   check; can be captured.
-- **Toxic sludge** (`sludge`): a piece that stops in it dies (an enemy counts as
-  captured). Sliders cross it safely. Kings can't step in. A side that must
-  move must move, even into sludge (zugzwang).
+- **Toxic sludge** (`sludge`): no piece may stop in it (Wesley's call, 2026-11-24).
+  Sliders cross it safely. It kills only by flooding: a sludge switch turns squares
+  to sludge and a piece standing there dies (an enemy counts as captured). Pushes
+  into sludge are the planned next mechanism.
 - **Trapdoor** (`trapdoors`): floor until a piece standing on it moves off,
   then a hole for good.
 - **Snare** (`snares`): a piece that stops on it never moves again, but still
@@ -38,8 +39,8 @@ Lives beside the battle game; nothing in `src/game/` changes.
   never moves; on its turn it strikes one of your pieces in its reach (as that
   piece) without leaving its square. Gives check.
 - **Coward** (kind `coward`, enemy): steps like a king, never captures, never
-  stops on a square you attack. Herd it into sludge, snares or a corner. Worth 3.
-- Killing the enemy king any way (sludge) wins like mate.
+  stops on a square you attack. Herd it onto a flood square, a snare or a corner. Worth 3.
+- Killing the enemy king any way (a flood) wins like mate.
 
 ## The dungeon plays perfectly (`src/puzzle/solve.ts`)
 Exhaustive memoized search: `need(state)` = player moves still needed to force
