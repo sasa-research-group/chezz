@@ -69,3 +69,6 @@
 .level-canvas.full .diorama{width:min(100%,calc((100dvh - 150px)*4/3));border-radius:0}
 .studio .level-canvas.full .board-camera{max-width:min(100%,calc(100dvh - 150px))!important;width:100%}
 .level-canvas.full .level-actions,.level-canvas.full .puzzle-log{width:100%}
+.puzzle-result.mate{font-size:30px;letter-spacing:.04em;color:#8a5a12;text-shadow:0 1px 0 #fff6d8,0 0 12px #ffd77a;animation:mate-in .5s cubic-bezier(.2,1.6,.4,1)}
+.puzzle-result.pick{color:#8a5a12}
+@keyframes mate-in{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}

@@ -4,6 +4,7 @@ import { mated } from "../diorama/death";
 import { apply, boardOf, fallen, gateOpen, inCheck, legalMoves, sight, stareOf, toxic, moveName, movesFrom, outcome, pass, pieceAt, same, squareName, start } from "../puzzle/engine";
 import type { Move, PKind, Pos, Puzzle, Side, State, Switch, SwitchKind } from "../puzzle/engine";
 import { EFFECTS, effectOf, switchText, GOALS, MAX_MOVES, MAX_SIDE, MIN_SIDE, PUZZLES, P_KINDS, formatPuzzles, goalOf, goalSquares, goalText, puzzleIssues, withGoalSquares } from "../puzzle/puzzles";
+import { finishingBlow, mateStage, mateStrikers } from "../puzzle/finish";
 import { NEVER, analyze, bestReply, solver } from "../puzzle/solve";
 import type { Analysis, Solver } from "../puzzle/solve";
 import { SpriteStill } from "./kit";
@@ -100,7 +101,7 @@ const canWebGL = () => { try { return !!document.createElement("canvas").getCont
 
 const Diorama = lazy(() => import("../diorama/Diorama").then(m => ({ default: m.Diorama })));
 /** The same board as PuzzleBoard, in the 3D diorama (src/diorama/). Same squares, same clicks. */
-function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], onSquare, history }: Parameters<typeof PuzzleBoard>[0] & { history?: { states: State[]; moves: (Move | null)[] } }) {
+function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], onSquare, history, finale }: Parameters<typeof PuzzleBoard>[0] & { history?: { states: State[]; moves: (Move | null)[] }; finale?: boolean }) {
   const bd = boardOf(pz), goals = goalSquares(pz.goal), eyes = pz.eyes ?? [], seen = sight(bd, state);
   const squares: DioramaSquare[] = Array.from({ length: pz.width * pz.height }, (_, i) => {
     const p = { x: i % pz.width, y: Math.floor(i / pz.width) }, has = (l: Pos[] | undefined) => (l ?? []).some(q => same(q, p));
@@ -125,9 +126,10 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
   // stays up until the blow lands.
   const cap = history ? lastCapture(history.states, history.moves) : null;
   const taker = cap && pieces[cap.by], move = history?.moves[history.moves.length - 1];
-  // A baked figure taken by anything else (the patrol guard by a rook) plays its death at once.
+  // A baked figure taken by anything else (the patrol guard by a rook) plays its death at once. The finishing
+  // blow on a mated king always keeps him up to fall, whoever strikes.
   const v = cap && history ? history.states[history.moves.length - 1].pieces[cap.victim] : null;
-  if (cap && taker && move && v && !move.strike && keepsTaken(taker, v)) {
+  if (cap && taker && move && v && !move.strike && (finale || keepsTaken(taker, v))) {
     const kind = v.kind === "peasant" || v.kind === "coward" ? "pawn" : v.kind;
     taker.strike = playsStrike(taker);
     pieces.push({ id: `taken${history!.moves.length}`, kind: v.kind, side: v.side, x: v.x, y: v.y, sprite: spriteBox(kind, v.side === "white"),
@@ -288,7 +290,22 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
   const b = useMemo(() => boardOf(pz), [pz]);
   const cur = play ? play.states[play.states.length - 1] : start(pz);
   const result = play ? outcome(pz, b, cur) : null;
-  const targets = play?.picked ? movesFrom(pz, b, cur, play.picked).map(m => m.to) : [];
+  // Checkmate: one of the pieces giving it strikes the king down (finish.ts), picked by you when there are several.
+  const strikers = useMemo(() => (result === "win" ? mateStrikers(b, cur, legalMoves(pz, b, cur).length === 0) : []), [result, b, cur, pz]);
+  const [blow, setBlow] = useState<{ at: State; by: Pos; landed: boolean } | null>(null);
+  const myBlow = play && blow?.at === cur ? blow : null; // a blow for this very position, not one taken back
+  const fin = myBlow ? finishingBlow(b, cur, myBlow.by) : null;
+  const stage = mateStage(strikers.length, !!fin, !!myBlow?.landed);
+  useEffect(() => {
+    if (!play || stage !== "blow" || myBlow?.landed) return;
+    // Once everything on the board has stopped (motion.ts): strike with the lone mater, or, the blow played and
+    // the king gone, bring up the banner.
+    const done = () => (fin ? setBlow(bl => (bl && bl.at === cur ? { ...bl, landed: true } : bl)) : setBlow({ at: cur, by: strikers[0], landed: false }));
+    const settle = () => { const left = motionLeft(); t = left > 0 ? setTimeout(settle, left + 50) : setTimeout(done, (fin ? 300 : 150) / gameSpeed()); };
+    let t = setTimeout(settle, 400 / gameSpeed());
+    return () => clearTimeout(t);
+  }, [play, stage, fin !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+  const targets = stage === "pick" ? strikers.map(q => ({ x: q.x, y: q.y })) : play?.picked ? movesFrom(pz, b, cur, play.picked).map(m => m.to) : [];
   useEffect(() => {
     if (!play || !sv || result || cur.turn !== "black") return;
     // In 3D the reply waits until the king's run has landed (motion.ts), then a short beat.
@@ -303,6 +320,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
     return () => clearTimeout(t);
   }, [play, sv, cur, result, pz, b]);
   const playSquare = (p: Pos) => {
+    if (play && stage === "pick" && strikers.some(q => same(q, p))) { setBlow({ at: cur, by: p, landed: false }); return; }
     if (!play || result || cur.turn !== "white") return;
     const m = play.picked && movesFrom(pz, b, cur, play.picked).find(m => same(m.to, p));
     if (m) { setPlay({ states: [...play.states, apply(pz, cur, m)], moves: [...play.moves, m], picked: null }); return; }
@@ -372,10 +390,10 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
       </> : <div className="puzzle-log" aria-label="Moves">{log.map((m, i) => <span key={i} className={i % 2 ? "black" : "white"}>{i % 2 ? "" : `${i / 2 + 1}. `}{m}</span>)}</div>}
 
       <div className="seg puzzle-view" role="group" aria-label="View">{([["2d", "2D"], ["3d", "3D"]] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={view3d === (v === "3d")} onClick={() => setView3d(v === "3d")}>{label}</button>)}</div>
-      {(() => { const props = { pz, state: cur, picked: play?.picked ?? null, targets, last: lastMove, flags: issues.flatMap(i => (i.at ? [i.at] : [])), wired: play ? [] : wiredSquares, onSquare: play ? playSquare : wiring !== null ? wire : paint };
-        return view3d ? <PuzzleBoard3D {...props} history={play ?? undefined} /> : <PuzzleBoard {...props} />; })()}
+      {(() => { const props = { pz, state: fin?.state ?? cur, picked: play?.picked ?? null, targets, last: lastMove, flags: issues.flatMap(i => (i.at ? [i.at] : [])), wired: play ? [] : wiredSquares, onSquare: play ? playSquare : wiring !== null ? wire : paint };
+        return view3d ? <PuzzleBoard3D {...props} history={play ? (fin ? { states: [...play.states, fin.state], moves: [...play.moves, fin.move] } : play) : undefined} finale={!!fin} /> : <PuzzleBoard {...props} />; })()}
       {!play && wiring !== null && <p className="level-hint wiring-hint">Wiring {pz.switches?.[wiring] ? squareName(pz, pz.switches[wiring]) : ""}: click {pz.switches?.[wiring]?.effect.type === "gates" ? "gates" : "squares"} to connect or disconnect them. <button type="button" onClick={() => setWiring(null)}>Done</button></p>}
-      {play && result && <p className={`puzzle-result ${result}`} role="status">{result === "win" ? "Solved!" : "Failed. Try again."}</p>}
+      {play && result && stage !== "blow" && <p className={`puzzle-result ${result}${stage ? ` ${stage}` : ""}`} role="status">{stage === "mate" ? "Checkmate!" : stage === "pick" ? "Checkmate! Pick who strikes the final blow." : result === "win" ? "Solved!" : "Failed. Try again."}</p>}
       {play && !result && cur.turn === "black" && <p className="puzzle-result thinking" role="status">The dungeon is thinking…</p>}
       {!play && issues.length > 0 && <ul className="level-issues" aria-label="Problems">{issues.map((i, n) => <li key={n}>{i.message}{i.at && <code>{squareName(pz, i.at)}</code>}</li>)}</ul>}
       {!play && warnings.length > 0 && <ul className="level-issues warn" aria-label="Warnings">{warnings.map((i, n) => <li key={n}>{i.message}</li>)}</ul>}

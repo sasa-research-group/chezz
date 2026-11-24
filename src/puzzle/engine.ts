@@ -225,6 +225,11 @@ function reach(b: Board, s: State, pc: Piece, capturesOnly = false): Pos[] {
 export function attacked(b: Board, s: State, p: Pos, by: Side): boolean {
   return s.pieces.some(q => q.side === by && reach(b, s, q, true).some(t => same(t, p)));
 }
+/** The pieces giving `side`'s king check (none when it has no king). */
+export function checkers(b: Board, s: State, side: Side): Piece[] {
+  const king = s.pieces.find(q => q.kind === "king" && q.side === side);
+  return king ? s.pieces.filter(q => q.side === other(side) && reach(b, s, q, true).some(t => same(t, king))) : [];
+}
 export function inCheck(b: Board, s: State, side: Side): boolean {
   const king = s.pieces.find(q => q.kind === "king" && q.side === side);
   return !!king && attacked(b, s, king, other(side));
