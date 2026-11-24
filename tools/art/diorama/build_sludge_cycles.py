@@ -9,6 +9,7 @@
 #   Blender -b --python build_sludge_cycles.py -- --out DIR [--res 1600 --samples 128 --squares 1,1;3,2;1,3 --zoom 0]
 # writes DIR/sludge.png (the whole board with pools on those squares) and, with --zoom N, DIR/sludge-zoom.png.
 import bpy, bmesh, sys, os, math, argparse, random
+import numpy as np
 from mathutils import Vector, noise
 from bpy_extras.object_utils import world_to_camera_view
 
@@ -39,6 +40,20 @@ ap.add_argument("--t", type=float, default=0.3)      # the bubble loop's phase f
 ap.add_argument("--sink", type=float, default=0.45)  # how far each bubble sits below the surface, share of its radius
 ap.add_argument("--flare", type=float, default=0.08)  # how far the broken edge slopes out, share of the hole
 ap.add_argument("--depth", type=float, default=0.035)  # the ooze below the slab top, in figure heights   # the hole's half-width, share of a square
+ap.add_argument("--rim_glb", default="")  # a Meshy model of the broken tile: it replaces the slab, the ooze fills its basin
+ap.add_argument("--level", type=float, default=0.55)  # the ooze's height in that basin, 0 = its floor, 1 = the tile top
+ap.add_argument("--fit", type=float, default=1.0)    # the model's footprint, share of the tile
+ap.add_argument("--rim_val", type=float, default=0.5)  # the model's paint darkened toward the set's slate (as TILE_VAL)
+ap.add_argument("--dome", type=float, default=0.7)  # a bubble's height, share of its radius
+ap.add_argument("--swell", type=float, default=0.005)  # the ooze's slow swell, share of a square
+ap.add_argument("--bub_scale", type=float, default=1.0)  # bubble radius multiplier
+ap.add_argument("--neck", type=float, default=0.035)  # the fillet where a bubble meets the surface, share of a square
+ap.add_argument("--ping", type=float, default=0.0)  # W of a small light set to put a sharp highlight on the ooze only
+ap.add_argument("--c0", default="0.09,0.5,0.01")  # the ooze's deep and light colours
+ap.add_argument("--c1", default="0.2,0.68,0.02")
+ap.add_argument("--rim_bump", type=float, default=0.0)  # fine chalky grain on the Meshy stone (bump strength)
+ap.add_argument("--edge_dark", type=float, default=0.0)  # the ooze darkens this much toward the stone (0..1)
+ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
 
@@ -74,11 +89,21 @@ def ooze_mat():
     nz.inputs["Distortion"].default_value = 0.6
     link(nt, tc.outputs["Object"], nz.inputs["Vector"])
     ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].position = 0.35; ramp.color_ramp.elements[0].color = (0.09, 0.5, 0.01, 1)
-    ramp.color_ramp.elements[1].position = 0.7; ramp.color_ramp.elements[1].color = (0.2, 0.68, 0.02, 1)
+    ramp.color_ramp.elements[0].position = 0.35; ramp.color_ramp.elements[0].color = tuple(float(v) for v in a.c0.split(",")) + (1,)
+    ramp.color_ramp.elements[1].position = 0.7; ramp.color_ramp.elements[1].color = tuple(float(v) for v in a.c1.split(",")) + (1,)
     link(nt, nz.outputs["Fac"], ramp.inputs["Fac"])
-    link(nt, ramp.outputs["Color"], b.inputs["Base Color"])
-    link(nt, ramp.outputs["Color"], b.inputs["Emission Color"])
+    col = ramp.outputs["Color"]
+    if a.edge_dark:  # deeper, darker green where the ooze runs under the stone (the concept's shaded edge)
+        at = nt.nodes.new("ShaderNodeAttribute"); at.attribute_name = "edge"
+        mr = nt.nodes.new("ShaderNodeMapRange"); mr.inputs["From Min"].default_value = 0.6; mr.inputs["From Max"].default_value = 1.0
+        mr.inputs["To Max"].default_value = a.edge_dark
+        link(nt, at.outputs["Fac"], mr.inputs["Value"])
+        mx = nt.nodes.new("ShaderNodeMixRGB"); mx.blend_type = "MULTIPLY"
+        mx.inputs["Color2"].default_value = (0.25, 0.4, 0.15, 1)
+        link(nt, mr.outputs["Result"], mx.inputs["Fac"]); link(nt, col, mx.inputs["Color1"])
+        col = mx.outputs["Color"]
+    link(nt, col, b.inputs["Base Color"])
+    link(nt, col, b.inputs["Emission Color"])
     b.inputs["Emission Strength"].default_value = a.glow
     b.inputs["Roughness"].default_value = 0.16
     b.inputs["Subsurface Weight"].default_value = 0.0
@@ -343,7 +368,7 @@ def bubble_h(bub, x, y, t):
     lx, ly = (dx * ca + dy * sa) / st, (-dx * sa + dy * ca)
     lx -= lean * r * 0.3 * (1 - (ly / r) ** 2 if abs(ly) < r else 0)
     d = math.hypot(lx, ly) / (r * (0.6 + 0.4 * grow))
-    return 0.0 if d >= 1 else grow * 0.7 * r * math.sqrt(1 - d * d)
+    return 0.0 if d >= 1 else grow * a.dome * r * math.sqrt(1 - d * d)
 
 
 def ooze_sheet(name, rfn, zs, bubbles, t, rng, rings=64, segs=200):
@@ -367,19 +392,109 @@ def ooze_sheet(name, rfn, zs, bubbles, t, rng, rings=64, segs=200):
         x, y = v.co.x, v.co.y
         rr = math.hypot(x, y) / max(rfn(math.atan2(y, x)), 1e-6)  # 0 at the middle, ~1 at the broken edge
         # slow swell drifting round a loop (seamless: the noise walks a circle in its third axis)
-        z = 0.005 * S * noise.noise(Vector((x * 2.2 / S, y * 2.2 / S, 0)) + off + Vector((0.4 * math.cos(tw), 0.4 * math.sin(tw), 0)))
+        z = a.swell * S * noise.noise(Vector((x * 2.2 / S, y * 2.2 / S, 0)) + off + Vector((0.4 * math.cos(tw), 0.4 * math.sin(tw), 0)))
         z += 0.008 * S * max(0.0, (rr - 0.9) / 0.1) ** 2  # meniscus up the stone, still below its top
         for b_ in bubbles:
             hb = bubble_h(b_, x, y, t)
             if hb > 0:
-                z = smax(z, hb, 0.035 * S)
+                z = smax(z, hb, a.neck * S)
         v.co.z = z
     bm.normal_update()
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
+    ed = me.attributes.new("edge", "FLOAT", "POINT")  # 0 in the middle, 1 at the stone: the ooze darkens there
+    ed.data.foreach_set("value", [min(1.0, math.hypot(v.co.x, v.co.y) / max(rfn(math.atan2(v.co.y, v.co.x)), 1e-6))
+                                  for v in me.vertices])
     for p_ in me.polygons:
         p_.use_smooth = True
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); o.location = (0, 0, zs)
     return o
+
+
+def meshy_rim(k, slab, cx, cy, hw, top):
+    """The Meshy broken tile in place of the slab on (cx, cy): squared to the grid, scaled to the tile, its outer band at
+    the tile's height. Returns the pool's edge (where the basin rises out of the ooze, per angle) pulled in a little for
+    the bubbles, the ooze sheet's radius (a little past the edge, tucked under the stone) and the ooze's height."""
+    from mathutils import Matrix
+    from mathutils.bvhtree import BVHTree
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=a.rim_glb)
+    new = [o for o in bpy.data.objects if o not in before]
+    m = next(o for o in new if o.type == "MESH")
+    m.data.transform(m.matrix_world); m.parent = None; m.matrix_world = Matrix()
+    for o in new:
+        if o is not m:
+            bpy.data.objects.remove(o)
+    m.name = "sludge_rim_%d" % k
+    me = m.data
+    n = len(me.vertices)
+    P = np.empty(n * 3); me.vertices.foreach_get("co", P); P = P.reshape(n, 3)
+    P[:, :2] -= (P[:, :2].min(0) + P[:, :2].max(0)) / 2
+
+    def rot(d):
+        r_ = math.radians(d)
+        return np.array([[math.cos(r_), -math.sin(r_)], [math.sin(r_), math.cos(r_)]])
+    # square it to the grid: the turn with the smallest bounding box
+    best = min(range(0, 90), key=lambda d: float(np.prod(np.ptp(P[:, :2] @ rot(d), 0))))
+    P[:, :2] = P[:, :2] @ rot(best + a.yaw)
+    P[:, :2] -= (P[:, :2].min(0) + P[:, :2].max(0)) / 2
+    kk = 2 * hw * a.fit / max(np.ptp(P[:, 0]), np.ptp(P[:, 1]))
+    P *= kk
+    edge = np.maximum(np.abs(P[:, 0]), np.abs(P[:, 1])) > 0.8 * hw
+    rimtop = np.percentile(P[edge, 2], 90)
+    P[:, 2] += top - rimtop
+    P[:, 0] += cx; P[:, 1] += cy
+    me.vertices.foreach_set("co", P.ravel()); me.update()
+    slab.hide_render = True; slab.hide_viewport = True
+    for mt in me.materials:  # the same darkening the set gives its own tiles (stage.py, TILE_VAL / TILE_SAT)
+        nt = mt.node_tree
+        bsdf = next((nd for nd in nt.nodes if nd.type == "BSDF_PRINCIPLED"), None)
+        if bsdf and bsdf.inputs["Base Color"].links:
+            src = bsdf.inputs["Base Color"].links[0].from_socket
+            hsv = nt.nodes.new("ShaderNodeHueSaturation")
+            hsv.inputs["Saturation"].default_value = 0.8; hsv.inputs["Value"].default_value = a.rim_val
+            nt.links.new(src, hsv.inputs["Color"]); nt.links.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+        if bsdf and a.rim_bump:  # chalky plaster grain over Meshy's smooth paint
+            tc_ = nt.nodes.new("ShaderNodeTexCoord"); nz_ = nt.nodes.new("ShaderNodeTexNoise")
+            nz_.inputs["Scale"].default_value = 60 / S; nz_.inputs["Detail"].default_value = 6
+            nt.links.new(tc_.outputs["Object"], nz_.inputs["Vector"])
+            bp = nt.nodes.new("ShaderNodeBump"); bp.inputs["Strength"].default_value = a.rim_bump
+            bp.inputs["Distance"].default_value = 0.004 * S
+            nt.links.new(nz_.outputs["Fac"], bp.inputs["Height"])
+            if bsdf.inputs["Normal"].links:
+                nt.links.new(bsdf.inputs["Normal"].links[0].from_socket, bp.inputs["Normal"])
+            nt.links.new(bp.outputs["Normal"], bsdf.inputs["Normal"])
+            for l_ in list(bsdf.inputs["Roughness"].links):
+                nt.links.remove(l_)
+            bsdf.inputs["Roughness"].default_value = 0.85
+    bvh = BVHTree.FromPolygons([tuple(v) for v in P], [tuple(p_.vertices) for p_ in me.polygons])
+
+    def hz(x, y):
+        hit = bvh.ray_cast(Vector((x, y, top + H)), Vector((0, 0, -1)))
+        return hit[0].z if hit[0] is not None else None
+    mid = [hz(cx + r * math.cos(t), cy + r * math.sin(t)) for r in (0, 0.05 * S, 0.1 * S) for t in np.linspace(0, 6.28, 12)]
+    mid = [z for z in mid if z is not None]
+    floor = float(np.median(mid))
+    zs = floor + a.level * (top - floor)
+    NA = 360
+    er = np.zeros(NA)
+    for q in range(NA):
+        t = 2 * math.pi * q / NA
+        r = 0.05 * S
+        while r < box_r(t, hw):
+            z = hz(cx + r * math.cos(t), cy + r * math.sin(t))
+            if z is not None and z > zs + 0.002 * S:
+                break
+            r += 0.004 * S
+        er[q] = min(r, box_r(t, hw) - 0.08 * S)  # never out onto the whole stone round it
+    er = np.convolve(np.r_[er[-3:], er, er[:3]], np.ones(7) / 7, mode="valid")
+    print("CHECK rim %d turn %d k %.3f floor %.4f top %.4f ooze %.4f edge %.2f-%.2fS" % (
+        k, best, kk, floor, top, zs, er.min() / S, er.max() / S), flush=True)
+
+    def redge(t):
+        f = (t % (2 * math.pi)) / (2 * math.pi) * NA
+        q = int(f) % NA
+        return er[q] * (1 - (f - int(f))) + er[(q + 1) % NA] * (f - int(f))
+    return (lambda t: redge(t) * 0.92), (lambda t: redge(t) + 0.03 * S), zs
 
 
 slabs = objs["slabs"]
@@ -399,92 +514,96 @@ for k, sq_ in enumerate(a.squares.split(";")):
     top = near[int(len(near) * 0.9)]  # its face near the middle (some tiles have one tall bump)
     zbot = min(p_.z for p_ in wv)
     zs = top - a.depth * H
-    # The broken zone: the pool's edge (rin) and, round it, the line where the slab cracked away (rout), kept inside
-    # the tile so a band of whole stone always frames the pool.
-    rb = radius_fn(rng)
-    rim = a.rim * S
+    if a.rim_glb:
+        rin, rooze_m, zs = meshy_rim(k, slab, cx, cy, hw, top)
+        kept, rout = [], rin
+    else:
+        # The broken zone: the pool's edge (rin) and, round it, the line where the slab cracked away (rout), kept inside
+        # the tile so a band of whole stone always frames the pool.
+        rb = radius_fn(rng)
+        rim = a.rim * S
 
-    def rout(t, rb=rb, hw=hw):
-        return min(rb(t) * a.size * S + rim, box_r(t, hw) - 0.06 * S)
+        def rout(t, rb=rb, hw=hw):
+            return min(rb(t) * a.size * S + rim, box_r(t, hw) - 0.06 * S)
 
-    def rin(t, rout=rout):
-        return rout(t) - rim * (0.75 + 0.5 * (0.5 + 0.5 * noise.noise(Vector((math.cos(t) * 2, math.sin(t) * 2, k + 7.3)))))
-    print("CHECK pool %d top %.4f hw %.3fS rin %.2f-%.2fS rout %.2f-%.2fS" % (
-        k, top, hw / S, min(rin(q / 30 * 6.28) for q in range(30)) / S, max(rin(q / 30 * 6.28) for q in range(30)) / S,
-        min(rout(q / 30 * 6.28) for q in range(30)) / S, max(rout(q / 30 * 6.28) for q in range(30)) / S))
-    # Rim pieces: the cracked band split into wedges along jagged cracks, each the real tile cut out by a prism, then
-    # tipped into the pool about its own outer bottom edge, so it pulls away from the wall and never into a neighbour.
-    nw = rng.randint(5, 7)
-    cuts = sorted((q + rng.uniform(-0.3, 0.3)) / nw * 2 * math.pi for q in range(nw))
-    cuts.append(cuts[0] + 2 * math.pi)
-    parts = []; kept = []
-    for w in range(nw):
-        if rng.random() < a.gone:  # this piece fell in and sank
-            continue
-        gap = 0.012 * S
-        t0, t1 = cuts[w], cuts[w + 1]
-        steps = max(4, int((t1 - t0) / (2 * math.pi) * 96))
-        def crack(tc, side):  # a jagged crack line from the outer to the inner edge at angle tc
-            pts_ = []
-            for m in range(4):
-                f = m / 3
-                jt = 0 if m in (0, 3) else rng.uniform(-0.06, 0.06)
-                tt = tc + jt + side * gap / max(rout(tc), 0.1)
-                rr_ = rout(tt) * (1 - f) + rin(tt) * f
-                pts_.append((math.cos(tt) * rr_, math.sin(tt) * rr_))
-            return pts_
-        a0 = t0 + gap / rout(t0); a1 = t1 - gap / rout(t1)
-        outer = [(math.cos(t0 + (t1 - t0) * q / steps) * rout(t0 + (t1 - t0) * q / steps),
-                  math.sin(t0 + (t1 - t0) * q / steps) * rout(t0 + (t1 - t0) * q / steps)) for q in range(1, steps)]
-        inner = [(math.cos(t0 + (t1 - t0) * q / steps) * rin(t0 + (t1 - t0) * q / steps),
-                  math.sin(t0 + (t1 - t0) * q / steps) * rin(t0 + (t1 - t0) * q / steps)) for q in range(steps - 1, 0, -1)]
-        c0 = crack(t0, +1); c1 = crack(t1, -1)
-        poly = [c0[0]] + outer + c1[::1][:1] + c1[1:] + inner + c0[::-1][:-1]
-        poly = [(cx + x, cy + y) for x, y in poly]
-        pr = prism("sludge_wcut_%d_%d" % (k, w), poly, zbot - 0.1 * H, top + 0.3 * H)
-        wo = slab.copy(); wo.data = slab.data.copy(); wo.modifiers.clear(); sc.collection.objects.link(wo)
-        m_ = wo.modifiers.new("piece", "BOOLEAN"); m_.operation = "INTERSECT"; m_.object = pr
-        m_.solver = "EXACT"; m_.material_mode = "TRANSFER"
-        piece = bake(wo); bpy.data.objects.remove(wo)
-        piece.name = "sludge_piece_%d_%d" % (k, w)
-        print("CHECK piece %d.%d verts %d" % (k, w, len(piece.data.vertices)))
-        bv = piece.modifiers.new("soft", "BEVEL"); bv.width = 0.012 * S; bv.segments = 3; bv.limit_method = "ANGLE"
-        bv.angle_limit = math.radians(40); bv.harden_normals = False
-        # tip it. Most pieces heave: the inner (pool) edge pushed up so its broken face shows above the ooze, the
-        # piece turning on its outer top edge and nudged inward to clear the wall. The rest slump into the pool,
-        # turning on the outer bottom edge.
-        from mathutils import Matrix
-        heave = rng.random() < a.heave
-        zax = top if heave else zbot
-        pa = Vector((cx + c0[0][0], cy + c0[0][1], zax)); pb = Vector((cx + c1[0][0], cy + c1[0][1], zax))
-        ax = (pb - pa).normalized()
-        tilt = rng.uniform(a.tilt * 0.6, a.tilt * 1.4)
-        mid_in = Vector((cx + inner[len(inner) // 2][0], cy + inner[len(inner) // 2][1], top)) if inner else Vector((cx, cy, top))
-        M = Matrix.Translation(pa) @ Matrix.Rotation(tilt, 4, ax) @ Matrix.Translation(-pa)
-        if ((M @ mid_in).z > mid_in.z) != heave:
-            M = Matrix.Translation(pa) @ Matrix.Rotation(-tilt, 4, ax) @ Matrix.Translation(-pa)
-        inward = (Vector((cx, cy, 0)) - Vector(((pa.x + pb.x) / 2, (pa.y + pb.y) / 2, 0))).normalized()
-        th_ = top - zbot
-        shift = inward * (th_ * math.sin(tilt) + 0.01 * S) if heave else Vector((0, 0, 0))
-        M = Matrix.Translation(shift + Vector((0, 0, (-rng.uniform(0, a.drop) * S) if not heave else rng.uniform(-0.01, 0.01) * S))) @ M
-        piece.matrix_world = M
-        kept.append((t0, t1))
-        parts.append(piece)
-    # the hole: the whole broken zone out of the slab, straight walls
-    cut = prism("sludge_cut_%d" % k, [(cx + math.cos(q / 160 * 6.2832) * rout(q / 160 * 6.2832),
-                                       cy + math.sin(q / 160 * 6.2832) * rout(q / 160 * 6.2832)) for q in range(160)],
-                zbot - 0.1 * H, top + 0.3 * H)
-    mod = slab.modifiers.new("pool", "BOOLEAN"); mod.operation = "DIFFERENCE"; mod.object = cut
-    mod.solver = a.solver; mod.use_hole_tolerant = True; mod.material_mode = "TRANSFER"
-    dg_ = bpy.context.evaluated_depsgraph_get()
-    print("CHECK slab %d verts %d -> %d" % (k, len(slab.data.vertices), len(slab.evaluated_get(dg_).data.vertices)))
+        def rin(t, rout=rout):
+            return rout(t) - rim * (0.75 + 0.5 * (0.5 + 0.5 * noise.noise(Vector((math.cos(t) * 2, math.sin(t) * 2, k + 7.3)))))
+        print("CHECK pool %d top %.4f hw %.3fS rin %.2f-%.2fS rout %.2f-%.2fS" % (
+            k, top, hw / S, min(rin(q / 30 * 6.28) for q in range(30)) / S, max(rin(q / 30 * 6.28) for q in range(30)) / S,
+            min(rout(q / 30 * 6.28) for q in range(30)) / S, max(rout(q / 30 * 6.28) for q in range(30)) / S))
+        # Rim pieces: the cracked band split into wedges along jagged cracks, each the real tile cut out by a prism, then
+        # tipped into the pool about its own outer bottom edge, so it pulls away from the wall and never into a neighbour.
+        nw = rng.randint(5, 7)
+        cuts = sorted((q + rng.uniform(-0.3, 0.3)) / nw * 2 * math.pi for q in range(nw))
+        cuts.append(cuts[0] + 2 * math.pi)
+        parts = []; kept = []
+        for w in range(nw):
+            if rng.random() < a.gone:  # this piece fell in and sank
+                continue
+            gap = 0.012 * S
+            t0, t1 = cuts[w], cuts[w + 1]
+            steps = max(4, int((t1 - t0) / (2 * math.pi) * 96))
+            def crack(tc, side):  # a jagged crack line from the outer to the inner edge at angle tc
+                pts_ = []
+                for m in range(4):
+                    f = m / 3
+                    jt = 0 if m in (0, 3) else rng.uniform(-0.06, 0.06)
+                    tt = tc + jt + side * gap / max(rout(tc), 0.1)
+                    rr_ = rout(tt) * (1 - f) + rin(tt) * f
+                    pts_.append((math.cos(tt) * rr_, math.sin(tt) * rr_))
+                return pts_
+            a0 = t0 + gap / rout(t0); a1 = t1 - gap / rout(t1)
+            outer = [(math.cos(t0 + (t1 - t0) * q / steps) * rout(t0 + (t1 - t0) * q / steps),
+                      math.sin(t0 + (t1 - t0) * q / steps) * rout(t0 + (t1 - t0) * q / steps)) for q in range(1, steps)]
+            inner = [(math.cos(t0 + (t1 - t0) * q / steps) * rin(t0 + (t1 - t0) * q / steps),
+                      math.sin(t0 + (t1 - t0) * q / steps) * rin(t0 + (t1 - t0) * q / steps)) for q in range(steps - 1, 0, -1)]
+            c0 = crack(t0, +1); c1 = crack(t1, -1)
+            poly = [c0[0]] + outer + c1[::1][:1] + c1[1:] + inner + c0[::-1][:-1]
+            poly = [(cx + x, cy + y) for x, y in poly]
+            pr = prism("sludge_wcut_%d_%d" % (k, w), poly, zbot - 0.1 * H, top + 0.3 * H)
+            wo = slab.copy(); wo.data = slab.data.copy(); wo.modifiers.clear(); sc.collection.objects.link(wo)
+            m_ = wo.modifiers.new("piece", "BOOLEAN"); m_.operation = "INTERSECT"; m_.object = pr
+            m_.solver = "EXACT"; m_.material_mode = "TRANSFER"
+            piece = bake(wo); bpy.data.objects.remove(wo)
+            piece.name = "sludge_piece_%d_%d" % (k, w)
+            print("CHECK piece %d.%d verts %d" % (k, w, len(piece.data.vertices)))
+            bv = piece.modifiers.new("soft", "BEVEL"); bv.width = 0.012 * S; bv.segments = 3; bv.limit_method = "ANGLE"
+            bv.angle_limit = math.radians(40); bv.harden_normals = False
+            # tip it. Most pieces heave: the inner (pool) edge pushed up so its broken face shows above the ooze, the
+            # piece turning on its outer top edge and nudged inward to clear the wall. The rest slump into the pool,
+            # turning on the outer bottom edge.
+            from mathutils import Matrix
+            heave = rng.random() < a.heave
+            zax = top if heave else zbot
+            pa = Vector((cx + c0[0][0], cy + c0[0][1], zax)); pb = Vector((cx + c1[0][0], cy + c1[0][1], zax))
+            ax = (pb - pa).normalized()
+            tilt = rng.uniform(a.tilt * 0.6, a.tilt * 1.4)
+            mid_in = Vector((cx + inner[len(inner) // 2][0], cy + inner[len(inner) // 2][1], top)) if inner else Vector((cx, cy, top))
+            M = Matrix.Translation(pa) @ Matrix.Rotation(tilt, 4, ax) @ Matrix.Translation(-pa)
+            if ((M @ mid_in).z > mid_in.z) != heave:
+                M = Matrix.Translation(pa) @ Matrix.Rotation(-tilt, 4, ax) @ Matrix.Translation(-pa)
+            inward = (Vector((cx, cy, 0)) - Vector(((pa.x + pb.x) / 2, (pa.y + pb.y) / 2, 0))).normalized()
+            th_ = top - zbot
+            shift = inward * (th_ * math.sin(tilt) + 0.01 * S) if heave else Vector((0, 0, 0))
+            M = Matrix.Translation(shift + Vector((0, 0, (-rng.uniform(0, a.drop) * S) if not heave else rng.uniform(-0.01, 0.01) * S))) @ M
+            piece.matrix_world = M
+            kept.append((t0, t1))
+            parts.append(piece)
+        # the hole: the whole broken zone out of the slab, straight walls
+        cut = prism("sludge_cut_%d" % k, [(cx + math.cos(q / 160 * 6.2832) * rout(q / 160 * 6.2832),
+                                           cy + math.sin(q / 160 * 6.2832) * rout(q / 160 * 6.2832)) for q in range(160)],
+                    zbot - 0.1 * H, top + 0.3 * H)
+        mod = slab.modifiers.new("pool", "BOOLEAN"); mod.operation = "DIFFERENCE"; mod.object = cut
+        mod.solver = a.solver; mod.use_hole_tolerant = True; mod.material_mode = "TRANSFER"
+        dg_ = bpy.context.evaluated_depsgraph_get()
+        print("CHECK slab %d verts %d -> %d" % (k, len(slab.data.vertices), len(slab.evaluated_get(dg_).data.vertices)))
     # bubbles: a few big ones near the middle, smaller ones toward the edge, each on its own phase of the loop
     bubs = []
     nb = rng.randint(a.bubbles - 1, a.bubbles + 1)
     for q in range(nb * 8):
         if len(bubs) >= nb:
             break
-        r = (rng.uniform(0.1, 0.14) if len(bubs) < 2 else rng.uniform(0.04, 0.09)) * S
+        r = (rng.uniform(0.1, 0.14) if len(bubs) < 2 else rng.uniform(0.04, 0.09)) * S * a.bub_scale
         tt = rng.uniform(0, 6.28); f_ = math.sqrt(rng.uniform(0, 1))
         lim = rin(tt) - r * 0.9
         if lim <= 0:
@@ -500,6 +619,8 @@ for k, sq_ in enumerate(a.squares.split(";")):
                 if t0 <= tt + sh <= t1:
                     return rin(t) + 0.45 * (rout(t) - rin(t))
         return rout(t)
+    if a.rim_glb:
+        rooze = rooze_m
     surf = ooze_sheet("sludge_ooze_%d" % k, rooze, zs, bubs, a.t, rng)
     sub = surf.modifiers.new("smooth", "SUBSURF"); sub.levels = 0; sub.render_levels = 1
     surf.location = (cx, cy, zs)
@@ -511,6 +632,14 @@ for k, sq_ in enumerate(a.squares.split(";")):
     lo.light_linking.receiver_collection = ex
     for item in ex.collection_objects:
         item.light_linking.link_state = "EXCLUDE"
+    if a.ping:  # a small hard light where its mirror image in the pool faces the camera: a sharp wet highlight
+        v_ = (cam.matrix_world.translation - Vector((cx, cy, zs))).normalized()
+        A_ = bpy.data.lights.new("sludge_ping_%d" % k, "AREA"); A_.energy = a.ping; A_.size = 0.03 * S
+        ao = bpy.data.objects.new("sludge_ping_%d" % k, A_); sc.collection.objects.link(ao)
+        ao.location = Vector((cx, cy, zs)) + Vector((-v_.x, -v_.y, v_.z)) * 3 * S + Vector((0.15 * S, 0.1 * S, 0))
+        ao.rotation_euler = (Vector((cx, cy, zs)) - ao.location).to_track_quat("-Z", "Y").to_euler()
+        inc = bpy.data.collections.new("sludge_pinged_%d" % k); inc.objects.link(surf)
+        ao.light_linking.receiver_collection = inc
     pools.append((cx, cy))
 print("CHECK slab top %.3f, pools %s, res %s -> %d x %d" % (SLAB_TOP, pools, a.res, sc.render.resolution_x, sc.render.resolution_y), flush=True)
 
