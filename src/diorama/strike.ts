@@ -1,14 +1,21 @@
-// The king's capture, as timing only (no three here, so tests and the 2D board can use it). He walks to a
-// stand-off point short of the enemy, then plays the baked jump attack (tools/art/diorama/strike_pose.py,
-// king-strike*.webp): the leap carries him `travel` stage units forward, so he lands on the enemy's square, and
-// the blade hits on frame `hit`, when the enemy falls.
+// A capture, as timing only (no three here, so tests and the 2D board can use it). The taker walks to a
+// stand-off point short of the enemy, then plays the baked attack (tools/art/diorama/strike_pose.py,
+// king-strike*.webp): the leap carries him `travel` stage units forward and the blade hits on frame `hit`, when
+// the enemy falls. He lands GAP of a square short of the enemy's centre, not on it, so the two figures never
+// overlap while the enemy plays its death (Wesley 2026-11-24); once it sinks away he steps onto the square.
 
 export type StrikeInfo = { fps: number; frames: number; hit: number; travel: number };
 
-/** The capture's plan: walk `walk` stage units (of the `D` to the enemy), then the strike. Times in seconds of
- * game time, from when he starts walking. A move shorter than the leap is all leap. */
-export function strikePlan(D: number, st: StrikeInfo) {
-  const walk = Math.max(0, D - st.travel);
+/** Share of a square between where a taker stops (after any leap) and the centre of the piece he takes. */
+export const GAP = 0.65;
+/** How long (seconds of game time) a taker waits at his stand-off point for the piece he took to clear, at most. */
+export const HOLD_MAX = 5;
+
+/** The capture's plan: walk `walk` stage units (of the `D` to the enemy), then the strike, which lands him `gap`
+ * short of the enemy. Times in seconds of game time, from when he starts walking. A move too short for the walk
+ * is all leap. */
+export function strikePlan(D: number, st: StrikeInfo, gap = 0) {
+  const walk = Math.max(0, D - gap - st.travel);
   return { walk, length: st.frames / st.fps, hitAt: st.hit / st.fps };
 }
 

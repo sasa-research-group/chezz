@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { strikeFrame, strikePlan, strikeTravel } from '../src/diorama/strike'
+import { GAP, strikeFrame, strikePlan, strikeTravel } from '../src/diorama/strike'
 import { lastCapture } from '../src/diorama/facing'
-import { hitTime, willHit } from '../src/diorama/motion'
+import { clearTime, hitTime, willClear, willHit } from '../src/diorama/motion'
 
 // as tools/art/diorama/strike_pose.py bakes it
 const ST = { fps: 24, frames: 29, hit: 12, travel: 0.32 }
@@ -17,6 +17,23 @@ describe('strikePlan', () => {
   })
   it('is all leap when the enemy is closer than the leap', () => {
     expect(strikePlan(0.2, ST).walk).toBe(0)
+  })
+  it('lands the taker a gap short of the enemy, so the two figures never overlap', () => {
+    const S = 2.04, gap = GAP * S, p = strikePlan(S, ST, gap)
+    expect(p.walk + ST.travel + gap).toBeCloseTo(S)  // walk, leap, then the gap to the enemy's centre
+    expect(gap).toBeGreaterThan(0.6 * S)  // two figures about 0.6 of a square wide stand clear of each other
+    expect(gap).toBeLessThan(S)  // still next to it, not back on his own square
+  })
+})
+
+describe('the taken square clearing', () => {
+  it('tells the taker when the piece he took has gone, for clears announced since his move', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(1000)
+    expect(clearTime(5, 5, 0)).toBeNull()
+    willClear(5, 5, 2500)
+    expect(clearTime(5, 5, 900)).toBe(2500)
+    expect(clearTime(5, 5, 1200)).toBeNull()  // an older piece's clear, not this move's
+    vi.restoreAllMocks()
   })
 })
 

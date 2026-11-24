@@ -10,8 +10,9 @@
 // into the still idle. He moves at the loop's own ground speed (cycle x cps), with the frame taken from the
 // distance covered, so his feet stay planted: the gait sets the move's length, not the other way round.
 // A capture (`strike`) walks to a stand-off point short of the enemy and plays the jump attack (king-strike*.webp,
-// strike.ts): the leap lands him on the square, the blow falls on the hit frame (motion.ts willHit), and he
-// stands in the guard where he landed.
+// strike.ts): the leap lands him GAP of a square short of the enemy, the blow falls on the hit frame (motion.ts
+// willHit), he holds there while it dies ("hold"), and steps onto the square once it sinks away (willClear).
+// Without a strike sheet he walks to the same spot, the blow lands as he arrives, and he holds the same way.
 // Standing in check (`check`), he plays the nervous loop on the spot (king-check*.webp, check.ts) instead of
 // his still frame.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,8 +20,8 @@ import type { RefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { breath } from "./King";
-import { gameSpeed, moving, willHit } from "./motion";
-import { strikeFrame, strikePlan, strikeTravel } from "./strike";
+import { clearTime, gameSpeed, moving, willHit } from "./motion";
+import { GAP, HOLD_MAX, strikeFrame, strikePlan, strikeTravel } from "./strike";
 import type { StrikeInfo } from "./strike";
 import { loopFrame, showsCheck } from "./check";
 import type { LoopInfo } from "./check";
@@ -207,7 +208,13 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
   const dying = useRef({ t: 0, on: false });
   // The move: from where he was to `at`; "turn" to face it, "run", then standing again.
   // A capture runs only to `stop` (short of `to` by the leap), then "strike" plays the attack there.
-  const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], stop: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run" | "strike", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0, strike: false });
+  // `cap`: this move takes a piece, so it ends in "hold" beside it until the square clears (from `born` on).
+  const mv = useRef({ pos: [at[0], at[1]], from: [at[0], at[1]], to: [at[0], at[1]], stop: [at[0], at[1]], phase: "idle" as "idle" | "turn" | "run" | "strike" | "hold", t: 0, dur: 0, k: 0, f: 0, v: 1, D: 0, strike: false, cap: false, leap: 0, born: 0 });
+  /** Where the leap sets him down: `leap` past the stand-off point, toward the enemy. */
+  const landing = (M: typeof mv.current) => {
+    const dx = M.to[0] - M.stop[0], dy = M.to[1] - M.stop[1], l = Math.hypot(dx, dy), e = l > 1e-6 ? Math.min(1, M.leap / l) : 0;
+    return [M.stop[0] + dx * e, M.stop[1] + dy * e];
+  };
   const cam = useMemo(() => new THREE.Vector3(), []), F = useMemo(() => new THREE.Vector3(), []), fwd = useMemo(() => new THREE.Vector3(...s.fwd), [s]);
   // Slide the quad along the ray to his feet so it keeps the bake's gap in front of them, and scale it so
   // he subtends what he would standing there (camera in Blender axes: three (x, y, z) is Blender (x, -z, y)).
@@ -233,8 +240,10 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
         // A capture plays the strike when its heading is in; otherwise he walks onto the square and the blow
         // lands as he arrives.
         const h = hit.current, st = strike && h?.tex.has(M.k) ? { ...h.s, travel: h.s.travel * s.S / h.s.S } : null;
-        const plan = st ? strikePlan(d * s.S, st) : null;
-        M.strike = !!plan; M.D = plan ? plan.walk : d * s.S;
+        const gap = strike ? Math.min(GAP, d) * s.S : 0;
+        const plan = st ? strikePlan(d * s.S, st, gap) : null;
+        M.strike = !!plan; M.cap = strike; M.leap = st ? st.travel : 0; M.born = performance.now();
+        M.D = plan ? plan.walk : d * s.S - gap;
         const e = M.D / (d * s.S);
         M.stop = [M.from[0] + dx * e, M.from[1] + dy * e];
         M.dur = M.D > 1e-3 ? M.D / M.v + RAMP : 0;
@@ -257,8 +266,8 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
       if (run.current) M.f = (x / run.current.s.cycle) * run.current.s.frames;
       if (M.t >= T) {
         M.pos = [...M.stop]; M.t = 0;
-        M.phase = M.strike ? "strike" : "idle";
-        if (!M.strike) M.pos = [...M.to];
+        M.phase = M.strike ? "strike" : M.cap ? "hold" : "idle";
+        if (M.phase === "idle") M.pos = [...M.to];
       }
     } else if (M.phase === "strike") {
       // The attack is baked with him starting on the square's centre: the sprite stays at the stand-off point
@@ -266,7 +275,18 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
       M.t += dt;
       const h = hit.current!.s;
       M.f = strikeFrame(M.t, h);
-      if (M.t >= h.frames / h.fps) { M.phase = "idle"; M.pos = [...M.to]; }
+      if (M.t >= h.frames / h.fps) { M.phase = "hold"; M.pos = landing(M); M.t = 0; }
+    } else if (M.phase === "hold") {
+      // Beside the piece he took while it dies; once it sinks away (or after HOLD_MAX) he steps onto its square.
+      M.t += dt;
+      const c = clearTime(M.to[0], M.to[1], M.born);
+      if ((c !== null && performance.now() >= c) || M.t >= HOLD_MAX) {
+        M.from = [...M.pos]; M.stop = [...M.to];
+        M.D = Math.hypot(M.to[0] - M.pos[0], M.to[1] - M.pos[1]);
+        M.dur = M.D > 1e-3 ? M.D / M.v + RAMP : 0;
+        M.t = 0; M.f = 0; M.strike = false; M.cap = false; M.phase = "run";
+        moving(M.dur * SLOW / gameSpeed());
+      }
     }
     const want = M.phase === "idle" ? tileOf(yaw, n) : M.k;
     if (t.to !== want) { t.to = want; t.dt = 0; t.wait = 0; }
@@ -285,7 +305,8 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
     // Striking: his blob and shadow follow the leap from the stand-off point onto the square.
     const sh = M.phase === "strike" && hit.current ? hit.current : null, ht = sh?.tex.get(M.k);
     const lf = sh ? strikeTravel(M.f, sh.s) : 0;
-    follow?.current?.position.set(M.pos[0] + (M.to[0] - M.pos[0]) * lf - at[0], M.pos[1] + (M.to[1] - M.pos[1]) * lf - at[1], 0);
+    const land = sh ? landing(M) : M.pos;
+    follow?.current?.position.set(M.pos[0] + (land[0] - M.pos[0]) * lf - at[0], M.pos[1] + (land[1] - M.pos[1]) * lf - at[1], 0);
     // Running on a heading with its sheet in: the run frames; striking: the strike frames; else his still frame.
     const r = run.current, rt = M.phase === "run" && r ? r.tex.get(M.k) : undefined;
     // Standing in check on a heading with its sheet in: the nervous loop, from its first frame.

@@ -31,3 +31,13 @@ export const hitTime = (x: number, y: number, since: number) => {
   const h = hits.get(hitKey(x, y));
   return h && h.set >= since ? h.at : null;
 };
+
+// When a taken piece has finished dying and starts to sink away, so its taker can step onto the square.
+const clears = new Map<string, { set: number; at: number }>();
+/** Falling: the piece at stage (x, y) is out of the way at `at` (performance.now() time). */
+export const willClear = (x: number, y: number, at: number) => { clears.set(hitKey(x, y), { set: performance.now(), at }); };
+/** When the square at (x, y) clears, as announced at or after `since`; null when not yet announced. */
+export const clearTime = (x: number, y: number, since: number) => {
+  const c = clears.get(hitKey(x, y));
+  return c && c.set >= since ? c.at : null;
+};

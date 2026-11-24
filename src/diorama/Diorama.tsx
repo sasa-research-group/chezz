@@ -15,7 +15,7 @@ export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
 import { useGLTF } from "@react-three/drei";
 import { PILLAR_H, PILLAR_W, WALL_H, WALL_HALF_GLB, WALL_PIL_GLB, WALL_SEG_GLB, WALL_T, wallArms, wallPieces, type Arms } from "./walls";
-import { gameSpeed, hitTime, moving } from "./motion";
+import { gameSpeed, hitTime, moving, willClear } from "./motion";
 import { EyeSprite } from "./EyeSprite";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
@@ -311,6 +311,8 @@ function Falling({ at, away, born: from, now, dying, children }: { at: [number, 
       const len = dying?.current ?? null;
       death.current = { len, at: ms };
       moving(((len === null ? TIP : len + LIE) + SINK) / gameSpeed());
+      // its taker, waiting beside it, steps onto the square as it starts to sink
+      willClear(at[0], at[1], ms + (len === null ? TIP : len + LIE) * 1000 / gameSpeed());
     }
     const t = death.current ? (ms - death.current.at) / 1000 * gameSpeed() : -1;
     const f = takenFall(t, death.current?.len ?? null);
