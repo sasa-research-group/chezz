@@ -27,6 +27,13 @@ describe("sprite figures", () => {
     expect(info.travel).toBeGreaterThan(0);  // he steps in and lands on the target's square
     for (const k of info.have) for (const f of [`rook-strike${k}.webp`, `rook-strike${k}-glow.webp`]) expect(existsSync(join(dir, f)), f).toBe(true);
   });
+  it("the rebel rook has a walk for all 8 headings, so he never slides his still frame", () => {
+    const info = JSON.parse(readFileSync(join(dir, "rook-walk.json"), "utf8"));
+    expect(info.have).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(info.gait).toBe("walk");
+    expect(info.cycle).toBeGreaterThan(0);  // the game moves him at cycle * cps, so his feet stay planted
+    for (const k of info.have) for (const f of [`rook-walk${k}.webp`, `rook-walk${k}-glow.webp`]) expect(existsSync(join(dir, f)), f).toBe(true);
+  });
   it("plays a capture for every baked figure, the black rook and white pawn excepted", () => {
     expect(playsStrike({ kind: "king", side: "white" })).toBe(true);
     expect(playsStrike({ kind: "pawn", side: "black" })).toBe(true);

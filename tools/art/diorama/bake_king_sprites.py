@@ -105,13 +105,19 @@ if a.death:
     MOOD["dead"] = nervous_face.pieces(arm, body, "dead")
 poses = []
 if a.clip:
-    km.fix_skirt(arm, body)
+    # the rook (a GUARD json with a carried hammer) wears trousers: no hem to fix, and the fix would remap his leg weights
+    if not (os.environ.get("GUARD") and "hammer_in_forearm" in json.load(open(os.environ["GUARD"]))):
+        km.fix_skirt(arm, body)
     if not os.environ.get("NOCAPE"):  # the guard has no cape (its red-cloth test would catch his brown hair)
         km.fix_cape(arm, body)
     poses = km.loop_poses(arm, frames=a.frames, **SHAPE)
     if os.environ.get("GUARD"):  # carrying the sword: the gait's legs under the idle guard's upper body
         _gp, GUARD_LOOP = km.load_guard(os.environ["GUARD"])
-        poses = km.hold_guard(arm, poses, _gp, steady=float(os.environ.get("STEADY", "0.5")))
+        # FREE_ARM=Right: that arm keeps the walk's swing (the rook carries the hammer in his left hand only); not the
+        # hand: the carry pose shrinks it inside the fingered fist
+        _free = tuple(os.environ["FREE_ARM"] + b for b in ("Arm", "ForeArm")) if os.environ.get("FREE_ARM") else ()
+        poses = km.hold_guard(arm, poses, _gp, steady=float(os.environ.get("STEADY", "0.5")), free=_free,
+                              swing=float(os.environ.get("SWING", "1.0")))
     for pb in arm.pose.bones:  # back to rest, then the r17 pose: the stage, felt and lights are built in it
         pb.rotation_mode = "QUATERNION"
         pb.location = (0, 0, 0); pb.rotation_quaternion = (1, 0, 0, 0); pb.scale = (1, 1, 1)

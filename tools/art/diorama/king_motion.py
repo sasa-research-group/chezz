@@ -112,18 +112,24 @@ UPPER = ("Spine", "Spine01", "Spine02", "neck", "Head", "head_end", "headfront",
          "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand")
 
 
-def hold_guard(arm, poses, guard, steady=0.0):
+def hold_guard(arm, poses, guard, steady=0.0, free=(), swing=1.0):
     """A gait loop carrying the sword: the hips and legs walk, everything from the spine up stays in the idle
     guard (load_guard's pose, hand scale included), so both fists stay on the grip. The cape's CapeArm bones
-    follow the guard arms. `steady` (0..1) takes that share of the hips' sway (turn and roll round the loop's mean
-    hips) back out at the spine, so the blade sways less than the hips do. Leaves the last pose applied."""
+    follow the guard arms. Bones in `free` (the rook's empty right arm) keep the guard's hang plus the gait's
+    swing about its loop mean, scaled by `swing`. `steady` (0..1) takes that share of the hips' sway (turn and roll
+    round the loop's mean hips) back out at the spine, so the blade sways less than the hips do. Leaves the last pose applied."""
     out = []
     hm = _qmean([p["Hips"][1] for p in poses])
+    fm = {n: _qmean([p[n][1] for p in poses]) for n in free if n in guard}
     for p in poses:
         q = dict(p)
         for n in UPPER:
             if n in guard:
                 q[n] = guard[n]
+        for n, m in fm.items():  # the guard's hang, turned by this frame's swing away from the loop's mean
+            d = (m.inverted() @ p[n][1]).normalized()
+            d = Quaternion().slerp(d, swing) if swing != 1.0 else d
+            q[n] = (guard[n][0], guard[n][1] @ d) + tuple(guard[n][2:])
         for side in ("Left", "Right"):
             if side + "CapeArm" in p and side + "Arm" in guard:
                 q[side + "CapeArm"] = (Vector(), guard[side + "Arm"][1])

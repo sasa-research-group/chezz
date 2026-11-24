@@ -103,3 +103,14 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
 - A strike that re-places separate meshes every frame (the rook's hammer and hands) must take their felt fibres
   with them: fibres are grown in world space, so bake_king_sprites.py parents each hand's fibres to the hand. A
   one-heading test bake at 900 px / 24 samples (~3 min) showed the stray fuzz ball left at his shoulder.
+
+## Rook walk: a free arm (2026-11-23)
+
+- A figure with no walk sheet slides its still frame across the board. Every figure that moves needs a walk.
+- The walk is the library walk under the carry pose (`--gait walk` with GUARD set), like the king and guard.
+- The rook carries with one hand, so his empty right arm must swing or the walk reads stiff. `FREE_ARM=Right`
+  frees RightArm and RightForeArm: each keeps the carry's hang, turned by the gait's swing about its loop mean
+  (`SWING` scales it). Taking the gait's own arm rotation instead splays the arm out sideways, because the gait's
+  arm assumes the gait's shoulder. Never free the Hand: the carry shrinks it inside the fingered fist, and freeing
+  it shows the open hand. test_hold_guard.py checks this.
+- runrook.sh takes the walk as extra args: `FREE_ARM=Right runrook.sh felt/pose/rook_pose.json OUT 3600 256 0,...,7 --gait walk --frames 16`.
