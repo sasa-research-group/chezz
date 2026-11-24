@@ -262,8 +262,15 @@ EYE_CX = 0.0  # the face's middle (x): the guard's sits a little to one side
 WARP = True   # bend the brows (the king's worried and woe faces); the guard's brows stay as they are
 # Other figures' faces (use(name) before apply/pieces). The guard (2026-11-21, his death: X eyes): measured on a
 # straight-on render of his rest pose (round painted eyes under the helmet brim, a big mustache, a bare chin).
+PAINT = True  # paint out the old painted eyes (a figure with a face); the rook's helm has none
+VISOR = False  # eyes peer out of a dark visor: white beads with a black pupil (woe) or white X bars (dead), no mouth
+# The rebel rook (2026-11-23, his death): a closed great helm, no face, a dark T-shaped visor slit. Measured on an
+# orthographic front render of his rest pose (rook/death/face-front.png): the slit's crossbar spans x -0.108..0.108,
+# z 1.365..1.419; the eyes sit in it.
 FIGURES = dict(guard=dict(EYE=dict(x=0.093, z=1.21, w=0.026, h=0.027), EYE_CX=-0.002, TEETH_Z=1.05, WARP=False,
-                          X_LEN=0.040, X_W=0.010, WOE_MOUTH=(0.045, 0.024, 0.026)))
+                          X_LEN=0.040, X_W=0.010, WOE_MOUTH=(0.045, 0.024, 0.026)),
+               rook=dict(EYE=dict(x=0.052, z=1.392, w=0.019, h=0.020), EYE_CX=0.0, EYE_GROW=1.0, WARP=False,
+                         PAINT=False, VISOR=True, X_LEN=0.024, X_W=0.0065))
 
 
 def use(figure):
@@ -275,7 +282,7 @@ def use(figure):
 def apply(arm, body, mood="nervous"):
     """the worried face on the king at rest; returns the added pieces"""
     co, uv, col, px = _vertex_data(body)
-    painted, skin = _paint_out(body, co, col, px)
+    painted, skin = _paint_out(body, co, col, px) if PAINT else (0, np.zeros(3))
     warped = _warp(body, co) if WARP else 0
     out = pieces(arm, body, mood, co)
     print("NERVOUS_FACE %s painted %d px (skin %s), warped %d verts, %d pieces" % (mood, painted, np.round(skin, 2), warped, len(out)), flush=True)
@@ -304,6 +311,16 @@ def _pieces(arm, body, mood, co):
     for side in (-1, 1):
         loc, nrm = _surface(body, side * EYE["x"] + EYE_CX, EYE["z"])
         w, h = EYE["w"] * EYE_GROW, EYE["h"] * EYE_GROW
+        if VISOR:  # white in the dark slit; woe: wide eyes, pupils up, tilted inner end up; dead: white X
+            if mood == "dead":
+                for k, r in ((0, 45), (1, -45)):
+                    out.append(_bead("nf_x%+d%d" % (side, k), loc + nrm * (0.004 + 0.002 * k), nrm, X_LEN, 0.008, X_W,
+                                     white, arm, roll=r))
+                continue
+            out.append(_bead("nf_eye%+d" % side, loc + nrm * 0.002, nrm, w, 0.008, h, white, arm, roll=side * 15))
+            out.append(_bead("nf_pupil%+d" % side, loc + nrm * 0.008 + Vector((0, 0, h * 0.35)), nrm, w * 0.42, 0.004,
+                             h * 0.42, black, arm, 16))
+            continue
         if mood == "dead":  # X eyes: two crossed black bars over each eye
             for k, r in ((0, 45), (1, -45)):
                 out.append(_bead("nf_x%+d%d" % (side, k), loc + nrm * (0.004 + 0.002 * k), nrm, X_LEN, 0.010, X_W,
@@ -319,6 +336,8 @@ def _pieces(arm, body, mood, co):
         hit, sp_, _, _ = eye.ray_cast(inv @ (loc + off + nrm * 0.05), (inv.to_3x3() @ -nrm).normalized())
         gl = (eye.matrix_world @ sp_ if hit else loc + nrm * 0.014 + off) + nrm * 0.001
         out.append(_bead("nf_glint%+d" % side, gl, nrm, 0.0085, 0.004, 0.0085, white, arm, 16))
+    if VISOR:  # the helm hides his mouth
+        return out
     # clenched teeth: a dark mouth slot with two rows of rounded teeth, set into the beard under the mustache
     loc, nrm = _surface(body, 0.0, TEETH_Z)
     pin = (body, _tri(body, co, loc))  # every mouth piece rides the same beard triangle

@@ -6,7 +6,8 @@ export const SPRITE_FIGURES: Record<string, string> = {
   // The patrol guard (enemy pawn): idle, walk, the two-handed spear lunge (strike) and his death when taken.
   "black pawn": "guard",
   // The rebel rook: hammer on his shoulder, and a one-handed overhead slam (strike) on a capture, and a walk
-  // with the hammer on his shoulder and his free arm swinging. Taken, he falls without a death of his own.
+  // with the hammer on his shoulder and his free arm swinging. Taken, he plays his death: knocked onto his back,
+  // the hammer flung aside, X eyes in his visor.
   "white rook": "rook",
 };
 

@@ -114,3 +114,20 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   arm assumes the gait's shoulder. Never free the Hand: the carry shrinks it inside the fingered fist, and freeing
   it shows the open hand. test_hold_guard.py checks this.
 - runrook.sh takes the walk as extra args: `FREE_ARM=Right runrook.sh felt/pose/rook_pose.json OUT 3600 256 0,...,7 --gait walk --frames 16`.
+
+## Rook death: a face for a closed helm, a dropped prop (2026-11-23)
+
+- A figure with no face (the rook's closed great helm) still needs the woe and X eyes: `nervous_face.py` FIGURE
+  rook puts white clay eyes (pupils up for woe) or white X marks in the visor's dark slit, with no mouth and no
+  paint-out (VISOR=True, PAINT=False). Measure the slit on an orthographic front render with a known pixel to
+  metre map (scratch rook/death/facemeasure.py). test_rook_face.py checks the pieces sit in the slit.
+- A prop dropped on the blow must clear the body: falling straight down from his shoulders, the snapping helm
+  hit the hammer (draft full1). It rides in his opening hand for 2 frames, then leaves with an upward toss
+  (`pop` 0.30H) and slides off sideways (`sdx`, `sdy`, `slay`), landing on frame 10. CLIP stays ~0.03H on frames 2-3.
+- Keep the left fist rigid on the forearm in its carry grip (copy the idle's `fists[0].m` into every frame): the
+  bake builds each fist once, round the handle, so a fist that moves on its own shows the seam.
+- A thick body lying flat holds straight legs up off the floor: the end pose bends the hips past flat (kick -15).
+- One pose for every heading (Wesley, 2026-11-23): falling toward the camera hides the X eyes behind the helm
+  top, but it reads as a man knocked flat toward you. The king and guard work the same way.
+- `rook_death.py OUT` solves the 29 frames (`--keys`/`--only` for drafts), `runrookdeath.sh` bakes them,
+  `king_loop_atlas.py ... name=death figure=rook rows=4` packs them. test_rook_death.py checks keys and solves.

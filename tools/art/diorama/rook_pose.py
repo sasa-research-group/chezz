@@ -9,7 +9,7 @@
 #   env CHAR_GLB (rigged rook), PROP_GLB (hammer)
 import bpy, sys, os, json, math
 import numpy as np
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 from mathutils.bvhtree import BVHTree
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import king_motion as km
@@ -53,6 +53,15 @@ K = dict(
     look=0.6,  # share of the body turn the head undoes, so he keeps his eyes on the target
     twist=0.0,  # shoulders turn toward his right, degrees (left shoulder forward): the coil of a back swing
     sit=0.0,  # hips back over planted feet (share of height): the hip hinge of a real overhead slam
+    # --- the death (rook_death.py), as guard_pose.py's: let (0..1) both hands off the handle toward lx, ly, lz
+    # (share of height, out/back/up from each shoulder, in his chest's frame; the right mirrored), fall (deg) tips
+    # the whole body back about his heels and lifts him so nothing sinks under `floor`, kick (deg) bends both hips
+    # (the legs swing up off the floor as his back lands), drop (0..1) takes the hammer from its release pose
+    # (rhx..rhqz world; unset: where it is now) down onto the floor at (sdx, sdy) (share of height), handle pointing
+    # slay deg from straight ahead toward his right, falling like a dropped thing; clat (0..1) a small thud bounce
+    # of its head end after it lands. nervous: the face the bake shows (2 woe, 3 dead), only recorded here
+    let=0.0, lx=0.12, ly=0.04, lz=0.12, fall=0.0, kick=0.0, floor=0.0, drop=0.0, clat=0.0, sdx=-0.40, sdy=0.30,
+    slay=175.0, pop=0.0, rhx=0.0, rhy=0.0, rhz=0.0, rhqw=0.0, rhqx=0.0, rhqy=0.0, rhqz=0.0, nervous=0.0,
     render=1)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
@@ -170,6 +179,8 @@ def lock_frame(fa):  # the fist frame (x = d) turned about the handle so the idl
     return Matrix((d, y_, d.cross(y_))).transposed()
 LOCK = K["lock"] and K["wlx"] > -900
 pole_l = W("LeftArm") + RC @ Vector((K["px"], K["py"], K["lpz"]))
+LET_L = W("LeftArm") + RC @ Vector((K["lx"], K["ly"], K["lz"])) * H  # the death: where the open left hand flies
+LET_R = W("RightArm") + RC @ Vector((-K["lx"], K["ly"], K["lz"])) * H
 d_req = d.copy()
 for it_ in range(8 if LOCK else 1):
     if LOCK:  # the wrist doesn't break: the handle stays square to the forearm (as the idle grip), so the arm aims it.
@@ -184,6 +195,8 @@ for it_ in range(8 if LOCK else 1):
         wrist = G + FL @ (Vector((K["wlx"], K["wly"], K["wlz"])) * H)
     else:
         wrist = G - Vector((0, 0, 1)) * K["wdrop"] * H + out * K["wout"] * H
+    if K["let"]:
+        wrist = wrist.lerp(LET_L, min(1.0, K["let"]))
     # elbow pole: down and a little forward/out, as a real shoulder carry (upper arm near vertical, arm folded tight)
     miss_l = ik2("LeftArm", "LeftForeArm", "LeftHand", wrist, pole_l)
 if LOCK:
@@ -205,6 +218,8 @@ wlx_ = K["wlx"] if K["wlx"] > -900 else 0.0
 wristR = GR + FRg @ (Vector((wlx_, -K["wly"], K["wlz"])) * H)
 if K["rw"] > 0:
     rw = rw.lerp(wristR, min(1.0, K["rw"])) + math.sin(math.pi * min(1.0, K["rw"])) * (RC @ Vector((-K["rbx"], -K["rby"], 0))) * H
+if K["let"]:
+    rw = rw.lerp(LET_R, min(1.0, K["let"]))
 miss_r = ik2("RightArm", "RightForeArm", "RightHand", rw, W("RightArm") + RC @ Vector((K["rpx"], K["rpy"], K["rpz"])))
 def bend(s_):
     a, b, c_ = W(s_ + "Arm"), W(s_ + "ForeArm"), W(s_ + "Hand")
@@ -285,9 +300,59 @@ if K["ahead"]:  # the whole body (the hammer and fists hang off the forearms) mo
     m_ = hipb.matrix.copy(); m_.translation += MW.to_3x3().inverted() @ Vector((0, -K["ahead"] * H, 0)); hipb.matrix = m_
     bpy.context.view_layer.update()
     G = G + Vector((0, -K["ahead"] * H, 0)); GR = GR + Vector((0, -K["ahead"] * H, 0))
+# --- the death: legs up, the fall back about his heels, the hammer dropped to the floor
+def body_min_z():
+    dg_ = bpy.context.evaluated_depsgraph_get()
+    e_ = body.evaluated_get(dg_); m_ = e_.to_mesh()
+    z_ = min((e_.matrix_world @ v.co).z for v in m_.vertices); e_.to_mesh_clear()
+    return z_
+if K["kick"]:  # both hips bend: the feet swing forward and up (his front)
+    for s_ in ("Left", "Right"):
+        before = W(s_ + "Foot").y
+        rot_world(s_ + "UpLeg", "X", K["kick"])
+        if (W(s_ + "Foot").y - before) * K["kick"] > 0:  # the feet went back: the other way
+            rot_world(s_ + "UpLeg", "X", -2 * K["kick"])
+if K["fall"]:  # tip back about a point just behind the heels (his back is +y)
+    piv = Vector((0, max(foot0["Left"].y, foot0["Right"].y) + 0.035 * H, 0))
+    R4 = Matrix.Translation(piv) @ Matrix.Rotation(math.radians(-K["fall"]), 4, "X") @ Matrix.Translation(-piv)
+    hipb.matrix = MW.inverted() @ R4 @ MW @ hipb.matrix
+    bpy.context.view_layer.update()
+    z_ = body_min_z()
+    if z_ < K["floor"]:
+        m_ = hipb.matrix.copy(); m_.translation += MW.to_3x3().inverted() @ Vector((0, 0, K["floor"] - z_)); hipb.matrix = m_
+        bpy.context.view_layer.update()
+    print("FALL %.0f head %s lift %.3f" % (K["fall"], tuple(round(v, 2) for v in W("Head")), max(0, K["floor"] - z_)), flush=True)
+if K["drop"]:
+    held = ham.matrix_world.copy()
+    if K["rhqw"] or K["rhqx"] or K["rhqy"] or K["rhqz"]:
+        held = Matrix.Translation(Vector((K["rhx"], K["rhy"], K["rhz"]))) @ Quaternion((K["rhqw"], K["rhqx"], K["rhqy"], K["rhqz"])).to_matrix().to_4x4() @ Matrix.Scale(S, 4)
+    xa = Vector((-math.sin(math.radians(K["slay"])), -math.cos(math.radians(K["slay"])), 0))  # grip end -> head
+    _w = xa.cross(Vector((0, 0, 1)))  # the head lies on its side: its long axis level, across the handle
+    lie3 = Matrix((xa, _w, xa.cross(_w))).transposed()
+    lie = Matrix.Translation(Vector((K["sdx"] * H, K["sdy"] * H, 0))) @ (lie3 @ src.inverted()).to_4x4() @ Matrix.Scale(S, 4) @ Matrix.Translation(-gp)
+    ham.matrix_world = lie; bpy.context.view_layer.update()
+    lie.translation.z -= min((lie @ v.co).z for v in me.vertices) - K["floor"]  # its lowest point on the floor
+    u_ = min(1.0, K["drop"])
+    a_, b_ = held.to_translation(), lie.to_translation()
+    # it slides off sideways first (fast, slowing: thrown off by the blow), while gravity takes it down (as drop^2),
+    # so it clears his shoulders instead of cutting down through them (draft full1)
+    T_ = a_.lerp(b_, 1 - (1 - u_) ** 4)
+    T_.z = a_.z + (b_.z - a_.z) * u_ * u_ + 4 * K["pop"] * H * u_ * (1 - u_)  # pop: the blow bumps it up first
+    Q_ = held.to_quaternion().slerp(lie.to_quaternion(), u_)
+    want = Matrix.Translation(T_) @ Q_.to_matrix().to_4x4() @ Matrix.Scale(S, 4)
+    if K["clat"] and u_ >= 1:  # the heavy head end bounces once off the floor, pivoting on the grip end
+        p_ = min(1.0, K["clat"])
+        g_ = want @ Vector(gp) - xa * (K["pgrip"] * K["plen"] * H)
+        ax_ = xa.cross(Vector((0, 0, 1))).normalized()
+        if (Matrix.Rotation(0.1, 3, ax_) @ xa).z < 0:
+            ax_ = -ax_
+        ang_ = math.radians(7) * abs(math.sin(math.pi * p_)) * (1 - p_)
+        want = Matrix.Translation(g_) @ Matrix.Rotation(ang_, 4, ax_) @ Matrix.Translation(-g_) @ want
+    ham.matrix_world = want; bpy.context.view_layer.update()
+    print("DROP %.2f clat %.2f hammer at %s" % (u_, K["clat"], tuple(round(v, 2) for v in T_)), flush=True)
 json.dump(dict(knobs=K, height=H, pose={pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones},
                hammer_in_forearm=[list(r) for r in (MW @ arm.pose.bones["LeftForeArm"].matrix).inverted() @ ham.matrix_world],
-               hammer_bone="LeftForeArm", fists=[fl, fr]), open(os.path.join(OUT, "rook_pose.json"), "w"), indent=1)
+               hammer_bone="LeftForeArm", hammer_world=[list(r) for r in ham.matrix_world], fists=[fl, fr]), open(os.path.join(OUT, "rook_pose.json"), "w"), indent=1)
 
 # --- clipping: points of the hammer and the fists inside his body (his own holding hand/forearm skipped)
 dg = bpy.context.evaluated_depsgraph_get()
