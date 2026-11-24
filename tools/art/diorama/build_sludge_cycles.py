@@ -47,7 +47,7 @@ ap.add_argument("--rim_glb", default="")  # a Meshy model of the broken tile: it
 ap.add_argument("--level", type=float, default=0.55)  # the ooze's height in that basin, 0 = its floor, 1 = the tile top
 ap.add_argument("--fit", type=float, default=1.0)    # the model's footprint, share of the tile
 ap.add_argument("--rim_val", type=float, default=0.5)  # the model's paint darkened toward the set's slate (as TILE_VAL)
-ap.add_argument("--dome", type=float, default=0.7)  # a bubble's height, share of its radius
+ap.add_argument("--dome", type=float, default=1.2)  # timed bubbles need 1.2 to read on camera (0.34 read as lights under the surface)  # a bubble's height, share of its radius
 ap.add_argument("--swell", type=float, default=0.005)  # the ooze's slow swell, share of a square
 ap.add_argument("--bub_scale", type=float, default=1.0)  # bubble radius multiplier
 ap.add_argument("--neck", type=float, default=0.035)  # the fillet where a bubble meets the surface, share of a square
@@ -399,9 +399,12 @@ def timed_bubbles(rng, centers, clear, nsq):
     """Vents (a main one near each square's middle, two small ones per square), the loop's events, and the splatter.
     clear(x, y) is how far (x, y) is inside the ooze's edge."""
     vents = []
+    gx, gy = sum(c[0] for c in centers) / len(centers), sum(c[1] for c in centers) / len(centers)
     for cx, cy in centers:
+        # main vents lean halfway toward the pond's middle: real mud churns in the middle, never at the edge
+        mx, my = (cx + gx) / 2, (cy + gy) / 2
         for _ in range(60):
-            x, y = cx + rng.uniform(-0.15, 0.15) * S, cy + rng.uniform(-0.15, 0.15) * S
+            x, y = mx + rng.uniform(-0.12, 0.12) * S, my + rng.uniform(-0.12, 0.12) * S
             c = clear(x, y)
             if c > 0.1 * S:
                 vents.append((x, y, min(a.main_r * S * a.bub_scale, c / 1.5), True))
