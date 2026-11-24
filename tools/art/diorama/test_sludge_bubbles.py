@@ -131,6 +131,69 @@ def test_splatter():
     assert abs(sb.splatter_height(s, s[0], s[1], 1.0) - sb.splatter_height(s, s[0], s[1], 1.0 + sb.LOOP)) < 1e-12
 
 
+def test_bigger_bursts_fling_a_few_blobs():
+    ev = [e for s in range(30) for e in sb.schedule(vents_for(2, random.Random(s)), 2, random.Random(s + 50))]
+    for e in ev:
+        if not e.bursts or e.sz < sb.DROP_MIN_SZ:
+            assert e.drops == []
+        else:
+            assert 2 <= len(e.drops) <= 4
+    assert any(len(e.drops) >= 3 for e in ev) and any(len(e.drops) == 2 for e in ev)
+
+
+def test_blobs_fly_low_arcs_and_land_round_the_bubble():
+    rng = random.Random(11)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for d in e.drops:
+            top = max(sb.drop_in_air(d, d.t0 + d.tf * i / 50)[2] for i in range(50))
+            assert 0 < top <= 1.3 * e.dome * e.r, top   # low: no higher than about the bubble
+            out = math.hypot(d.x1 - e.x, d.y1 - e.y)
+            assert 1.2 * e.r < out < 2.2 * e.r
+            assert sb.drop_in_air(d, d.t0 + d.tf + sb.MERGE + 0.01) is None
+
+
+def test_landed_blob_melts_in_smoothly():
+    rng = random.Random(12)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for d in e.drops:
+            prev = 0.0
+            for i in range(1, 401):
+                h = sb.drop_height(d, d.x1, d.y1, d.t0 + d.end() * i / 400)
+                assert abs(h - prev) < 0.06 * d.r, (i, prev, h)
+                prev = h
+            assert prev < 1e-9
+            assert abs(sb.drop_height(d, d.x1, d.y1, d.t0 + d.tf + 0.2)
+                       - sb.drop_height(d, d.x1, d.y1, d.t0 + d.tf + 0.2 + sb.LOOP)) < 1e-12
+
+
+def test_the_tear_is_a_dark_hole_only_while_bursting():
+    rng = random.Random(13)
+    e = next(e for e in sb.schedule(vents_for(2, rng), 2, rng) if e.bursts)
+    assert sb.tear(e, e.x, e.y, e.t0 + 0.5 * e.ts) == 0          # still swelling: no hole
+    assert sb.tear(e, e.x, e.y, e.t0 + e.ts + 0.8 * e.tb) > 0.9  # torn open
+    assert sb.tear(e, e.x + 1.5 * e.r, e.y, e.t0 + e.ts + 0.8 * e.tb) == 0  # only in the middle
+    assert sb.tear(e, e.x, e.y, e.t0 + e.ts + e.tb + 0.6 * e.tz) == 0       # closed as it fills
+    prev = 0.0
+    for i in range(1, 401):  # opens and closes without a jump
+        v = sb.tear(e, e.x, e.y, e.t0 + e.length() * i / 400)
+        assert 0 <= v <= 1 and abs(v - prev) < 0.12, (i, prev, v)
+        prev = v
+
+
+def test_bubbles_never_stack():
+    """Two bubbles never swell or burst on the same spot at once: stacked domes read as a pointed cone."""
+    for seed in range(20):
+        rng = random.Random(seed)
+        ev = sb.schedule(vents_for(3, rng), 3, rng)
+        for i, a_ in enumerate(ev):
+            for b_ in ev[i + 1:]:
+                if math.hypot(a_.x - b_.x, a_.y - b_.y) < a_.r + b_.r:
+                    for k in range(200):
+                        t = sb.LOOP * k / 200
+                        on = lambda e: (t - e.t0) % sb.LOOP < sb.busy_time(e)
+                        assert not (on(a_) and on(b_)), (seed, a_.t0, b_.t0)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

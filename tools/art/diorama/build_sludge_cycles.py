@@ -120,6 +120,12 @@ def ooze_mat():
         mx.inputs["Color2"].default_value = (0.25, 0.4, 0.15, 1)
         link(nt, mr.outputs["Result"], mx.inputs["Fac"]); link(nt, col, mx.inputs["Color1"])
         col = mx.outputs["Color"]
+    # the hole a burst tears in the skin: a dark opening into the ooze below (sludge_bubbles.tear)
+    ta = nt.nodes.new("ShaderNodeAttribute"); ta.attribute_name = "tear"
+    tm = nt.nodes.new("ShaderNodeMixRGB"); tm.blend_type = "MIX"
+    tm.inputs["Color2"].default_value = (0.012, 0.035, 0.006, 1)
+    link(nt, ta.outputs["Fac"], tm.inputs["Fac"]); link(nt, col, tm.inputs["Color1"])
+    col = tm.outputs["Color"]
     link(nt, col, b.inputs["Base Color"])
     link(nt, col, b.inputs["Emission Color"])
     b.inputs["Emission Strength"].default_value = a.glow
@@ -420,6 +426,8 @@ def timed_bubbles(rng, centers, clear, nsq):
     if not vents:
         return Timed([], [])
     events = sb.schedule(vents, nsq, rng, dome=a.dome, loop=a.loop_s)
+    for e in events:
+        e.drops = [d for d in e.drops if clear(d.x1, d.y1) > 1.5 * d.r and clear(d.x0, d.y0) > 0]
     spots = []
     for _ in range(400):
         cx, cy = rng.choice(centers)
@@ -443,6 +451,45 @@ def bub_z(bubbles, x, y, t, z):
 
 
 ANIM = []  # (object, rebuild(t) -> a fresh object of the same sheet at phase t): swapped in per frame
+DROPS = []  # (sheet object, its Timed bubbles): the blobs in the air are drawn over it each frame
+_drop_objs = []
+
+
+def tear_values(me, bubbles, t):
+    if not isinstance(bubbles, Timed):
+        return [0.0] * len(me.vertices)
+    return [sb.tear_at(bubbles.events, v.co.x, v.co.y, t * a.loop_s, a.loop_s) for v in me.vertices]
+
+
+def place_drops(t):
+    """Draw every blob in the air at loop phase t as a small ball of ooze, lit like its sheet."""
+    while _drop_objs:
+        o = _drop_objs.pop()
+        bpy.data.objects.remove(o)
+    if not hasattr(place_drops, "mesh"):
+        bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=1.0)
+        me = bpy.data.meshes.new("sludge_drop"); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
+        for p_ in me.polygons:
+            p_.use_smooth = True
+        place_drops.mesh = me
+    n = 0
+    for surf, bubs in DROPS:
+        time = t * a.loop_s
+        for x, y, z, r in sb.drops_in_air(bubs.events, time, a.loop_s):
+            base = sb.surface_height(0.0, bubs.events, bubs.splat, x, y, time, a.loop_s)
+            o = bpy.data.objects.new("sludge_drop_%d" % n, place_drops.mesh); n += 1
+            sc.collection.objects.link(o)
+            o.location = surf.location + Vector((x, y, base + z + 0.6 * r))
+            o.scale = (r, r, 1.15 * r)
+            for tag in ("sludge_unlit_", "sludge_pinged_"):
+                col_ = bpy.data.collections.get(tag + surf.name)
+                if col_:
+                    col_.objects.link(o)
+                    if tag == "sludge_unlit_":
+                        for item in col_.collection_objects:  # everything in it is kept off this glow
+                            item.light_linking.link_state = "EXCLUDE"
+            _drop_objs.append(o)
+    return n
 
 
 def ooze_sheet(name, rfn, zs, bubbles, t, rng, rings=64, segs=200):
@@ -471,6 +518,7 @@ def ooze_sheet(name, rfn, zs, bubbles, t, rng, rings=64, segs=200):
         v.co.z = bub_z(bubbles, x, y, t, z)
     bm.normal_update()
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
+    me.attributes.new("tear", "FLOAT", "POINT").data.foreach_set("value", tear_values(me, bubbles, t))
     ed = me.attributes.new("edge", "FLOAT", "POINT")  # 0 in the middle, 1 at the stone: the ooze darkens there
     ed.data.foreach_set("value", [min(1.0, math.hypot(v.co.x, v.co.y) / max(rfn(math.atan2(v.co.y, v.co.x)), 1e-6))
                                   for v in me.vertices])
@@ -785,6 +833,8 @@ def build_pond(k, comp):
         bubs = timed_bubbles(rng, cs, lambda x, y: -sdf(x, y), len(comp))
     seed = rng.randrange(1 << 30)
     surf = pond_sheet("sludge_pond_%d" % k, sdf, box, bubs, a.t, random.Random(seed))
+    if a.timed:
+        DROPS.append((surf, bubs))
     ANIM.append((surf, lambda t, k=k, sdf=sdf, box=box, bubs=bubs, seed=seed:
                  pond_sheet("sludge_pond_%d_f" % k, sdf, box, bubs, t, random.Random(seed))))
     surf.location = (0, 0, zs)
@@ -833,6 +883,7 @@ def pond_sheet(name, sdf, box, bubbles, t, rng, step=0.012):
         v.co.z = bub_z(bubbles, x, y, t, z)
     bm.normal_update()
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(OOZE)
+    me.attributes.new("tear", "FLOAT", "POINT").data.foreach_set("value", tear_values(me, bubbles, t))
     ed = me.attributes.new("edge", "FLOAT", "POINT")
     ed.data.foreach_set("value", [min(1.0, max(0.0, 1 + sdf(v.co.x, v.co.y) / (0.4 * S))) for v in me.vertices])
     for p_ in me.polygons:
@@ -994,6 +1045,8 @@ for k, (i, j) in enumerate(LONE):
         bubs = timed_bubbles(rng, [(0.0, 0.0)], lambda x, y: rin(math.atan2(y, x)) - math.hypot(x, y), 1)
     seed = rng.randrange(1 << 30)
     surf = ooze_sheet("sludge_ooze_%d" % k, rooze, zs, bubs, a.t, random.Random(seed))
+    if a.timed:
+        DROPS.append((surf, bubs))
     ANIM.append((surf, lambda t, k=k, rooze=rooze, zs=zs, bubs=bubs, seed=seed:
                  ooze_sheet("sludge_ooze_%d_f" % k, rooze, zs, bubs, t, random.Random(seed))))
     sub = surf.modifiers.new("smooth", "SUBSURF"); sub.levels = 0; sub.render_levels = 1
@@ -1048,11 +1101,13 @@ if a.frames:  # the whole loop, frame by frame: only the ooze sheets change
             surf.data = fresh.data
             bpy.data.objects.remove(fresh)
             bpy.data.meshes.remove(old)
+        nd = place_drops(i / a.frames)
         sc.render.filepath = os.path.join(a.out, "frame_%03d.png" % i)
         bpy.ops.render.render(write_still=True)
-        print("CHECK frame %d/%d" % (i + 1, a.frames), flush=True)
+        print("CHECK frame %d/%d drops %d" % (i + 1, a.frames, nd), flush=True)
     print("SLUDGE STILLS OK frames", a.frames, flush=True)
 else:
+    print("CHECK drops %d" % place_drops(a.t), flush=True)
     sc.render.filepath = os.path.join(a.out, "sludge-zoom.png" if a.zoom else "sludge.png")
     bpy.ops.render.render(write_still=True)
     print("SLUDGE STILLS OK", sc.render.filepath, flush=True)

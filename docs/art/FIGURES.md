@@ -182,3 +182,17 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
     in on itself, rather than popping. The surface between is never still: a slow heave, no fine ripples.
   - The strip showed what Gemini's table missed: the main vent churns almost constantly (a surge every 0.6-0.9 s),
     and the whole surface is dotted with tiny still lumps of old splatter.
+- Animating it (`sludge_bubbles.py`, pure Python with tests; `build_sludge_cycles.py --frames 96 --loop_s 8`
+  rebuilds the ooze sheet per frame). What cost a round each:
+  - Bubbles blended in with a smooth max (`smax`) drew a crisp ring at the edge of every bubble's reach: a smooth
+    max adds a ridge wherever one side is tiny but not zero. Add the heights instead; a test walks lines across
+    the pool and fails on any step.
+  - Added heights are lower than the smooth max made them, so bubbles vanished on camera: `--dome 1.2` now.
+  - Bubbles stacked on the main vent (a small one rising on a big one, almost half the time) and read as pointed
+    cones. The schedule now keeps a spot free while a bubble there swells or bursts.
+  - A video judge (`refclips/motion_judge.py`, gemini-2.5-pro, the anim next to an 8 s crop of the Lassen clip,
+    3 rounds) scored motion 3, 2.3 and 2.7 of 10, always for the same thing: bubbles rise and sink like solid
+    lumps and never visibly burst. A 4 s loop also read as repetitive; 8 s did not.
+  - Wesley picked a small splash over a big messy one or none: the skin tears into a dark hole (a `tear` vertex
+    attribute darkens the ooze), the lip folds back in a few flaps, and a bigger bubble flings 2-4 blobs on low
+    arcs (no higher than the bubble) that land, sink in and melt flat. Blobs that would land on stone are dropped.
