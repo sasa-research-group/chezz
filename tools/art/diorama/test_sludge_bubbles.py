@@ -103,6 +103,24 @@ def test_no_groove_at_the_reach():
             assert sb.event_height(e, e.x + (sb.FAR - 0.02) * e.r, e.y, t) < 1e-3 * e.dome * e.r
 
 
+def test_surface_is_smooth_everywhere():
+    """Bubbles merged into a rolling base surface: no step anywhere along lines across the pool."""
+    rng = random.Random(9)
+    ev = sb.schedule(vents_for(2, rng), 2, rng)
+    sp = sb.splatter([(rng.uniform(-0.3, 1.3), rng.uniform(-0.3, 0.3), 0.02) for _ in range(40)], rng, 10, 2)
+    base = lambda x, y: 0.01 * math.sin(7 * x) * math.cos(5 * y)
+    for time in (0.3, 1.7, 2.2, 4.9, 7.6):
+        for y in (-0.2, -0.05, 0.0, 0.1, 0.25):
+            n = 1200
+            prev = None
+            for i in range(n + 1):
+                x = -0.4 + 1.8 * i / n
+                h = sb.surface_height(base(x, y), ev, sp, x, y, time)
+                if prev is not None:
+                    assert abs(h - prev) < 0.004, (time, y, x, prev, h)
+                prev = h
+
+
 def test_splatter():
     rng = random.Random(7)
     spots = [(i * 0.1, 0.0, 0.02) for i in range(50)]

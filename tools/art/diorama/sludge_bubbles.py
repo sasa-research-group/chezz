@@ -132,3 +132,14 @@ def stage_of(e, time, loop=LOOP):
     if not e.bursts:
         return "sink"
     return "burst" if tau < e.tb else "settle"
+
+
+def surface_height(z, events, splat, x, y, time, loop=LOOP):
+    """The ooze's height at (x, y): the base surface z with every bubble and splatter lump riding on it. Added, not
+    blended with a smooth max: a smooth max raises a ridge wherever a bubble's height is tiny but not zero, which
+    drew a crisp ring at the edge of every bubble's reach."""
+    for s in splat:
+        z += splatter_height(s, x, y, time, loop)
+    for e in events:
+        z += event_height(e, x, y, time, loop)
+    return z

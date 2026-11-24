@@ -431,18 +431,7 @@ def timed_bubbles(rng, centers, clear, nsq):
 def bub_z(bubbles, x, y, t, z):
     """The surface height z at (x, y) with the bubbles at loop phase t merged in."""
     if isinstance(bubbles, Timed):
-        time = t * a.loop_s
-        for s_ in bubbles.splat:
-            h = sb.splatter_height(s_, x, y, time, a.loop_s)
-            if h > 0:
-                z = smax(z, h, 0.3 * a.neck * S)
-        for e in bubbles.events:
-            h = sb.event_height(e, x, y, time, a.loop_s)
-            if h > 0:
-                z = smax(z, h, a.neck * S * (0.4 + 0.6 * e.sz))
-            elif h < 0:
-                z += h
-        return z
+        return sb.surface_height(z, bubbles.events, bubbles.splat, x, y, t * a.loop_s, a.loop_s)
     for b_ in bubbles:
         hb = bubble_h(b_, x, y, t)
         if hb > 0:
