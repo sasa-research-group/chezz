@@ -321,3 +321,15 @@ the GPU now sits at the 60 fps budget on its own, so the sludge's GPU cost has t
 - preserveDrawingBuffer only with `?still` (captures): a phone pays for that copy every frame.
 - Phone test: `node tools/art/diorama/phone_bench.mjs OUT.json 45 --wifi --results=N "--next=a|b"`, then type
   `http://<Mac Wi-Fi address>:5199/b` on the phone. The Mac's own Tailscale is the work tailnet; the phone isn't on it.
+- Phone (iPhone 13 Pro Max, Chrome on iOS, one visit, four versions in a row; the screen caps it at 60 fps):
+
+  | version | fps | GPU (readback) |
+  |---|---|---|
+  | new (per-vertex passes) | 51 | 10 ms |
+  | old tap shader | 56 | 15 ms |
+  | new, no MSAA | 60 | 10 ms |
+  | new, no sparkles or mirror check | 60 | 10 ms |
+
+  The new shaping took 5 ms off the phone's GPU. The 10 ms left doesn't move with MSAA or sparkles, so it's likely
+  the readback timer's own floor or the plate and textures, not the ooze's effects. The first version's 51 fps is
+  likely a first-load stall: the fps column is noise at this level. Next check: the bare plate (`bare`) on the phone.
