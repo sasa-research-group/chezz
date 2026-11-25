@@ -8,6 +8,7 @@
 import * as THREE from "three";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { neighbours, creases, type Neighbours } from "../diorama/sludgeCreases";
+import { FACE_FLOOR_GLSL } from "../diorama/sludgeFacing";
 import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat } from "../diorama/sludgeBubbles";
 import { glintList, type Lamp } from "../diorama/sludgeGlints";
 
@@ -121,6 +122,7 @@ uniform float glintWide; uniform float glintHalo;  // the highlights' soft halo:
 uniform int nPingOnly;     // the first glints are pings (just over the ooze, never hidden)
 uniform vec3 baseSpec;   // the base layer's shine drawn live: roughness, IOR, specular level (0: in the basis)
 uniform float baseGain; uniform float baseRoom; uniform float baseHalo; uniform float baseWide; uniform vec3 baseTint;
+uniform float rimGain; uniform float rimPow;  // the room's extra share at grazing: gain * (1 - n.v)^pow
 uniform float roomGain;  // how strongly the coat shows the room, fitted to Cycles (its coat barely mirrors the room)
 // where in the mirror images the room point q shows: q mirrored in the sheet's still height, seen by the camera
 vec2 mirUv(vec3 q, float z0) {
@@ -216,7 +218,11 @@ float baseShare(vec3 p, vec3 n) {
   return f0 + (max(f0, 0.0) > 0.0 ? (1.0 - f0) * pow(1.0 - nv, 5.0) : 0.0);
 }
 vec3 coatAt(int base, vec3 p, vec3 n) {
-  vec3 c = coatShare(p, n) * shine(base, p, n, coat.y, roomGain, useMirror, glintHalo, glintWide, 0);
+  // the room shows in the coat at grazing edges (a dome's far side), where Cycles' coat mirrors it near fully,
+  // though the fitted roomGain keeps it out of the face-on ooze
+  float nv = max(dot(n, normalize(camPos - p)), 0.0);
+  float gRoom = roomGain + rimGain * pow(1.0 - nv, rimPow);
+  vec3 c = coatShare(p, n) * shine(base, p, n, coat.y, gRoom, useMirror, glintHalo, glintWide, 0);
   // the base's own shine, under the coat, when the basis leaves it out: the room's lamps only (Cycles' base layer
   // shows no ping), each spread into the broad soft glow a rough (0.16) layer gives a bulb, as in the plate
   if (baseSpec.z > 0.0) c += (1.0 - coatShare(p, n)) * baseShare(p, n) * baseGain * baseTint
@@ -310,7 +316,8 @@ export async function start(dir: string) {
     baseGain: { value: Number(q.get("bgain") ?? 1) }, baseRoom: { value: Number(q.get("broom") ?? 1) },
     baseHalo: { value: Number(q.get("bhalo") ?? 0.7) }, baseWide: { value: Number(q.get("bwide") ?? 0.15) },
     baseTint: { value: new THREE.Vector3(...(q.get("btint") ?? "1,1,1").split(",").map(Number)) },
-    roomGain: { value: Number(q.get("room") ?? 0) },  // fitted: Cycles' coat shows the room at ~0.1 of physics
+    roomGain: { value: Number(q.get("room") ?? 0) },
+    rimGain: { value: Number(q.get("rim") ?? 0) }, rimPow: { value: Number(q.get("rimpow") ?? 4) },  // fitted: Cycles' coat shows the room at ~0.1 of physics
     gloss: { value: Number(new URLSearchParams(location.search).get("gloss") ?? "0") },
     mirror: { value: mirrorTex }, mpos: { value: mposTex }, useMirror: { value: useMirror ? 1 : 0 },
     mirZ: { value: Array.from({ length: 8 }, (_, k) => info.mirror?.z[k] ?? 0) }, posOff: { value: info.mirror?.pos_off ?? 0 },
@@ -339,7 +346,8 @@ export async function start(dir: string) {
 
   // one material a sheet, sharing every uniform but which probe faces it mirrors
   const sheetMat = (k: number) => new THREE.ShaderMaterial({
-    uniforms: { ...shared, base: { value: k * nf } }, transparent: true, glslVersion: THREE.GLSL3,
+    uniforms: { ...shared, base: { value: k * nf }, debugView: { value: Number(new URLSearchParams(location.search).get("view") ?? 0) },
+      minFace: { value: Number(new URLSearchParams(location.search).get("face") ?? 0.4) } }, transparent: true, glslVersion: THREE.GLSL3,
     vertexShader: /* glsl */ `
       in vec3 restPos; in vec3 restNormal; in float tearv; in float crease;
       out vec3 vN; out vec3 vRN; out vec3 vRest; out float vTear; out float vShade; out vec3 vWorld;
@@ -349,11 +357,18 @@ export async function start(dir: string) {
         vN = mat3(modelMatrix) * normal; vRN = mat3(modelMatrix) * restNormal; vTear = tearv; vShade = 1.0 - crease;
         gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
       }`,
-    fragmentShader: LOOK + /* glsl */ `
-      uniform int base;
+    fragmentShader: LOOK + FACE_FLOOR_GLSL + /* glsl */ `
+      uniform int base; uniform int debugView; uniform float minFace;
       in vec3 vN; in vec3 vRN; in vec3 vRest; in float vTear; in float vShade; in vec3 vWorld; out vec4 o;
       void main() {
-        o = vec4(look(vRest, normalize(vN), normalize(vRN), vTear, vShade, vWorld, base), seen(vRest));
+        // a dome's far side, seen edge-on, keeps its shading normal facing the camera (sludgeFacing.ts)
+        vec3 n = faceFloor(normalize(vN), normalize(camPos - vWorld), minFace);
+        o = vec4(look(vRest, n, normalize(vRN), vTear, vShade, vWorld, base), seen(vRest));
+        // a check (?view=1 tilt from rest / 60 deg, 2 tear, 3 shade, 4 facing the camera): the term as grey
+        if (debugView == 1) o.rgb = vec3(degrees(acos(clamp(dot(normalize(vN), normalize(vRN)), -1.0, 1.0))) / 60.0);
+        if (debugView == 2) o.rgb = vec3(vTear);
+        if (debugView == 3) o.rgb = vec3(vShade);
+        if (debugView == 4) o.rgb = vec3(max(dot(normalize(vN), normalize(camPos - vWorld)), 0.0));
       }`,
   });
 

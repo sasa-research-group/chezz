@@ -1,8 +1,9 @@
 // Frames of the live sludge proof (live-sludge.html), at the same moments as a Cycles loop, for side-by-side judging.
 //   node tools/art/diorama/capture_live.mjs URL OUTDIR [FRAMES=96] [LOOP_S=8]
-// URL is the page with ?still&dir=...; a Vite dev server must be serving it.
+// URL is the page with ?dir=... (still is added when missing); a Vite dev server must be serving it.
 import { chromium } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { stillUrl } from "./stillUrl.mjs";
 
 const [url, out, framesArg = "96", loopArg = "8"] = process.argv.slice(2);
 const frames = Number(framesArg), loop = Number(loopArg);
@@ -10,7 +11,7 @@ mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"] });
 const page = await browser.newPage({ viewport: { width: 1700, height: 1300 } });
 page.on("console", m => console.log("page:", m.text()));
-await page.goto(url);
+await page.goto(stillUrl(url));  // always in step: the page never runs its own clock
 await page.waitForFunction(() => window.liveReady || window.liveError, null, { timeout: 120000 });
 const err = await page.evaluate(() => window.liveError);
 if (err) { console.error("page failed:", err); process.exit(1); }

@@ -269,3 +269,20 @@ Lessons:
   Cycles), the same as round 4's clip re-judged (8 of 12, 8.8 against 9.3). Their repeat tells: torn holes look
   like flat decals with no self-shadowing, highlights are simpler, and the ooze's green light on the stones doesn't
   move with the bubbles.
+
+### Live sludge, rounds 6–7: the capture bug, and the holes' ink outlines (2026-11-25)
+
+- **Loop captures were scrambled until now.** Without `?still` the page runs its own requestAnimationFrame clock and
+  redraws at wall-clock time between `renderAt(t)` calls, so saved frames came from random moments. Judge rounds 4–5
+  (pools-live9, pools-live11) and the earlier fit_loop numbers came from such clips: ignore them. `capture_live.mjs`
+  now adds `still` itself (`tools/art/diorama/stillUrl.mjs`, tested). In step, live sits at phase offset 0 against Cycles.
+- **In-step baseline (L9 basis, corrected lamps):** fit_loop all 11.18; judges caught it 7/12.
+- **The holes' "flat decal" look was black ink outlines**, not missing crater depth. A debug view (`?view=1` tilt,
+  `2` tear, `3` crease shade, `4` facing) showed the lines sit exactly where a dome's far side turns edge-on: the
+  smoothed normal leans away from the camera and the tilt table returns the dark of a sheet seen from behind.
+  Turning crease shading down did nothing; letting the room reflection rise at grazing (`?rim=`) barely helped and
+  tinted the ooze blue. The fix is a facing floor: the shading normal is bent towards the camera until n·v ≥ 0.4
+  (`src/diorama/sludgeFacing.ts`, `?face=`, default 0.4).
+- **Result:** fit_loop 11.14 (rims are few pixels); judges caught it 8/18 over three rounds (chance is 9/18), quality
+  about even with Cycles. Remaining tells: highlights simpler and sharper than Cycles', bubbles' self-shadowing, the
+  ooze not mirroring the stone edges. Holes were named once in 18.
