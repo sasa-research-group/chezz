@@ -17,18 +17,19 @@ RATE = 1.1          # events per second per square
 BURST_SHARE = 0.8   # the rest swell and sink back
 
 
-def stage_times(sz):
-    """Swell, burst and settle seconds for a bubble of size sz (0 = a small plip, 1 = the largest)."""
-    return 0.25 + 0.6 * sz, 0.12 + 0.45 * sz, 0.2 + 0.7 * sz
+def stage_times(sz, thick=1.0):
+    """Swell, burst and settle seconds for a bubble of size sz (0 = a small plip, 1 = the largest). thick > 1 slows
+    the burst and the settle: ooze thicker than the mudpot's mud slumps and fills back more slowly."""
+    return 0.25 + 0.6 * sz, (0.12 + 0.45 * sz) * thick, (0.2 + 0.7 * sz) * thick
 
 
 class Event:
     __slots__ = ("x", "y", "r", "t0", "sz", "bursts", "ts", "tb", "tz", "ang", "stretch", "h1", "h2", "s1", "s2", "dome",
                  "drops")
 
-    def __init__(self, x, y, r, t0, sz, bursts, rng, dome):
+    def __init__(self, x, y, r, t0, sz, bursts, rng, dome, thick=1.0):
         self.x, self.y, self.r, self.t0, self.sz, self.bursts = x, y, r, t0, sz, bursts
-        self.ts, self.tb, self.tz = stage_times(sz)
+        self.ts, self.tb, self.tz = stage_times(sz, thick)
         self.ang = rng.uniform(0, 2 * math.pi)
         self.stretch = rng.uniform(1.0, 1.2)
         self.h1, self.h2 = rng.uniform(0.08, 0.16), rng.uniform(0.04, 0.1)   # lumpiness of the blister's outline
@@ -131,7 +132,7 @@ def tear_at(events, x, y, time, loop=LOOP):
     return min(1.0, sum(tear(e, x, y, time, loop) for e in events))
 
 
-def schedule(vents, squares, rng, dome=0.5, loop=LOOP, rate=RATE):
+def schedule(vents, squares, rng, dome=0.5, loop=LOOP, rate=RATE, thick=1.0):
     """The loop's events. vents: [(x, y, room, main)], where room is how big a bubble fits there (its radius
     limit, kept clear of the edge) and main marks a square's main vent. About rate*squares*loop events, in 2-3
     surges, the main vents taking most and the biggest."""
@@ -148,10 +149,10 @@ def schedule(vents, squares, rng, dome=0.5, loop=LOOP, rate=RATE):
             jit = 0.35 * v[2] * (1 - sz)   # small ones wander off the vent a little
             x, y = v[0] + rng.uniform(-jit, jit), v[1] + rng.uniform(-jit, jit)
             t0 = (rng.choice(surges) + rng.gauss(0, 0.45)) % loop if rng.random() < 0.75 else rng.uniform(0, loop)
-            ts, tb, _tz = stage_times(sz)
+            ts, tb, _tz = stage_times(sz, thick)
             bursts = rng.random() < BURST_SHARE
             if not any(_clash(x, y, r, t0, ts + (tb if bursts else ts * 0.8), o, loop) for o in events):
-                events.append(Event(x, y, r, t0, sz, bursts, rng, dome))
+                events.append(Event(x, y, r, t0, sz, bursts, rng, dome, thick))
                 break
     events.sort(key=lambda e: e.t0)
     return events

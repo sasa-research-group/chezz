@@ -194,6 +194,15 @@ def test_bubbles_never_stack():
                         assert not (on(a_) and on(b_)), (seed, a_.t0, b_.t0)
 
 
+def test_thicker_ooze_settles_slower():
+    s1, b1, z1 = sb.stage_times(0.5)
+    s2, b2, z2 = sb.stage_times(0.5, 1.6)
+    assert s2 == s1 and abs(b2 - 1.6 * b1) < 1e-12 and abs(z2 - 1.6 * z1) < 1e-12
+    rng = random.Random(14)
+    ev = sb.schedule(vents_for(2, rng), 2, rng, thick=1.6)
+    assert all(e.length() < sb.LOOP for e in ev) and len(ev) == round(sb.RATE * 2 * sb.LOOP)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

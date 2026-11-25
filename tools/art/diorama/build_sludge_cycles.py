@@ -67,6 +67,7 @@ ap.add_argument("--kit_turn", type=float, default=0.15)  # and turn up to this m
 ap.add_argument("--kit_thick", type=float, default=1.0)  # pond stones' thickness multiplier (chunkier slabs)
 ap.add_argument("--kit_glb", default="")  # pond: a Meshy model of loose broken shards for the rim (else code shards)
 ap.add_argument("--yaw", type=float, default=0.0)    # extra turn of the model (degrees)
+ap.add_argument("--thick", type=float, default=1.0)  # >1: bursts slump and settle slower than the mudpot (thicker ooze)
 ap.add_argument("--timed", type=int, default=1)  # 1: bubbles timed from the mudpot clips (sludge_bubbles.py); 0: the old even loop
 ap.add_argument("--frames", type=int, default=0)  # >0: render the whole loop (--loop_s) as this many frames
 ap.add_argument("--loop_s", type=float, default=8.0)  # the bubbling loop's length in seconds (the judge saw a 4 s loop repeat)
@@ -425,7 +426,7 @@ def timed_bubbles(rng, centers, clear, nsq):
             vents.append((x, y, min(0.065 * S * a.bub_scale, c / 1.5), False))
     if not vents:
         return Timed([], [])
-    events = sb.schedule(vents, nsq, rng, dome=a.dome, loop=a.loop_s)
+    events = sb.schedule(vents, nsq, rng, dome=a.dome, loop=a.loop_s, thick=a.thick)
     for e in events:
         e.drops = [d for d in e.drops if clear(d.x1, d.y1) > 1.5 * d.r and clear(d.x0, d.y0) > 0]
     spots = []
