@@ -305,3 +305,19 @@ Lessons:
 Phone check (iPhone 13 Pro Max, Chrome on iOS, `?bench` via `tools/art/diorama/phone_bench.mjs --wifi`): 48 fps
 average, median frame 17 ms, slowest 5% 21 ms; CPU 2 ms, GPU 15 ms at 1600x1200. The CPU fix holds on a real phone;
 the GPU now sits at the 60 fps budget on its own, so the sludge's GPU cost has to come down before figures join it.
+
+### Live sludge, round 10: GPU cost
+
+- Time the GPU with its own clock (EXT_disjoint_timer_query_webgl2; the profiler launches Chrome with
+  `--enable-privileged-webgl-extensions`, and the answers only come back after the page yields a frame). The
+  readPixels timer hid the real cost: it said the old shaping shader cost ~1 ms, the GPU clock said ~15 ms.
+- Don't time on a Mac that is running a game: Slay the Spire 2 on the same GPU made every number wobble by ±0.6 ms.
+- The cost was the vertex shader working the rise out 13 times a vertex (six slope taps, six crease taps) over every
+  live bubble. Now three passes over one texel a vertex (src/diorama/sludgeFields.ts) work it once: rise and tear,
+  then the neighbour mean and a least-squares slope through the real mesh neighbours, then the crease exactly as
+  creases() does. The vertex shader reads two texels by gl_VertexID. GPU clock: draw 15 ms → passes 1.3 + draw
+  2.3 ms on the M4 Max. Pixels vs `?cpu`: mean 0.002/255 (the tap shader was 0.032). Fit 11.12. `?shape=taps` keeps
+  the old shader.
+- preserveDrawingBuffer only with `?still` (captures): a phone pays for that copy every frame.
+- Phone test: `node tools/art/diorama/phone_bench.mjs OUT.json 45 --wifi --results=N "--next=a|b"`, then type
+  `http://<Mac Wi-Fi address>:5199/b` on the phone. The Mac's own Tailscale is the work tailnet; the phone isn't on it.

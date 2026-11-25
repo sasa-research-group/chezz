@@ -15,6 +15,7 @@ import { glintList, type Lamp } from "../diorama/sludgeGlints";
 import { packFrame, SLUDGE_PACK_GLSL, ITEM, MAX_ITEMS } from "../diorama/sludgePack";
 import { PERM, PERLIN_SCALE } from "../diorama/sludgeBubbles";
 import { frameStats } from "./frameStats";
+import { packVertices, FIELD_W, FIELD_A_GLSL, FIELD_B_GLSL, FIELD_C_GLSL } from "../diorama/sludgeFields";
 
 type Sheet = { name: string; matrix: number[][]; verts: number; tris: number; events: BubbleEvent[]; splat: Splat[] };
 type Live = {
@@ -55,6 +56,14 @@ function topFirst(t: THREE.Texture) {
 
 /** the most glowing discs (pings and room lights) the coat draws */
 const NGLINT = 32;
+// the ooze's rise at xy: the slow swell (sludgeBubbles.ts swell) plus every packed bubble, lump and splatter
+const RISE_GLSL = /* glsl */ `
+uniform float sheetK; uniform float swellAmp; uniform float sheetS; uniform vec2 swellPh;
+float rise(vec2 xy) {
+  float k = sheetK;
+  vec3 q = vec3(xy * 2.2 / sheetS + swellPh + vec2(17.3 * k + 0.5, 9.1 * k + 0.5), 0.37 + 5.7 * k);
+  return swellAmp * ${PERLIN_SCALE.toFixed(4)} * perlin3(q) + sludgeHeight(xy);
+}`;
 const LOOK = GRADE_GLSL + /* glsl */ `
 #define NGLINT ${NGLINT}
 uniform highp sampler2DArray basis;
@@ -259,7 +268,8 @@ export async function start(dir: string) {
   const [W, H] = info.res, R = info.region;
   const canvas = document.createElement("canvas");
   document.body.appendChild(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: new URLSearchParams(location.search).get("msaa") !== "0", preserveDrawingBuffer: new URLSearchParams(location.search).has("still") });
+  // (the spare copy of each frame is only for captures, which read the canvas back; a phone pays for it every frame)
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;  // the images are already display colour: pass them through
   renderer.toneMapping = THREE.NoToneMapping;
@@ -350,7 +360,7 @@ export async function start(dir: string) {
       return g ? new THREE.Vector4(g.at[0], g.at[1], g.at[2], g.r) : new THREE.Vector4(); }) },
     pingCol: { value: Array.from({ length: NGLINT }, (_, i) => { const g = glints[i];
       return g ? new THREE.Vector4(g.color[0] * g.L, g.color[1] * g.L, g.color[2] * g.L, g.sheet) : new THREE.Vector4(); }) },
-    nPing: { value: glints.length }, coat: { value: new THREE.Vector3(...info.coat) }, expo: { value: info.view.exposure },
+    nPing: { value: Math.min(glints.length, Number(q.get("ng") ?? glints.length)) }, coat: { value: new THREE.Vector3(...info.coat) }, expo: { value: info.view.exposure },
     mask: { value: mask }, region: { value: new THREE.Vector4(R.x, R.y, R.w, R.h) },
     res: { value: new THREE.Vector2(W, H) }, vp: { value: vp }, turns: { value: info.turns },
     tiltStep: { value: info.tilts[0] }, rings: { value: info.tilts.length },
@@ -384,25 +394,44 @@ export async function start(dir: string) {
       nSplat: { value: 0 }, edge: { value: 1 } } };
   });
 
+  // ?shape=taps: the older shader that works the rise out 13 times a vertex; default: once a vertex (sludgeFields.ts)
+  const perVertex = gpu && q.get("shape") !== "taps";
+  gpuShared.gpuShape.value = !gpu ? 0 : perVertex ? 2 : 1;
+  const fieldOpts = { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter, depthBuffer: false, generateMipmaps: false };
+  const fields = info.sheets.map(sh => {
+    const rows = Math.max(1, Math.ceil((sh.verts + 1) / FIELD_W));
+    return { rows, A: new THREE.WebGLRenderTarget(FIELD_W, rows, fieldOpts), B: new THREE.WebGLRenderTarget(FIELD_W, rows, fieldOpts),
+      C: new THREE.WebGLRenderTarget(FIELD_W, rows, fieldOpts), mats: [] as THREE.ShaderMaterial[] };
+  });
+  const passScene = new THREE.Scene(), passCam = new THREE.Camera();
+  const passQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+  passQuad.frustumCulled = false; passScene.add(passQuad);
+  const PASS_VS = "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }";
+
   // one material a sheet, sharing every uniform but which probe faces it mirrors
   const sheetMat = (k: number) => new THREE.ShaderMaterial({
-    uniforms: { ...shared, ...gpuShared, ...packs[k].uniforms, sheetK: { value: k }, base: { value: k * nf }, debugView: { value: Number(new URLSearchParams(location.search).get("view") ?? 0) },
+    uniforms: { ...shared, ...gpuShared, ...packs[k].uniforms, sheetK: { value: k }, fieldA: { value: fields[k].A.texture },
+      fieldC: { value: fields[k].C.texture }, base: { value: k * nf }, debugView: { value: Number(new URLSearchParams(location.search).get("view") ?? 0) },
       minFace: { value: Number(new URLSearchParams(location.search).get("face") ?? 0.4) } }, transparent: true, glslVersion: THREE.GLSL3,
     vertexShader: /* glsl */ `
       in vec3 restPos; in vec3 restNormal; in float tearv; in float crease;
       out vec3 vN; out vec3 vRN; out vec3 vRest; out float vTear; out float vShade; out vec3 vWorld;
       ${SLUDGE_PACK_GLSL}
-      uniform int gpuShape; uniform float sheetK; uniform float swellAmp; uniform float sheetS; uniform vec2 swellPh;
-      uniform float edge; uniform float creaseK;
-      // the ooze's rise here: the slow swell (sludgeBubbles.ts swell) plus every packed bubble, lump and splatter
-      float rise(vec2 xy) {
-        float k = sheetK;
-        vec3 q = vec3(xy * 2.2 / sheetS + swellPh + vec2(17.3 * k + 0.5, 9.1 * k + 0.5), 0.37 + 5.7 * k);
-        return swellAmp * ${PERLIN_SCALE.toFixed(4)} * perlin3(q) + sludgeHeight(xy);
-      }
+      ${RISE_GLSL}
+      uniform int gpuShape; uniform float edge; uniform float creaseK;
+      uniform highp sampler2D fieldA; uniform highp sampler2D fieldC;
       void main() {
         vec3 p = position, nl = normal; float tear = tearv, cr = crease;
-        if (gpuShape == 1) {
+        if (gpuShape == 2) {
+          // shaped by the per-vertex passes (sludgeFields.ts): rise and tear, then crease and slope, by vertex index
+          ivec2 c = ivec2(gl_VertexID % ${FIELD_W}, gl_VertexID / ${FIELD_W});
+          vec4 a = texelFetch(fieldA, c, 0), f = texelFetch(fieldC, c, 0);
+          p = restPos + vec3(0.0, 0.0, a.r);
+          float rz = max(restNormal.z, 0.2);
+          nl = normalize(vec3(restNormal.x / rz - f.g, restNormal.y / rz - f.b, 1.0));
+          tear = a.g; cr = f.r;
+        } else if (gpuShape == 1) {
           // shaped here from the packed bubbles (sludgePack.ts): height at the vertex, its slope from a ring of six
           // taps one mesh edge out, and the crease as the CPU's two-ring average (weights 7, 4 a tap, 3 a tap / 49)
           vec2 xy = restPos.xy; float d0 = rise(xy), r1 = 0.0, r2 = 0.0; vec2 g = vec2(0.0);
@@ -455,6 +484,7 @@ export async function start(dir: string) {
     geo.setAttribute("tearv", new THREE.BufferAttribute(new Float32Array(sh.verts), 1));
     geo.setAttribute("crease", new THREE.BufferAttribute(new Float32Array(sh.verts), 1));
     const mesh = new THREE.Mesh(geo, sheetMat(k));
+    mesh.visible = !q.has("bare");  // a timing check: the plate alone
     mesh.matrix.copy(rows(sh.matrix)); mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
     scene.add(mesh);
     const nb = neighbours(sh.verts, idx);
@@ -463,6 +493,18 @@ export async function start(dir: string) {
       el += Math.hypot(rest[i * 3] - rest[nb.list[j] * 3], rest[i * 3 + 1] - rest[nb.list[j] * 3 + 1]);
     packs[k].uniforms.edge.value = el / Math.max(nb.list.length, 1);
     lives.push({ sheet: sh, geo, rest, mesh, nb });
+    if (perVertex) {
+      const pv = packVertices(rest, nb), f = fields[k];
+      const tex = (d: Float32Array, rows: number, fmt: THREE.PixelFormat) => {
+        const t = new THREE.DataTexture(d, FIELD_W, rows, fmt, THREE.FloatType);
+        t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
+      };
+      const common = { ...gpuShared, ...packs[k].uniforms, sheetK: { value: k }, nVerts: { value: sh.verts },
+        vtxTex: { value: tex(pv.vtx, pv.rows, THREE.RGBAFormat) }, listTex: { value: tex(pv.list, pv.lrows, THREE.RedFormat) },
+        fieldA: { value: f.A.texture }, fieldB: { value: f.B.texture } };
+      f.mats = [`${SLUDGE_PACK_GLSL}\n${RISE_GLSL}\n${FIELD_A_GLSL}`, FIELD_B_GLSL, FIELD_C_GLSL].map(fs =>
+        new THREE.ShaderMaterial({ uniforms: common, glslVersion: THREE.GLSL3, vertexShader: PASS_VS, fragmentShader: fs }));
+    }
   }
 
   // the blobs in the air: small balls of the same ooze, lit by the basis with their own round normals
@@ -500,6 +542,13 @@ export async function start(dir: string) {
         pk.uniforms.nBub.value = r.nBub; pk.uniforms.nTear.value = r.nTear;
         pk.uniforms.nLump.value = r.nLump; pk.uniforms.nSplat.value = r.nSplat; pk.tex.needsUpdate = true;
         if (r.dropped && !packWarned) { packWarned = true; console.warn(`sludge pack full: ${r.dropped} items dropped`); }
+        if (perVertex) {
+          const f = fields[k];
+          for (const [m, rt] of [[f.mats[0], f.A], [f.mats[1], f.B], [f.mats[2], f.C]] as const) {
+            passQuad.material = m; renderer.setRenderTarget(rt); renderer.render(passScene, passCam);
+          }
+          renderer.setRenderTarget(null);
+        }
       } else {
       const pos = geo.getAttribute("position") as THREE.BufferAttribute, tr = geo.getAttribute("tearv") as THREE.BufferAttribute;
       const p = pos.array as Float32Array, t = tr.array as Float32Array;
@@ -536,23 +585,45 @@ export async function start(dir: string) {
   };
   // timing, split in two: the CPU's mesh update, and the GPU's draw (made to finish by reading one pixel back)
   const gl = renderer.getContext(), px = new Uint8Array(4);
-  const profile = (frames: number) => {
+  // reps: draws a frame between readbacks, so a cost under the clock's noise still shows (gpu is a draw's share)
+  const profile = async (frames: number, reps = 1) => {
     const cpu: number[] = [], gpu: number[] = [];
     for (let i = 0; i < frames; i++) {
       const t = (i / frames) * info.loop_s;
       const a = performance.now(); update(t); const b = performance.now();
-      renderer.render(scene, cam); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const c = performance.now();
-      cpu.push(b - a); gpu.push(c - b);
+      for (let r = 0; r < reps; r++) { if (r) update(t); renderer.render(scene, cam); }  // a whole frame each time
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const c = performance.now();
+      cpu.push(b - a); gpu.push((c - b) / reps);
     }
     const med = (x: number[]) => x.sort((p, q) => p - q)[x.length >> 1];
+    // the GPU's own clock where the browser has it (EXT_disjoint_timer_query_webgl2): the passes and the draw apart
+    const tq = (gl as WebGL2RenderingContext).getExtension ? (gl as WebGL2RenderingContext).getExtension("EXT_disjoint_timer_query_webgl2") : null;
+    let gpuPass = NaN, gpuDraw = NaN;
+    if (tq) {
+      const g2 = gl as WebGL2RenderingContext, qs: [WebGLQuery, WebGLQuery][] = [];
+      for (let i = 0; i < frames; i++) {
+        const t = (i / frames) * info.loop_s, a = g2.createQuery()!, b = g2.createQuery()!;
+        g2.beginQuery(tq.TIME_ELAPSED_EXT, a); update(t); g2.endQuery(tq.TIME_ELAPSED_EXT);
+        g2.beginQuery(tq.TIME_ELAPSED_EXT, b); renderer.render(scene, cam); g2.endQuery(tq.TIME_ELAPSED_EXT);
+        qs.push([a, b]);
+      }
+      const ready = (q: WebGLQuery) => g2.getQueryParameter(q, g2.QUERY_RESULT_AVAILABLE);
+      // the answers only arrive once the page has given a frame back
+      for (let n = 0; n < 120 && !qs.every(([a, b]) => ready(a) && ready(b)); n++) await new Promise(r => requestAnimationFrame(r));
+      if (!g2.getParameter(tq.GPU_DISJOINT_EXT) && qs.every(([a, b]) => ready(a) && ready(b))) {
+        gpuPass = med(qs.map(([a]) => g2.getQueryParameter(a, g2.QUERY_RESULT) / 1e6));
+        gpuDraw = med(qs.map(([, b]) => g2.getQueryParameter(b, g2.QUERY_RESULT) / 1e6));
+      }
+      qs.forEach(([a, b]) => { g2.deleteQuery(a); g2.deleteQuery(b); });
+    }
     const verts = info.sheets.reduce((n, sh) => n + sh.verts, 0), events = info.sheets.reduce((n, sh) => n + sh.events.length, 0);
-    return { cpu: med(cpu), gpu: med(gpu), verts, events, px: renderer.domElement.width * renderer.domElement.height };
+    return { cpu: med(cpu), gpu: med(gpu), gpuPass, gpuDraw, verts, events, px: renderer.domElement.width * renderer.domElement.height };
   };
   return { renderAt, profile, canvas, info };
 }
 
 const dir = new URLSearchParams(location.search).get("dir") ?? "live-proof/";
-const w = window as unknown as { renderAt?: (t: number) => number; liveProfile?: (n: number) => object; liveReady?: boolean; liveError?: string };
+const w = window as unknown as { renderAt?: (t: number) => number; liveProfile?: (n: number, reps?: number) => Promise<object>; liveReady?: boolean; liveError?: string };
 start(dir.endsWith("/") ? dir : dir + "/").then(({ renderAt, profile, info }) => {
   w.renderAt = renderAt; w.liveProfile = profile;
   w.liveReady = true;
@@ -566,7 +637,7 @@ start(dir.endsWith("/") ? dir : dir + "/").then(({ renderAt, profile, info }) =>
 
 // ?bench: the phone test. Plays 10 s for real and times each frame, then splits one frame into the CPU's update and the
 // GPU's draw, shows the numbers over the picture and posts them to /__bench (tools/art/diorama/phone_bench.mjs).
-async function runBench(renderAt: (t: number) => number, profile: (n: number) => object, loop: number) {
+async function runBench(renderAt: (t: number) => number, profile: (n: number) => Promise<object>, loop: number) {
   const box = document.createElement("pre");
   box.style.cssText = "position:fixed;left:0;top:0;margin:0;padding:12px;font:20px/1.35 monospace;color:#fff;background:#000a;z-index:9";
   document.body.append(box);
@@ -584,8 +655,8 @@ async function runBench(renderAt: (t: number) => number, profile: (n: number) =>
   });
   box.textContent = "Splitting CPU and GPU...";
   await new Promise(r => setTimeout(r, 50));
-  profile(6);
-  const split = profile(30) as { cpu: number; gpu: number; px: number };
+  await profile(6);
+  const split = await profile(30) as { cpu: number; gpu: number; px: number };
   const st = frameStats(gaps);
   const gl = (document.querySelector("canvas") as HTMLCanvasElement).getContext("webgl2");
   const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
@@ -595,6 +666,14 @@ async function runBench(renderAt: (t: number) => number, profile: (n: number) =>
     + `CPU ${split.cpu.toFixed(1)} ms, GPU ${split.gpu.toFixed(1)} ms a frame\n`;
   try {
     await fetch("/__bench", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(result) });
-    box.textContent += "Sent to the Mac. Done.";
+    // ?benchnext=a|b|...: the next variants to time (each one's extra params joined by commas, "-" for none), one page load each
+    const rest = (new URLSearchParams(location.search).get("benchnext") ?? "").split("|").filter(Boolean);
+    if (!rest.length) { box.textContent += "Sent to the Mac. Done."; return; }
+    const u = new URL(location.href), base = u.searchParams.get("dir") ?? "live-proof/";
+    const next = new URL(`${u.pathname}?dir=${base}&bench`, location.href);
+    if (rest[0] !== "-") for (const kv of rest[0].split(",")) { const [k, v = ""] = kv.split("="); next.searchParams.set(k, v); }
+    if (rest.length > 1) next.searchParams.set("benchnext", rest.slice(1).join("|"));
+    box.textContent += `Sent. Next: ${rest.length} more to go.`;
+    setTimeout(() => location.assign(next.href), 1500);
   } catch { box.textContent += "Couldn't send: screenshot this."; }
 }
