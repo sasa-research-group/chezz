@@ -196,3 +196,37 @@ Each step ends with one picture shown to Wesley and his OK. Paid steps (fal) nee
   - Wesley picked a small splash over a big messy one or none: the skin tears into a dark hole (a `tear` vertex
     attribute darkens the ooze), the lip folds back in a few flaps, and a bigger bubble flings 2-4 blobs on low
     arcs (no higher than the bubble) that land, sink in and melt flat. Blobs that would land on stone are dropped.
+
+## Live sludge proof: bubbling drawn in the browser over one Cycles bake (2026-11-24)
+
+Why: player-built levels can put sludge anywhere, so a 30-minute Cycles loop per level is out. The proof keeps one
+Cycles bake per level (about 3 minutes at 1600 px on the M4 Max) and draws the swell, bubbles, tears and blobs live.
+
+How (`build_sludge_cycles.py --live 1` calls `live_plate.py`; the page is `live-sludge.html`, `src/proof/liveSludge.ts`):
+- Plate: the board with the ooze lying still. Mask: the ooze's coverage, everything else held out.
+- Basis: the ooze region re-rendered 33 times with its normal tilted (0, then 15/30/45/60 degrees x 8 turns) by a
+  Vector Rotate node, clear coat off. A second set with the skin torn open everywhere (`tear_NN.png`). Each pixel
+  blends the four nearest tilts for its live normal, in linear light; tear and crease shading blend between the sets.
+- Coat: drawn live. Five 256 px half-float EXR faces of the room per sheet, looked up with box projection to the
+  room's bounds, averaged over 9 directions spread by the pixel's normal change (specular antialiasing). The ping
+  lights are too close for a probe: their disc is drawn exactly from position, size and power.
+- Bubbling: `sludgeBubbles.ts` is an exact port of `sludge_bubbles.py` (fixture test to 1e-9). The swell is improved
+  Perlin scaled to Blender's noise spread and slope (measured: sd 0.279, mean |slope| 0.55).
+
+Blind pair judge (`pair_judge.py`, Gemini 2.5 Pro, 6 trials, random order; it must guess which clip is realtime):
+
+| Round | Change | Caught | Live / Cycles quality |
+|---|---|---|---|
+| 1 | basis only | 5/6 | 8.2 / 9.3 |
+| 2 | torn basis, creases, coat probe, exact pings | 5/6 | 8.5 / 9.8 |
+| 3 | Perlin swell, specular antialiasing | 5/6 | 8.5 / 10 |
+
+Lessons:
+- Blend display-space PNGs in linear light; subtracting them in display space turned the ooze milky.
+- A uniform named `step` hides GLSL's `step()`; the program silently fails ("program not valid").
+- When the live normal equals the rest normal exactly, atan(0, 0) gives NaN: the ooze went black. Guard it.
+- A pre-rendered normal basis can't hold a sharp highlight: crossfading tilts gives soft ghost spots. Draw sharp
+  reflections live (probe plus exact near lights) and keep the basis for diffuse light and broad shine.
+- A light outside the room box is behind a wall; Cycles never shows it in the coat.
+- Still open: near-field reflections (the stone rim in the ooze), the shading inside torn holes and under domes,
+  and speed (40 ms a frame on the M4 Max, all in the JS height evaluation; phones need it in a vertex shader).

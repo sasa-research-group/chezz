@@ -13,3 +13,6 @@ artifacts/
 # generated art, see docs/art/PAINTED.md
 art-out/
 __pycache__/
+
+# live sludge proof plates (tools/art/diorama/live_plate.py), a link to scratch
+public/live-proof

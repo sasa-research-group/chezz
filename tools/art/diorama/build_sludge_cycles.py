@@ -73,8 +73,13 @@ ap.add_argument("--frames", type=int, default=0)  # >0: render the whole loop (-
 ap.add_argument("--loop_s", type=float, default=8.0)  # the bubbling loop's length in seconds (the judge saw a 4 s loop repeat)
 ap.add_argument("--splat", type=int, default=10)  # tiny still lumps of old splatter per square
 ap.add_argument("--main_r", type=float, default=0.13)  # the main vent's biggest bubble radius, share of a square
+ap.add_argument("--live", type=int, default=0)  # 1: the plate for the live bubbling (still ooze, its mask, the normal basis, live.json)
+ap.add_argument("--basis_samples", type=int, default=64)
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
+SWELL = a.swell
+if a.live:  # the plate holds the ooze lying still: the swell, bubbles, splatter, tears and blobs are all drawn live
+    a.swell = 0.0
 
 H = 1.7          # figure height (the set's unit)
 S = 1.2 * H      # one square
@@ -123,7 +128,7 @@ def ooze_mat():
         col = mx.outputs["Color"]
     # the hole a burst tears in the skin: a dark opening into the ooze below (sludge_bubbles.tear)
     ta = nt.nodes.new("ShaderNodeAttribute"); ta.attribute_name = "tear"
-    tm = nt.nodes.new("ShaderNodeMixRGB"); tm.blend_type = "MIX"
+    tm = nt.nodes.new("ShaderNodeMixRGB"); tm.blend_type = "MIX"; tm.name = "tear_mix"
     tm.inputs["Color2"].default_value = (0.012, 0.035, 0.006, 1)
     link(nt, ta.outputs["Fac"], tm.inputs["Fac"]); link(nt, col, tm.inputs["Color1"])
     col = tm.outputs["Color"]
@@ -140,8 +145,13 @@ def ooze_mat():
     bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.03; bump.inputs["Distance"].default_value = 0.01 * S
     nz2 = nt.nodes.new("ShaderNodeTexNoise"); nz2.inputs["Scale"].default_value = 4 / S; nz2.inputs["Detail"].default_value = 3
     link(nt, tc.outputs["Object"], nz2.inputs["Vector"]); link(nt, nz2.outputs["Fac"], bump.inputs["Height"])
-    link(nt, bump.outputs["Normal"], b.inputs["Normal"])
-    link(nt, bump.outputs["Normal"], b.inputs["Coat Normal"])
+    rot = nt.nodes.new("ShaderNodeVectorRotate"); rot.name = "basis_tilt"; rot.rotation_type = "AXIS_ANGLE"
+    rot.inputs["Angle"].default_value = 0.0; rot.inputs["Axis"].default_value = (0, 1, 0)
+    link(nt, bump.outputs["Normal"], rot.inputs["Vector"])
+    link(nt, rot.outputs["Vector"], b.inputs["Normal"])
+    link(nt, rot.outputs["Vector"], b.inputs["Coat Normal"])
+    aov = nt.nodes.new("ShaderNodeOutputAOV"); aov.aov_name = "ooze"
+    aov.inputs["Value"].default_value = 1.0
     return m
 
 
@@ -443,6 +453,8 @@ def timed_bubbles(rng, centers, clear, nsq):
 def bub_z(bubbles, x, y, t, z):
     """The surface height z at (x, y) with the bubbles at loop phase t merged in."""
     if isinstance(bubbles, Timed):
+        if a.live:
+            return z
         return sb.surface_height(z, bubbles.events, bubbles.splat, x, y, t * a.loop_s, a.loop_s)
     for b_ in bubbles:
         hb = bubble_h(b_, x, y, t)
@@ -457,7 +469,7 @@ _drop_objs = []
 
 
 def tear_values(me, bubbles, t):
-    if not isinstance(bubbles, Timed):
+    if not isinstance(bubbles, Timed) or a.live:
         return [0.0] * len(me.vertices)
     return [sb.tear_at(bubbles.events, v.co.x, v.co.y, t * a.loop_s, a.loop_s) for v in me.vertices]
 
@@ -474,7 +486,7 @@ def place_drops(t):
             p_.use_smooth = True
         place_drops.mesh = me
     n = 0
-    for surf, bubs in DROPS:
+    for surf, bubs in ([] if a.live else DROPS):
         time = t * a.loop_s
         for x, y, z, r in sb.drops_in_air(bubs.events, time, a.loop_s):
             base = sb.surface_height(0.0, bubs.events, bubs.splat, x, y, time, a.loop_s)
@@ -1093,7 +1105,11 @@ for gx0, gy0, gx1, gy1 in groups:
            for y in (gy0 - 0.45 * S, gy1 + 0.45 * S)]
     boxes.append([min(q.x for q in uv_), 1 - max(q.y for q in uv_), max(q.x for q in uv_), 1 - min(q.y for q in uv_)])
 json.dump({"boxes": boxes}, open(os.path.join(a.out, "pools.json"), "w"))
-if a.frames:  # the whole loop, frame by frame: only the ooze sheets change
+if a.live:
+    import live_plate
+    live_plate.write(a, sc, cam, ANIM, DROPS, OOZE, SWELL, S, groups, SLAB_TOP)
+    print("SLUDGE STILLS OK live", flush=True)
+elif a.frames:  # the whole loop, frame by frame: only the ooze sheets change
     json.dump({"frames": a.frames, "fps": a.frames / a.loop_s, "loop_s": a.loop_s}, open(os.path.join(a.out, "anim.json"), "w"))
     for i in range(a.frames):
         for surf, rebuild in ANIM:
