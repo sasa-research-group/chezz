@@ -34,3 +34,14 @@ export function glintList(pings: Ping[], lamps: Lamp[], box: [number[], number[]
   const all = [...ps, ...ls];
   return { list: all.slice(0, max), nPings: Math.min(ps.length, max), dropped: Math.max(all.length - max, 0) };
 }
+
+/** The highlight knobs from the page's query, with defaults fitted to Cycles' a6 loop (round 12): glints spread by
+ * a whole pixel's turn of the mirror direction (aa 1, was 0.25) and at 0.6 of the lamps' strength. Sharper and
+ * stronger, they were twice as sharp-edged as Cycles', flickered more and covered a quarter more of the ooze. */
+export function glintKnobs(q: URLSearchParams) {
+  return {
+    gain: Number(q.get("lights") ?? 0.6),
+    aa: Number(q.get("aa") ?? 1),
+    skip: (q.get("skip") ?? "moon,pool,warmfill").split(","),
+  };
+}

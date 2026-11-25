@@ -12,7 +12,7 @@ import { FACE_FLOOR_GLSL } from "../diorama/sludgeFacing";
 import { DOME_GLOW_GLSL } from "../diorama/sludgeGlow";
 import { GRADE_GLSL, STAGE_GRADE, type Grade } from "../diorama/stageGrade";
 import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat } from "../diorama/sludgeBubbles";
-import { glintList, type Lamp } from "../diorama/sludgeGlints";
+import { glintList, glintKnobs, type Lamp } from "../diorama/sludgeGlints";
 import { packFrame, SLUDGE_PACK_GLSL, ITEM, MAX_ITEMS } from "../diorama/sludgePack";
 import { PERM, PERLIN_SCALE } from "../diorama/sludgeBubbles";
 import { frameStats } from "./frameStats";
@@ -316,8 +316,8 @@ export async function start(dir: string) {
   const grade: Grade = info.grade ?? STAGE_GRADE;  // live.json's, else the stage's as the sludge renders use it
   const { list: glints, nPings, dropped } = glintList(info.pings, info.lights ?? [], info.probe.box, {
     // Cycles' coat shows the bulbs and the lantern, not the broad moon, pool and warm fill lights (their blue/white haze
-    // cost the fit 6 points, round 8); the bulbs show without a soft ring (halo 0) and glints a quarter-pixel wide (aa)
-    gain: Number(q.get("lights") ?? 1), skip: (q.get("skip") ?? "moon,pool,warmfill").split(","), max: NGLINT });
+    // cost the fit 6 points, round 8); the bulbs show without a soft ring (halo 0); softer, dimmer glints (round 12)
+    gain: glintKnobs(q).gain, skip: glintKnobs(q).skip, max: NGLINT });
   if (dropped) console.warn(`live sludge: ${dropped} glints over the ${NGLINT} the shader holds were left out`);
   const tornIms = await Promise.all(info.basis.map((_, k) => loadImage(dir + `tear_${String(k).padStart(2, "0")}.png`)));
   const tdata = new Uint8Array(layer * n);
@@ -349,7 +349,7 @@ export async function start(dir: string) {
     roomGain: { value: Number(q.get("room") ?? 0) },
     rimGain: { value: Number(q.get("rim") ?? 0) }, rimPow: { value: Number(q.get("rimpow") ?? 4) },  // fitted: Cycles' coat shows the room at ~0.1 of physics
     gloss: { value: Number(new URLSearchParams(location.search).get("gloss") ?? "0") },
-    aaSpread: { value: Number(new URLSearchParams(location.search).get("aa") ?? "0.25") },
+    aaSpread: { value: glintKnobs(q).aa },
     glintSoft: { value: Number(q.get("soft") ?? 1) },  // widens each glint past the coat's own roughness, total kept
     useGrade: { value: Number(q.get("grade") ?? 1) },
     gSlope: { value: new THREE.Vector3(...grade.slope) }, gOffset: { value: new THREE.Vector3(...grade.offset) },

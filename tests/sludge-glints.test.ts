@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { glintList, type Lamp, type Ping } from "../src/diorama/sludgeGlints";
+import { glintList, glintKnobs, type Lamp, type Ping } from "../src/diorama/sludgeGlints";
 
 const box: [number[], number[]] = [[-5, -5, -1], [5, 5, 7]];
 const ping = (at: number[], sheet = 0): Ping => ({ sheet, at, size: 0.1, power: 2, color: [1, 1, 1] });
@@ -50,5 +50,15 @@ describe("glintList (the discs the live sludge mirrors)", () => {
     const lamps = [lamp("moon", [0, 0, 6], 0), lamp("moon", [0, 0, 6], 1), lamp("lantern", [0, -10, 4], 1)];
     const { list } = glintList([], lamps, box);
     expect(list.map(g => [g.sheet, g.at[2]])).toEqual([[-1, 6], [1, 4]]);
+  });
+});
+
+describe("the highlight knobs", () => {
+  it("default to the soft, dimmer glints fitted to Cycles", () => {
+    expect(glintKnobs(new URLSearchParams(""))).toEqual({ gain: 0.6, aa: 1, skip: ["moon", "pool", "warmfill"] });
+  });
+  it("take the page's own values", () => {
+    const k = glintKnobs(new URLSearchParams("lights=1&aa=0.25&skip=moon"));
+    expect(k).toEqual({ gain: 1, aa: 0.25, skip: ["moon"] });
   });
 });

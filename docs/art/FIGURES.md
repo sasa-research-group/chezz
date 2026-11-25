@@ -362,3 +362,19 @@ against the concept, not the Cycles loop. (Script: measure the temporal std of a
   7/18 without (chance 9), quality about even with Cycles either way. "Self-shadowing" still comes up as a tell,
   pointing both ways (once that the live crevices were too *bright*), so treat it as judge noise now. Their steady
   tell is highlights: sharper and shimmering against Cycles' softer ones.
+
+### Live sludge, round 12: softer highlights (2026-11-25)
+
+- **Measured against Cycles' a6 loop first** (`live/hlmetric.py`: share of the ooze above 200, mean gradient at
+  highlight edges, frame-to-frame change where either frame is bright). Live's highlights had edges about twice as
+  sharp (34 vs 18), flickered more (49 vs 34), covered a quarter more of the ooze (0.88% vs 0.71%) and clipped to white.
+- **Softening alone made them bigger and bluer**: the glint keeps its total light, so a wider one lights more pixels
+  (aa 1.2: 1.04% bright, blue bias 4.6). Cycles' are softer *and* dimmer.
+- **Fix: glints spread over a whole pixel's turn of the mirror direction (aa 1, was 0.25) at 0.6 of the lamps'
+  strength** (`glintKnobs()` in sludgeGlints.ts; `?aa=`, `?lights=`). Edges 22, flicker 30, bright 0.68%, top 0.1%
+  at 235 (Cycles 249). Fit 10.92 → 11.13: a hair worse overall (the plain-colour fit punishes any spread), detail
+  slightly better. `?soft=` (spreading by the coat's roughness) did the same job with more haze.
+- **Judges: live caught 11 of 18** (two runs cut short by network errors; chance 9; the round before was 8 of 18),
+  quality 8.7 live vs 9.3 Cycles. Within the noise of 18 trials, but no better. They still call live's highlights
+  "hard-edged dots" now and then, and the new lead tell is the torn holes: "uniformly black voids" where Cycles'
+  show a little light inside. Kept for the measured match; holes are the next thing to look at.
