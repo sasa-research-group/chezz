@@ -31,4 +31,24 @@ describe("glintList (the discs the live sludge mirrors)", () => {
     expect(list.map(g => g.L)).toEqual([800, 800]);
     expect(glintList(Array.from({ length: 40 }, () => ping([0, 0, 1])), lamps, box, { max: 32 }).list).toHaveLength(32);
   });
+
+  it("keeps one copy of a lamp every sheet lists, so three pools' lamps fit the list (sheet -1: all)", () => {
+    const names = ["fairy2_0", "fairy2_1", "lantern", "frontfill", "pool", "warmfill", "moon", "FairyBulb2_0", "FairyBulb2_1"];
+    const lamps = [0, 1, 2].flatMap(k => names.map((n, i) => lamp(n, [i, 4, 6], k)));
+    const pings = [ping([0, 0, 1]), ping([1, 0, 1], 1), ping([2, 0, 1], 2)];
+    const { list, dropped } = glintList(pings, lamps, box, { max: 10 });
+    expect(dropped).toBe(2);
+    const all = glintList(pings, lamps, box, { max: 32 });
+    expect(all.dropped).toBe(0);
+    expect(all.list).toHaveLength(3 + names.length);
+    expect(all.list.slice(3).every(g => g.sheet === -1)).toBe(true);
+    expect(all.list.map(g => g.L).filter(L => L === 400)).toHaveLength(names.length);
+    expect(list).toHaveLength(10);
+  });
+
+  it("keeps a lamp only one sheet lists on that sheet", () => {
+    const lamps = [lamp("moon", [0, 0, 6], 0), lamp("moon", [0, 0, 6], 1), lamp("lantern", [0, -10, 4], 1)];
+    const { list } = glintList([], lamps, box);
+    expect(list.map(g => [g.sheet, g.at[2]])).toEqual([[-1, 6], [1, 4]]);
+  });
 });

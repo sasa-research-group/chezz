@@ -286,3 +286,11 @@ Lessons:
 - **Result:** fit_loop 11.14 (rims are few pixels); judges caught it 8/18 over three rounds (chance is 9/18), quality
   about even with Cycles. Remaining tells: highlights simpler and sharper than Cycles', bubbles' self-shadowing, the
   ooze not mirroring the stone edges. Holes were named once in 18.
+
+### Live sludge, round 8: highlights (2026-11-25)
+
+- **The glint list overflowed silently.** Each of 3 sheets listed all 21 room lamps, so 66 entries met a 32-slot shader array and the bulbs fell off the end. Now a lamp every sheet lists is kept once (sheet -1), and any drop logs a warning (`sludgeGlints.ts`, tests in `sludge-glints.test.ts`).
+- **Not every room light shows in Cycles' coat.** With all lamps in, the fit got worse (11.1 to 17.6) and the ooze went blue: the moon, the pool light and the warm fill are broad, cool or white discs that the coat doesn't show in the plates. Default skip list: `moon,pool,warmfill`. The lantern stays: it is what puts the sparkles where Cycles has them.
+- **The bulbs' soft ring (halo) made a blue-white haze.** Default `halo=0`. Glints are a quarter pixel of antialiasing wide (`aa=0.25`). `?soft=` widens glints past the coat's roughness; wider only spread haze, so it stays 1.
+- **The stage grade** (stage.py `_setup_compositor`): CDL slope (1.04, 1, 0.95), offset (0, 0.003, 0.009), power (0.97, 0.98, 1.02), then saturation 1.4, plus bloom (threshold 1, strength 0.9) the live page doesn't have yet. The live page now undoes the grade on the baked colour, adds the coat, and grades again (`stageGrade.ts`, `?grade=0` to compare). It barely moved the fit; kept because it is how Cycles composes them. FAIRY_K 3600 is why the fairy lamps read 3600 K.
+- Result: fit 11.12, sparkle amount 0.10% vs Cycles 0.10%, blue bias 25 to 1.5. Blind judges caught live 6 times in 18 (chance 9), quality 9.3 live vs 8.8 Cycles, and split on which clip had the sharper highlights, so highlights are no longer a reliable tell. Frame time is about 42 ms on an M4 Max: too slow for phones (next).

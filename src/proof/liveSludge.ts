@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { neighbours, creases, type Neighbours } from "../diorama/sludgeCreases";
 import { FACE_FLOOR_GLSL } from "../diorama/sludgeFacing";
+import { GRADE_GLSL, STAGE_GRADE, type Grade } from "../diorama/stageGrade";
 import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat } from "../diorama/sludgeBubbles";
 import { glintList, type Lamp } from "../diorama/sludgeGlints";
 
@@ -23,6 +24,8 @@ type Live = {
   /** the room's lights the coat mirrors, drawn like the pings (live_plate.py lights()) */
   lights?: Lamp[];
   view: { transform: string; exposure: number };
+  /** the stage's colour grade the baked images carry (stageGrade.ts) */
+  grade?: Grade;
   mirror?: { z: number[]; pos_off: number };
   /** the base layer's shine when drawn live (the basis leaves it out): roughness, IOR, specular level */
   base_spec?: [number, number, number] | null;
@@ -49,7 +52,7 @@ function topFirst(t: THREE.Texture) {
 
 /** the most glowing discs (pings and room lights) the coat draws */
 const NGLINT = 32;
-const LOOK = /* glsl */ `
+const LOOK = GRADE_GLSL + /* glsl */ `
 #define NGLINT ${NGLINT}
 uniform highp sampler2DArray basis;
 uniform highp sampler2DArray torn;  // the same basis with the skin torn open (tear colour, shine kept)
@@ -117,6 +120,9 @@ uniform highp sampler2DArray mirror; uniform highp sampler2DArray mpos;
 uniform float mirZ[8]; uniform float posOff; uniform float useMirror;
 uniform float pixAngle;  // radians a screen pixel spans (at the middle)
 uniform float gloss;
+uniform float aaSpread;
+uniform float glintSoft;
+uniform int useGrade;  // 1: the coat's light goes in before the stage's grade, as in Cycles  // how far a glint widens by the pixel's own turn of the mirror direction (1: all of it)
 uniform float coatDim;   // 1: the coat dims the ooze below it, as Cycles' does
 uniform float glintWide; uniform float glintHalo;  // the highlights' soft halo: its width (radians) and share
 uniform int nPingOnly;     // the first glints are pings (just over the ooze, never hidden)
@@ -190,13 +196,14 @@ vec3 shine(int base, vec3 p, vec3 n, float rough, float gRoom, float mirW, float
     c = gRoom * mix(c, m, w) / 9.0;
   }
   for (int i = 0; i < NGLINT; i++) {
-    if (i < from || i >= nPing || int(pingCol[i].w) != k) continue;
+    int sh = int(pingCol[i].w);  // -1: a lamp every sheet mirrors
+    if (i < from || i >= nPing || (sh != k && sh != -1)) continue;
     vec3 q = pingAt[i].xyz - p;
     float t = dot(q, rd);
     if (t <= 0.0) continue;
     // widened by how far the mirror direction turns across this pixel (specular antialiasing), so a glint thinner
     // than a pixel spreads into a soft streak, as Cycles' many samples a pixel average it; the disc's total is kept
-    float dist = length(q - t * rd), r = pingAt[i].w, s = t * (lobe + spread);
+    float dist = length(q - t * rd), r = pingAt[i].w, s = t * (glintSoft * lobe + aaSpread * spread);
     float w2 = r * r + s * s, h2 = w2 + t * t * wide * wide;
     float hf = halo * step(r, 0.2);  // bulbs only: a broad light (the moon, the fills) has no core to ring
     float g = (1.0 - hf) * (r * r / w2) * exp(-dist * dist / w2) + hf * (r * r / h2) * exp(-dist * dist / h2);
@@ -233,7 +240,10 @@ vec3 look(vec3 rest, vec3 n, vec3 nr, float tear, float shade, vec3 p, int base)
   vec3 full = dec(lookIn(basis, rest, n, nr)), open = dec(lookIn(torn, rest, n, nr));
   vec3 skin = mix(open, full, shade * (1.0 - tear));  // blended as light
   float dim = coatDim > 0.5 ? 1.0 - coatShare(p, n) : 1.0;
-  return enc(skin * dim + coatAt(base, p, n) * exp2(expo));  // shown as display colour
+  if (useGrade == 0) return enc(skin * dim + coatAt(base, p, n) * exp2(expo));  // shown as display colour
+  // the baked colour is graded (stageGrade.ts): ungrade it, add the coat's light, grade the sum
+  float e = exp2(expo);
+  return enc(gradeFwd(gradeInv(skin / e) * dim + coatAt(base, p, n)) * e);
 }
 float seen(vec3 rest) { return texture(mask, pix(rest) / res).a; }
 `;
@@ -288,8 +298,12 @@ export async function start(dir: string) {
   const camPos = new THREE.Vector3().setFromMatrixPosition(rows(info.camera.matrix));
   // pings and the room's lamps, as one list of glowing discs (sludgeGlints.ts)
   const q = new URLSearchParams(location.search);
-  const { list: glints, nPings } = glintList(info.pings, info.lights ?? [], info.probe.box, {
-    gain: Number(q.get("lights") ?? 1), skip: (q.get("skip") ?? "").split(","), max: NGLINT });
+  const grade: Grade = info.grade ?? STAGE_GRADE;  // live.json's, else the stage's as the sludge renders use it
+  const { list: glints, nPings, dropped } = glintList(info.pings, info.lights ?? [], info.probe.box, {
+    // Cycles' coat shows the bulbs and the lantern, not the broad moon, pool and warm fill lights (their blue/white haze
+    // cost the fit 6 points, round 8); the bulbs show without a soft ring (halo 0) and glints a quarter-pixel wide (aa)
+    gain: Number(q.get("lights") ?? 1), skip: (q.get("skip") ?? "moon,pool,warmfill").split(","), max: NGLINT });
+  if (dropped) console.warn(`live sludge: ${dropped} glints over the ${NGLINT} the shader holds were left out`);
   const tornIms = await Promise.all(info.basis.map((_, k) => loadImage(dir + `tear_${String(k).padStart(2, "0")}.png`)));
   const tdata = new Uint8Array(layer * n);
   tornIms.forEach((im, k) => tdata.set(pixels(im), k * layer));
@@ -310,7 +324,7 @@ export async function start(dir: string) {
     camPos: { value: camPos },
     pixAngle: { value: 2 / (info.camera.projection[1][1] * H) },
     coatDim: { value: q.has("dim") ? 1 : 0 },  // fitted: off (the basis already holds the dimmed base)
-    glintWide: { value: Number(q.get("wide") ?? 0.03) }, glintHalo: { value: Number(q.get("halo") ?? 0.5) },
+    glintWide: { value: Number(q.get("wide") ?? 0.03) }, glintHalo: { value: Number(q.get("halo") ?? 0) },
     nPingOnly: { value: nPings },
     baseSpec: { value: new THREE.Vector3(...(info.base_spec ?? [0.5, 1.5, 0])) },
     baseGain: { value: Number(q.get("bgain") ?? 1) }, baseRoom: { value: Number(q.get("broom") ?? 1) },
@@ -319,6 +333,11 @@ export async function start(dir: string) {
     roomGain: { value: Number(q.get("room") ?? 0) },
     rimGain: { value: Number(q.get("rim") ?? 0) }, rimPow: { value: Number(q.get("rimpow") ?? 4) },  // fitted: Cycles' coat shows the room at ~0.1 of physics
     gloss: { value: Number(new URLSearchParams(location.search).get("gloss") ?? "0") },
+    aaSpread: { value: Number(new URLSearchParams(location.search).get("aa") ?? "0.25") },
+    glintSoft: { value: Number(q.get("soft") ?? 1) },  // widens each glint past the coat's own roughness, total kept
+    useGrade: { value: Number(q.get("grade") ?? 1) },
+    gSlope: { value: new THREE.Vector3(...grade.slope) }, gOffset: { value: new THREE.Vector3(...grade.offset) },
+    gPower: { value: new THREE.Vector3(...grade.power) }, gSat: { value: grade.sat },
     mirror: { value: mirrorTex }, mpos: { value: mposTex }, useMirror: { value: useMirror ? 1 : 0 },
     mirZ: { value: Array.from({ length: 8 }, (_, k) => info.mirror?.z[k] ?? 0) }, posOff: { value: info.mirror?.pos_off ?? 0 },
     centres: { value: Array.from({ length: 8 }, (_, k) => new THREE.Vector3(...(info.probe.centres[k] ?? [0, 0, 0]))) },
