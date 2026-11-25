@@ -40,8 +40,9 @@ export function glintList(pings: Ping[], lamps: Lamp[], box: [number[], number[]
  * stronger, they were twice as sharp-edged as Cycles', flickered more and covered a quarter more of the ooze. */
 export function glintKnobs(q: URLSearchParams) {
   return {
-    gain: Number(q.get("lights") ?? 0.6),
+    gain: Number(q.get("lights") ?? 1.2),  // fitted with the bulb copies out, round 14
     aa: Number(q.get("aa") ?? 1),
-    skip: (q.get("skip") ?? "moon,pool,warmfill").split(","),
+    // FairyBulb: each fairy lamp's glass bulb, at the lamp's own spot; mirrored too, every bulb glinted twice
+    skip: (q.get("skip") ?? "moon,pool,warmfill,FairyBulb").split(","),
   };
 }

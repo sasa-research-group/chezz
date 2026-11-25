@@ -55,7 +55,14 @@ describe("glintList (the discs the live sludge mirrors)", () => {
 
 describe("the highlight knobs", () => {
   it("default to the soft, dimmer glints fitted to Cycles", () => {
-    expect(glintKnobs(new URLSearchParams(""))).toEqual({ gain: 0.6, aa: 1, skip: ["moon", "pool", "warmfill"] });
+    expect(glintKnobs(new URLSearchParams(""))).toEqual({ gain: 1.2, aa: 1, skip: ["moon", "pool", "warmfill", "FairyBulb"] });
+  });
+  it("glint each fairy lamp once: its bulb copy at the same spot is dropped by default", () => {
+    const at = [-4.2, 4.06, 6.06];
+    const lamps = [lamp("fairy2_0", at), { ...lamp("FairyBulb2_0", at), radius: 0.047, radiance: 1 }];
+    const { list } = glintList([], lamps, box, { skip: glintKnobs(new URLSearchParams("")).skip });
+    expect(list).toHaveLength(1);
+    expect(list[0].r).toBe(0.05);
   });
   it("take the page's own values", () => {
     const k = glintKnobs(new URLSearchParams("lights=1&aa=0.25&skip=moon"));

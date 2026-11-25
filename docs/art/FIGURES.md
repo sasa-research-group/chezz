@@ -396,3 +396,21 @@ against the concept, not the Cycles loop. (Script: measure the temporal std of a
   hard, flickering highlights and missing "self-shadowing".
 - **Still open:** live's pale ring around some slumped bubbles is a lantern glint on the rim (it goes with `lights=0`;
   Cycles shows only a small glint there). Cycles' torn edge also has a thin bright yellow lip that live lacks.
+
+### Live sludge, round 14: the pale ring was every fairy bulb glinted twice (2026-11-25)
+
+- **The ring is glints, not shape.** It goes with `lights=0`, comes back sharper (not gone) with less softening
+  (`aa=0.25`), and the bump under it is the same in the bake script and live (sludgeBubbles.ts and sludge_bubbles.py
+  share the settle ring, 0.07 H; live tilt there 2-5 degrees). Dropping lamp groups one at a time, only `FairyBulb`
+  faded it much.
+- **Cause: the room's lamp list has each fairy lamp twice.** `fairy2_N` (the light, radiance 471) and `FairyBulb2_N`
+  (its glass bulb, same spot) were both mirrored, so 16 discs lit the gentle settle rings all the way round. Flat ooze
+  had 1.8% glint pixels against Cycles' 1.0% (median filter 9, +20 over local); without the bulbs, 1.0%.
+- **Fix:** `FairyBulb` joins the default skip list; with the copies out the lamps go back up from 0.6 to 1.2.
+  Fit 11.08 to 10.55 (bulbs out at 0.6: 10.05, but only 0.17% bright against Cycles' 0.71%; at 1.8 bright matched,
+  0.73%, fit 10.95). Share of live sparkles that sit where Cycles has one: 0.20 to 0.27.
+- **Judges, 3 rounds of 6 each:** lights 1.2 caught 8 of 18, quality 9.2 against Cycles' 9.2 (first tie); lights 1.8
+  caught 12 of 18, 8.5 against 9.1. Default 1.2.
+- **Still open:** the ring is faint, not gone. Judges' new lead tells: no distorted reflections of the broken stone
+  rim in the ooze (near-field reflections, open since round 5), and highlights that shimmer. Most of Cycles' bright
+  spots (about 80%) have no live sparkle near them.
