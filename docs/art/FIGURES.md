@@ -337,3 +337,11 @@ the GPU now sits at the 60 fps budget on its own, so the sludge's GPU cost has t
   costs ~4-5 ms of phone GPU now (the old tap shader ~9 ms over the same backdrop). The backdrop's 6 ms is the floor
   the readback timer sees with no ooze at all. (A phone tab left open from the run before re-posted once: check
   each result's `path` before reading it.)
+
+### Stone glow that moves with the bubbles: not in Cycles (2026-11-25)
+
+Measured before building: over the 96 frames of the Cycles loop (sludge/a6), the stones 4-40 px around the ooze
+change by 0.15/255 on average (95th percentile 0.45): invisible. Their green glow comes from one still point light
+a square (`sludge_glow_*` in build_sludge_cycles.py), and the ooze's emission is off (`--glow 0`). So the live
+version's still stones already match. A glow that pulses with the bubbles would be a new effect, to be judged
+against the concept, not the Cycles loop. (Script: measure the temporal std of a ring of pixels around the mask.)
