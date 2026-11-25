@@ -14,6 +14,7 @@ import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat 
 import { glintList, type Lamp } from "../diorama/sludgeGlints";
 import { packFrame, SLUDGE_PACK_GLSL, ITEM, MAX_ITEMS } from "../diorama/sludgePack";
 import { PERM, PERLIN_SCALE } from "../diorama/sludgeBubbles";
+import { frameStats } from "./frameStats";
 
 type Sheet = { name: string; matrix: number[][]; verts: number; tris: number; events: BubbleEvent[]; splat: Splat[] };
 type Live = {
@@ -555,9 +556,45 @@ const w = window as unknown as { renderAt?: (t: number) => number; liveProfile?:
 start(dir.endsWith("/") ? dir : dir + "/").then(({ renderAt, profile, info }) => {
   w.renderAt = renderAt; w.liveProfile = profile;
   w.liveReady = true;
-  if (!new URLSearchParams(location.search).has("still")) {
+  if (new URLSearchParams(location.search).has("bench")) runBench(renderAt, profile, info.loop_s);
+  else if (!new URLSearchParams(location.search).has("still")) {
     const t0 = performance.now();
     const tick = () => { renderAt(((performance.now() - t0) / 1000) % info.loop_s); requestAnimationFrame(tick); };
     tick();
   }
 }).catch(e => { w.liveError = String(e); console.error(e); });
+
+// ?bench: the phone test. Plays 10 s for real and times each frame, then splits one frame into the CPU's update and the
+// GPU's draw, shows the numbers over the picture and posts them to /__bench (tools/art/diorama/phone_bench.mjs).
+async function runBench(renderAt: (t: number) => number, profile: (n: number) => object, loop: number) {
+  const box = document.createElement("pre");
+  box.style.cssText = "position:fixed;left:0;top:0;margin:0;padding:12px;font:20px/1.35 monospace;color:#fff;background:#000a;z-index:9";
+  document.body.append(box);
+  box.textContent = "Timing for 10 s. Keep the screen on.";
+  const gaps: number[] = [];
+  await new Promise<void>(done => {
+    const t0 = performance.now(); let last = t0;
+    const tick = (now: number) => {
+      renderAt(((now - t0) / 1000) % loop);
+      if (now > t0 + 1000) gaps.push(now - last);  // the first second warms shaders up
+      last = now;
+      if (now - t0 < 11000) requestAnimationFrame(tick); else done();
+    };
+    requestAnimationFrame(tick);
+  });
+  box.textContent = "Splitting CPU and GPU...";
+  await new Promise(r => setTimeout(r, 50));
+  profile(6);
+  const split = profile(30) as { cpu: number; gpu: number; px: number };
+  const st = frameStats(gaps);
+  const gl = (document.querySelector("canvas") as HTMLCanvasElement).getContext("webgl2");
+  const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
+  const result = { ...st, cpuMs: split.cpu, gpuMs: split.gpu, px: split.px, ua: navigator.userAgent,
+    gpuName: dbg ? gl!.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "?", dpr: devicePixelRatio, path: location.search };
+  box.textContent = `${st.fps.toFixed(0)} fps (median frame ${st.median.toFixed(1)} ms, slowest 5% ${st.p95.toFixed(1)} ms)\n`
+    + `CPU ${split.cpu.toFixed(1)} ms, GPU ${split.gpu.toFixed(1)} ms a frame\n`;
+  try {
+    await fetch("/__bench", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(result) });
+    box.textContent += "Sent to the Mac. Done.";
+  } catch { box.textContent += "Couldn't send: screenshot this."; }
+}
