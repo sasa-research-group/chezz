@@ -427,3 +427,22 @@ against the concept, not the Cycles loop. (Script: measure the temporal std of a
   falls to 11, so most broad motion comes from the basis's tilt blend, which crossfades 15-degree rings and mutes them.
 - **Next, if taken:** stronger broad glows on ripples (the base layer's soft lamp lobes, or a finer tilt basis).
   Picture: live/round15-glows.png.
+
+### Live sludge, round 16: drawing the base shine live, again, loses to the baked one (2026-11-25)
+
+- **Cycles' base-layer shine lands in only 6 of the 33 tilt renders.** L9 minus L10 (the same set baked without the
+  base shine, LIVE_SPEC=1) is the shine itself: narrow warm hits at tilt 0, 15/0, 15/180, 15/270, 45/270 and 60/270,
+  colour about 1 : 0.56 : 0.26, and nothing in the other 27. The crossfade between tilts 15° apart throws most of it
+  away, which is round 15's missing motion. (`/tmp/bs/specdiff.py`.)
+- **Drawn live it matches Cycles' motion and colour, but the judges like it less.** On L10 with `broom=0` (the base
+  layer mirrors no room), `bhalo=0`, `bgain=2`, `btint=1.2,0.8,0.3`: per-pixel frame change at the 50th/90th/99.9th
+  percentile 2/19/123, exactly Cycles' (L9 1/18/126), colour bias within 2.5 levels. Loop fit 11.85 (L9 10.55).
+  Blind judges caught it 11 of 18 (L9 8 of 18), quality 8.8 vs 9.1, and named its highlights flickery.
+  With the soft halo on (`bhalo=0.7`) fit 11.17 but caught 17 of 18, quality 7.9 vs 9.8, "shimmer" and "aliasing"
+  in most answers.
+- **Without a tint the live shine is too blue** (red -10, blue +8 levels): the lantern is drawn near-white, Cycles'
+  base shine has almost no blue. Letting the warm fill into the glint list (skip without warmfill) made it worse:
+  it lights the coat too.
+- **Kept: round 14's L9 defaults.** No code changed. A finer tilt set is cheap to render (about 3 s a tilt, 33 tilts
+  in 96 s) but doubles the GPU memory for 7.5° steps, and the shine is only about 3° wide, so it would still be
+  sampled. At 8 of 18 caught (chance is 9) and a quality tie, the sludge is at parity with Cycles for the judges.
