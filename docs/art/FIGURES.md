@@ -333,3 +333,7 @@ the GPU now sits at the 60 fps budget on its own, so the sludge's GPU cost has t
   The new shaping took 5 ms off the phone's GPU. The 10 ms left doesn't move with MSAA or sparkles, so it's likely
   the readback timer's own floor or the plate and textures, not the ooze's effects. The first version's 51 fps is
   likely a first-load stall: the fps column is noise at this level. Next check: the bare plate (`bare`) on the phone.
+- Second phone run (2026-11-25): backdrop alone (`bare`) 6 ms, new sludge 10 and 11 ms, all 60 fps. So the ooze itself
+  costs ~4-5 ms of phone GPU now (the old tap shader ~9 ms over the same backdrop). The backdrop's 6 ms is the floor
+  the readback timer sees with no ooze at all. (A phone tab left open from the run before re-posted once: check
+  each result's `path` before reading it.)
