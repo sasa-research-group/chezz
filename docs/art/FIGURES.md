@@ -414,3 +414,16 @@ against the concept, not the Cycles loop. (Script: measure the temporal std of a
 - **Still open:** the ring is faint, not gone. Judges' new lead tells: no distorted reflections of the broken stone
   rim in the ooze (near-field reflections, open since round 5), and highlights that shimmer. Most of Cycles' bright
   spots (about 80%) have no live sparkle near them.
+
+### Live sludge, round 15: there are no stone reflections to add (2026-11-25)
+
+- **The judges' "distorted reflections of the stone edges" isn't in Cycles' frames.** By distance from the stone
+  edge (L9 mask, 0-3 up to 25+ px), Cycles and live have the same colour within 4 levels and the same fine detail
+  (|L - box5| 4.3 / 4.4 at the edge, 2.1-2.8 further in). Round 4 had already measured Cycles' coat mirroring the
+  room at 0.2-0.5%. Nothing to build; the tell names the wrong cause.
+- **What is different is motion.** Per-pixel change over the loop is 15-25% lower in live at every distance from the
+  edge (time std 13.0 against 15.3 in open ooze). Its 90th percentile is 14 against Cycles' 21, while the 99.9th
+  matches (106 against 104): the sharp glints move enough, the broad soft glows don't. With lamps off, live's 90th
+  falls to 11, so most broad motion comes from the basis's tilt blend, which crossfades 15-degree rings and mutes them.
+- **Next, if taken:** stronger broad glows on ripples (the base layer's soft lamp lobes, or a finer tilt basis).
+  Picture: live/round15-glows.png.
