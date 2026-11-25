@@ -12,6 +12,8 @@ import { FACE_FLOOR_GLSL } from "../diorama/sludgeFacing";
 import { GRADE_GLSL, STAGE_GRADE, type Grade } from "../diorama/stageGrade";
 import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat } from "../diorama/sludgeBubbles";
 import { glintList, type Lamp } from "../diorama/sludgeGlints";
+import { packFrame, SLUDGE_PACK_GLSL, ITEM, MAX_ITEMS } from "../diorama/sludgePack";
+import { PERM, PERLIN_SCALE } from "../diorama/sludgeBubbles";
 
 type Sheet = { name: string; matrix: number[][]; verts: number; tris: number; events: BubbleEvent[]; splat: Splat[] };
 type Live = {
@@ -363,18 +365,63 @@ export async function start(dir: string) {
   }));
   plateMesh.frustumCulled = false; plateMesh.renderOrder = -10; scene.add(plateMesh);
 
+  // the bubbling on the GPU (default; ?cpu shapes the mesh on the CPU as before): a packed texture a sheet, refilled
+  // each frame by packFrame, and Perlin's table for the swell
+  const gpu = !q.has("cpu");
+  const CREASE = Number(q.get("crease") ?? "25");
+  const permTex = new THREE.DataTexture(PERM, PERM.length, 1, THREE.RedIntegerFormat, THREE.UnsignedByteType);
+  permTex.internalFormat = "R8UI"; permTex.needsUpdate = true;
+  const gpuShared = {
+    gpuShape: { value: gpu ? 1 : 0 }, permTex: { value: permTex }, swellAmp: { value: info.swell }, sheetS: { value: info.S },
+    swellPh: { value: new THREE.Vector2() }, creaseK: { value: CREASE / info.S },
+  };
+  const packs = info.sheets.map(() => {
+    const data = new Float32Array(ITEM * MAX_ITEMS);
+    const tex = new THREE.DataTexture(data, 4, MAX_ITEMS, THREE.RGBAFormat, THREE.FloatType);
+    tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true;
+    return { data, tex, uniforms: { packTex: { value: tex }, nBub: { value: 0 }, nTear: { value: 0 }, nLump: { value: 0 },
+      nSplat: { value: 0 }, edge: { value: 1 } } };
+  });
+
   // one material a sheet, sharing every uniform but which probe faces it mirrors
   const sheetMat = (k: number) => new THREE.ShaderMaterial({
-    uniforms: { ...shared, base: { value: k * nf }, debugView: { value: Number(new URLSearchParams(location.search).get("view") ?? 0) },
+    uniforms: { ...shared, ...gpuShared, ...packs[k].uniforms, sheetK: { value: k }, base: { value: k * nf }, debugView: { value: Number(new URLSearchParams(location.search).get("view") ?? 0) },
       minFace: { value: Number(new URLSearchParams(location.search).get("face") ?? 0.4) } }, transparent: true, glslVersion: THREE.GLSL3,
     vertexShader: /* glsl */ `
       in vec3 restPos; in vec3 restNormal; in float tearv; in float crease;
       out vec3 vN; out vec3 vRN; out vec3 vRest; out float vTear; out float vShade; out vec3 vWorld;
+      ${SLUDGE_PACK_GLSL}
+      uniform int gpuShape; uniform float sheetK; uniform float swellAmp; uniform float sheetS; uniform vec2 swellPh;
+      uniform float edge; uniform float creaseK;
+      // the ooze's rise here: the slow swell (sludgeBubbles.ts swell) plus every packed bubble, lump and splatter
+      float rise(vec2 xy) {
+        float k = sheetK;
+        vec3 q = vec3(xy * 2.2 / sheetS + swellPh + vec2(17.3 * k + 0.5, 9.1 * k + 0.5), 0.37 + 5.7 * k);
+        return swellAmp * ${PERLIN_SCALE.toFixed(4)} * perlin3(q) + sludgeHeight(xy);
+      }
       void main() {
-        vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+        vec3 p = position, nl = normal; float tear = tearv, cr = crease;
+        if (gpuShape == 1) {
+          // shaped here from the packed bubbles (sludgePack.ts): height at the vertex, its slope from a ring of six
+          // taps one mesh edge out, and the crease as the CPU's two-ring average (weights 7, 4 a tap, 3 a tap / 49)
+          vec2 xy = restPos.xy; float d0 = rise(xy), r1 = 0.0, r2 = 0.0; vec2 g = vec2(0.0);
+          for (int i = 0; i < 6; i++) {
+            float a = 1.04719755 * float(i);
+            vec2 u = vec2(cos(a), sin(a)); float di = rise(xy + edge * u);
+            r1 += di; g += (di - d0) * u;
+            vec2 u2 = vec2(cos(a + 0.52359878), sin(a + 0.52359878)); r2 += rise(xy + 1.83 * edge * u2);
+          }
+          g /= 3.0 * edge;
+          p = restPos + vec3(0.0, 0.0, d0);
+          float c = max(restNormal.z, 0.2);
+          nl = normalize(vec3(restNormal.x / c - g.x, restNormal.y / c - g.y, 1.0));
+          tear = sludgeTear(xy);
+          cr = clamp(((7.0 * d0 + 4.0 * r1 + 3.0 * r2) / 49.0 - d0) * creaseK, 0.0, 0.6);
+        }
+        vWorld = (modelMatrix * vec4(p, 1.0)).xyz;
         vRest = (modelMatrix * vec4(restPos, 1.0)).xyz;
-        vN = mat3(modelMatrix) * normal; vRN = mat3(modelMatrix) * restNormal; vTear = tearv; vShade = 1.0 - crease;
-        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+        vN = mat3(modelMatrix) * nl; vRN = mat3(modelMatrix) * restNormal; vTear = tear; vShade = 1.0 - cr;
+        gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);
       }`,
     fragmentShader: LOOK + FACE_FLOOR_GLSL + /* glsl */ `
       uniform int base; uniform int debugView; uniform float minFace;
@@ -409,7 +456,12 @@ export async function start(dir: string) {
     const mesh = new THREE.Mesh(geo, sheetMat(k));
     mesh.matrix.copy(rows(sh.matrix)); mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
     scene.add(mesh);
-    lives.push({ sheet: sh, geo, rest, mesh, nb: neighbours(sh.verts, idx) });
+    const nb = neighbours(sh.verts, idx);
+    let el = 0;
+    for (let i = 0; i < sh.verts; i++) for (let j = nb.start[i]; j < nb.start[i + 1]; j++)
+      el += Math.hypot(rest[i * 3] - rest[nb.list[j] * 3], rest[i * 3 + 1] - rest[nb.list[j] * 3 + 1]);
+    packs[k].uniforms.edge.value = el / Math.max(nb.list.length, 1);
+    lives.push({ sheet: sh, geo, rest, mesh, nb });
   }
 
   // the blobs in the air: small balls of the same ooze, lit by the basis with their own round normals
@@ -435,11 +487,19 @@ export async function start(dir: string) {
   drops.frustumCulled = false; drops.renderOrder = 1; scene.add(drops);
 
   const m4 = new THREE.Matrix4(), v3 = new THREE.Vector3();
-  const CREASE = Number(new URLSearchParams(location.search).get("crease") ?? "25");
+  let packWarned = false;
   function update(time: number) {
     const L = info.loop_s;
     let nd = 0;
+    const tw = 2 * Math.PI * time / L;
+    gpuShared.swellPh.value.set(0.4 * Math.cos(tw), 0.4 * Math.sin(tw));
     for (const [k, { sheet, geo, rest, mesh, nb }] of lives.entries()) {
+      if (gpu) {
+        const pk = packs[k], r = packFrame(sheet.events, sheet.splat, time, L, pk.data);
+        pk.uniforms.nBub.value = r.nBub; pk.uniforms.nTear.value = r.nTear;
+        pk.uniforms.nLump.value = r.nLump; pk.uniforms.nSplat.value = r.nSplat; pk.tex.needsUpdate = true;
+        if (r.dropped && !packWarned) { packWarned = true; console.warn(`sludge pack full: ${r.dropped} items dropped`); }
+      } else {
       const pos = geo.getAttribute("position") as THREE.BufferAttribute, tr = geo.getAttribute("tearv") as THREE.BufferAttribute;
       const p = pos.array as Float32Array, t = tr.array as Float32Array;
       for (let i = 0; i < sheet.verts; i++) {
@@ -452,6 +512,7 @@ export async function start(dir: string) {
       creases(nb, p, rest, cr.array as Float32Array, CREASE / info.S);
       pos.needsUpdate = true; tr.needsUpdate = true; cr.needsUpdate = true;
       geo.computeVertexNormals();
+      }
       for (const [x, y, z, r] of dropsInAir(sheet.events, time, L)) {
         if (nd >= MAXD) break;
         const base = surfaceHeight(0, sheet.events, sheet.splat, x, y, time, L);
@@ -472,13 +533,27 @@ export async function start(dir: string) {
     renderer.render(scene, cam);
     return nd;
   };
-  return { renderAt, canvas, info };
+  // timing, split in two: the CPU's mesh update, and the GPU's draw (made to finish by reading one pixel back)
+  const gl = renderer.getContext(), px = new Uint8Array(4);
+  const profile = (frames: number) => {
+    const cpu: number[] = [], gpu: number[] = [];
+    for (let i = 0; i < frames; i++) {
+      const t = (i / frames) * info.loop_s;
+      const a = performance.now(); update(t); const b = performance.now();
+      renderer.render(scene, cam); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const c = performance.now();
+      cpu.push(b - a); gpu.push(c - b);
+    }
+    const med = (x: number[]) => x.sort((p, q) => p - q)[x.length >> 1];
+    const verts = info.sheets.reduce((n, sh) => n + sh.verts, 0), events = info.sheets.reduce((n, sh) => n + sh.events.length, 0);
+    return { cpu: med(cpu), gpu: med(gpu), verts, events, px: renderer.domElement.width * renderer.domElement.height };
+  };
+  return { renderAt, profile, canvas, info };
 }
 
 const dir = new URLSearchParams(location.search).get("dir") ?? "live-proof/";
-const w = window as unknown as { renderAt?: (t: number) => number; liveReady?: boolean; liveError?: string };
-start(dir.endsWith("/") ? dir : dir + "/").then(({ renderAt, info }) => {
-  w.renderAt = renderAt;
+const w = window as unknown as { renderAt?: (t: number) => number; liveProfile?: (n: number) => object; liveReady?: boolean; liveError?: string };
+start(dir.endsWith("/") ? dir : dir + "/").then(({ renderAt, profile, info }) => {
+  w.renderAt = renderAt; w.liveProfile = profile;
   w.liveReady = true;
   if (!new URLSearchParams(location.search).has("still")) {
     const t0 = performance.now();

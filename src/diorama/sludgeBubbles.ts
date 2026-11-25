@@ -137,7 +137,7 @@ export function surfaceHeight(z: number, events: BubbleEvent[], splat: Splat[], 
 // Ken Perlin's improved noise (2002), the same family as Blender's: the plate holds no swell, so only its look
 // (spread, slope, scale) has to match Cycles', not each ripple. PERLIN_SCALE brings its spread to Blender's
 // mathutils.noise.noise (sd 0.279, mean |slope| 0.55, measured with Blender 4).
-const PERM = (() => {
+export const PERM = (() => {
   const p = Array.from({ length: 256 }, (_, i) => i);
   let s = 1234567;
   for (let i = 255; i > 0; i--) { s = (s * 1103515245 + 12345) >>> 0; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
