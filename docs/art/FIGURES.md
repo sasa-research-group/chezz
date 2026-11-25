@@ -378,3 +378,21 @@ against the concept, not the Cycles loop. (Script: measure the temporal std of a
   quality 8.7 live vs 9.3 Cycles. Within the noise of 18 trials, but no better. They still call live's highlights
   "hard-edged dots" now and then, and the new lead tell is the torn holes: "uniformly black voids" where Cycles'
   show a little light inside. Kept for the measured match; holes are the next thing to look at.
+
+### Live sludge, round 13: light inside the torn holes (2026-11-25)
+
+- **The judges' "uniformly black voids" were close but flat.** On fully torn pixels (the `?view=2` tear map over 235,
+  24 frames against Cycles' a6) live's green was 27% short in light terms and carried a blue haze throughout (median
+  blue 21 against 7), while Cycles' holes are a purer green with a cool, bright streak where the room shows in the
+  dip's wet sides (blue 90th/97th percentile 71/84 against live's 49/66).
+- **Cause: the torn set is a flat sheet.** `tear_NN.png` holds only broad, warm-grey reflections; the dip's curved
+  sides that catch the cool light in Cycles aren't in it.
+- **Fix (src/diorama/sludgeHoles.ts):** `hole` lifts the torn set's light per channel (1.15, 1.37, 0.6) and
+  `holecoat` scales the coat's light over a hole (2, 3.2, 4.5), both blended by the tear so whole skin is unchanged.
+  Hole green percentiles now 52/60/72/84/98/123 against Cycles' 51/61/71/85/99/123. Whole-frame fit 11.11 to 11.08.
+  Scaling the coat alone did nothing visible (it is faint over face-on holes) until it was 2-4x and cooler.
+- **Judges (pools-live17.mp4, 3 rounds of 6):** caught live 9 of 18 (3, 2, 4), exactly chance; round 12 was 11.
+  Quality live 8.9 against Cycles 9.1. Holes came up once ("very dark and lack detail"); the lead tells are again
+  hard, flickering highlights and missing "self-shadowing".
+- **Still open:** live's pale ring around some slumped bubbles is a lantern glint on the rim (it goes with `lights=0`;
+  Cycles shows only a small glint there). Cycles' torn edge also has a thin bright yellow lip that live lacks.

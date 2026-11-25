@@ -11,6 +11,7 @@ import { neighbours, creases, type Neighbours } from "../diorama/sludgeCreases";
 import { FACE_FLOOR_GLSL } from "../diorama/sludgeFacing";
 import { DOME_GLOW_GLSL } from "../diorama/sludgeGlow";
 import { GRADE_GLSL, STAGE_GRADE, type Grade } from "../diorama/stageGrade";
+import { holeKnobs } from "../diorama/sludgeHoles";
 import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat } from "../diorama/sludgeBubbles";
 import { glintList, glintKnobs, type Lamp } from "../diorama/sludgeGlints";
 import { packFrame, SLUDGE_PACK_GLSL, ITEM, MAX_ITEMS } from "../diorama/sludgePack";
@@ -249,15 +250,18 @@ vec3 coatAt(int base, vec3 p, vec3 n) {
     * shine(base, p, n, baseSpec.x, baseRoom, 0.0, baseHalo, baseWide, nPingOnly);
   return c;
 }
+uniform vec3 holeLift;  // the torn set's light, scaled to Cycles' holes (round 13)
+uniform vec3 holeCoat;  // the coat's light over a hole, scaled and tinted as Cycles' cooler, dimmer streak
 vec3 look(vec3 rest, vec3 n, vec3 nr, float tear, float shade, vec3 p, int base) {
-  vec3 full = dec(lookIn(basis, rest, n, nr)), open = dec(lookIn(torn, rest, n, nr));
+  vec3 full = dec(lookIn(basis, rest, n, nr)), open = dec(lookIn(torn, rest, n, nr)) * holeLift;
   // blended as light; a steep side glows as Cycles' thick jelly does (sludgeGlow.ts)
   vec3 skin = mix(open, full, shade * (1.0 - tear)) * glowGain(dot(n, nr));
   float dim = coatDim > 0.5 ? 1.0 - coatShare(p, n) : 1.0;
-  if (useGrade == 0) return enc(skin * dim + coatAt(base, p, n) * exp2(expo));  // shown as display colour
+  vec3 cAt = coatAt(base, p, n) * mix(vec3(1.0), holeCoat, tear);
+  if (useGrade == 0) return enc(skin * dim + cAt * exp2(expo));  // shown as display colour
   // the baked colour is graded (stageGrade.ts): ungrade it, add the coat's light, grade the sum
   float e = exp2(expo);
-  return enc(gradeFwd(gradeInv(skin / e) * dim + coatAt(base, p, n)) * e);
+  return enc(gradeFwd(gradeInv(skin / e) * dim + cAt) * e);
 }
 float seen(vec3 rest) { return texture(mask, pix(rest) / res).a; }
 `;
@@ -340,6 +344,8 @@ export async function start(dir: string) {
     pixAngle: { value: 2 / (info.camera.projection[1][1] * H) },
     coatDim: { value: q.has("dim") ? 1 : 0 },  // fitted: off (the basis already holds the dimmed base)
     domeGlow: { value: Number(q.get("glow") ?? "0.4") },  // fitted to Cycles by tilt, round 11
+    holeLift: { value: new THREE.Vector3(...holeKnobs(q).lift) },  // fitted to Cycles' holes, round 13
+    holeCoat: { value: new THREE.Vector3(...holeKnobs(q).coat) },
     glintWide: { value: Number(q.get("wide") ?? 0.03) }, glintHalo: { value: Number(q.get("halo") ?? 0) },
     nPingOnly: { value: nPings },
     baseSpec: { value: new THREE.Vector3(...(info.base_spec ?? [0.5, 1.5, 0])) },
