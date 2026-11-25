@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { neighbours, creases, type Neighbours } from "../diorama/sludgeCreases";
 import { FACE_FLOOR_GLSL } from "../diorama/sludgeFacing";
+import { DOME_GLOW_GLSL } from "../diorama/sludgeGlow";
 import { GRADE_GLSL, STAGE_GRADE, type Grade } from "../diorama/stageGrade";
 import { surfaceHeight, tearAt, dropsInAir, swell, type BubbleEvent, type Splat } from "../diorama/sludgeBubbles";
 import { glintList, type Lamp } from "../diorama/sludgeGlints";
@@ -64,7 +65,7 @@ float rise(vec2 xy) {
   vec3 q = vec3(xy * 2.2 / sheetS + swellPh + vec2(17.3 * k + 0.5, 9.1 * k + 0.5), 0.37 + 5.7 * k);
   return swellAmp * ${PERLIN_SCALE.toFixed(4)} * perlin3(q) + sludgeHeight(xy);
 }`;
-const LOOK = GRADE_GLSL + /* glsl */ `
+const LOOK = GRADE_GLSL + DOME_GLOW_GLSL + /* glsl */ `
 #define NGLINT ${NGLINT}
 uniform highp sampler2DArray basis;
 uniform highp sampler2DArray torn;  // the same basis with the skin torn open (tear colour, shine kept)
@@ -250,7 +251,8 @@ vec3 coatAt(int base, vec3 p, vec3 n) {
 }
 vec3 look(vec3 rest, vec3 n, vec3 nr, float tear, float shade, vec3 p, int base) {
   vec3 full = dec(lookIn(basis, rest, n, nr)), open = dec(lookIn(torn, rest, n, nr));
-  vec3 skin = mix(open, full, shade * (1.0 - tear));  // blended as light
+  // blended as light; a steep side glows as Cycles' thick jelly does (sludgeGlow.ts)
+  vec3 skin = mix(open, full, shade * (1.0 - tear)) * glowGain(dot(n, nr));
   float dim = coatDim > 0.5 ? 1.0 - coatShare(p, n) : 1.0;
   if (useGrade == 0) return enc(skin * dim + coatAt(base, p, n) * exp2(expo));  // shown as display colour
   // the baked colour is graded (stageGrade.ts): ungrade it, add the coat's light, grade the sum
@@ -337,6 +339,7 @@ export async function start(dir: string) {
     camPos: { value: camPos },
     pixAngle: { value: 2 / (info.camera.projection[1][1] * H) },
     coatDim: { value: q.has("dim") ? 1 : 0 },  // fitted: off (the basis already holds the dimmed base)
+    domeGlow: { value: Number(q.get("glow") ?? "0.4") },  // fitted to Cycles by tilt, round 11
     glintWide: { value: Number(q.get("wide") ?? 0.03) }, glintHalo: { value: Number(q.get("halo") ?? 0) },
     nPingOnly: { value: nPings },
     baseSpec: { value: new THREE.Vector3(...(info.base_spec ?? [0.5, 1.5, 0])) },

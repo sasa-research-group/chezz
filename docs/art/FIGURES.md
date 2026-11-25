@@ -345,3 +345,20 @@ change by 0.15/255 on average (95th percentile 0.45): invisible. Their green glo
 a square (`sludge_glow_*` in build_sludge_cycles.py), and the ooze's emission is off (`--glow 0`). So the live
 version's still stones already match. A glow that pulses with the bubbles would be a new effect, to be judged
 against the concept, not the Cycles loop. (Script: measure the temporal std of a ring of pixels around the mask.)
+
+### Live sludge, round 11: the bubbles' "self-shadowing" was a missing glow (2026-11-25)
+
+- **Shadows first, and they were wrong.** A height grid a frame plus horizon occlusion (8 directions, reach 0.3)
+  darkened dome feet and pits, and every strength moved further from Cycles (fit 11.12 → 12.4 at the lightest). Where
+  that occlusion would be strongest, live was already *darker* than Cycles (by 7/255). Turning the crease shading
+  down barely moved the fit (11.12 → 10.99 with none). The attempt is saved as a patch, not in the code.
+- **What Cycles actually does: the steeper the ooze, the brighter.** Binned by tilt from rest, Cycles' green rises
+  from 173 (flat) to 193 at 40-60°, as light passes through the thick jelly of a dome. The live basis was baked from
+  a thin flat sheet tilted, which has nothing to glow through, so live steep sides sat 23/255 too dark.
+- **Fix: the skin's own light times 1 + k·(tilt/60°)²** (`src/diorama/sludgeGlow.ts`, `?glow=`, default 0.4). Steep
+  bins now match Cycles as well as the flat pool does (within 2 in green; red runs 4 over at the steepest, so a
+  greener tint could come later). Fit 11.12 → 10.91. No extra GPU passes; a few instructions a pixel.
+- **Judges can't tell the two apart:** three rounds each on fresh 96-frame clips, live caught 8/18 with the glow and
+  7/18 without (chance 9), quality about even with Cycles either way. "Self-shadowing" still comes up as a tell,
+  pointing both ways (once that the live crevices were too *bright*), so treat it as judge noise now. Their steady
+  tell is highlights: sharper and shimmering against Cycles' softer ones.
