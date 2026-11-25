@@ -227,6 +227,45 @@ Lessons:
 - When the live normal equals the rest normal exactly, atan(0, 0) gives NaN: the ooze went black. Guard it.
 - A pre-rendered normal basis can't hold a sharp highlight: crossfading tilts gives soft ghost spots. Draw sharp
   reflections live (probe plus exact near lights) and keep the basis for diffuse light and broad shine.
-- A light outside the room box is behind a wall; Cycles never shows it in the coat.
+- A ping outside the room box is behind a wall; Cycles never shows it in the coat. The room's own lamps are another
+  matter: the lantern and fills hang in front of the open box, and dome fronts mirror them.
 - Still open: near-field reflections (the stone rim in the ooze), the shading inside torn holes and under domes,
   and speed (40 ms a frame on the M4 Max, all in the JS height evaluation; phones need it in a vertex shader).
+
+### Round 4: what Cycles' coat really shows (2026-11-25)
+
+- Measure before modelling. Cycles' true coat is `dec(plate) - dec(basis_00)` (coat on minus coat off). Fitted against
+  a flat-mirror render of the room, its best scale was 0.2-0.5% (physics says 2.7% at this view) with correlation
+  0.15-0.4: the coat barely shows the room. What it shows is the lamps: warm fairy bulbs, the lantern.
+- So the live coat draws no room (`room=0`) and does not dim the ooze below (`dim` off): both measured worse.
+- The lamps are exported from the scene (`live_plate.py lights()`): point, spot and area lights with Blender's Kelvin
+  colour applied (`use_temperature`; they came out white without it), plus small glowing meshes (the bulbs' glass,
+  whose colour comes through a Mix node fed by a Blackbody node). Light linking is honoured.
+- The flat-mirror bake (`mirror_K.exr`, `mpos_K.exr`) stays for one job: a lamp is hidden where the mirror image shows
+  something nearer than the lamp along the way.
+- A still frame can't judge highlights: they only come alive on moving ripples. `fit_loop.py` scores 12 moments of
+  the loop against the Cycles loop, including the share of bright pixels (Cycles 0.69%, live 0.08%).
+- Blender, Metal: set the Cycles preference `kernel_optimization_level = "OFF"` or kernel compiles corrupt memory.
+  Toggling `hide_render` between renders with persistent data on crashes in BlenderSync: move one object instead.
+- Test a bake change on a 320 px, 2-sample bake first (about 1 minute): a field-name slip at the end of a full bake
+  costs 10 minutes.
+- **Lamp colours come from Blender's own Blackbody curve, measured, not a formula.** A textbook Kelvin fit (Tanner
+  Helland, scaled to luminance 1) gave 2850 K as (1.93, 0.80, 0.24); Blender renders it (1.70, 0.94, 0.44), and its
+  curve is not scaled to luminance 1. `lamp_colour.py` holds the measured rows every 500 K from 1000 to 12000 K
+  (rendered with a Blackbody node as the world colour, Standard view) and interpolates between them.
+- **A Blender lamp's temperature is a different curve from the Blackbody node.** A lamp is about white at 6500 K and
+  2850 K multiplies it by (1.34, 0.81, 0.37); the node gives (1.70, 0.94, 0.44). Glowing materials use the node,
+  lamps use `lamp_colour.lamp_kelvin`. A bulb material's Kelvin colour pulled toward white by a Mix node is read with
+  the mix's own factor, not an average. With the right colours the loop fit improved (12.81 to 12.32).
+- **Drawing the base layer's shine live did not pay.** Baking the tilts without it (LIVE_SPEC=1) and drawing it in the
+  shader scored worse on stills (9.4 against 5.2) and on the loop (13.5 against 12.3), and did not raise the share of
+  bright pixels. Cycles' base shine on the ooze is warm with almost no blue, which a live lamp reflection can't match
+  without a fitted tint. LIVE_SPEC now defaults to 0; the shader path stays for experiments (bgain, broom, bhalo,
+  bwide, btint).
+- **The loop fit's frames are not the same moments as Cycles'.** The live bubbles don't line up with the Cycles a6
+  loop, so per-frame scores carry bubble noise. Shifting the time offset barely changes the score, so compare
+  versions against each other, not as an absolute.
+- **Judge round 5 (2026-11-25), two rounds each:** the colour-fixed clip was caught 8 of 12 (quality 8.7 live, 9.5
+  Cycles), the same as round 4's clip re-judged (8 of 12, 8.8 against 9.3). Their repeat tells: torn holes look
+  like flat decals with no self-shadowing, highlights are simpler, and the ooze's green light on the stones doesn't
+  move with the bubbles.
