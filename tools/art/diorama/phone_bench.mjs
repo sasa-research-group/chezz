@@ -1,15 +1,18 @@
 // Serves the live sludge page to a phone over Tailscale for the ?bench test, and quits once the phone posts its result.
-//   node tools/art/diorama/phone_bench.mjs OUT.json [MINUTES=45]
+//   node tools/art/diorama/phone_bench.mjs OUT.json [MINUTES=45] [--wifi]
 // Binds only to this Mac's Tailscale address (tailnet devices only, nothing on the local Wi-Fi), changes no Tailscale settings.
 import { createServer } from "vite";
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const [out = "bench.json", minutes = "45"] = process.argv.slice(2);
+const lan = process.argv.includes("--wifi");
+const [out = "bench.json", minutes = "45"] = process.argv.slice(2).filter(a => a !== "--wifi");
 const ts = ["tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"];
 let host = "";
 for (const bin of ts) { try { host = execFileSync(bin, ["ip", "-4"]).toString().trim().split("\n")[0]; break; } catch {} }
-if (!host.startsWith("100.")) { console.error("no Tailscale address"); process.exit(2); }
+// --wifi: the home Wi-Fi address instead, for a phone not on this Mac's tailnet (anyone on that Wi-Fi can open it)
+if (lan) host = execFileSync("ipconfig", ["getifaddr", "en0"]).toString().trim();
+else if (!host.startsWith("100.")) { console.error("no Tailscale address"); process.exit(2); }
 
 const server = await createServer({
   server: { host, port: 5199, strictPort: true },
