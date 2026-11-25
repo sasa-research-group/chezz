@@ -301,3 +301,7 @@ Lessons:
 - **Fix: time on the CPU, space on the GPU.** `sludgePack.ts` works out each live bubble's moment once a frame (only the ones alive: bubbles, tears, blob lumps, splatters) into a 4 x 256 float texture; the sheet's vertex shader shapes the ooze from it, with the swell's Perlin ported over `PERM`. Normals come from six taps one mesh edge out, the crease from the CPU's two-ring average as 13 taps (weights 7, 4, 3 / 49, outer ring at 1.83 edges). CPU per frame: 0.3 ms at 6x slowdown. `?cpu` keeps the old path to compare.
 - **Two GPU traps blanked whole domes:** `sqrt(sin(pi))` is NaN in float (sin(pi) is a hair below 0), and `atan(0, 0)` is undefined. Guarded; the TS twin can't catch these, so compare GPU frames against `?cpu` pixel for pixel (mean 0.03 of 255 after the fix; fit 11.11 vs 11.12).
 - Still unknown: the phone's GPU. The Mac's readback timing is too noisy below ~4 ms to predict it; it needs a real phone.
+
+Phone check (iPhone 13 Pro Max, Chrome on iOS, `?bench` via `tools/art/diorama/phone_bench.mjs --wifi`): 48 fps
+average, median frame 17 ms, slowest 5% 21 ms; CPU 2 ms, GPU 15 ms at 1600x1200. The CPU fix holds on a real phone;
+the GPU now sits at the 60 fps budget on its own, so the sludge's GPU cost has to come down before figures join it.
