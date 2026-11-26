@@ -475,3 +475,11 @@ layout, tested by `test_trapdoor_geom.py`), `build_trapdoor_cycles.py` (Blender)
 - In the game camera the motion reads in the first 12 frames; once past about 60 deg the door hides under the pit's
   front lip and the rocks show only as a small shift.
 - Renders: `runtrap.sh OUT RES SAMPLES d0,d1,...` (drop frames, or plain degrees). 5 s a frame at 1200 px, 96 samples.
+
+### Trapdoor sprite bake (2026-11-25)
+- Each frame renders the whole set (haze too) and crops to the slab; alpha comes from one mask pass (everything else held out, haze hidden, door shut). The door never leaves its hole, so one mask fits all 35 frames.
+- The mask pass punches pinholes where rays slip through plank gaps or under a neighbour's moss tuft. The colour is right there anyway, so fill every hole not connected to the border (`trapdoor_geom.enclosed_holes`, threshold 0.98 so half-clear rims fill too).
+- Check holes on a magenta backdrop, enlarged with NEAREST. On grey they look like "white slivers" and send you hunting for lighting bugs.
+- Seam checks must apply the set's exposure (set5 is −0.35, sprites 0) before pasting.
+- Area lights used only to light the pit (trap_glow) need `visible_camera = False`, or they show as a speck.
+- `TRAP_PROBE="x,y ..."` prints every object a camera ray through those full-frame pixels hits.
