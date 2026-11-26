@@ -95,6 +95,47 @@ def clear_share(W, L, th, deg, hw):
     return max(0.0, 1.0 - reach / (2 * hw))
 
 
+def wall_deg(L, th, inset=1.2):
+    """The swing (degrees) at which the door's back face meets the pit's back wall, inset*th behind the hinge."""
+    lo, hi = 90.0, 120.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        t = math.radians(mid)
+        if -L * math.cos(t) + th * math.sin(t) < inset * th:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+# The drop, timed by a reference pass (docs/art/FIGURES.md, "Trapdoor drop"): two model gallows trapdoors open in
+# about 2 frames at 24 fps, which a hinged board falling under gravity predicts for a 3-5 cm door, so the same
+# physics times ours at full size (a door about 1.9 m long, one square, by the figures' height): 16 frames to the
+# wall. Then it bangs on the pit's back wall and rocks back twice (a cheat: real swings that size take a second).
+DOOR_M = 1.9
+BOUNCES = ((14.0, 8), (4.0, 5))  # (degrees back off the wall, frames) per rock
+SETTLE_F = 4
+
+
+def fall_curve(L_m=DOOR_M, fps=24, wall=91.0, rest=FALLEN_DEG, g=9.81):
+    """The door's angle on each frame of the drop, frame 0 shut (0) to the last at rest."""
+    out, th, w, t, dt, f = [0.0], 0.0, 0.0, 0.0, 1e-5, 1
+    while True:  # a uniform board hinged at one edge: th'' = (3g / 2L) cos th
+        w += 1.5 * g / L_m * math.cos(th) * dt
+        th += w * dt
+        t += dt
+        if math.degrees(th) >= wall:
+            break
+        if t >= f / fps:
+            out.append(math.degrees(th))
+            f += 1
+    out.append(wall)  # the frame it hits
+    for amp, n in BOUNCES:
+        out += [wall - amp * math.sin(math.pi * k / n) for k in range(1, n + 1)]
+    out += [wall + (rest - wall) * (1 - math.cos(math.pi * k / SETTLE_F)) / 2 for k in range(1, SETTLE_F + 1)]
+    return out
+
+
 def inside(dx, dy, h):
     """Whether a point (dx, dy) from the square's centre is within h of it on both axes."""
     return abs(dx) < h and abs(dy) < h

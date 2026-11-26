@@ -53,6 +53,19 @@ mt = tg.moss_tufts(W, L)
 gx = [(edges[k][1] + edges[k + 1][0]) / 2 for k in range(3)]
 check(len(mt) == 8 and all(min(abs(x - g) for g in gx) < 0.02 * W and -L < y < 0 for x, y, r in mt),
       "moss tufts sit in the gaps between boards, on the door")
+wd = tg.wall_deg(L, th)
+check(90.0 < wd < 93.0, "the back wall stops the door just past plumb (%.2f deg)" % wd)
+fc = tg.fall_curve(wall=wd)
+check(fc[0] == 0.0 and abs(fc[-1] - tg.FALLEN_DEG) < 1e-9, "the drop runs from shut to fallen")
+check(max(fc) <= wd + 1e-9, "the door never swings through the pit's back wall")
+hit = fc.index(wd)
+check(14 <= hit <= 18, "a 1.9 m door takes about 16 frames to swing down (%d)" % hit)
+check(all(b > a for a, b in zip(fc[:hit], fc[1:hit + 1])), "it speeds up all the way down")
+steps = [b - a for a, b in zip(fc[:hit - 1], fc[1:hit])]  # the hit frame is a part frame
+check(all(b >= a - 1e-9 for a, b in zip(steps, steps[1:])), "each frame turns it further than the last (gravity)")
+check(min(fc[hit:]) < wd - 10, "it bounces back off the wall")
+check(2 <= tg.fall_curve(L_m=0.05).index(91.0) <= 3, "a 5 cm model door drops in 2-3 frames, as the clips show")
+check(len(fc) <= 40, "the whole drop fits in under 2 s (%d frames)" % len(fc))
 check(tg.inside(0.1, -0.1, 0.2) and not tg.inside(0.3, 0.0, 0.2), "inside() is a square test")
 
 print("%d failed" % len(fails) if fails else "all ok")

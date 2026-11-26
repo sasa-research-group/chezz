@@ -26,7 +26,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--out", required=True)
 ap.add_argument("--res", type=int, default=1600)
 ap.add_argument("--samples", type=int, default=128)
-ap.add_argument("--states", default="shut,fallen")
+ap.add_argument("--states", default="shut,fallen")  # names, drop frames d0..dN, or degrees
 ap.add_argument("--square", default="3,1")   # board square (0..4 from the left, 0..4 from the front)
 ap.add_argument("--zoom", type=float, default=0.0)
 ap.add_argument("--open", type=float, default=0.80)  # the opening's width, share of a square
@@ -309,8 +309,21 @@ for k, (mx_, my_, mr) in enumerate(tg.moss_tufts(dw, dl)):
 STATES = {"shut": 0.0, "half": 45.0, "fallen": tg.FALLEN_DEG}
 
 
+WALL = tg.wall_deg(dl, TH)
+DROP = tg.fall_curve(wall=WALL)
+
+
+def angle(name):
+    """A named state, "drop" frame "d<n>", or plain degrees."""
+    if name in STATES:
+        return STATES[name]
+    if name.startswith("d"):
+        return DROP[int(name[1:])]
+    return float(name)
+
+
 def pose(name):
-    door.rotation_euler = (math.radians(STATES[name]), 0, 0)  # + swings the front edge down into the pit
+    door.rotation_euler = (math.radians(angle(name)), 0, 0)  # + swings the front edge down into the pit
 
 
 # the door's box on screen, for the zoomed crop

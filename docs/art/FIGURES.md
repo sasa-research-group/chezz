@@ -462,3 +462,16 @@ layout, tested by `test_trapdoor_geom.py`), `build_trapdoor_cycles.py` (Blender)
 - Smooth icosphere moss tufts read as lily pads; 40 tiny bumps per tuft read as flock.
 - Blind judges (3 rounds, 4 trials each) caught the render every time against the Gemini draft; their remaining
   notes are refinements (more, narrower planks; ring off-centre; narrower gap round the door).
+
+### Trapdoor drop (2026-11-25): timed by real clips and gravity
+- Reference: two model gallows trapdoors (a cardboard miniature and an O-scale one) drop in about 2 frames at 24 fps.
+  A board hinged at one edge falling under gravity (th'' = 3g/2L cos th) predicts 2-3 frames for a 3-5 cm door,
+  so the same physics times ours at full size: a 1.9 m door takes 16 frames to swing down. A third, "full-size"
+  gallows clip had no drop in it; a search title is no promise, look at an overview tile sheet before cutting.
+- The tip of a falling hinged board accelerates at 1.5 g, faster than a falling figure, so the door drops away from
+  whoever stands on it: no clipping by construction.
+- The pit's back wall stops the door just past plumb (`trapdoor_geom.wall_deg`, about 90.8 deg). It bangs there and
+  rocks back 14 deg then 4 deg (a cheat: real rocks that size take a second), then rests at FALLEN_DEG. 35 frames.
+- In the game camera the motion reads in the first 12 frames; once past about 60 deg the door hides under the pit's
+  front lip and the rocks show only as a small shift.
+- Renders: `runtrap.sh OUT RES SAMPLES d0,d1,...` (drop frames, or plain degrees). 5 s a frame at 1200 px, 96 samples.
