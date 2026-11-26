@@ -40,8 +40,9 @@ export function layoutKey(l: Layout): string {
 }
 
 /** One baked level as levels/index.json lists it. A board past one view also has its panning stops (pan.ts):
- * the window each shows, where each centres, and for each trapdoor (in `trapdoors` order) the stops that baked it. */
-export type LevelBake = { w: number; h: number; trapdoors: [number, number][]; window?: [number, number]; stops?: [number, number][]; trapStops?: number[][] };
+ * the window each shows, where each centres, and for each trapdoor (in `trapdoors` order) the stops that baked it;
+ * the same for its snares. */
+export type LevelBake = { w: number; h: number; trapdoors: [number, number][]; snares?: [number, number][]; window?: [number, number]; stops?: [number, number][]; trapStops?: number[][]; snareStops?: number[][] };
 export type BakeIndex = Record<string, LevelBake>;
 
 /** Where a bake's files live, under the diorama folder. */
@@ -50,6 +51,9 @@ export const bakeDir = (key: string) => `levels/${key}/`;
  * stop it was baked from, on a level that pans. */
 export const bakedTrap = (key: string, x: number, y: number, stop: number | null = null) =>
   `${bakeDir(key)}trap-${x}-${y}${stop === null ? "" : `-s${stop}`}`;
+/** A baked snare's sheet name (SnareSprite loads `${name}-spring.json`, `${name}-front.json` and their pictures). */
+export const bakedSnare = (key: string, x: number, y: number, stop: number | null = null) =>
+  `${bakeDir(key)}snare-${x}-${y}${stop === null ? "" : `-s${stop}`}`;
 /** A panning level's set as seen from stop `k` (set.ts loadSetAt). */
 export const stopSet = (key: string, k: number) => `${bakeDir(key)}set-s${k}`;
 

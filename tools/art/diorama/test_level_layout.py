@@ -70,3 +70,14 @@ if __name__ == "__main__":
     for f in [v for k, v in dict(globals()).items() if k.startswith("test_")]:
         f()
     print("ok")
+
+
+def test_plan_lists_snares_and_the_stops_that_see_them():
+    from bake_level import plan
+    p = plan(dict(PINNED, snares=[{"x": 0, "y": 10}, {"x": 2, "y": 1}]))  # 5 x 12, listed back row first
+    assert p["snares"] == [(2, 1), (0, 10)]
+    assert p["snareSquares"] == [(2, 10), (0, 1)]  # j = h-1-y, as the trapdoors
+    assert p["snareStops"] == [[2], [0]]  # the back stop sees board row 1, the front stop row 10
+    assert plan(PINNED)["snares"] == [] and plan(PINNED)["snareStops"] == []
+    small = plan(dict(PINNED, height=5, holes=[], walls=[], trapdoors=[], switches=[], snares=[{"x": 3, "y": 1}]))
+    assert small["snareSquares"] == [(3, 3)] and small["snareStops"] == []  # one view: no stops

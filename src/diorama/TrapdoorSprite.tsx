@@ -15,7 +15,7 @@ import type { TrapAnim } from "./trapdoor";
 type Drop = KingSheet & { frames: number; fps: number };
 const json = new Map<string, { p: Promise<unknown>; v: unknown }>();
 /** Suspends until the JSON at `url` is in. */
-function useJson<T>(url: string): T {
+export function useJson<T>(url: string): T {
   let e = json.get(url);
   if (!e) {
     const en: { p: Promise<unknown>; v: unknown } = { p: fetch(url).then(r => r.json()), v: undefined };

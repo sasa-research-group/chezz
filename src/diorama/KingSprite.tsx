@@ -20,7 +20,7 @@ import type { RefObject } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { breath } from "./King";
-import { clearTime, gameSpeed, moving, willHit } from "./motion";
+import { clearTime, gameSpeed, moving, standing, willHit } from "./motion";
 import { GAP, HOLD_MAX, strikeFrame, strikePlan, strikeTravel } from "./strike";
 import type { StrikeInfo } from "./strike";
 import { loopFrame, showsCheck } from "./check";
@@ -357,6 +357,11 @@ export function KingSprite({ figure = "king", at, yaw = 0, onClick, follow, stri
       const [tx, ty] = s.tiles, k = t.shown;
       (material.uniforms.tile.value as THREE.Vector2).set(k % tx, ty - 1 - Math.floor(k / tx));
       place(g, s, breath(clock.elapsedTime));
+    }
+    // Standing on his square (and not struck down there): a snare under him shuts and sorts its front roots over him.
+    if (M.phase === "idle" && !(hitAt !== null && performance.now() >= hitAt)) {
+      const st = dtex && d ? d.s : ct && c ? c.s : s;
+      standing(at[0], at[1], st.d0 - st.dq);
     }
   });
 

@@ -569,3 +569,14 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   camera looks down.
 - Check: paste set5 + back layer + a king walk tile + front layer by their normalised crops (all share the play
   camera), `snare/with_king.py`. About 5 s a frame at 2400 px, 32 samples; 480 KB a square for both sheets.
+
+### Snare in the game (2026-11-26)
+- SnareSprite.tsx draws two quads per square: the spring layer as a floor (renderOrder 1) and the front layer among the
+  figures (renderOrder 10). Three sorts transparent quads by their position, so the front quad is slid along the camera
+  ray to sort just nearer than the figure on the square (snare.ts frontGap); sliding along the ray with the matching
+  scale leaves the picture where it was. Any later two-layer square (a gate the figure stands in) can do the same.
+- The roots shut when the figure comes to rest, not when the move is made: KingSprite says `standing(x, y, gap)` every
+  idle frame (motion.ts), and stops once a taker's blow lands, so the roots let go of a dying piece and shut again on
+  its taker when he steps on. Flat cards have no run, so they are held at once.
+- Letting go plays the spring backward. Level bakes (bake_level.py) bake snares per square and per panning stop like
+  trapdoors: levels/{key}/snare-{x}-{y}[-s{k}]-spring/front.

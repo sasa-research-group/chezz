@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Puzzle } from "../src/puzzle/engine";
-import { bakeFor, bakedTrap, layoutKey, layoutOfPuzzle, needsBake, stopSet } from "../src/diorama/levelBake";
+import { bakeFor, bakedSnare, bakedTrap, layoutKey, layoutOfPuzzle, needsBake, stopSet } from "../src/diorama/levelBake";
 
 const base: Puzzle = {
   width: 5, height: 12, moves: 3, goal: { type: "mate" }, holes: [{ x: 0, y: 0 }], walls: [{ x: 2, y: 3 }],
@@ -35,6 +35,9 @@ describe("level bake key", () => {
     expect(bakedTrap(k, 3, 8, 2)).toBe(`levels/${k}/trap-3-8-s2`);
     expect(bakedTrap(k, 3, 8, 0)).toBe(`levels/${k}/trap-3-8-s0`);
     expect(stopSet(k, 1)).toBe(`levels/${k}/set-s1`);
+    // snares the same way: snare-{x}-{y}[-s{k}] (bake_level.py), each with a spring and a front sheet
+    expect(bakedSnare(k, 1, 4)).toBe(`levels/${k}/snare-1-4`);
+    expect(bakedSnare(k, 1, 4, 2)).toBe(`levels/${k}/snare-1-4-s2`);
   });
 
   it("gives the same key as the bake script's Python twin (tools/art/diorama/level_layout.py)", () => {

@@ -20,10 +20,13 @@ import { gameSpeed, hitTime, moving, willClear } from "./motion";
 import { EyeSprite } from "./EyeSprite";
 import { TrapdoorSprite } from "./TrapdoorSprite";
 import { trapSquare } from "./trapdoor";
+import { SnareSprite } from "./SnareSprite";
+import { snareSquare } from "./snare";
+import type { SnareHolds } from "./snare";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
 import { bakeCamera, cutSet, loadSet, loadSetAt, slide, sourceFor, viewFor } from "./set";
-import { PREVIEW_MAX, bakeDir, bakeFor, bakedTrap, loadBakeIndex, needsBake, stopSet } from "./levelBake";
+import { PREVIEW_MAX, bakeDir, bakeFor, bakedSnare, bakedTrap, loadBakeIndex, needsBake, stopSet } from "./levelBake";
 import type { BakeIndex, LevelBake, Layout } from "./levelBake";
 import { PAN_MS, SWIPE_PX, ease, nearestStop, stageOf, stepStop, swipeDir, trapStop } from "./pan";
 import type { Stop } from "./pan";
@@ -32,6 +35,11 @@ import type { SetData } from "./set";
 const BASE = "diorama/";
 /** `?king=live` swaps the pre-rendered Cycles king for the live glTF one, to compare. */
 const KING_LIVE = /[?&]king=live\b/.test(location.search);
+/** A piece drawn as a pre-rendered figure that runs from square to square (KingSprite); else a card or the live king. */
+const runsAsSprite = (pc: DioramaPiece) => {
+  const isKing = pc.kind === "king" && pc.side === "white";
+  return !!spriteFigure(pc) && !(isKing && KING_LIVE) && (isKing || pc.falling === undefined);
+};
 /** Blender's axes (z up) to three's (y up): every child of <Blender> is placed in stage units. */
 const Blender = ({ children }: { children: ReactNode }) => <group rotation={[-Math.PI / 2, 0, 0]}>{children}</group>;
 const toThree = (v: THREE.Vector3) => new THREE.Vector3(v.x, v.z, -v.y);
@@ -281,8 +289,8 @@ useGLTF.preload(WALL_HALF_GLB);
 useGLTF.preload(WALL_PIL_GLB);
 
 /** `trap`: a trapdoor's sheet (null: none, the flat stand-in) and, while the camera pans, the one it is leaving, shown
- * until the new one is in. */
-function SquareMarks({ sq, S, H, arms, pos, trap }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number]; trap?: { name: string | null; prev?: string | null } }) {
+ * until the new one is in. `snare`: the same for a snare, and who stands on it. */
+function SquareMarks({ sq, S, H, arms, pos, trap, snare }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number]; trap?: { name: string | null; prev?: string | null }; snare?: { name: string | null; prev?: string | null; holds: SnareHolds } }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -310,7 +318,14 @@ function SquareMarks({ sq, S, H, arms, pos, trap }: { sq: DioramaSquare; S: numb
       out.push(name ? <Suspense key="td" fallback={wait}><TrapdoorSprite name={name} pos={pos} open={open} /></Suspense> : flat);
       break;
     }
-    case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;
+    case "snare": {
+      // as the trapdoor: the level's own bake, else the 5x5 set's sheet for this spot, else a flat ring
+      const name = snare?.name ?? null, prev = snare?.prev ?? null, holds = snare?.holds ?? null;
+      const flat = ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn");
+      const wait = prev && prev !== name ? <Suspense fallback={flat}><SnareSprite name={prev} pos={pos} holds={holds} /></Suspense> : flat;
+      out.push(name ? <Suspense key="sn" fallback={wait}><SnareSprite name={name} pos={pos} holds={holds} /></Suspense> : flat);
+      break;
+    }
     case "gate": for (let i = -2; i <= 2; i++) out.push(<mesh key={`b${i}`} position={[i * 0.19 * S, 0, 0.4 * H]}><boxGeometry args={[0.05 * S, 0.05 * S, 0.8 * H]} /><meshStandardMaterial color={new THREE.Color(0.3, 0.3, 0.32)} metalness={0.6} roughness={0.5} /></mesh>); break;
     case "gate-open": for (const s of [-1, 1]) out.push(<mesh key={`p${s}`} position={[s * 0.44 * S, 0, 0.4 * H]}><boxGeometry args={[0.06 * S, 0.06 * S, 0.8 * H]} /><meshStandardMaterial color={new THREE.Color(0.3, 0.3, 0.32)} metalness={0.6} roughness={0.5} /></mesh>); break;
     case "lever": out.push(
@@ -448,6 +463,17 @@ function Scene({ data, w, h, squares, pieces, onSquare: tapped, fps, bakeKey, pa
     const from = (k: number) => { const s = trapStop(pan.bake.trapStops?.[n], pan.stops, k); return s === null ? null : bakedTrap(bakeKey, sq.x, sq.y, s); };
     return { name: from(view.to), prev: view.from === null ? null : from(view.from) };
   };
+  // A snare: its sheet as trapOf, and who stands on it (a piece just taken there is on its way off).
+  const snareOf = (sq: DioramaSquare, pos: [number, number]) => {
+    if (sq.kind !== "snare") return undefined;
+    const pc = pieces.find(q => q.x === sq.x && q.y === sq.y && q.falling === undefined);
+    const holds: SnareHolds = !pc ? null : runsAsSprite(pc) ? "figure" : "card";
+    if (!bakeKey) return { name: snareSquare(pos, S), holds };
+    if (!pan) return { name: bakedSnare(bakeKey, sq.x, sq.y), holds };
+    const n = (pan.bake.snares ?? []).findIndex(([x, y]) => x === sq.x && y === sq.y);
+    const from = (k: number) => { const s = trapStop(pan.bake.snareStops?.[n], pan.stops, k); return s === null ? null : bakedSnare(bakeKey, sq.x, sq.y, s); };
+    return { name: from(view.to), prev: view.from === null ? null : from(view.from), holds };
+  };
   const at = (x: number, y: number) => [(x - (w - 1) / 2) * S, ((h - 1) / 2 - y) * S] as const;
   const frames = useRef({ n: 0, t: 0 });
   useFrame((_, dt) => {
@@ -472,7 +498,7 @@ function Scene({ data, w, h, squares, pieces, onSquare: tapped, fps, bakeKey, pa
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} trap={trapOf(sq, [x, y])} />
+          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} trap={trapOf(sq, [x, y])} snare={snareOf(sq, [x, y])} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
@@ -484,7 +510,7 @@ function Scene({ data, w, h, squares, pieces, onSquare: tapped, fps, bakeKey, pa
         const isKing = pc.kind === "king" && pc.side === "white";
         const figure = spriteFigure(pc);
         if (figure && !isKing && pc.falling !== undefined) return <group key={pc.id} position={[x, y, 0]}><TakenFigure pc={pc} figure={figure} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
-        if (figure && !(isKing && KING_LIVE) && (isKing || pc.falling === undefined)) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} figure={figure} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
+        if (figure && runsAsSprite(pc)) return <group key={pc.id} position={[x, y, 0]}><RunningKing pc={pc} figure={figure} at={[x, y]} S={S} onClick={() => onSquare(pc.x, pc.y)} /></group>;
         return <group key={pc.id} position={[x, y, 0]}>
           {pc.falling === undefined && <Blob x={0} y={0} r={0.2 * S} o={isKing && KING_LIVE ? 0.45 : 0.35} />}
           {isKing ? <King position={[0, 0, 0]} yaw={yawOf(pc.facing ?? null)} onClick={() => onSquare(pc.x, pc.y)} />
