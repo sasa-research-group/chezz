@@ -554,3 +554,18 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
 - Roots are code-built tubes (snare_geom.py, stage._limb). Bark grooves come from a per-vertex "bark" attribute (cos, sin round the root, arc length along it) into a stretched Voronoi. Scale (3.2, 3.2, 3/S): bigger cells read as scales or a giraffe pattern.
 - Glowing decal lines down the cracks read as painted neon, and wide dark crack bands read as stickers. What works: thin dark fissures, plus a soft green point light low on the stone just inside each root's foot (soft size 0.06 S, 0.5 W). A light inside a root makes a neon patch on the bark.
 - Blind judges flip on gloss vs matte and sharp vs blunt thorns from one round to the next. Judges catch a code-built prop against a Gemini draft 12/12 every round (the trapdoor too), so use the rounds for fix lists, not as a pass mark.
+
+### Snare sprite bake, two layers (2026-11-26)
+- Sprung roots close round the legs, so some must cover the figure: each spring frame has a back layer (the whole
+  square, drawn under figures) and a front layer (only root parts nearer the camera than the figure's legs, drawn
+  over the figure on that square). `runsnarebake.sh OUT [SQUARES] [RES] [SAMPLES]`, then `pack_snare.py OUT`.
+- Both outlines come from the one colour render: two value AOVs, `mine` (an object-attribute node reading the
+  object's `snare_mine` property, added to every material this square uses; shared stone and moss give 0 elsewhere)
+  and `front` (bark only, objects with `snare_front`). AOVs are filtered like the picture, so edges are soft, and a
+  neighbour's tuft in front writes 0, so no pinhole fill is needed. The roots rise past the slab, so the outline is
+  per frame (the trapdoor's single mask pass would clip them). Channels come out as `ViewLayer.mine.X`.
+- The front/back split is a vertical plane through the square's centre across the camera's heading
+  (`snare_geom.in_front`). A plane facing the camera would count a root behind the calf as in front, because the
+  camera looks down.
+- Check: paste set5 + back layer + a king walk tile + front layer by their normalised crops (all share the play
+  camera), `snare/with_king.py`. About 5 s a frame at 2400 px, 32 samples; 480 KB a square for both sheets.
