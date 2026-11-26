@@ -17,6 +17,8 @@ import { useGLTF } from "@react-three/drei";
 import { PILLAR_H, PILLAR_W, WALL_H, WALL_HALF_GLB, WALL_PIL_GLB, WALL_SEG_GLB, WALL_T, wallArms, wallPieces, type Arms } from "./walls";
 import { gameSpeed, hitTime, moving, willClear } from "./motion";
 import { EyeSprite } from "./EyeSprite";
+import { TrapdoorSprite } from "./TrapdoorSprite";
+import { trapSquare } from "./trapdoor";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
@@ -246,11 +248,19 @@ function SquareMarks({ sq, S, H, arms, pos }: { sq: DioramaSquare; S: number; H:
     </mesh>;
   const out: ReactNode[] = [];
   switch (sq.kind) {
-    case "hole": case "fallen": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
+    case "hole": out.push(plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")); break;
     case "wall": if (arms) out.push(<Wall key="w" arms={arms} seed={sq.x * 131 + sq.y * 7919} S={S} H={H} />); break;
     case "eye": out.push(<EyeSprite key="w" at={sq} pos={pos} stare={sq.stare} S={S} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
-    case "trapdoor": out.push(plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td"), ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")); break;
+    case "trapdoor": case "fallen": {
+      // the baked door on the 5x5 set (one sheet per square); a flat stand-in anywhere else
+      // (its own Suspense: while a sheet loads, or if one is missing, only this square shows the stand-in)
+      const name = trapSquare(pos, S);
+      const flat = sq.kind === "fallen" ? plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")
+        : <group key="tf">{plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td")}{ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")}</group>;
+      out.push(name ? <Suspense key="td" fallback={flat}><TrapdoorSprite name={name} pos={pos} open={sq.kind === "fallen"} /></Suspense> : flat);
+      break;
+    }
     case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;
     case "gate": for (let i = -2; i <= 2; i++) out.push(<mesh key={`b${i}`} position={[i * 0.19 * S, 0, 0.4 * H]}><boxGeometry args={[0.05 * S, 0.05 * S, 0.8 * H]} /><meshStandardMaterial color={new THREE.Color(0.3, 0.3, 0.32)} metalness={0.6} roughness={0.5} /></mesh>); break;
     case "gate-open": for (const s of [-1, 1]) out.push(<mesh key={`p${s}`} position={[s * 0.44 * S, 0, 0.4 * H]}><boxGeometry args={[0.06 * S, 0.06 * S, 0.8 * H]} /><meshStandardMaterial color={new THREE.Color(0.3, 0.3, 0.32)} metalness={0.6} roughness={0.5} /></mesh>); break;

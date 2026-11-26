@@ -457,7 +457,7 @@ if a.bake:
         shoot(k)
     json.dump({"H": H, "S": S, "res": [rx, ry], "crop": [u0, v0, u1, v1], "right": list(right), "up": list(up),
                "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq, "anchor": list(P0), "quad": quad,
-               "exposure": 0.0, "glowK": a.glow_k, "headings": 1, "samples": a.samples, "square": [i, j],
+               "exposure": 0.0, "glowK": a.glow_k, "headings": 1, "samples": a.samples, "square": [int(v) for v in a.square.split(",")],
                "centre": [cx, cy], "frames": len(DROP), "fps": 24, "angles": DROP},
               open(os.path.join(a.out, "drop.json"), "w"), indent=1)
     print("TRAP BAKE OK", flush=True)

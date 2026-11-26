@@ -483,3 +483,7 @@ layout, tested by `test_trapdoor_geom.py`), `build_trapdoor_cycles.py` (Blender)
 - Seam checks must apply the set's exposure (set5 is −0.35, sprites 0) before pasting.
 - Area lights used only to light the pit (trap_glow) need `visible_camera = False`, or they show as a speck.
 - `TRAP_PROBE="x,y ..."` prints every object a camera ray through those full-frame pixels hits.
+- In the game (src/diorama/TrapdoorSprite.tsx): one sheet per square, 25 squares at 5.1 MB. Each sprite gets its own `<Suspense>` with the flat stand-in as fallback; a missing sheet once blacked out the whole scene.
+- Floor sprites draw only the main material, not the onCards copy, so a door never covers a figure card.
+- build_trapdoor_cycles.py reused `j` in the moss loop and wrote a wrong square into drop.json; pack_trapdoor.py takes the square from the folder name.
+- Blind judges (3 rounds: 4, 4, 7) claimed identical pits and doors clipping the stone on edge columns; enlarged crops showed neither. Check judge claims on crops before acting on them.
