@@ -6,12 +6,12 @@ import * as THREE from "three";
 
 export const SOURCES = [3, 5, 8] as const;
 export type SetInfo = {
-  n: number; H: number; S: number; W: number;
+  n: number; /** a level bake's own size (rectangles); a source set is n x n */ nx?: number; ny?: number; H: number; S: number; W: number;
   res: [number, number]; stride: number; grid: [number, number]; near: number; far: number;
   camera: { matrixWorld: number[][]; lens: number; sensor: number; zoom: number; elevation: number; lookAhead: number };
   exposure: number; glowK: number; bulbs: [number, number, number][];
 };
-export type SetData = { info: SetInfo; depth: Uint16Array };
+export type SetData = { info: SetInfo; depth: Uint16Array; /** its files, without the extension: "diorama/set5" */ at: string };
 
 /** Which baked set a board is cut from: the smallest one at least as big as its longer side. */
 export const sourceFor = (w: number, h: number) => SOURCES.find(n => n >= Math.max(w, h)) ?? SOURCES[SOURCES.length - 1];
@@ -45,8 +45,8 @@ export type Piece = { geometry: THREE.BufferGeometry; shift: [number, number] };
  * instead of leaving a gap. */
 export function cutSet(data: SetData, w: number, h: number): Piece[] {
   const { pos, uv, gw, gh } = gridPoints(data);
-  const n = data.info.n, S = data.info.S;
-  const cx = cut(n, w, S), cy = cut(n, h, S);
+  const S = data.info.S;
+  const cx = cut(data.info.nx ?? data.info.n, w, S), cy = cut(data.info.ny ?? data.info.n, h, S);
   const pa = new THREE.BufferAttribute(pos, 3), ua = new THREE.BufferAttribute(uv, 2);
   // quarter bits: x side 0 = left (low x), 1 = right; y side 0 = front (low y), 1 = back
   const xs = (x: number) => (cx.lo === Infinity ? 1 : (x < cx.lo ? 1 : 0) | (x > cx.hi ? 2 : 0));
@@ -72,7 +72,7 @@ export function cutSet(data: SetData, w: number, h: number): Piece[] {
 
 /** Moves a point of the source set to where it lands on the cut board (bulbs, lights). */
 export function slide(info: SetInfo, w: number, h: number, p: [number, number, number]): [number, number, number] | null {
-  const cx = cut(info.n, w, info.S), cy = cut(info.n, h, info.S);
+  const cx = cut(info.nx ?? info.n, w, info.S), cy = cut(info.ny ?? info.n, h, info.S);
   const one = (v: number, c: ReturnType<typeof cut>) => (c.lo === Infinity ? v : v < c.lo ? v + c.shift : v > c.hi ? v - c.shift : null);
   const x = one(p[0], cx), y = one(p[1], cy);
   return x === null || y === null ? null : [x, y, p[2]];
@@ -108,16 +108,18 @@ export function playCamera(info: SetInfo, w: number, h: number, aspect: number) 
   return { ...at(zoom), hfov, zoom };
 }
 
-const cache = new Map<number, Promise<SetData>>();
-/** Fetches a baked set's json and depth grid (textures load through three). */
-export function loadSet(n: number, base = "diorama/"): Promise<SetData> {
-  let p = cache.get(n);
+const cache = new Map<string, Promise<SetData>>();
+/** Fetches a baked set's json and depth grid (textures load through three): `at` is its files without the
+ * extension, a source set ("diorama/set5") or a level's own bake ("diorama/levels/<key>/set"). */
+export function loadSetAt(at: string): Promise<SetData> {
+  let p = cache.get(at);
   if (!p) {
     p = Promise.all([
-      fetch(`${base}set${n}.json`).then(r => r.json() as Promise<SetInfo>),
-      fetch(`${base}set${n}.depth`).then(r => r.arrayBuffer()),
-    ]).then(([info, buf]) => ({ info, depth: new Uint16Array(buf) }));
-    cache.set(n, p);
+      fetch(`${at}.json`).then(r => r.json() as Promise<SetInfo>),
+      fetch(`${at}.depth`).then(r => r.arrayBuffer()),
+    ]).then(([info, buf]) => ({ info, depth: new Uint16Array(buf), at }));
+    cache.set(at, p);
   }
   return p;
 }
+export const loadSet = (n: number, base = "diorama/") => loadSetAt(`${base}set${n}`);

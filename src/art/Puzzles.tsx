@@ -13,6 +13,7 @@ import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
 import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
 import { lastCapture, snapDir, track } from "../diorama/facing";
 import { keepsTaken, playsStrike } from "../diorama/figures";
+import { layoutOfPuzzle } from "../diorama/levelBake";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -137,7 +138,7 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
   }
   return <No3D fallback={<PuzzleBoard pz={pz} state={state} picked={picked} targets={targets} last={last} flags={flags} wired={wired} onSquare={onSquare} />}>
     <Suspense fallback={<div className="diorama diorama-loading">Loading 3D…</div>}>
-      <Diorama w={pz.width} h={pz.height} squares={squares} pieces={pieces} onSquare={(x, y) => onSquare({ x, y })} showFps={new URLSearchParams(location.search).has("fps")} />
+      <Diorama w={pz.width} h={pz.height} layout={layoutOfPuzzle(pz)} squares={squares} pieces={pieces} onSquare={(x, y) => onSquare({ x, y })} showFps={new URLSearchParams(location.search).has("fps")} />
     </Suspense>
   </No3D>;
 }

@@ -21,7 +21,9 @@ import { TrapdoorSprite } from "./TrapdoorSprite";
 import { trapSquare } from "./trapdoor";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
-import { cutSet, loadSet, playCamera, slide, sourceFor } from "./set";
+import { cutSet, loadSet, loadSetAt, playCamera, slide, sourceFor } from "./set";
+import { bakeDir, bakeFor, bakedTrap, loadBakeIndex } from "./levelBake";
+import type { Layout } from "./levelBake";
 import type { SetData } from "./set";
 
 const BASE = "diorama/";
@@ -43,8 +45,7 @@ void main(){
 
 /** The baked set, cut and slid for this board. */
 function SetMesh({ data, w, h }: { data: SetData; w: number; h: number }) {
-  const n = data.info.n;
-  const [map, glow] = useLoader(THREE.TextureLoader, [`${BASE}set${n}.webp`, `${BASE}set${n}-glow.png`]);
+  const [map, glow] = useLoader(THREE.TextureLoader, [`${data.at}.webp`, `${data.at}-glow.png`]);
   const gl = useThree(s => s.gl);
   const material = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = gl.capabilities.getMaxAnisotropy(); map.needsUpdate = true;
@@ -234,7 +235,8 @@ useGLTF.preload(WALL_SEG_GLB);
 useGLTF.preload(WALL_HALF_GLB);
 useGLTF.preload(WALL_PIL_GLB);
 
-function SquareMarks({ sq, S, H, arms, pos }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number] }) {
+/** `bakeKey`: the level has its own bake (levelBake.ts), so its trapdoors are its own sheets. */
+function SquareMarks({ sq, S, H, arms, pos, bakeKey }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number]; bakeKey?: string }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -253,9 +255,9 @@ function SquareMarks({ sq, S, H, arms, pos }: { sq: DioramaSquare; S: number; H:
     case "eye": out.push(<EyeSprite key="w" at={sq} pos={pos} stare={sq.stare} S={S} />); break;
     case "sludge": out.push(plane(0.96, new THREE.Color(0.12, 0.35, 0.05), 0.82, 0.2, "sl")); break;
     case "trapdoor": case "fallen": {
-      // the baked door on the 5x5 set (one sheet per square); a flat stand-in anywhere else
-      // (its own Suspense: while a sheet loads, or if one is missing, only this square shows the stand-in)
-      const name = trapSquare(pos, S);
+      // the level's own baked door, else the 5x5 set's sheet for this spot (the preview); a flat stand-in
+      // anywhere else (its own Suspense: while a sheet loads, or if one is missing, only this square shows it)
+      const name = bakeKey ? bakedTrap(bakeKey, sq.x, sq.y) : trapSquare(pos, S);
       const flat = sq.kind === "fallen" ? plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")
         : <group key="tf">{plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td")}{ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")}</group>;
       out.push(name ? <Suspense key="td" fallback={flat}><TrapdoorSprite name={name} pos={pos} open={sq.kind === "fallen"} /></Suspense> : flat);
@@ -357,7 +359,7 @@ function TakenFigure({ pc, figure, at, S, onClick }: { pc: DioramaPiece; figure:
   </Falling>;
 }
 
-function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
+function Scene({ data, w, h, squares, pieces, onSquare, fps, bakeKey }: { data: SetData; bakeKey?: string; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
   const { S, H } = data.info;
   const at = (x: number, y: number) => [(x - (w - 1) / 2) * S, ((h - 1) / 2 - y) * S] as const;
   const frames = useRef({ n: 0, t: 0 });
@@ -380,7 +382,7 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} />
+          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} bakeKey={bakeKey} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
@@ -405,14 +407,17 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps }: { data: SetData; 
   </>;
 }
 
-function Loaded({ n, ...rest }: { n: number; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
-  const data = use(loadSet(n, BASE));
-  return <Scene data={data} {...rest} />;
+function Loaded({ n, layout, ...rest }: { n: number; layout?: Layout; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
+  // a level with its own bake (levelBake.ts) shows that; any other the 3/5/8 set cut to size
+  const baked = layout ? bakeFor(use(loadBakeIndex(BASE)), layout) : null;
+  const data = use(baked ? loadSetAt(`${BASE}${bakeDir(baked.key)}set`) : loadSet(n, BASE));
+  return <Scene data={data} bakeKey={baked?.key} {...rest} />;
 }
 
 /** The diorama for a `w` x `h` board (2-8 a side). Squares are puzzle coordinates: x left to right,
- * y = 0 the back row. Clicking a square or a piece calls onSquare. */
-export function Diorama({ w, h, squares, pieces, onSquare, showFps }: { w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; showFps?: boolean }) {
+ * y = 0 the back row. Clicking a square or a piece calls onSquare. `layout` (levelBake.layoutOfPuzzle) picks
+ * the level's own bake when there is one. */
+export function Diorama({ w, h, squares, pieces, onSquare, showFps, layout }: { w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; showFps?: boolean; layout?: Layout }) {
   const [fps, setFps] = useState(0);
   const n = sourceFor(w, h);
   return <div className="diorama">
@@ -420,7 +425,7 @@ export function Diorama({ w, h, squares, pieces, onSquare, showFps }: { w: numbe
       onCreated={({ gl, scene, camera }) => {
         if (import.meta.env.DEV) (window as unknown as { __dio: unknown }).__dio = { gl, scene, camera }; gl.setClearColor(new THREE.Color(0.0008, 0.0012, 0.0024), 1); scene.background = new THREE.Color(0.0008, 0.0012, 0.0024); }}>
       <Suspense fallback={null}>
-        <Loaded n={n} w={w} h={h} squares={squares} pieces={pieces} onSquare={onSquare} fps={showFps ? setFps : undefined} />
+        <Loaded n={n} layout={layout} w={w} h={h} squares={squares} pieces={pieces} onSquare={onSquare} fps={showFps ? setFps : undefined} />
       </Suspense>
     </Canvas>
     {showFps && <span className="diorama-fps">{fps.toFixed(0)} fps</span>}
