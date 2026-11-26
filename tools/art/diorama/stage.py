@@ -3023,11 +3023,15 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         yf = -Wy + 0.7 * S
         nsp = cnt(2, fy_)  # swags down each side wall
 
+        # FAIRY_SIDE_DZ (H, SIDE_LIGHTS): pins down the side walls hung this much lower than the back corner, so the
+        # frame's top rail doesn't hide the wire from the camera (the string drops from the corner pin)
+        zs = zt - float(os.environ.get("FAIRY_SIDE_DZ", 0.0)) * H
+
         def side(sg):
-            mids = [(sg * xs_, yb + (yf - yb) * (i + 1) / nsp + f2.uniform(-0.3, 0.3) * S, zt - f2.uniform(0.0, 0.1) * H)
+            mids = [(sg * xs_, yb + (yf - yb) * (i + 1) / nsp + f2.uniform(-0.3, 0.3) * S, zs - f2.uniform(0.0, 0.1) * H)
                     for i in range(nsp - 1)] if nsp != 2 else \
-                [(sg * xs_, 0.5 * (yb + yf) + f2.uniform(-0.3, 0.3) * S, zt - f2.uniform(0.0, 0.1) * H)]
-            return [(sg * xs_, yb, zt)] + mids + [(sg * xs_, yf, zt)]
+                [(sg * xs_, 0.5 * (yb + yf) + f2.uniform(-0.3, 0.3) * S, zs - f2.uniform(0.0, 0.1) * H)]
+            return [(sg * xs_, yb, zt)] + mids + [(sg * xs_, yf, zs)]
         sag_k = float(os.environ.get("FAIRY_SAG", 1.0))
         lo_, hi_ = (float(v) for v in os.environ.get("SAG_RANGE", "0.08,0.15").split(","))
 
