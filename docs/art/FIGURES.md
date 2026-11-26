@@ -549,3 +549,8 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   What it changes today is small: the figures and cards are pre-lit pictures, so these lamps reach only live 3D
   meshes (the placeholder gate, lever and plate, the dev 3D king). Measured in-game, back-row props came out within
   3% either way, because near the walls the fairy bulbs light them. It matters once a square's art is a live mesh.
+
+## Snare (thorn roots), 2026-11-26
+- Roots are code-built tubes (snare_geom.py, stage._limb). Bark grooves come from a per-vertex "bark" attribute (cos, sin round the root, arc length along it) into a stretched Voronoi. Scale (3.2, 3.2, 3/S): bigger cells read as scales or a giraffe pattern.
+- Glowing decal lines down the cracks read as painted neon, and wide dark crack bands read as stickers. What works: thin dark fissures, plus a soft green point light low on the stone just inside each root's foot (soft size 0.06 S, 0.5 W). A light inside a root makes a neon patch on the bark.
+- Blind judges flip on gloss vs matte and sharp vs blunt thorns from one round to the next. Judges catch a code-built prop against a Gemini draft 12/12 every round (the trapdoor too), so use the rounds for fix lists, not as a pass mark.
