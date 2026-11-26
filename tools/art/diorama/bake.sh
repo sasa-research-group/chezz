@@ -6,7 +6,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 STAGE=${STAGE_DIR:-~/.dos/scratch/d84406ef/stage}
 P=${PAID_DIR:-~/.dos/scratch/d84406ef/paid/out}
 cd "$STAGE"
-source tools/base_r78.env
+source "$HERE/look.env"
 export FAIRY_TUCK=${FAIRY_TUCK-1} BULB_EVEN=${BULB_EVEN-1}  # every bulb just inside the moss and equally bright (stage.py); bake_set.py also slides bulbs out from behind trunks and thick moss
 export TILE_GLB=${TILE_GLB:-$P/tile/model_glb__model.glb,$P/tile2/model_glb__model.glb}
 export TILE_VAL=${TILE_VAL:-0.5} TILE_FILL=${TILE_FILL:-1.05} TILE_JIT=${TILE_JIT:-1.6} JOINT_MOSS=${JOINT_MOSS:-1.8}

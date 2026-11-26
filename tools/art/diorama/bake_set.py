@@ -22,7 +22,7 @@ _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 import gpu_retry  # renders again in place after a Metal GPU reset
 
 STAGE = os.environ.get("STAGE_DIR", os.path.expanduser("~/.dos/scratch/d84406ef/stage"))
-sys.path.insert(0, STAGE)
+sys.path.append(STAGE)  # the repo's own stage.py (beside this file) comes first
 import stage
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
