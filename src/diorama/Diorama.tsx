@@ -22,8 +22,8 @@ import { trapSquare } from "./trapdoor";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
 import { cutSet, loadSet, loadSetAt, slide, sourceFor, viewFor } from "./set";
-import { bakeDir, bakeFor, bakedTrap, loadBakeIndex } from "./levelBake";
-import type { Layout } from "./levelBake";
+import { PREVIEW_MAX, bakeDir, bakeFor, bakedTrap, loadBakeIndex, needsBake } from "./levelBake";
+import type { BakeIndex, Layout } from "./levelBake";
 import type { SetData } from "./set";
 
 const BASE = "diorama/";
@@ -414,12 +414,17 @@ function Loaded({ n, layout, ...rest }: { n: number; layout?: Layout; w: number;
   return <Scene data={data} bakeKey={baked?.key} {...rest} />;
 }
 
-/** The diorama for a `w` x `h` board (2-8 a side). Squares are puzzle coordinates: x left to right,
+/** The diorama for a `w` x `h` board (2-24 a side; past 8 only a level bake draws it). Squares are puzzle coordinates: x left to right,
  * y = 0 the back row. Clicking a square or a piece calls onSquare. `layout` (levelBake.layoutOfPuzzle) picks
  * the level's own bake when there is one. */
 export function Diorama({ w, h, squares, pieces, onSquare, showFps, layout }: { w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; showFps?: boolean; layout?: Layout }) {
   const [fps, setFps] = useState(0);
   const n = sourceFor(w, h);
+  const [index, setIndex] = useState<BakeIndex | null>(null);
+  const big = Math.max(w, h) > PREVIEW_MAX;
+  useEffect(() => { if (big) loadBakeIndex(BASE).then(setIndex); }, [big]);
+  if (big && needsBake(index, layout ?? { w, h, cells: [] }) !== false)
+    return <div className="diorama diorama-unbaked">{index ? `This level is ${w}×${h}, past the 8-a-side preview. Bake it (tools/art/diorama/bake_level.py) to see it in 3D.` : null}</div>;
   return <div className="diorama">
     <Canvas flat shadows={{ type: THREE.VSMShadowMap }} dpr={[1, 2]} camera={{ fov: 30, position: [0, 10, 30] }} gl={{ antialias: false, stencil: true, powerPreference: "high-performance" }}
       onCreated={({ gl, scene, camera }) => {

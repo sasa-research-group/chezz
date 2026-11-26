@@ -59,6 +59,7 @@
 .diorama{position:relative;width:100%;aspect-ratio:4/3;background:#020306;border-radius:10px;overflow:hidden}
 .diorama canvas{display:block}
 .diorama-loading{display:grid;place-items:center;color:#c9bfa6;font-size:14px}
+.diorama-unbaked{display:grid;place-items:center;color:#c9bfa6;font-size:14px;padding:0 24px;text-align:center}
 .diorama-fps{position:absolute;right:8px;top:6px;font:12px/1 ui-monospace,monospace;color:#cfe;background:#0008;padding:3px 6px;border-radius:4px}
 .diorama-note { margin: 6px 0 0; font-size: 13px; opacity: .7; text-align: center; }
 

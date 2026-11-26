@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { apply, boardOf, gateOpen, inCheck, keyOf, legalMoves, outcome, start } from "../src/puzzle/engine";
 import type { Puzzle } from "../src/puzzle/engine";
 import { NEVER, analyze, bestReply, solver } from "../src/puzzle/solve";
-import { PUZZLES, formatPuzzles, parsePuzzles } from "../src/puzzle/puzzles";
+import { PUZZLES, formatPuzzles, parsePuzzles, puzzleIssues } from "../src/puzzle/puzzles";
 
 const base = (p: Partial<Puzzle>): Puzzle => ({ width: 4, height: 4, holes: [], walls: [], pieces: [], goal: { type: "mate" }, moves: 1, ...p });
 
@@ -175,5 +175,20 @@ describe("puzzles file", () => {
     const text = formatPuzzles(PUZZLES);
     const back = parsePuzzles(JSON.parse(text));
     expect(back.ok && formatPuzzles(back.puzzles)).toBe(text);
+  });
+});
+
+describe("long levels (Wesley 2026-11-26: up to 24 a side)", () => {
+  const hall = (w: number, h: number): Puzzle => ({ width: w, height: h, moves: 2, goal: { type: "mate" }, holes: [], walls: [],
+    pieces: [["king", "white", 2, h - 1], ["rook", "white", 0, h - 2], ["king", "black", 2, 0]] } as Puzzle);
+  const sized = (pz: Puzzle) => puzzleIssues(pz).some(i => /a side/.test(i.message));
+  it("takes boards up to 24 a side and no more", () => {
+    expect(sized(hall(5, 24))).toBe(false);
+    expect(sized(hall(24, 24))).toBe(false);
+    expect(sized(hall(5, 25))).toBe(true);
+  });
+  it("a rook crosses a 24-deep hall in one move", () => {
+    const pz = hall(5, 24), moves = legalMoves(pz, boardOf(pz), start(pz));
+    expect(moves.some(m => m.from.x === 0 && m.from.y === 22 && m.to.y === 0)).toBe(true);
   });
 });

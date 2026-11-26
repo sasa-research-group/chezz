@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Puzzle } from "../src/puzzle/engine";
-import { bakeFor, bakedTrap, layoutKey, layoutOfPuzzle } from "../src/diorama/levelBake";
+import { bakeFor, bakedTrap, layoutKey, layoutOfPuzzle, needsBake } from "../src/diorama/levelBake";
 
 const base: Puzzle = {
   width: 5, height: 12, moves: 3, goal: { type: "mate" }, holes: [{ x: 0, y: 0 }], walls: [{ x: 2, y: 3 }],
@@ -35,5 +35,33 @@ describe("level bake key", () => {
 
   it("gives the same key as the bake script's Python twin (tools/art/diorama/level_layout.py)", () => {
     expect(layoutKey(layoutOfPuzzle(base))).toBe(readFileSync("tests/level-key.txt", "utf8").trim());
+  });
+});
+
+describe("boards past the 8-a-side preview", () => {
+  const long = layoutOfPuzzle({ ...base, height: 20, trapdoors: [] });
+  it("ask for a bake until there is one; small boards never do", () => {
+    expect(needsBake(null, layoutOfPuzzle({ ...base, height: 8 }))).toBe(false);
+    expect(needsBake({}, layoutOfPuzzle({ ...base, height: 8 }))).toBe(false);
+    expect(needsBake(null, long)).toBeNull();
+    expect(needsBake({}, long)).toBe(true);
+    expect(needsBake({ [layoutKey(long)]: { w: 5, h: 20, trapdoors: [] } }, long)).toBe(false);
+  });
+});
+
+describe("loading the bake list", () => {
+  it("treats a missing or non-json list (a dev server's index.html) as no bakes", async () => {
+    const { loadBakeIndex, resetBakeIndex } = await import("../src/diorama/levelBake");
+    const real = globalThis.fetch;
+    try {
+      for (const res of [new Response("<!doctype html><html></html>", { status: 200 }), new Response("", { status: 404 })]) {
+        resetBakeIndex();
+        globalThis.fetch = (async () => res) as typeof fetch;
+        expect(await loadBakeIndex("/")).toEqual({});
+      }
+      resetBakeIndex();
+      globalThis.fetch = (async () => new Response('{"ab12cd34":{"w":5,"h":12,"trapdoors":[]}}')) as typeof fetch;
+      expect(await loadBakeIndex("/")).toEqual({ ab12cd34: { w: 5, h: 12, trapdoors: [] } });
+    } finally { globalThis.fetch = real; resetBakeIndex(); }
   });
 });

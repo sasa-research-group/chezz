@@ -55,7 +55,21 @@ export function bakeFor(index: BakeIndex, l: Layout): { key: string; bake: Level
 }
 
 let indexP: Promise<BakeIndex> | null = null;
-/** levels/index.json (an empty list if it is missing). */
+/** levels/index.json; an empty list if it is missing or isn't a list (a dev server answers a missing file with
+ * its index.html, and a 3D view that throws on that falls back to 2D for every puzzle). */
 export function loadBakeIndex(base: string): Promise<BakeIndex> {
-  return indexP ??= fetch(`${base}levels/index.json`).then(r => (r.ok ? r.json() : {}), () => ({})) as Promise<BakeIndex>;
+  return indexP ??= fetch(`${base}levels/index.json`)
+    .then(r => (r.ok ? r.json() : {}))
+    .then(j => (j && typeof j === "object" && !Array.isArray(j) ? j : {}), () => ({})) as Promise<BakeIndex>;
+}
+/** Forget the cached list (tests). */
+export const resetBakeIndex = () => { indexP = null; };
+
+/** Biggest board the cut 3/5/8 sets can preview; past it only a level's own bake can draw it. */
+export const PREVIEW_MAX = 8;
+/** A board past the preview's reach with no bake yet: the 3D view asks for a bake instead of drawing a box
+ * that doesn't fit. null while the list is loading. */
+export function needsBake(index: BakeIndex | null, l: Layout): boolean | null {
+  if (Math.max(l.w, l.h) <= PREVIEW_MAX) return false;
+  return index ? !bakeFor(index, l) : null;
 }

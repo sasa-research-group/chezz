@@ -5,7 +5,7 @@ Lives beside the battle game; nothing in `src/game/` changes.
 
 ## Rules (`src/puzzle/engine.ts`)
 - Chess moves and captures; every piece has one life. You (white, bottom) move first.
-- Board 2–8 a side. **Holes** aren't board: nothing stands on or slides across them.
+- Board 2–24 a side (Wesley 2026-11-26: long levels). **Holes** aren't board: nothing stands on or slides across them.
   **Walls** block standing and sliding; knights leap both.
 - **Peasant** (yours only): steps one square any way, never captures. Losing one fails.
 - Goals: checkmate · capture N pieces · win N material (P1 N3 B3 R5 Q9) · escort
