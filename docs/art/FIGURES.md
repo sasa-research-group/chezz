@@ -537,3 +537,7 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   tell is mostly a size effect; check wires on full-res crops.
   Judged in-game with the lower strings: 87/86/90, the same as at the rail (86/91/88). At the game's size the wire
   still doesn't show; the judges still call the bulbs floating dots (more often now: they sit further from the wall).
+- Thicker side wire (tried 2026-11-26, dropped): side swags 3x thicker judged 88/89/89 in-game, the same as thin, and
+  judges still called the lights "wire-less". A near-black wire on dark moss doesn't read at game size at any
+  thickness; a light-catching colour (copper) is the untried lever. Keep drops thin: a drop thicker than its bulb
+  swallows the bulb and its light.
