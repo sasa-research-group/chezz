@@ -446,3 +446,19 @@ against the concept, not the Cycles loop. (Script: measure the temporal std of a
 - **Kept: round 14's L9 defaults.** No code changed. A finer tilt set is cheap to render (about 3 s a tilt, 33 tilts
   in 96 s) but doubles the GPU memory for 7.5° steps, and the shine is only about 3° wide, so it would still be
   sampled. At 8 of 18 caught (chance is 9) and a quality tie, the sludge is at parity with Cycles for the judges.
+
+### Trapdoor, round 1 (2026-11-25): code-built oak planks that swing down
+
+Wesley picked draft A (weathered oak planks, two iron straps, a ring pull) and asked that the door open DOWN into the
+pit, so a falling figure never clips through it. Built free in Cycles, no Meshy: `trapdoor_geom.py` (plain-Python
+layout, tested by `test_trapdoor_geom.py`), `build_trapdoor_cycles.py` (Blender), `runtrap.sh OUT RES SAMPLES STATES`.
+- The hinge sits 1.2 plank-thicknesses in from the back wall, or the hung door's back face cuts into the wall.
+- The set has a Ground plate, the box's FrameBase and the HazeVolume 0.08 of a square under the slabs. A hole cut
+  only through the slab is 0.08 squares deep and reads as a grey recess. Cut all of them (the ray probe CHECK lines).
+- A pit lit like the floor reads shallow. A lid under the hinge, invisible to the camera, letting 30% of the light
+  through (`--dim`), shades the hung door and walls the way a real hole is shaded.
+- The set's oak (`stage._wood_mat`) under the warm lights reads red. WOOD_TINT only multiplies; a Hue/Saturation node
+  (0.65 sat, 1.15 value) after it gave the weathered grey-brown of the draft.
+- Smooth icosphere moss tufts read as lily pads; 40 tiny bumps per tuft read as flock.
+- Blind judges (3 rounds, 4 trials each) caught the render every time against the Gemini draft; their remaining
+  notes are refinements (more, narrower planks; ring off-centre; narrower gap round the door).
