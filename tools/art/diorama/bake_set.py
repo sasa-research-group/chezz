@@ -89,6 +89,31 @@ def place(stop):
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
 
 
+LIVE_LIGHTS = ("lantern", "framekey", "pool", "warmfill", "moon")
+
+
+def stage_lights():
+    """The stage lamps the game re-creates live to light its pieces (src/diorama/Diorama.tsx Lights): each copy of
+    the lantern, frame key, pool, warm fill and moon (a long board has one per stretch, stage._light_segments) with
+    its name, where it is, the way it points, its watts and, for a spot, its cone's half angle. Colours and the
+    softness of each stay in the game, per name, as they were tuned."""
+    out = []
+    for o in sorted(bpy.data.objects, key=lambda o: o.name):
+        if o.type != "LIGHT" or o.hide_render:
+            continue
+        base = o.name.split("_seg")[0].split(".")[0]
+        if base not in LIVE_LIGHTS:
+            continue
+        d = o.data
+        aim = o.matrix_world.to_3x3() @ Vector((0, 0, -1))
+        li = {"name": base, "at": [round(v, 4) for v in o.matrix_world.translation],
+              "dir": [round(v, 4) for v in aim.normalized()], "watts": round(d.energy, 3)}
+        if d.type == "SPOT":
+            li["half"] = round(d.spot_size / 2, 4)
+        out.append(li)
+    return out
+
+
 def clear_bulbs(sc, cam, S):
     """Slides any fairy bulb a birch trunk (or a solid hank of moss) hides from the play camera sideways until the camera sees all of it.
     Moves the bulb, its light and the bottom of its drop wire together, along the wall it hangs on (across for the
@@ -264,6 +289,7 @@ def bake_view(NAME, stop):
                  "fit": cd.sensor_fit, "zoom": zoom, "elevation": EL, "lookAhead": LA},
       "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
       "bulbs": bulbs,
+      "lights": stage_lights(),
   }
   if not SQUARE:  # a rectangle: the box's half extents per axis (W stays the short side's)
       info.update({"nx": a.nx, "ny": a.ny, "Wx": a.nx * S / 2 + 0.28 * S, "Wy": a.ny * S / 2 + 0.28 * S})

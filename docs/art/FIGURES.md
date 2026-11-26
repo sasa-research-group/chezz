@@ -541,3 +541,11 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   judges still called the lights "wire-less". A near-black wire on dark moss doesn't read at game size at any
   thickness; a light-catching colour (copper) is the untried lever. Keep drops thin: a drop thicker than its bulb
   swallows the bulb and its light.
+- Live lights for any board (2026-11-26): the bake writes its lamps into the set json (`lights`: each copy of the
+  lantern, frame key, pool, warm fill and moon, with position, aim, watts and spot cone; bake_set.py stage_lights),
+  and the 3D view lights from that list (src/diorama/liveLights.ts); colours and softness stay per lamp name in the
+  game. A bake without the list (the shipped set3/5/8) keeps the hand-placed 5x5 lamps, which a 5x5 bake's own list
+  reproduces exactly (tests/live-lights.test.ts). A 5x12 hall gets 13 lamps, one set per stretch.
+  What it changes today is small: the figures and cards are pre-lit pictures, so these lamps reach only live 3D
+  meshes (the placeholder gate, lever and plate, the dev 3D king). Measured in-game, back-row props came out within
+  3% either way, because near the walls the fairy bulbs light them. It matters once a square's art is a live mesh.

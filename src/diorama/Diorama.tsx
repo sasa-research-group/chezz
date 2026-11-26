@@ -11,6 +11,7 @@ import { GradeEffect } from "./grade";
 import { King } from "./King";
 import { CARD_STENCIL, KingSprite } from "./KingSprite";
 import { spriteFigure } from "./figures";
+import { liveLights } from "./liveLights";
 export { SPRITE_FIGURES, spriteFigure } from "./figures";
 import { yawOf } from "./facing";
 import { useGLTF } from "@react-three/drei";
@@ -74,8 +75,8 @@ function SetMesh({ data, w, h, fade, back, onReady }: { data: SetData; w: number
   return <>{pieces.map((p, i) => <mesh key={i} geometry={p.geometry} material={material} position={[p.shift[0], p.shift[1], 0]} frustumCulled={false} />)}</>;
 }
 
-/** Live lights for the pieces, placed like the stage's (stage.py, units of the king's height H). Cycles watts
- * become candela: a point or spot of P W is P/4pi, an area light P/pi along its axis. */
+/** Live lights for the pieces: the bake's own lamps (liveLights.ts), so a board of any size or length is lit the
+ * way its bake was. */
 function Lights({ data, w, h }: { data: SetData; w: number; h: number }) {
   const H = data.info.H;
   const spot = (ref: THREE.SpotLight | null, dir: [number, number, number]) => {
@@ -84,13 +85,12 @@ function Lights({ data, w, h }: { data: SetData; w: number; h: number }) {
     ref.target.updateMatrixWorld();
   };
   const bulbs = data.info.bulbs.map(b => slide(data.info, w, h, b)).filter(Boolean) as [number, number, number][];
+  const lamps = useMemo(() => liveLights(data.info, w, h), [data, w, h]);
   return <>
     <hemisphereLight args={[new THREE.Color(0.10, 0.13, 0.2), new THREE.Color(0.05, 0.05, 0.035), 0.35]} />
-    <pointLight position={[-1.08 * H, -5.98 * H, 2.6 * H]} intensity={4046 / (4 * Math.PI)} color={new THREE.Color(0.9, 0.88, 0.82)} decay={2} />
-    <spotLight ref={r => spot(r, [0.13, 0.63, -0.77])} position={[-0.96 * H, -6.34 * H, 7.2 * H]} intensity={1734 / Math.PI} angle={1.2} penumbra={1} color={new THREE.Color(0.55, 0.7, 1.0)} decay={2} />
-    <spotLight ref={r => spot(r, [0, 0.53, -0.85])} position={[0.24 * H, -4.06 * H, 5.5 * H]} intensity={2601 / (4 * Math.PI)} angle={0.4} penumbra={0.6} color={new THREE.Color(0.6, 0.75, 1.0)} decay={2} />
-    <spotLight ref={r => spot(r, [0, 0.82, -0.58])} position={[0, -6.34 * H, 4.5 * H]} intensity={3757 / (4 * Math.PI)} angle={0.96} penumbra={0.8} color={new THREE.Color(1.0, 0.7, 0.42)} decay={2} />
-    <spotLight ref={r => spot(r, [-0.1, -0.56, -0.82])} position={[-1.2 * H, Math.min(1.92 * H, h * data.info.S / 2), 3.4 * H]} intensity={101 / Math.PI} angle={1.3} penumbra={1} color={new THREE.Color(0.4, 0.58, 1.0)} decay={2} />
+    {lamps.map((l, i) => l.kind === "point"
+      ? <pointLight key={i} position={l.at} intensity={l.intensity} color={new THREE.Color(...l.color)} decay={2} />
+      : <spotLight key={i} ref={r => spot(r, l.dir)} position={l.at} intensity={l.intensity} angle={l.angle} penumbra={l.penumbra} color={new THREE.Color(...l.color)} decay={2} />)}
     {bulbs.map((b, i) => <pointLight key={i} position={b} intensity={22 / (4 * Math.PI)} color={new THREE.Color(1.0, 0.62, 0.32)} decay={2} />)}
     <BulbHalos bulbs={bulbs} H={H} />
     <ShadowCatcher data={data} w={w} h={h} />
