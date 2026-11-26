@@ -14,7 +14,7 @@ for try in 1 2 3 4 5 6 7 8; do
     --out "$OUT" --res "${2:-1600}" --samples "${3:-128}" --states "${4:-set,sprung}" $SNARE_ARGS > "$OUT/snare.log" 2>&1
   grep -E "Error|Traceback|File .*py|CHECK|SNARE" "$OUT/snare.log" | tail -20
   grep -qE "SNARE STILLS OK" "$OUT/snare.log" && exit 0
-  grep -q Traceback "$OUT/snare.log" && exit 1  # a script error, not a GPU crash
+  grep -qE "Traceback|SyntaxError" "$OUT/snare.log" && exit 1  # a script error, not a GPU crash
   echo "crashed (try $try)"
 done
 exit 1

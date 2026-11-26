@@ -118,6 +118,16 @@ def test_roots_go_off_a_frame_or_two_apart():
     assert len(a) == 12 and a[0]["pts"][0] == g.roots(S, 0.0)[0]["pts"][0]
 
 
+def test_sprung_roots_wrap_in_front_of_and_behind_the_ankles():
+    fwd = (0.0, 0.94, -0.34)  # the play camera looks up the board (+y) and down
+    for t in (1.0, 1.12):
+        near = [p for r in g.roots(S, t) for p in r["pts"] if rho(p) < 0.2 * S]
+        front = [p for p in near if g.in_front(p, fwd)]
+        assert 0.25 < len(front) / len(near) < 0.75  # they close round the legs, not in a wall before them
+    assert g.in_front((0, -0.1 * S, 0.3 * S), fwd) and not g.in_front((0, 0.05 * S, 0.3 * S), fwd)  # height never counts
+    assert g.in_front((0, -0.1, 0), (0, 2.0, -5.0)) == g.in_front((0, -0.1, 0), (0, 1.0, 0))
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

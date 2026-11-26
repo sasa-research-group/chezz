@@ -209,3 +209,13 @@ def _cross(a, b):
 def _norm(a):
     m = math.sqrt(sum(c * c for c in a)) or 1.0
     return tuple(c / m for c in a)
+
+
+def in_front(p, fwd):
+    """Square-local point p: is it nearer the camera than the figure standing on the square? The figure is upright, so
+    the split is the vertical plane through the centre across the camera's heading (fwd, flattened), not a plane facing
+    the camera: under a camera looking down, that one would put a root behind the calf in front of it. The sprite bake
+    draws these parts over the figure (the front layer) and the rest under it."""
+    fx, fy = fwd[0], fwd[1]
+    m = math.hypot(fx, fy) or 1.0
+    return p[0] * fx / m + p[1] * fy / m < 0.0

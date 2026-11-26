@@ -35,6 +35,8 @@ ap.add_argument("--bark", default="0.0042,0.0026,0.0028")  # the roots' dark bar
 ap.add_argument("--lump", type=float, default=0.3)  # gnarl: radius wobble along the root
 ap.add_argument("--cores", type=int, default=0)  # glowing lines down the cracks (off: they read as painted neon)
 ap.add_argument("--frames", type=int, default=20)    # the spring's frames, for g<k>
+ap.add_argument("--bake", action="store_true")  # the spring's sprite frames for this square (two layers) instead of the stills
+ap.add_argument("--glow-k", type=float, default=16.0)  # as the trapdoor: light over 1.0 that goes to the glow sheet
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
 
@@ -174,13 +176,13 @@ def build(t):
         o = stage._limb("snare_root_%d" % k, pts, r["radii"], 12, BARK, coll, lump=a.lump, seed=k * 3.1)
         bark_coords(o, pts, 12, k)
         sub = o.modifiers.new("sub", "SUBSURF"); sub.levels = sub.render_levels = 1
-        built.append(o)
+        built.append(o); o["snare_front"] = 1
         for q, sh in enumerate(r["shoots"]):
             so = stage._limb("snare_shoot_%d_%d" % (k, q), [Vector(p) + off for p in sh["pts"]], sh["radii"], 10, BARK,
                              coll, lump=a.lump, seed=k * 3.1 + q + 0.5)
             bark_coords(so, [Vector(p) + off for p in sh["pts"]], 10, k + 0.5 * q + 0.3)
             ss = so.modifiers.new("sub", "SUBSURF"); ss.levels = ss.render_levels = 1
-            built.append(so)
+            built.append(so); so["snare_front"] = 1
         bm = bmesh.new()
         for th in r["thorns"]:
             g = bmesh.new()
@@ -190,7 +192,9 @@ def build(t):
             bmesh.ops.rotate(g, verts=g.verts, cent=(0, 0, 0), matrix=rot)
             bmesh.ops.translate(g, vec=Vector(th["at"]) + off + d * th["len"] * 0.45, verts=g.verts)
             me_ = bpy.data.meshes.new("tmp"); g.to_mesh(me_); g.free(); bm.from_mesh(me_); bpy.data.meshes.remove(me_)
-        built.append(stage._mesh_obj("snare_thorns_%d" % k, bm, BARK, coll, smooth=False))
+        th_ = stage._mesh_obj("snare_thorns_%d" % k, bm, BARK, coll, smooth=False)
+        th_["snare_front"] = 1
+        built.append(th_)
 
 
 # ---------- the fissures the roots broke (dark, a thin green glow down each), moss round each root's foot (these stay) ----------
@@ -322,6 +326,132 @@ if a.zoom:
     r_.use_border = True; r_.use_crop_to_border = True
     r_.border_min_x, r_.border_max_x = max(0, cx_ - hwz), min(1, cx_ + hwz)
     r_.border_min_y, r_.border_max_y = max(0, cy_ - hh), min(1, cy_ + hh)
+if a.bake:
+    # The square's sprites, two layers per spring frame (Wesley 2026-11-26: sprung, the roots close round the piece's
+    # ankles, so some of them must cover it). Each frame is the whole set as the set picture was rendered (haze and
+    # all), as the trapdoor's; two value passes (AOVs, filtered like the picture, so their edges are soft) give the
+    # outlines in the same render: "mine", every surface of this square (slab, cracks, rim, moss, shards, roots), the
+    # back layer drawn under figures; and "front", the root parts nearer the camera than the figure's legs
+    # (snare_geom.in_front: the vertical plane through the centre), the front layer drawn over the figure on it.
+    # The roots rise past the slab's own outline, so the outline is per frame (the trapdoor's was one mask).
+    import json, time
+    import gpu_retry
+    import OpenImageIO as oiio
+    import numpy as np
+    vl = bpy.context.view_layer
+    for nm in ("mine", "front"):
+        if nm not in vl.aovs:
+            ao = vl.aovs.add(); ao.name = nm; ao.type = "VALUE"
+    M = cam.matrix_world; cpos = M.translation.copy()
+    fwd = -(M.to_3x3() @ Vector((0, 0, 1))); right = M.to_3x3() @ Vector((1, 0, 0)); up = M.to_3x3() @ Vector((0, 1, 0))
+    fh = Vector((fwd.x, fwd.y, 0)).normalized()
+    centre = Vector((cx, cy, top))
+    tagged = set()
+
+    def tag(mat):
+        """Write both value passes from this material. Shared ones (the stone, the moss) are used all over the set:
+        the object's own snare_mine / snare_front properties (0 when missing) keep the rest of the set out."""
+        if mat is None or mat.name in tagged or not mat.use_nodes:
+            return
+        tagged.add(mat.name)
+        nt = mat.node_tree
+        am = nt.nodes.new("ShaderNodeAttribute"); am.attribute_type = "OBJECT"; am.attribute_name = "snare_mine"
+        om = nt.nodes.new("ShaderNodeOutputAOV"); om.aov_name = "mine"
+        nt.links.new(am.outputs["Fac"], om.inputs["Value"])
+        af = nt.nodes.new("ShaderNodeAttribute"); af.attribute_type = "OBJECT"; af.attribute_name = "snare_front"
+        ge = nt.nodes.new("ShaderNodeNewGeometry")
+        sub = nt.nodes.new("ShaderNodeVectorMath"); sub.operation = "SUBTRACT"; sub.inputs[1].default_value = centre
+        dot = nt.nodes.new("ShaderNodeVectorMath"); dot.operation = "DOT_PRODUCT"; dot.inputs[1].default_value = fh
+        lt = nt.nodes.new("ShaderNodeMath"); lt.operation = "LESS_THAN"; lt.inputs[1].default_value = 0.0
+        mu = nt.nodes.new("ShaderNodeMath"); mu.operation = "MULTIPLY"
+        of = nt.nodes.new("ShaderNodeOutputAOV"); of.aov_name = "front"
+        nt.links.new(ge.outputs["Position"], sub.inputs[0]); nt.links.new(sub.outputs["Vector"], dot.inputs[0])
+        nt.links.new(dot.outputs["Value"], lt.inputs[0]); nt.links.new(lt.outputs["Value"], mu.inputs[0])
+        nt.links.new(af.outputs["Fac"], mu.inputs[1]); nt.links.new(mu.outputs["Value"], of.inputs["Value"])
+
+    def mark():
+        for o in [slab, *coll.objects]:
+            if o.type == "MESH":
+                o["snare_mine"] = 1
+                for ms in o.material_slots:
+                    tag(ms.material)
+
+    # crop: the slab and the roots' reach (up to 0.3 S above the stone), snapped to whole pixels
+    pts = [slab.matrix_world @ Vector(c) for c in slab.bound_box] + corners
+    uv_ = [world_to_camera_view(sc, cam, p) for p in pts]
+    u0, u1 = math.floor(min(q.x for q in uv_) * rx) / rx, math.ceil(max(q.x for q in uv_) * rx) / rx
+    v0, v1 = math.floor(min(q.y for q in uv_) * ry) / ry, math.ceil(max(q.y for q in uv_) * ry) / ry
+    r_ = sc.render
+    r_.use_border = True; r_.use_crop_to_border = True
+    r_.border_min_x, r_.border_max_x, r_.border_min_y, r_.border_max_y = u0, u1, v0, v1
+    r_.film_transparent = True
+    print("CROP", u0, u1, v0, v1, "px", round((u1 - u0) * rx), round((v1 - v0) * ry), flush=True)
+    F0 = Vector((cx, cy, 0.0))  # the square's centre: the game slides the quad from here (as the trapdoor's)
+    d0 = (F0 - cpos).dot(fwd)
+    dq = min((p - cpos).dot(fwd) for p in pts) - 0.03 * H
+    tanX = 18.0 / FOCAL; tanY = tanX / ASPECT
+    at_plane = lambda u_, v_: cpos + (fwd + (2 * u_ - 1) * tanX * right + (2 * v_ - 1) * tanY * up) * dq
+    P0 = cpos + (F0 - cpos) * (dq / d0)
+    cn = [at_plane(u_, v_) - P0 for u_, v_ in ((u0, v0), (u1, v0), (u1, v1), (u0, v1))]
+    quad = {"x0": cn[0].dot(right), "x1": cn[1].dot(right), "y0": cn[0].dot(up), "y1": cn[2].dot(up)}
+    im_ = sc.render.image_settings
+    im_.media_type = "MULTI_LAYER_IMAGE"; im_.file_format = "OPEN_EXR_MULTILAYER"; im_.color_depth = "32"; im_.color_mode = "RGBA"
+
+    def srgb(x):
+        x = np.clip(x, 0, 1)
+        return np.where(x <= 0.0031308, 12.92 * x, 1.055 * np.power(x, 1 / 2.4) - 0.055)
+
+    def read_exr(exr):
+        img = oiio.ImageInput.open(exr); chans, j_ = {}, 0
+        while img.seek_subimage(j_, 0):
+            sp_ = img.spec()
+            px_ = np.asarray(img.read_image(j_, 0, 0, sp_.nchannels, "float")).reshape(sp_.height, sp_.width, sp_.nchannels)
+            for q, nm in enumerate(sp_.channelnames):
+                chans[nm] = px_[:, :, q]
+            j_ += 1
+        img.close()
+        os.remove(exr)
+        ch = lambda s_: next(v for nm, v in chans.items() if nm.endswith(s_) and "Noisy" not in nm)
+        if not shoot.said:
+            print("CHECK channels", sorted(chans), flush=True); shoot.said = True
+        val = lambda s_: np.clip(next(v for nm, v in chans.items() if (nm.endswith("." + s_ + ".X") or nm.endswith("." + s_ + ".V")
+                                                                         or nm.endswith("." + s_)) and "Noisy" not in nm), 0, 1)
+        return np.stack([ch("Combined.R"), ch("Combined.G"), ch("Combined.B")], -1), val("mine"), val("front")
+
+    def write(png, rgb, al):
+        h_, w_ = al.shape
+        sp = oiio.ImageSpec(w_, h_, 4, "uint8"); sp.attribute("oiio:UnassociatedAlpha", 1)
+        ob = oiio.ImageBuf(sp); ob.set_pixels(oiio.ROI(), (np.concatenate([srgb(rgb), al[..., None]], -1) * 255 + 0.5).astype(np.uint8)); ob.write(png)
+        glow = np.clip((rgb - 1.0) / a.glow_k, 0, 1) * (al[..., None] > 0.02)
+        gb = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 3, "uint8")); gb.set_pixels(oiio.ROI(), (np.sqrt(glow) * 255 + 0.5).astype(np.uint8))
+        gb.write(png[:-4] + "-glow.png")
+
+    def shoot(k):
+        tag_ = "%02d" % k
+        back = os.path.join(a.out, "spring0_%s.png" % tag_)
+        if os.path.exists(back) and os.path.exists(os.path.join(a.out, "front0_%s.png" % tag_)):  # resumes after a Metal crash
+            return
+        build(sg.root_grips(k, a.frames, n=a.n)); mark()
+        exr = os.path.join(a.out, "f%s.exr" % tag_); sc.render.filepath = exr
+        t0 = time.time(); gpu_retry.render()
+        # the whole set covers these pixels: keep the colour over black where the world shows through (as the trapdoor)
+        rgb, mine_, front_ = read_exr(exr)
+        write(back, rgb, mine_)
+        write(os.path.join(a.out, "front0_%s.png" % tag_), rgb, np.minimum(front_, mine_))
+        print("RENDER_SECONDS %s %.1f front %.4f" % (tag_, time.time() - t0, float(front_.mean())), flush=True)
+    shoot.said = False
+
+    for k in range(a.frames):
+        shoot(k)
+    info = {"H": H, "S": S, "res": [rx, ry], "crop": [u0, v0, u1, v1], "right": list(right), "up": list(up),
+            "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq, "anchor": list(P0), "quad": quad,
+            "exposure": 0.0, "glowK": a.glow_k, "headings": 1, "samples": a.samples, "square": [i, j],
+            "centre": [cx, cy], "frames": a.frames, "fps": 24,
+            "grips": [sg.root_grips(k, a.frames, n=a.n) for k in range(a.frames)]}
+    json.dump(info, open(os.path.join(a.out, "spring.json"), "w"), indent=1)
+    json.dump(info, open(os.path.join(a.out, "front.json"), "w"), indent=1)
+    print("SNARE BAKE OK", flush=True)
+    sys.exit(0)
 for name in a.states.split(","):
     build(grip(name))
     sc.render.filepath = os.path.join(a.out, "snare-%s.png" % name)
