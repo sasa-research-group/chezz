@@ -2137,14 +2137,33 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     The figure stands on the centre square (centre = its world XY). Square size = 1.2*H.
     The camera is square-on (looks +Y), `elevation` degrees down, long lens, shallow DOF
     focused on the figure. zoom>1 tightens, zoom<1 widens (1.0 frames ~3.2 squares wide).
+    board: n (an n x n board) or (nx, ny): nx squares across (x, left-right on screen), ny deep (y, into the
+    screen). A rectangle is built as the square of its short side stretched at the same density: whatever is
+    counted per wall (trees, hanging moss, hedge mounds, bulbs, ...) scales with that wall's length, and the
+    front lights repeat along the long axis (_light_segments). Squares build exactly as before.
     Returns a dict of created objects."""
     rng = random.Random(seed)
     cx, cy = center
     S = 1.2 * H
-    n = int(board)
+    if isinstance(board, (tuple, list)):
+        nx, ny = int(board[0]), int(board[1])
+    else:
+        nx = ny = int(board)
+    n = min(nx, ny)  # the short side: the square this board is stretched from
     half = n * S / 2
+    hx, hy = nx * S / 2, ny * S / 2  # board half extents
     strip = 0.28 * S  # mossy ground strip between slabs and walls
-    W = half + strip  # inner half-extent
+    W = half + strip  # inner half-extent of the short-side square (reference for per-wall counts)
+    Wx, Wy = hx + strip, hy + strip  # inner half-extents of the box: side walls at x = +-Wx, back wall at y = Wy
+    fx_, fy_ = Wx / W, Wy / W  # wall length over the short-side square's: back wall fx_, side walls fy_
+
+    def cnt(c, f):  # a per-wall count stretched with its wall (exactly c on the square)
+        return c if f == 1.0 else int(round(c * f))
+
+    def back_trunk(t, thr):  # is this trunk on the back wall (not a side wall)?
+        if nx == ny:
+            return t[1] > thr * W
+        return (Wy - t[1]) < (Wx - abs(t[0]))
     Hw = float(os.environ.get("WALL_H", 3.0)) * H  # wall height
     gap = 0.058 * S
     th = 0.12 * H
@@ -2172,17 +2191,17 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     moss_deep = _moss_mat("stage_moss_deep", dark=0.09, tip=0.5, sheen=0.15, tint=(0.55, 1.1, 0.7))
 
     # ---- ground (soil) under the slabs ----
-    g = _plane_grid("Ground", -W - 0.02 * H, W + 0.02 * H, -W - 0.02 * H, W + 0.02 * H, 2, 2, soil, coll, "XY",
+    g = _plane_grid("Ground", -Wx - 0.02 * H, Wx + 0.02 * H, -Wy - 0.02 * H, Wy + 0.02 * H, 2, 2, soil, coll, "XY",
                     at=-th * 0.85)
     adopt(g, "ground")
 
     # ---- slabs ----
     slabs = []
     tile_glb = os.environ.get("TILE_GLB")
-    for i in range(n):
-        for j in range(n):
-            x = (i - (n - 1) / 2) * S
-            y = (j - (n - 1) / 2) * S
+    for i in range(nx):
+        for j in range(ny):
+            x = (i - (nx - 1) / 2) * S
+            y = (j - (ny - 1) / 2) * S
             sx = S - gap + rng.uniform(-0.018, 0.008) * S
             sy = S - gap + rng.uniform(-0.018, 0.008) * S
             if tile_glb:
@@ -2227,13 +2246,18 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     pts = []
     d_clump = 0.011 * H
     ztop = -0.035 * H  # joints sit a little below the slab tops
-    for k in range(n + 1):
-        line = (k - n / 2) * S
-        L = 2 * half
-        m = int(L / d_clump)
-        for q in range(m):
+    # axis 0: the nx+1 seams at constant x, running along y; axis 1: the ny+1 seams at constant y, along x
+    # (one loop over both, in the square's order: seam k, step q, axis)
+    seam_n, seam_L = (nx, ny), (2 * hy, 2 * hx)
+    seam_m = tuple(int(L_ / d_clump) for L_ in seam_L)
+    for k in range(max(nx, ny) + 1):
+        for q in range(max(seam_m)):
             for axis in (0, 1):
-                t = -half + (q + rng.random()) * L / m
+                if k > seam_n[axis] or q >= seam_m[axis]:
+                    continue
+                line = (k - seam_n[axis] / 2) * S
+                L, m = seam_L[axis], seam_m[axis]
+                t = -L / 2 + (q + rng.random()) * L / m
                 # patchy: bare gritty soil shows between runs of moss
                 GE = os.environ.get("GROUT_EVEN")
                 if GE:  # even cushion moss along every seam: no bare stretches, uniform width, slightly raised
@@ -2266,30 +2290,30 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                     z += 0.02 * H * JM
                 pts.append((line + off, t, z, r) if axis == 0 else (t, line + off, z, r))
     # joint crossings get small puffs
-    for i in range(n + 1):
-        for j in range(n + 1):
+    for i in range(nx + 1):
+        for j in range(ny + 1):
             JM = float(os.environ.get("JOINT_MOSS", "1.0"))
             if os.environ.get("GROUT_EVEN"):  # small soft bulge at each crossing
                 pk = float(os.environ.get("GROUT_R", 0.034)) / 0.034
                 for _ in range(4):
-                    pts.append(((i - n / 2) * S + rng.gauss(0, gap * 0.2), (j - n / 2) * S + rng.gauss(0, gap * 0.2),
+                    pts.append(((i - nx / 2) * S + rng.gauss(0, gap * 0.2), (j - ny / 2) * S + rng.gauss(0, gap * 0.2),
                                 ztop + float(os.environ.get("GROUT_Z", 0.006)) * H + rng.uniform(0.0, 0.008) * H, rng.uniform(0.022, 0.03) * H * pk))
                 if rng.random() < float(os.environ.get("GROUT_SPILL", 0)):  # moss creeping onto one tile corner
                     dx, dy = rng.choice((-1, 1)), rng.choice((-1, 1))
                     for _ in range(rng.randint(3, 6)):
                         u_ = rng.uniform(0.02, 0.07) * S
-                        pts.append(((i - n / 2) * S + dx * (u_ + rng.uniform(0, 0.03) * S),
-                                    (j - n / 2) * S + dy * (u_ * rng.uniform(0.3, 1.0)),
+                        pts.append(((i - nx / 2) * S + dx * (u_ + rng.uniform(0, 0.03) * S),
+                                    (j - ny / 2) * S + dy * (u_ * rng.uniform(0.3, 1.0)),
                                     ztop + float(os.environ.get("GROUT_Z", 0.006)) * H - 0.004 * H, rng.uniform(0.012, 0.02) * H))
                 continue
             for _ in range(int(5 * JM)):
-                pts.append(((i - n / 2) * S + rng.gauss(0, gap * 0.3 * JM), (j - n / 2) * S + rng.gauss(0, gap * 0.3 * JM),
+                pts.append(((i - nx / 2) * S + rng.gauss(0, gap * 0.3 * JM), (j - ny / 2) * S + rng.gauss(0, gap * 0.3 * JM),
                             ztop + rng.uniform(0.0, 0.03 * JM) * H, rng.uniform(0.02, 0.04) * H * JM))
     # moss creeping over slab rims (tiny, sparse)
-    for _ in range(int(45 * n)):
-        i, j = rng.randrange(n), rng.randrange(n)
-        x = (i - (n - 1) / 2) * S
-        y = (j - (n - 1) / 2) * S
+    for _ in range(int(45 * n) if nx == ny else int(round(45 * nx * ny / n))):  # same count per square
+        i, j = rng.randrange(nx), rng.randrange(ny)
+        x = (i - (nx - 1) / 2) * S
+        y = (j - (ny - 1) / 2) * S
         side = rng.randrange(4)
         a = rng.uniform(-0.48, 0.48) * S
         e = S / 2 - gap / 2 - rng.uniform(0, 0.03) * S
@@ -2297,17 +2321,17 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         pts.append((p[0], p[1], rng.uniform(-0.03, -0.012) * H, rng.uniform(0.008, 0.016) * H))
     gend = len(pts)  # everything above is joint/grout moss
     # perimeter strip: deep mounded moss, rising toward the walls
-    area = (2 * W) ** 2 - (2 * half) ** 2
+    area = (2 * W) ** 2 - (2 * half) ** 2 if nx == ny else (2 * Wx) * (2 * Wy) - (2 * hx) * (2 * hy)
     d_per = 0.03 * H
     for _ in range(int(area / (d_per * d_per) * 0.9)):
-        x, y = rng.uniform(-W, W), rng.uniform(-W, W)
-        if abs(x) < half - gap and abs(y) < half - gap:
+        x, y = rng.uniform(-Wx, Wx), rng.uniform(-Wy, Wy)
+        if abs(x) < hx - gap and abs(y) < hy - gap:
             continue
-        dist = max(abs(x) - half, abs(y) - half) / strip  # 0 at the board edge .. 1 at the wall
+        dist = max(abs(x) - hx, abs(y) - hy) / strip  # 0 at the board edge .. 1 at the wall
         dist = max(0.0, dist)
-        if y < -half and rng.random() < 0.3:  # front edge: lower, sparser
+        if y < -hy and rng.random() < 0.3:  # front edge: lower, sparser
             continue
-        hgt = (0.02 + 0.22 * dist ** 1.6) * H * (0.5 if y < -half else 1.0)
+        hgt = (0.02 + 0.22 * dist ** 1.6) * H * (0.5 if y < -hy else 1.0)
         r = rng.uniform(0.02, 0.04) * H * (1 + 1.4 * dist)
         pts.append((x, y, -th * 0.4 + hgt, r))
     if os.environ.get("GROUT_SPLIT"):  # grout moss as its own object with a darker, desaturated olive
@@ -2339,8 +2363,8 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     _add_fuzz(mo, 420000 * quality, 0.016 * H, 0, seed, radius=0.0042 * H, rand=0.6, tip=0.3)
 
     # ---- back + side walls: deep, dark foliage and moss ----
-    def wall(nm, x0, x1, plane, at):
-        w = _plane_grid(nm, x0, x1, -th, Hw, 60, 40, moss_deep, coll, plane, at)
+    def wall(nm, x0, x1, plane, at, f=1.0):
+        w = _plane_grid(nm, x0, x1, -th, Hw, cnt(60, f), 40, moss_deep, coll, plane, at)
         ds = w.modifiers.new("disp", "DISPLACE")
         tex = bpy.data.textures.new(nm + "_tex", "CLOUDS")
         tex.noise_scale = 0.12 * H
@@ -2350,18 +2374,18 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         ds.mid_level = 0.5
         return w
 
-    wb = wall("WallBack", -W, W, "XZ", W)
-    wl = wall("WallLeft", -W, W, "YZ", -W)
-    wr = wall("WallRight", -W, W, "YZ", W)
+    wb = wall("WallBack", -Wx, Wx, "XZ", Wy, fx_)
+    wl = wall("WallLeft", -Wy, Wy, "YZ", -Wx, fy_)
+    wr = wall("WallRight", -Wy, Wy, "YZ", Wx, fy_)
     wr.data.flip_normals()  # (back and left walls already face the room)
     for w_ in (wb, wl, wr):
         adopt(w_)
     objs["walls"] = [wb, wl, wr]
 
     # layered relief: big dark foliage masses behind, mid cushions in front, mounds at the foot
-    walls_spec = (("Back", "y", -1.0, lambda u, v, d: (u, W - d, v)),
-                  ("Left", "x", 1.0, lambda u, v, d: (-W + d, u, v)),
-                  ("Right", "x", -1.0, lambda u, v, d: (W - d, u, v)))
+    walls_spec = (("Back", "y", -1.0, lambda u, v, d: (u, Wy - d, v)),
+                  ("Left", "x", 1.0, lambda u, v, d: (-Wx + d, u, v)),
+                  ("Right", "x", -1.0, lambda u, v, d: (Wx - d, u, v)))
     wm_glb = os.environ.get("WALLMOSS_GLB")
     if wm_glb:
         pme = _import_glb_mesh(wm_glb, "panel", tint=_envf3("WALLMOSS_TINT", (1.0, 1.0, 1.0)),
@@ -2384,25 +2408,26 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         HL = os.environ.get("HEDGE_LAYERS")
         for k, (nm, axis, sign, mk) in enumerate(walls_spec):
             pw, rows = pw0, rows0
+            U = Wx if nm == "Back" else Wy  # this wall's half length
             if nm == "Back" and os.environ.get("HEDGE_BACK_SIZE"):
                 pw = pw0 * float(os.environ["HEDGE_BACK_SIZE"])
                 rows = int(math.ceil((Hw + th) / (pw * 0.85)))
             for j in range(rows):
                 off = (j % 2) * 0.4 * pw
-                u = -W + (0.45 if nm == "Back" else float(os.environ.get("WALLMOSS_FRONT", 0.45))) * pw + off
+                u = -U + (0.45 if nm == "Back" else float(os.environ.get("WALLMOSS_FRONT", 0.45))) * pw + off
                 i = 0
-                while u < W - 0.4 * pw:
+                while u < U - 0.4 * pw:
                     o = bpy.data.objects.new("WallPanel%s_%d_%d" % (nm, j, i), pme)
                     zc = -th - 0.1 * H + j * pw * 0.85 + rng.uniform(-0.05, 0.05) * pw
                     d = 0.02 * H + rng.uniform(0, 0.04) * H
                     ps = pw * rng.uniform(1.0, 1.15)
                     dvk = 1.0
-                    if nm != "Back" and HCUT and u < -W + HCUT * 2 * W:
+                    if nm != "Back" and HCUT and u < -U + HCUT * 2 * W:
                         u += pw * 0.82
                         i += 1
                         continue  # no big flat panels in the side foreground: dark wall depth shows
                     if nm != "Back" and HREC:  # shallower (recessed, shadowed) toward the front edge
-                        dvk *= 1.0 - HREC * max(0.0, min(1.0, (0.2 * W - u) / (1.2 * W)))
+                        dvk *= 1.0 - HREC * max(0.0, min(1.0, (0.2 * W - (u if U == W else u + U - W)) / (1.2 * W)))
                     if DVAR:  # hedge depth jitter on its own rng so the rest of the scene is unchanged
                         dvk *= 1.0 + DVAR * (2 * _drng.random() - 1)
                         d += DVAR * _drng.uniform(0.0, 0.12) * H
@@ -2416,18 +2441,18 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                         dvk *= _envf3("HL_DV", (0.55, 0.9, 1.25))[hl_lv]
                     flip = rng.choice((-1, 1))
                     if nm == "Back":
-                        o.location = (u, W - d, zc)
+                        o.location = (u, Wy - d, zc)
                         o.rotation_euler = (0, 0, 0)
                     elif nm == "Left":
-                        o.location = (-W + d, u, zc)
+                        o.location = (-Wx + d, u, zc)
                         o.rotation_euler = (0, 0, math.pi / 2)
                     else:
-                        o.location = (W - d, u, zc)
+                        o.location = (Wx - d, u, zc)
                         o.rotation_euler = (0, 0, -math.pi / 2)
                     o.rotation_euler[2 if nm == "Back" else 2] += rng.uniform(-0.03, 0.03)
                     o.scale = (ps * flip, ps * 0.6 * dep * dvk, ps)
                     if nm != "Back" and HDARK:  # darker toward the front edge: dark depth, not a lit green slab
-                        t_ = max(0.0, min(1.0, (0.3 * W - u) / (1.0 * W)))
+                        t_ = max(0.0, min(1.0, (0.3 * W - (u if U == W else u + U - W)) / (1.0 * W)))
                         lv = min(4, int(t_ * 5))
                         if lv:
                             if lv not in _dmats:
@@ -2447,12 +2472,13 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         walls_spec = ()
     for k, (nm, axis, sign, mk) in enumerate(walls_spec):
         big, mid = [], []
-        for _ in range(int(1100 * quality)):
-            u = rng.uniform(-W, W)
+        U, f_ = (Wx, fx_) if nm == "Back" else (Wy, fy_)
+        for _ in range(int(1100 * quality * f_)):
+            u = rng.uniform(-U, U)
             v = rng.uniform(-0.1 * H, Hw)
             big.append(mk(u, v, -0.02 * H) + (rng.uniform(0.05, 0.12) * H,))
-        for _ in range(int(2600 * quality)):
-            u = rng.uniform(-W, W)
+        for _ in range(int(2600 * quality * f_)):
+            u = rng.uniform(-U, U)
             v = Hw * (rng.random() ** 1.6)  # denser toward the foot
             foot = max(0.0, 1.0 - v / (0.9 * H))
             if foot < 0.3 and noise.noise(Vector((u * 0.9 / H, v * 0.9 / H, 3.0 + k))) < -0.18:
@@ -2472,7 +2498,7 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         _add_fuzz(bo, 90000 * quality, 0.04 * H, 0, 21 + k, radius=0.0045 * H, tip=0.3)
 
     if os.environ.get("WALLPROPS"):
-        objs["wallprops"] = _wall_props(W, half, H, S, th, coll, adopt, moss, seed=seed)
+        objs["wallprops"] = _wall_props(W, half, H, S, th, coll, adopt, moss, seed=seed, Wxy=(Wx, Wy))
 
     # ---- wood shadow-box frame: front lip, side and back boards, inward top rim ----
     f_t = 0.24 * S  # board thickness
@@ -2481,25 +2507,25 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     top_z = Hw + 0.22 * H
     lip_top = 0.5 * H
     fo = 0.12 * H  # boards sit behind the displaced wall sheets
-    L_out = 2 * (W + fo + f_t)
+    Lx_out, Ly_out = 2 * (Wx + fo + f_t), 2 * (Wy + fo + f_t)  # outer length of the front/back and the side boards
     boards = [
-        _board("FrameLip", L_out, f_t + fo, zb, lip_top, wood, coll, (0, -(W + (f_t + fo) / 2)), 0.0, 0.03 * H),
-        _board("FrameBack", L_out, f_t, zb, top_z, wood, coll, (0, W + fo + f_t / 2), 0.0, 0.03 * H),
-        _board("FrameLeft", L_out, f_t, zb, top_z, wood, coll, (-(W + fo + f_t / 2), 0), math.pi / 2, 0.03 * H),
-        _board("FrameRight", L_out, f_t, zb, top_z, wood, coll, (W + fo + f_t / 2, 0), math.pi / 2, 0.03 * H),
-        _board("FrameRimBack", 2 * (W + fo), f_d + fo, Hw, top_z, wood, coll, (0, W + (fo - f_d) / 2), 0.0, 0.02 * H),
-        _board("FrameRimLeft", 2 * W - f_d, f_d + fo, Hw, top_z, wood, coll, (-(W + (fo - f_d) / 2), -f_d / 2), math.pi / 2,
+        _board("FrameLip", Lx_out, f_t + fo, zb, lip_top, wood, coll, (0, -(Wy + (f_t + fo) / 2)), 0.0, 0.03 * H),
+        _board("FrameBack", Lx_out, f_t, zb, top_z, wood, coll, (0, Wy + fo + f_t / 2), 0.0, 0.03 * H),
+        _board("FrameLeft", Ly_out, f_t, zb, top_z, wood, coll, (-(Wx + fo + f_t / 2), 0), math.pi / 2, 0.03 * H),
+        _board("FrameRight", Ly_out, f_t, zb, top_z, wood, coll, (Wx + fo + f_t / 2, 0), math.pi / 2, 0.03 * H),
+        _board("FrameRimBack", 2 * (Wx + fo), f_d + fo, Hw, top_z, wood, coll, (0, Wy + (fo - f_d) / 2), 0.0, 0.02 * H),
+        _board("FrameRimLeft", 2 * Wy - f_d, f_d + fo, Hw, top_z, wood, coll, (-(Wx + (fo - f_d) / 2), -f_d / 2), math.pi / 2,
                0.02 * H),
-        _board("FrameRimRight", 2 * W - f_d, f_d + fo, Hw, top_z, wood, coll, (W + (fo - f_d) / 2, -f_d / 2), math.pi / 2,
+        _board("FrameRimRight", 2 * Wy - f_d, f_d + fo, Hw, top_z, wood, coll, (Wx + (fo - f_d) / 2, -f_d / 2), math.pi / 2,
                0.02 * H),
-        _board("FrameBase", L_out + 0.6 * S, L_out + 0.6 * S, zb - 0.2 * H, zb, wood, coll, (0, 0), 0.0, 0.02 * H),
+        _board("FrameBase", Lx_out + 0.6 * S, Ly_out + 0.6 * S, zb - 0.2 * H, zb, wood, coll, (0, 0), 0.0, 0.02 * H),
     ]
     pw_ = float(os.environ.get("FRAME_POSTS", 0.0)) * S
     if pw_:  # front corner posts: the frame border runs up the sides of the opening (concept)
         for sg in (-1, 1):
             ln = fo + f_t + pw_
             boards.append(_board("FramePost%d" % sg, ln, f_t + fo, zb, top_z, wood, coll,
-                                 (sg * (W + fo + f_t - ln / 2), -(W + (f_t + fo) / 2)), 0.0, 0.03 * H))
+                                 (sg * (Wx + fo + f_t - ln / 2), -(Wy + (f_t + fo) / 2)), 0.0, 0.03 * H))
     fcoll = bpy.data.collections.new("StageFrameRecv")
     for bd in boards:
         adopt(bd)
@@ -2524,20 +2550,20 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     trunks = []
     nbk = int(os.environ.get("TREES_BACK", 4))
     back_x = [-0.8, -0.3, 0.32, 0.78] if nbk == 4 else [-0.86 + 1.72 * i / (nbk - 1) for i in range(nbk)]
-    for k, fx in enumerate(back_x):
-        x = fx * W + rng.uniform(-0.05, 0.05) * S
-        y = W - (rng.uniform(0.2, 0.55) + float(os.environ.get("BIRCH_IN", 0))) * strip
+    for k, bx in enumerate(_stretch_line([fx * W for fx in back_x], W, Wx)):
+        x = bx + rng.uniform(-0.05, 0.05) * S
+        y = Wy - (rng.uniform(0.2, 0.55) + float(os.environ.get("BIRCH_IN", 0))) * strip
         trunks.append((x, y, 0.14 * H * rng.uniform(0.85, 1.2)))
     for sgn in (-1, 1):
         nsd = int(os.environ.get("TREES_SIDE", 2))
-        for fy in ((0.1, 0.55) if nsd == 2 else [-0.75 + 1.4 * i / max(1, nsd - 1) for i in range(nsd)]):
-            x = sgn * (W - (rng.uniform(0.2, 0.5) + float(os.environ.get("BIRCH_IN", 0))) * strip)
-            y = fy * W + rng.uniform(-0.1, 0.1) * S
+        for by in _stretch_line([fy * W for fy in ((0.1, 0.55) if nsd == 2 else [-0.75 + 1.4 * i / max(1, nsd - 1) for i in range(nsd)])], W, Wy):
+            x = sgn * (Wx - (rng.uniform(0.2, 0.5) + float(os.environ.get("BIRCH_IN", 0))) * strip)
+            y = by + rng.uniform(-0.1, 0.1) * S
             trunks.append((x, y, 0.13 * H * rng.uniform(0.85, 1.15)))
     tvar = [0] * len(trunks)
     tyaw = None
     if os.environ.get("TREEPLAN"):
-        trunks, tvar, tyaw = _tree_plan(W, strip, S, H)
+        trunks, tvar, tyaw = _tree_plan(W, strip, S, H, Wxy=(Wx, Wy))
     z0 = -th * 0.8
     Lz = Hw - 0.06 * H - z0  # tops stay inside the box, tucked into the hanging moss
     birch_glb = os.environ.get("BIRCH_GLB")
@@ -2601,15 +2627,16 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                 # keep-out: the trunk above knee height must stay clear of the hedge face
                 keep = float(os.environ.get("TREE_KEEP", 0.12)) * S
                 cos_ = [v.co.copy() for v in bme.vertices if v.co.z > 0.15][::7]
+                on_back = abs(y) > abs(x) if nx == ny else (Wy - y) < (Wx - abs(x))
                 def _over(yw):
                     e_ = o.rotation_euler.copy()
                     e_[2] = yw
                     M = Matrix.LocRotScale(Vector(o.location), e_.to_quaternion(), Vector(o.scale))
                     pts = [M @ c for c in cos_]
-                    if abs(y) > abs(x):
-                        return max(p_.y for p_ in pts) - (W - keep)
+                    if on_back:
+                        return max(p_.y for p_ in pts) - (Wy - keep)
                     sg_ = 1 if x > 0 else -1
-                    return max(sg_ * p_.x for p_ in pts) - (W - keep)
+                    return max(sg_ * p_.x for p_ in pts) - (Wx - keep)
                 # turn the tree so branches/curves run along the wall, keeping its planned yaw when it fits
                 cands = [tyaw[k][0] + j * math.pi / 6 for j in range(12)]
                 best = min(cands, key=lambda yw: (max(0.0, _over(yw)) > 0.02 * S, abs(((yw - tyaw[k][0]) + math.pi) % (2 * math.pi) - math.pi), _over(yw)))
@@ -2618,7 +2645,7 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                 o.rotation_euler[2] = best
                 over = _over(best)
                 if over > 0:
-                    if abs(y) > abs(x):
+                    if on_back:
                         o.location.y -= over
                     else:
                         o.location.x -= (1 if x > 0 else -1) * over
@@ -2632,7 +2659,7 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                 mid = [v.co for v in bme.vertices if 0.4 < v.co.z < 0.6]
                 rx = (max(c.x for c in mid) - min(c.x for c in mid)) / 2 if mid else 0.05
                 rw = rx * hz * bw
-                inward = Vector((-x, -y - 0.6 * W, 0)).normalized()
+                inward = Vector((-x, -y - 0.6 * Wy, 0)).normalized()
                 for bi in range(rng.randint(max(1, nbr - 1), nbr + 1)):
                     zb_ = z0 + hz * rng.uniform(0.3, 0.75)
                     hd = Matrix.Rotation(rng.uniform(-1.2, 1.2), 3, "Z") @ inward
@@ -2750,12 +2777,12 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
 
     if os.environ.get("HEDGE_MOUNDS"):  # back hedge relief: moss mounds at 3 depths, dark foot band, ragged top
         mr = random.Random(int(os.environ.get("HEDGE_MSEED", 515)))
-        nmd = int(float(os.environ.get("HEDGE_MOUNDS")) * 60)
+        nmd = int(float(os.environ.get("HEDGE_MOUNDS")) * 60 * fx_)  # back wall only: scales with its length
         lay = {0: [], 1: [], 2: []}
         sz = float(os.environ.get("HM_MSIZE", 1.0))
         for _ in range(nmd):
             for _t in range(30):
-                u = mr.uniform(-W, W); v = mr.uniform(-0.05 * H, Hw)
+                u = mr.uniform(-Wx, Wx); v = mr.uniform(-0.05 * H, Hw)
                 if noise.noise(Vector((u * 1.2 / H, v * 1.2 / H, 23.0))) > -0.1:
                     break  # clusters; leave hollows between them
             lv = mr.choice((0, 1, 1, 2))
@@ -2765,24 +2792,24 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                 a_ = mr.uniform(0, 6.283); rr = R * math.sqrt(mr.random())
                 x_ = u + rr * math.cos(a_); z_ = v + rr * math.sin(a_) * 0.8
                 bulge = dep_ * (1.0 - (rr / R) ** 2) ** 0.5
-                lay[lv].append((x_, W - float(os.environ.get("HEDGE_MOFF", 0.02)) * H - bulge, z_, mr.uniform(0.03, 0.065) * H))
+                lay[lv].append((x_, Wy - float(os.environ.get("HEDGE_MOFF", 0.02)) * H - bulge, z_, mr.uniform(0.03, 0.065) * H))
         foot = []
-        for _ in range(int(float(os.environ.get("HEDGE_FOOT", 1.0)) * 260)):  # dark band where the hedge meets the floor
-            u = mr.uniform(-W, W); v = -th + mr.uniform(-0.05, 0.3) * H * (0.6 + 0.4 * mr.random())
-            foot.append((u, W - float(os.environ.get("HEDGE_MOFF", 0.02)) * H - mr.uniform(0.0, 0.18) * H, v, mr.uniform(0.04, 0.09) * H))
+        for _ in range(int(float(os.environ.get("HEDGE_FOOT", 1.0)) * 260 * fx_)):  # dark band where the hedge meets the floor
+            u = mr.uniform(-Wx, Wx); v = -th + mr.uniform(-0.05, 0.3) * H * (0.6 + 0.4 * mr.random())
+            foot.append((u, Wy - float(os.environ.get("HEDGE_MOFF", 0.02)) * H - mr.uniform(0.0, 0.18) * H, v, mr.uniform(0.04, 0.09) * H))
         top_ = []
-        for _ in range(int(float(os.environ.get("HEDGE_TOP", 1.0)) * 120)):  # small bumps breaking the top edge
-            u = mr.uniform(-W, W)
-            top_.append((u, W - float(os.environ.get("HEDGE_MOFF", 0.02)) * H - mr.uniform(0.0, 0.1) * H, Hw - mr.uniform(-0.05, 0.25) * H, mr.uniform(0.03, 0.08) * H))
+        for _ in range(int(float(os.environ.get("HEDGE_TOP", 1.0)) * 120 * fx_)):  # small bumps breaking the top edge
+            u = mr.uniform(-Wx, Wx)
+            top_.append((u, Wy - float(os.environ.get("HEDGE_MOFF", 0.02)) * H - mr.uniform(0.0, 0.1) * H, Hw - mr.uniform(-0.05, 0.25) * H, mr.uniform(0.03, 0.08) * H))
         tk = float(os.environ.get("HEDGE_TKEEP", 0.16)) * H
-        btr = [t for t in trunks if t[1] > 0.6 * W]  # back-wall trunks only
+        btr = [t for t in trunks if back_trunk(t, 0.6)]  # back-wall trunks only
         def clear(pt):
             return all(abs(pt[0] - tx) > tk + pt[3] for (tx, ty, _r) in btr)
         nb_ = sum(len(v) for v in lay.values()) + len(foot) + len(top_)
         for k_ in lay:
             lay[k_] = [q for q in lay[k_] if clear(q)]
         top_ = [q for q in top_ if clear(q)]
-        foot = [q for q in foot if abs(q[1] - W) < 0.5 * H and all(abs(q[0] - tx) > 0.6 * tk + q[3] for (tx, ty, _r) in btr)]
+        foot = [q for q in foot if abs(q[1] - Wy) < 0.5 * H and all(abs(q[0] - tx) > 0.6 * tk + q[3] for (tx, ty, _r) in btr)]
         print("CHECK hedge mounds trunk keep-out removed %d of %d" % (nb_ - sum(len(v) for v in lay.values()) - len(foot) - len(top_), nb_))
         mdeep = _dark_copy(moss_deep, float(os.environ.get("HEDGE_DEEPV", 0.35)))
         mnear = _dark_copy(moss_wall, float(os.environ.get("HEDGE_NEARV", 1.15)))
@@ -2808,8 +2835,8 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         bp_ = [o for o in bpy.data.objects if o.name.startswith("WallPanelBack")]
         if bp_:
             yv = [v.co.y for v in bp_[0].data.vertices]
-            face = max(W - (o.location.y + min(yv) * o.scale.y) for o in bp_)
-            fmed = sorted(W - (o.location.y + min(yv) * o.scale.y) for o in bp_)[len(bp_) // 2]
+            face = max(Wy - (o.location.y + min(yv) * o.scale.y) for o in bp_)
+            fmed = sorted(Wy - (o.location.y + min(yv) * o.scale.y) for o in bp_)[len(bp_) // 2]
             print("CHECK hedge panel face depth max=%.2fH median=%.2fH" % (face / H, fmed / H))
         print("CHECK hedge mounds near=%d mid=%d deep=%d foot=%d top=%d" % (len(lay[2]), len(lay[1]), len(lay[0]), len(foot), len(top_)))
         objs["hedgemounds"] = hm_objs
@@ -2821,36 +2848,37 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         return noise.noise(Vector((t * 1.1 / S, sd, 0.5))) > -0.12
     MN = float(os.environ.get("MOSS_N", 1.0))
     ML = float(os.environ.get("MOSS_LEN", 1.0))
-    for _ in range(int(270 * quality * MN)):
-        t = rng.uniform(-W, W)
+    for _ in range(int(270 * quality * MN * fx_)):
+        t = rng.uniform(-Wx, Wx)
         if not keep(t, 1.3):
             continue
-        strand_pts.append((t, W - rng.uniform(0.04, 0.2) * S, top - rng.uniform(0, 0.12) * H, 0, -1))
+        strand_pts.append((t, Wy - rng.uniform(0.04, 0.2) * S, top - rng.uniform(0, 0.12) * H, 0, -1))
     for sgn in (-1, 1):
-        for _ in range(int(100 * quality * MN)):
-            t = rng.uniform(-W, W)
+        for _ in range(int(100 * quality * MN * fy_)):
+            t = rng.uniform(-Wy, Wy)
             if not keep(t, 4.7 + sgn):
                 continue
-            strand_pts.append((sgn * (W - rng.uniform(0.04, 0.2) * S), t, top - rng.uniform(0, 0.12) * H, -sgn, 0))
+            strand_pts.append((sgn * (Wx - rng.uniform(0.04, 0.2) * S), t, top - rng.uniform(0, 0.12) * H, -sgn, 0))
     NCL = int(os.environ.get("MOSS_CLUMPS", 0))
     if NCL:
         # separate beard-like hanks with dark gaps between them (concept): clump centres along each wall,
         # anchors packed around each centre, short strands at the top make a dense tuft
         strand_pts = []
         CW = float(os.environ.get("MOSS_CW", 0.22))
-        for wall_i, (sgn, nc) in enumerate(((0, NCL), (-1, max(2, NCL // 2)), (1, max(2, NCL // 2)))):
+        for wall_i, (sgn, nc) in enumerate(((0, cnt(NCL, fx_)), (-1, cnt(max(2, NCL // 2), fy_)), (1, cnt(max(2, NCL // 2), fy_)))):
+            U = Wx if sgn == 0 else Wy
             for c in range(nc):
-                u0 = -W + (2 * W) * (c + 0.5 + rng.uniform(-0.25, 0.25)) / nc
+                u0 = -U + (2 * U) * (c + 0.5 + rng.uniform(-0.25, 0.25)) / nc
                 for _ in range(int(rng.uniform(28, 46) * MN)):
                     u = u0 + rng.gauss(0, CW * S)
-                    if abs(u) > W:
+                    if abs(u) > U:
                         continue
                     d_ = rng.uniform(0.04, 0.22) * S
                     zz = top - rng.uniform(0, 0.1) * H
                     if sgn == 0:
-                        strand_pts.append((u, W - d_, zz, 0, -1))
+                        strand_pts.append((u, Wy - d_, zz, 0, -1))
                     else:
-                        strand_pts.append((sgn * (W - d_), u, zz, -sgn, 0))
+                        strand_pts.append((sgn * (Wx - d_), u, zz, -sgn, 0))
     back_pts = [p for p in strand_pts if p[4] != 0]
     side_pts = [p for p in strand_pts if p[4] == 0]
     SR = float(os.environ.get("MOSS_R", 0.0085))
@@ -2865,19 +2893,20 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         hn = int(os.environ.get("HM_N", 10))
         hl = float(os.environ.get("HM_LEN", 1.6))
         spots = []
-        for wall_i, nc in ((0, hn), (-1, hn // 2), (1, hn // 2)):
+        for wall_i, nc in ((0, cnt(hn, fx_)), (-1, cnt(hn // 2, fy_)), (1, cnt(hn // 2, fy_))):
+            U = Wx if wall_i == 0 else Wy
             for c in range(nc):
-                u = -W + (2 * W) * (c + 0.5 + rng.uniform(-0.3, 0.3)) / nc
+                u = -U + (2 * U) * (c + 0.5 + rng.uniform(-0.3, 0.3)) / nc
                 d_ = rng.uniform(0.1, 0.3) * S
-                if wall_i != 0 and u < -W + float(os.environ.get("HM_FRONT", 0.0)) * S:
+                if wall_i != 0 and u < -U + float(os.environ.get("HM_FRONT", 0.0)) * S:
                     continue  # keep the front corners clear
-                spots.append((u, W - d_, 1.0) if wall_i == 0 else (wall_i * (W - d_), u, float(os.environ.get("HM_SIDE", 1.0))))
+                spots.append((u, Wy - d_, 1.0) if wall_i == 0 else (wall_i * (Wx - d_), u, float(os.environ.get("HM_SIDE", 1.0))))
         for (tx, ty, tr_) in objs["trunks"]:
             spots.append((tx + rng.uniform(-0.05, 0.05) * S, ty, 1.0))
         if os.environ.get("HM_GLBS"):
             if os.environ.get("SPMOSS") == "crowns":
                 _spanish_moss([], hl, top, H, S, rng, coll, adopt, crowns=objs["trunks"])
-            objs["hangmoss"] = _hang_variants(W, S, H, top, hl, objs["trunks"], coll, adopt)
+            objs["hangmoss"] = _hang_variants(W, S, H, top, hl, objs["trunks"], coll, adopt, Wxy=(Wx, Wy))
             spots = []
         elif os.environ.get("SPMOSS") == "crowns":  # keep the GLB clumps, add strand tufts over trunk tops only
             _spanish_moss([], hl, top, H, S, rng, coll, adopt, crowns=objs["trunks"])
@@ -2906,14 +2935,15 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         wire.bevel_resolution = 1
         wire.resolution_u = 2
         zt = Hw - 0.12 * H + float(os.environ.get("FAIRY_Z", 0.0)) * H
-        yb = W - (0.42 + float(os.environ.get("FAIRY_Y", 0.0))) * S
-        xs_ = W - 0.42 * S
+        yb = Wy - (0.42 + float(os.environ.get("FAIRY_Y", 0.0))) * S
+        xs_ = Wx - 0.42 * S
         # anchor points: swags across the back, then down each side toward the front
-        back_anch = [(-xs_ + (2 * xs_) * i / 5, yb + rng.uniform(-0.08, 0.08) * S) for i in range(6)]
+        nsw, nsd_ = cnt(5, fx_), cnt(4, fy_)  # swags per wall: more on a longer wall
+        back_anch = [(-xs_ + (2 * xs_) * i / nsw, yb + rng.uniform(-0.08, 0.08) * S) for i in range(nsw + 1)]
         if os.environ.get("FAIRY_TREES") and objs.get("trunks"):  # drape the wire from tree to tree
-            bt_ = sorted((tx, ty) for (tx, ty, _r) in objs["trunks"] if ty > 0.5 * W)
+            bt_ = sorted((tx, ty) for (tx, ty, _r) in objs["trunks"] if back_trunk((tx, ty), 0.5))
             back_anch = [(-xs_, yb)] + [(tx, ty - float(os.environ.get("FAIRY_TFWD", 0.1)) * S) for (tx, ty) in bt_] + [(xs_, yb)]
-        side_anch = lambda sg: [(sg * xs_, yb - (yb + W - 0.6 * S) * i / 4) for i in range(5)]
+        side_anch = lambda sg: [(sg * xs_, yb - (yb + Wy - 0.6 * S) * i / nsd_) for i in range(nsd_ + 1)]
         bulb_pos = []
         for path in ((back_anch, side_anch(-1), side_anch(1)) if os.environ.get("FAIRY_SIDES", "1") == "1" else (back_anch,)):
             sp = wire.splines.new("POLY")
@@ -2981,16 +3011,23 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         wire.bevel_resolution = 1
         wire.resolution_u = 2
         zt = Hw - 0.06 * H + float(os.environ.get("FAIRY_Z", 0.0)) * H
-        xs_ = W - 0.42 * S
-        yb = W - (0.42 + float(os.environ.get("FAIRY_Y", 0.0))) * S
+        xs_ = Wx - 0.42 * S
+        yb = Wy - (0.42 + float(os.environ.get("FAIRY_Y", 0.0))) * S
         tf = float(os.environ.get("FAIRY_TFWD", 0.15)) * S
-        bt_ = sorted((tx, ty) for (tx, ty, _r) in (objs.get("trunks") or []) if ty > 0.5 * W)
-        if len(bt_) > 3:  # 4-5 anchors total: two rail corners + up to 3 trees, spread out
-            idx = sorted({round(i * (len(bt_) - 1) / 2) for i in range(3)})
+        bt_ = sorted((tx, ty) for (tx, ty, _r) in (objs.get("trunks") or []) if back_trunk((tx, ty), 0.5))
+        nbt = cnt(3, fx_)  # tree anchors on the back wall: more on a longer wall
+        if len(bt_) > nbt:  # 4-5 anchors total on the square: two rail corners + up to 3 trees, spread out
+            idx = sorted({round(i * (len(bt_) - 1) / (nbt - 1)) for i in range(nbt)})
             bt_ = [bt_[i] for i in idx]
         back = [(-xs_, yb, zt)] + [(tx, ty - tf, zt - f2.uniform(0.0, 0.12) * H) for (tx, ty) in bt_] + [(xs_, yb, zt)]
-        yf = -W + 0.7 * S
-        side = lambda sg: [(sg * xs_, yb, zt), (sg * xs_, 0.5 * (yb + yf) + f2.uniform(-0.3, 0.3) * S, zt - f2.uniform(0.0, 0.1) * H), (sg * xs_, yf, zt)]
+        yf = -Wy + 0.7 * S
+        nsp = cnt(2, fy_)  # swags down each side wall
+
+        def side(sg):
+            mids = [(sg * xs_, yb + (yf - yb) * (i + 1) / nsp + f2.uniform(-0.3, 0.3) * S, zt - f2.uniform(0.0, 0.1) * H)
+                    for i in range(nsp - 1)] if nsp != 2 else \
+                [(sg * xs_, 0.5 * (yb + yf) + f2.uniform(-0.3, 0.3) * S, zt - f2.uniform(0.0, 0.1) * H)]
+            return [(sg * xs_, yb, zt)] + mids + [(sg * xs_, yf, zt)]
         sag_k = float(os.environ.get("FAIRY_SAG", 1.0))
         lo_, hi_ = (float(v) for v in os.environ.get("SAG_RANGE", "0.08,0.15").split(","))
 
@@ -3046,10 +3083,10 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
                 bmesh.ops.scale(pins, vec=(1, 1, 0.6), verts=r["verts"])
                 bmesh.ops.translate(pins, vec=(ax, ay + 0.004 * H, az + 0.004 * H), verts=r["verts"])
             adopt(_mesh_obj("FairyPins", pins, pm_, coll))
-        hangs = string(back, int(os.environ.get("FAIRY_NB", 8)))
+        hangs = string(back, cnt(int(os.environ.get("FAIRY_NB", 8)), fx_))
         if os.environ.get("FAIRY_SIDES", "1") == "1":
             for sg in (-1, 1):
-                hangs += string(sides_[sg], f2.choice((2, 3)))
+                hangs += string(sides_[sg], cnt(f2.choice((2, 3)), fy_))
         bulb_pos = []
         for v in hangs:
             drop = f2.uniform(0.05, 0.1) * H * float(os.environ.get("DROP_K", 1.0))
@@ -3148,9 +3185,9 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     if os.environ.get("WALLBASE_E"):
         lb = bpy.data.lights.new("wallbase", "AREA")
         lb.shape = "RECTANGLE"
-        lb.size = float(os.environ.get("WALLBASE_W", 2.4)) * W
+        lb.size = float(os.environ.get("WALLBASE_W", 2.4)) * Wx
         lb.size_y = float(os.environ.get("WALLBASE_HT", 0.6)) * H
-        lb.energy = float(os.environ["WALLBASE_E"]) * H * H
+        lb.energy = float(os.environ["WALLBASE_E"]) * H * H * fx_  # a longer strip keeps the same light per length
         try:
             lb.spread = math.radians(float(os.environ.get("WALLBASE_SPREAD", 120)))
         except Exception:
@@ -3163,26 +3200,27 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
             lb.color = (1.0, 0.76, 0.52)
         lbo = bpy.data.objects.new("wallbase", lb)
         coll.objects.link(lbo)
-        lbo.location = (cx, cy - W - float(os.environ.get("WALLBASE_BACK", 0.3)) * S,
+        lbo.location = (cx, cy - Wy - float(os.environ.get("WALLBASE_BACK", 0.3)) * S,
                         float(os.environ.get("WALLBASE_Z", 0.5)) * H)
         lbo.rotation_euler = (math.radians(90 - float(os.environ.get("WALLBASE_TILT", 4))), 0, 0)
         lbo.visible_camera = False
         objs["wallbase"] = lbo
         if os.environ.get("WALLBASE_MODE") == "walls":
             # one strip per wall, just in front of its foot, facing the wall (one-sided: tiles stay dark)
-            lb.size = 2.0 * W
+            lb.size = 2.0 * Wx  # (energy already per back-wall length)
             dd = float(os.environ.get("WALLBASE_D", 0.35)) * S
             zz = float(os.environ.get("WALLBASE_Z", 0.12)) * H
             up = math.radians(float(os.environ.get("WALLBASE_TILT", 15)))
-            lbo.location = (cx, cy + W - dd, zz)
+            lbo.location = (cx, cy + Wy - dd, zz)
             lbo.rotation_euler = (math.radians(90) + up, 0, 0)  # faces +Y, tilted up
             sm = float(os.environ.get("WALLBASE_SIDE", 1.0))
             for sgn in (-1, 1):
                 l2 = lb.copy()
-                l2.energy = lb.energy * sm
+                l2.size = 2.0 * Wy
+                l2.energy = lb.energy * sm if nx == ny else lb.energy / fx_ * sm * fy_
                 o2 = bpy.data.objects.new("wallbase_s%d" % sgn, l2)
                 coll.objects.link(o2)
-                o2.location = (cx + sgn * (W - dd), cy, zz)
+                o2.location = (cx + sgn * (Wx - dd), cy, zz)
                 # face +-X: rotate Z by -+90 after the X tilt
                 o2.rotation_euler = (math.radians(90) + up, 0, math.radians(-90 * sgn))
                 o2.visible_camera = False
@@ -3222,6 +3260,40 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
             co.light_linking.link_state = "EXCLUDE"
         for l_ in (lo, lf, lpo):
             l_.light_linking.receiver_collection = fx
+    if nx != ny:  # a long board: the square's front lights, fill, pool and moon once per short-side stretch
+        segs, fac = _light_segments(W, Wx, Wy)
+        for o in (lo, lf, lpo, objs.get("warmfill"), fko, lm):
+            if o is None:
+                continue
+            o.data.energy *= fac
+            base = o.location.copy()
+            for i, (dx, dy) in enumerate(segs):
+                if i and ny > nx and o is lo:
+                    # deep board: the lantern stays once, in front. Copies hanging over the floor double the
+                    # stretches they sit in (measured: rows up to 2x the square's); the pool, warm fill, front fill
+                    # and moon copies alone carry the square's row levels the whole way back
+                    break
+                o_ = o
+                if i:
+                    o_ = o.copy()  # shares the light data; keeps rotation and light linking
+                    o_.name = "%s_seg%d" % (o.name, i)
+                    coll.objects.link(o_)
+                    o_.visible_camera = False
+                    objs.setdefault("light_copies", []).append(o_)
+                o_.location = base + Vector((dx, dy, 0.0))
+                if i and ny > nx and o.data.type == "SPOT":
+                    # deep board: the pool / warm-fill copy is re-aimed at its own stride, its cone narrowed to
+                    # just cover that stride's floor (never wider than the square's cone), so strides don't pile up
+                    y0 = segs[i][1] - segs[0][1] - Wy
+                    y1 = y0 + (segs[1][1] - segs[0][1])
+                    pos = o_.location
+                    dirs = [(Vector((cx + sx * Wx, cy + yy, 0.0)) - pos).normalized() for sx in (-1, 1) for yy in (y0, y1)]
+                    aim = sum(dirs, Vector()).normalized()
+                    half_a = min(max(aim.angle(d_) for d_ in dirs) * 1.08, o.data.spot_size / 2)
+                    sd = o.data.copy()
+                    sd.spot_size = 2 * half_a
+                    o_.data = sd
+                    o_.rotation_euler = aim.to_track_quat("-Z", "Y").to_euler()
 
     # ---- MIST: very faint cool mist hugging the wall feet, only over the perimeter strip ----
     if os.environ.get("MIST_D"):
@@ -3245,8 +3317,9 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         mnt.links.new(dd_, pv.inputs["Density"])
         mnt.links.new(pv.outputs["Volume"], mout.inputs["Volume"])
         mh = float(os.environ.get("MIST_H", 0.1)) * Hw
-        inner = half + float(os.environ.get("MIST_IN", 0.05)) * S  # never over the board
-        boxes = ((0, (inner + W) / 2, W - inner, 2 * W), ((inner + W) / 2, 0, W - inner, 2 * W), (-(inner + W) / 2, 0, W - inner, 2 * W))
+        inx = hx + float(os.environ.get("MIST_IN", 0.05)) * S  # never over the board
+        iny = hy + float(os.environ.get("MIST_IN", 0.05)) * S
+        boxes = ((0, (iny + Wy) / 2, Wy - iny, 2 * Wx), ((inx + Wx) / 2, 0, Wx - inx, 2 * Wy), (-(inx + Wx) / 2, 0, Wx - inx, 2 * Wy))
         for bi, (bx, by, dpt, ln) in enumerate(boxes):
             bpy.ops.mesh.primitive_cube_add(size=1.0)
             ob = bpy.context.active_object
@@ -3281,7 +3354,7 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
         _set(pv, "Anisotropy", 0.45)
         _link(hnt, pv.outputs[0], ho_.inputs["Volume"])
         bmv = bmesh.new()
-        _add_box(bmv, 0, 0.1 * S, (Hw + 0.1 * H - th) / 2, 2 * W, 2 * W - 0.2 * S, Hw + 0.1 * H + th)
+        _add_box(bmv, 0, 0.1 * S, (Hw + 0.1 * H - th) / 2, 2 * Wx, 2 * Wy - 0.2 * S, Hw + 0.1 * H + th)
         vo = _mesh_obj("HazeVolume", bmv, hm, coll, smooth=False)
         vo.visible_shadow = False
         adopt(vo, "haze")
@@ -3294,7 +3367,7 @@ def build_stage(scene, H, center=(0.0, 0.0), board=5, zoom=1.0, elevation=60.0, 
     else:
         haze = _haze_mat()
         for k, (fy, hz, amt) in enumerate(((0.08, 1.8, 1.0), (0.26, 1.2, 0.6))):
-            hc = _plane_grid("Haze_%d" % k, -W, W, -0.1 * H, hz * H, 1, 1, haze, coll, "XZ", W - fy * S)
+            hc = _plane_grid("Haze_%d" % k, -Wx, Wx, -0.1 * H, hz * H, 1, 1, haze, coll, "XZ", Wy - fy * S)
             hc["haze_amt"] = amt
             _camera_only(hc)
             adopt(hc)
@@ -3577,7 +3650,7 @@ def _blob(name, r, sq, rng, mat, coll, sub=3, bump=0.25, seed=0.0):
     return _mesh_obj(name, bm, mat, coll)
 
 
-def _wall_props(W, half, H, S, th, coll, adopt, moss_mat, seed=0):
+def _wall_props(W, half, H, S, th, coll, adopt, moss_mat, seed=0, Wxy=None):
     """WALLPROPS: small physical clutter tucked along the wall bases in the moss strip (never on the squares):
     river stones, moss mounds, tiny mushroom clusters, a few fern fans and fallen twigs."""
     pr = random.Random(9001 + seed)
@@ -3598,6 +3671,9 @@ def _wall_props(W, half, H, S, th, coll, adopt, moss_mat, seed=0):
     dens = float(os.environ.get("WALLPROPS", "1"))
     out = []
     walls = (("B", int(5 * dens)), ("L", int(4 * dens)), ("R", int(4 * dens)))
+    Wx, Wy = Wxy or (W, W)  # a rectangle: W is its short-side square; longer walls get more groups
+    if (Wx, Wy) != (W, W):
+        walls = tuple((wl, int(round(ng * (Wx if wl == "B" else Wy) / W))) for wl, ng in walls)
 
     PIN = float(os.environ.get("WALLPROPS_IN", "0")) * S
 
@@ -3606,21 +3682,22 @@ def _wall_props(W, half, H, S, th, coll, adopt, moss_mat, seed=0):
         dist = max(0.0, 1.0 - d / strip)  # sit on the perimeter moss bed (same height law as the bed)
         z = z - gz + (-th * 0.4 + (0.02 + 0.22 * dist ** 1.6) * H0) - 0.015 * H0
         if wall == "B":
-            return Vector((u, W - d, z))
+            return Vector((u, Wy - d, z))
         if wall == "L":
-            return Vector((-W + d, u, z))
-        return Vector((W - d, u, z))
+            return Vector((-Wx + d, u, z))
+        return Vector((Wx - d, u, z))
 
     k = 0
     for wall, ng in walls:
-        lo = -W + (0.15 if wall == "B" else 0.55) * S
+        U = Wx if wall == "B" else Wy  # this wall's half length
+        lo = -U + (0.15 if wall == "B" else 0.55) * S
         for gi in range(ng):
-            u0 = lo + (W - 0.15 * S - lo) * (gi + 0.5 + pr.uniform(-0.3, 0.3)) / ng
+            u0 = lo + (U - 0.15 * S - lo) * (gi + 0.5 + pr.uniform(-0.3, 0.3)) / ng
             kinds = pr.sample(("stone", "stone", "mound", "mush", "fern", "twig"), pr.choice((2, 3)))
             for kind in kinds:
                 k += 1
                 u = u0 + pr.uniform(-0.25, 0.25) * S
-                if abs(u) > W - 0.08 * S:
+                if abs(u) > U - 0.08 * S:
                     continue
                 if kind == "stone":
                     for s in range(pr.choice((1, 2, 3))):
@@ -3698,15 +3775,56 @@ def _wall_props(W, half, H, S, th, coll, adopt, moss_mat, seed=0):
     return out
 
 
-def _tree_plan(W, strip, S, H):
+def _light_segments(W, Wx, Wy):
+    """Where the short-side square's front lights go on a long board: a list of (dx, dy) offsets, one per
+    short-side stretch, and the energy factor per copy. A square: [(0, 0)], 1.0.
+    Wide (long in x): k = ceil(Wx/W) copies along the front, the first and last at the two ends (they overlap),
+    sharing 0.8 * Wx/W times the square's light. Deep (long in y): the box is cut into k = ceil(Wy/W) strides of
+    2*Wy/k front to back; the first stride's lights sit where the square's do (in front of the box), each
+    further stride gets its own copy at full energy (build_stage aims the spots at their own stride and keeps the
+    lantern single)."""
+    if Wx == Wy:
+        return [(0.0, 0.0)], 1.0
+    if Wx > Wy:
+        ratio = Wx / W
+        k = max(2, int(math.ceil(ratio - 1e-6)))
+        sp = Wx - W
+        # 0.8: what spills past a square's side walls lands on the floor next door here (measured: x1.25 without)
+        return [(-sp + 2 * sp * i / (k - 1), 0.0) for i in range(k)], 0.8 * ratio / k
+    k = max(2, int(math.ceil(Wy / W - 1e-6)))
+    stride = 2 * Wy / k
+    return [(0.0, -(Wy - W) + i * stride) for i in range(k)], 1.0
+
+
+def _stretch_line(ps, W, U):
+    """Positions ps (ascending, on a wall of half length W) moved onto a wall of half length U >= W: the same
+    margins at both ends and about the same spacing, so a longer wall gets more items, not wider gaps.
+    Returns ps itself when U == W."""
+    ps = list(ps)
+    if U == W or not ps:
+        return ps
+    if len(ps) == 1:
+        k = max(1, int(round(U / W)))
+        return [-U + 2 * U * (i + 0.5) / k + ps[0] for i in range(k)]
+    a, b = ps[0] - (U - W), ps[-1] + (U - W)
+    gaps = len(ps) - 1
+    n2 = max(gaps, int(round(gaps * (b - a) / (ps[-1] - ps[0]))))
+    return [a + (b - a) * i / n2 for i in range(n2 + 1)]
+
+
+def _tree_plan(W, strip, S, H, Wxy=None):
     """TREEPLAN: back-wall birches spaced irregularly (min gap >= 0.6x mean), side birches back/mid/forward,
     variants assigned so no two neighbours along the wall path share a model, each with its own yaw and
     height (+-10%). Runs a spacing / repeat check and raises if it fails."""
     pr = random.Random(int(os.environ.get("TREE_SEED", 31)))
+    Wx, Wy = Wxy or (W, W)  # a rectangle: W is its short-side square, Wx/Wy the real half extents
     nb = int(os.environ.get("TREES_BACK", 5))
     ns = int(os.environ.get("TREES_SIDE", 3))
     nv = 1 + len([g for g in os.environ.get("BIRCH_GLBS", "").split(",") if g])
     span = float(os.environ.get("TREE_SPAN", 0.72)) * W
+    if Wx != W:  # longer back wall: same corner margins, more trees at the same spacing
+        nb = 1 + max(nb - 1, int(round((nb - 1) * (span + Wx - W) / span)))
+        span += Wx - W
     gap = 2 * span / (nb - 1)
     for _ in range(500):
         jt = float(os.environ.get("TREE_JIT", 0.32))
@@ -3714,12 +3832,16 @@ def _tree_plan(W, strip, S, H):
         g = [b - a for a, b in zip(xs, xs[1:])]
         if min(g) >= float(os.environ.get("TREE_GMIN", 0.6)) * (sum(g) / len(g)) and (max(g) - min(g)) >= float(os.environ.get("TREE_UNEVEN", 0)) * (sum(g) / len(g)) and max(abs(x) for x in xs) <= span + 0.1 * gap:
             break
-    back = [(x, W - (pr.uniform(0.25, 0.55) + float(os.environ.get("BIRCH_IN", 0))) * strip) for x in xs]
+    back = [(x, Wy - (pr.uniform(0.25, 0.55) + float(os.environ.get("BIRCH_IN", 0))) * strip) for x in xs]
     fys = [0.45, -0.1, -0.62] if ns == 3 else [0.4 - 1.0 * i / max(1, ns - 1) for i in range(ns)]
     side = {}
     for sg in (-1, 1):
-        side[sg] = [(sg * (W - (pr.uniform(0.25, 0.5) + float(os.environ.get("BIRCH_IN", 0))) * strip),
-                     (fy + pr.uniform(-0.08, 0.08)) * W) for fy in fys]
+        if Wy == W:
+            side[sg] = [(sg * (Wx - (pr.uniform(0.25, 0.5) + float(os.environ.get("BIRCH_IN", 0))) * strip),
+                         (fy + pr.uniform(-0.08, 0.08)) * W) for fy in fys]
+        else:  # longer side walls: same front/back margins, more trees at the same spacing (back to front)
+            side[sg] = [(sg * (Wx - (pr.uniform(0.25, 0.5) + float(os.environ.get("BIRCH_IN", 0))) * strip),
+                         y_ + pr.uniform(-0.08, 0.08) * W) for y_ in reversed(_stretch_line([fy * W for fy in reversed(fys)], W, Wy))]
     # wall path order: left side front->back, back left->right, right side back->front
     path = list(reversed(side[-1])) + back + side[1]
     path = [p for p in path]
@@ -3748,7 +3870,7 @@ def _tree_plan(W, strip, S, H):
     return trunks, var, yaw
 
 
-def _hang_variants(W, S, H, top, hl, trunks, coll, adopt):
+def _hang_variants(W, S, H, top, hl, trunks, coll, adopt, Wxy=None):
     """HM_GLBS: several hanging-moss clump models placed by 1D Poisson-disk sampling along the top rail
     of each wall and over the trunk tops; never the same variant twice in a row; per instance scale +-35%,
     length 0.6-1.6x, yaw, mirror, hang height; random wider gaps where the dark hedge shows."""
@@ -3764,9 +3886,10 @@ def _hang_variants(W, S, H, top, hl, trunks, coll, adopt):
         return 0.8
     bl = [blen(p_) for p_ in paths]
     gap = float(os.environ.get("HM_GAP", 0.55)) * S
-    front = -W + float(os.environ.get("HM_FRONT", 0.0)) * S
+    Wx, Wy = Wxy or (W, W)  # spacing-based: a longer wall simply gets more clumps
+    front = -Wy + float(os.environ.get("HM_FRONT", 0.0)) * S
     spots = []  # (x, y, along-wall order key)
-    for wall, (u0, u1) in (("L", (front, W - 0.2 * S)), ("B", (-W + 0.2 * S, W - 0.2 * S)), ("R", (W - 0.2 * S, front))):
+    for wall, (u0, u1) in (("L", (front, Wy - 0.2 * S)), ("B", (-Wx + 0.2 * S, Wx - 0.2 * S)), ("R", (Wy - 0.2 * S, front))):
         lo, hi = min(u0, u1), max(u0, u1)
         us, u = [], lo + pr.uniform(0, 0.5) * gap
         while u < hi:
@@ -3777,7 +3900,7 @@ def _hang_variants(W, S, H, top, hl, trunks, coll, adopt):
             us.reverse()
         for u in us:
             d_ = pr.uniform(0.08, 0.3) * S
-            x, y = {"L": (-W + d_, u), "B": (u, W - d_), "R": (W - d_, u)}[wall]
+            x, y = {"L": (-Wx + d_, u), "B": (u, Wy - d_), "R": (Wx - d_, u)}[wall]
             spots.append((x, y, float(os.environ.get("HM_BACK_LEN", 1.0)) if wall == "B" else float(os.environ.get("HM_SIDE", 1.0))))
     # trunk tops: insert each into the wall order next to its nearest spot
     for (tx, ty, _r) in trunks:

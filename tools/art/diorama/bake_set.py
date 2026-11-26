@@ -28,6 +28,8 @@ import stage
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ap = argparse.ArgumentParser()
 ap.add_argument("--n", type=int, default=5)
+ap.add_argument("--nx", type=int, default=None)  # a rectangle: nx squares across, ny deep (both default to --n)
+ap.add_argument("--ny", type=int, default=None)
 ap.add_argument("--res", type=int, default=2400)
 ap.add_argument("--samples", type=int, default=128)
 ap.add_argument("--stride", type=int, default=6)
@@ -35,6 +37,12 @@ ap.add_argument("--out", default=os.path.join(STAGE, "out", "builder3d"))
 ap.add_argument("--zoom_k", type=float, default=1.0)  # <1 frames wider: set3 serves 2x2 and 3x3, whose play camera backs off
 ap.add_argument("--glow_k", type=float, default=16.0)  # glow png stores (L - 1) / K
 a = ap.parse_args(argv)
+a.nx = a.nx or a.n
+a.ny = a.ny or a.n
+SQUARE = a.nx == a.ny
+if SQUARE:
+    a.n = a.nx
+NAME = "set%d" % a.n if SQUARE else "set%dx%d" % (a.nx, a.ny)  # set5 / set12x5
 
 # Locked play camera (base_r78): 35 deg down, 50 mm, framed for a 5x5 box. Bigger sets widen the view in
 # step with the box's outer width so the box fills the frame the same way.
@@ -63,11 +71,45 @@ for o in list(bpy.data.objects):  # the set only: pieces are drawn live in the b
 os.environ["STAGE_NOCOMP"] = "1"  # bloom, grade, vignette and grain run in the browser
 sc = bpy.context.scene
 t0 = time.time()
-objs = stage.build_stage(sc, H, board=a.n)
+objs = stage.build_stage(sc, H, board=a.n if SQUARE else (a.nx, a.ny))
 print("BUILD_SECONDS %.1f" % (time.time() - t0), flush=True)
 S = 1.2 * H
-zoom = ZOOM5 * (5 + 1.24) / (a.n + 1.24) * a.zoom_k
-cam = stage.build_camera(sc, H, aspect=ASPECT, zoom=zoom, elevation=EL, look_ahead=LA, focal=FOCAL)
+
+
+def set_camera(sc, H, nx, ny, zoom_k=1.0):
+    """The camera the set is baked from. Returns (camera, zoom).
+    Squares: the locked play camera (35 deg down, 50 mm, box ~90% of the frame; bigger sets widen the view in
+    step with the box's outer width). Rectangles, for now: the same elevation and lens, centred on the box and
+    backed off until the whole box (frame and base included) fits. Real panning play cameras replace this later."""
+    if nx == ny:
+        zoom = ZOOM5 * (5 + 1.24) / (nx + 1.24) * zoom_k
+        return stage.build_camera(sc, H, aspect=ASPECT, zoom=zoom, elevation=EL, look_ahead=LA, focal=FOCAL), zoom
+    from bpy_extras.object_utils import world_to_camera_view
+    S_ = 1.2 * H
+    Hw = float(os.environ.get("WALL_H", 3.0)) * H
+    ox = nx * S_ / 2 + 0.28 * S_ + 0.12 * H + 0.24 * S_ + 0.3 * S_  # outer edge of the frame base
+    oy = ny * S_ / 2 + 0.28 * S_ + 0.12 * H + 0.24 * S_ + 0.3 * S_
+    corners = [Vector((sx * ox, sy * oy, z)) for sx in (-1, 1) for sy in (-1, 1)
+               for z in (-0.12 * H - 0.24 * H, Hw + 0.22 * H)]
+    fill = 0.92  # the box's larger extent, as a fraction of the frame
+    sc.render.resolution_x, sc.render.resolution_y = 1200, int(round(1200 / ASPECT))  # the frame shape (setup_render sets the size)
+    zoom, cy = ZOOM5 * (5 + 1.24) / (max(nx, ny) + 1.24) * zoom_k, 0.0
+    for _ in range(12):
+        cam = stage.build_camera(sc, H, center=(0.0, cy), aspect=ASPECT, zoom=zoom, elevation=EL, look_ahead=LA, focal=FOCAL)
+        bpy.context.view_layer.update()
+        uv = [world_to_camera_view(sc, cam, p) for p in corners]
+        us, vs = [p.x for p in uv], [p.y for p in uv]
+        ext = max(max(us) - min(us), max(vs) - min(vs))
+        vmid = (max(vs) + min(vs)) / 2
+        vis_h = 2.7 * S_ / zoom / ASPECT  # visible height (scene units) across the view at the target
+        cy += (vmid - 0.5) * vis_h / math.sin(math.radians(EL))
+        zoom *= fill / ext
+    cam = stage.build_camera(sc, H, center=(0.0, cy), aspect=ASPECT, zoom=zoom, elevation=EL, look_ahead=LA, focal=FOCAL)
+    print("CAMERA fit nx=%d ny=%d zoom=%.3f centre_y=%.2fS" % (nx, ny, zoom, cy / S_), flush=True)
+    return cam, zoom
+
+
+cam, zoom = set_camera(sc, H, a.nx, a.ny, a.zoom_k)
 cam.data.dof.use_dof = False  # f/8 on a 5 cm king is near-sharp; the browser view stays sharp
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
 
@@ -142,7 +184,7 @@ vl = sc.view_layers[0]
 vl.use_pass_position = True
 haze = bpy.data.objects.get("HazeVolume")
 os.makedirs(a.out, exist_ok=True)
-exr = os.path.join(a.out, "set%d.exr" % a.n)
+exr = os.path.join(a.out, NAME + ".exr")
 sc.render.image_settings.media_type = "MULTI_LAYER_IMAGE"
 sc.render.image_settings.file_format = "OPEN_EXR_MULTILAYER"
 sc.render.image_settings.color_depth = "32"
@@ -183,12 +225,12 @@ glow = np.clip((straight - 1.0) / a.glow_k, 0, 1)
 # image rows: EXR row 0 is the top
 out_png = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 4, "uint8"))
 out_png.set_pixels(oiio.ROI(), (ldr * 255 + 0.5).astype(np.uint8))
-out_png.write(os.path.join(a.out, "set%d.png" % a.n))
+out_png.write(os.path.join(a.out, NAME + ".png"))
 gb = oiio.ImageBuf(oiio.ImageSpec(w_ // 4, h_ // 4, 3, "uint8"))
 # glow at quarter res: keep the max so small bulbs survive
 gq = glow[: h_ // 4 * 4, : w_ // 4 * 4].reshape(h_ // 4, 4, w_ // 4, 4, 3).max(axis=(1, 3))
 gb.set_pixels(oiio.ROI(), (np.sqrt(gq) * 255 + 0.5).astype(np.uint8))
-gb.write(os.path.join(a.out, "set%d-glow.png" % a.n))
+gb.write(os.path.join(a.out, NAME + "-glow.png"))
 
 # depth grid: camera-space depth along the view axis at every STRIDE-th pixel centre
 M = cam.matrix_world
@@ -218,7 +260,7 @@ near, far = float(dd[valid].min()) * 0.98, float(dd[valid].max()) * 1.02
 qd = np.round((dd - near) / (far - near) * 65534).astype(np.uint16) + 1
 qd[~valid] = np.where(qd[~valid] > 0, qd[~valid], 1)
 # mark "background" cells with the top bit clear? keep it simple: a separate validity is the alpha texture
-qd.astype("<u2").tofile(os.path.join(a.out, "set%d.depth" % a.n))
+qd.astype("<u2").tofile(os.path.join(a.out, NAME + ".depth"))
 
 bulbs = []
 for o in bpy.data.objects:
@@ -228,12 +270,14 @@ for o in bpy.data.objects:
         bulbs.append([round(v, 4) for v in c])
 cd = cam.data
 info = {
-    "n": a.n, "H": H, "S": S, "W": a.n * S / 2 + 0.28 * S,
+    "n": a.n if SQUARE else min(a.nx, a.ny), "H": H, "S": S, "W": min(a.nx, a.ny) * S / 2 + 0.28 * S,
     "res": [w_, h_], "stride": st, "grid": [gw, gh], "near": near, "far": far,
     "camera": {"matrixWorld": [list(r) for r in M], "lens": cd.lens, "sensor": cd.sensor_width,
                "fit": cd.sensor_fit, "zoom": zoom, "elevation": EL, "lookAhead": LA},
     "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
     "bulbs": bulbs,
 }
-json.dump(info, open(os.path.join(a.out, "set%d.json" % a.n), "w"), indent=1)
-print("DONE", a.n, w_, h_, gw, gh, near, far, len(bulbs), flush=True)
+if not SQUARE:  # a rectangle: the box's half extents per axis (W stays the short side's)
+    info.update({"nx": a.nx, "ny": a.ny, "Wx": a.nx * S / 2 + 0.28 * S, "Wy": a.ny * S / 2 + 0.28 * S})
+json.dump(info, open(os.path.join(a.out, NAME + ".json"), "w"), indent=1)
+print("DONE", NAME, w_, h_, gw, gh, near, far, len(bulbs), flush=True)
