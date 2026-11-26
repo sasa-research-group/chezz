@@ -18,5 +18,13 @@ def test_order_does_not_matter():
     assert layout_key(layout_of_puzzle(a)) == PINNED_KEY
 
 
+def test_plan_counts_trapdoors_from_the_back():
+    from bake_level import plan
+    p = plan(PINNED)
+    assert p["key"] == PINNED_KEY and (p["w"], p["h"]) == (5, 12)
+    assert p["trapdoors"] == [(1, 5), (3, 8)]  # board squares, sorted by y
+    assert p["squares"] == [(1, 6), (3, 3)]    # builder squares: j = h-1-y, as trapdoor.ts
+
+
 if __name__ == "__main__":
-    test_matches_the_game(); test_order_does_not_matter(); print("ok")
+    test_matches_the_game(); test_order_does_not_matter(); test_plan_counts_trapdoors_from_the_back(); print("ok")

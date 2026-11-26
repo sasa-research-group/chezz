@@ -108,6 +108,19 @@ export function playCamera(info: SetInfo, w: number, h: number, aspect: number) 
   return { ...at(zoom), hfov, zoom };
 }
 
+/** The camera a set was baked from (its matrixWorld, lens and sensor), in the same shape as playCamera. A level
+ * bake of a rectangle is seen from exactly there: its view is fitted to the whole box at bake time. */
+export function bakeCamera(info: SetInfo) {
+  const M = info.camera.matrixWorld;
+  const pos = new THREE.Vector3(M[0][3], M[1][3], M[2][3]);
+  const target = pos.clone().add(new THREE.Vector3(-M[0][2], -M[1][2], -M[2][2]).multiplyScalar(10));
+  return { pos, target, hfov: 2 * Math.atan(info.camera.sensor / 2 / info.camera.lens), zoom: info.camera.zoom };
+}
+
+/** The view for a board: a rectangle's own bake camera, else the locked play camera. */
+export const viewFor = (info: SetInfo, w: number, h: number, aspect: number) =>
+  info.nx !== undefined && info.nx !== info.ny ? bakeCamera(info) : playCamera(info, w, h, aspect);
+
 const cache = new Map<string, Promise<SetData>>();
 /** Fetches a baked set's json and depth grid (textures load through three): `at` is its files without the
  * extension, a source set ("diorama/set5") or a level's own bake ("diorama/levels/<key>/set"). */

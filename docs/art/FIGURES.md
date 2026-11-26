@@ -487,3 +487,20 @@ layout, tested by `test_trapdoor_geom.py`), `build_trapdoor_cycles.py` (Blender)
 - Floor sprites draw only the main material, not the onCards copy, so a door never covers a figure card.
 - build_trapdoor_cycles.py reused `j` in the moss loop and wrote a wrong square into drop.json; pack_trapdoor.py takes the square from the folder name.
 - Blind judges (3 rounds: 4, 4, 7) claimed identical pits and doors clipping the stone on edge columns; enlarged crops showed neither. Check judge claims on crops before acting on them.
+
+### Any-level bake (2026-11-26)
+Wesley wants levels of any shape (long, multi-story, areas joined by travel), so the set is no longer one fixed box.
+- The builder lives in the repo: `tools/art/diorama/stage.py`, every look setting in `look.env` (the set bake, the
+  trapdoor bake and any later square bake all source it). The old trapdoor runner used TILE_VAL 0.5 and JOINT_MOSS
+  1.8 while the set used 0.66 and 2.4; one file stops that drift.
+- `stage.build_stage(board=(nx, ny))`: a rectangle is the short side's square stretched at the same density (trees,
+  moss, bulbs per wall length; lights repeated along the long side, wide boards at 0.8 of the energy or the floor
+  reads 1.25x brighter; one lantern only on deep boards, copies doubled their stretch). Squares are unchanged
+  (3/5/8 within 0.01 mean of the old bakes).
+- `level_camera.set_camera`: squares keep the locked play camera; rectangles are fitted to the whole box (35 deg,
+  50 mm, 92% of the frame). The trapdoor bake uses the same function, so its sprites line up with the level's set.
+  The game sees a rectangle from the bake's own camera (`set.ts viewFor`). Panning stops for long boards: next.
+- A bake is named by its layout key (FNV-1a of size + drawn squares, `levelBake.ts` and its twin `level_layout.py`,
+  both pinned to tests/level-key.txt). `bake_level.py PUZZLE` bakes set + every trapdoor into
+  `public/diorama/levels/{key}/` and lists it in `levels/index.json`; no bake = the cut 3/5/8 set as a preview.
+- Run it with `uv run --no-project --with numpy --with pillow` (Homebrew python has no Pillow).

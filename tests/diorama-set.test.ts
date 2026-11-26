@@ -1,7 +1,7 @@
 // The 3D board's baked set: which bake a board size uses, where it is cut, and that the play camera fits.
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
-import { cut, playCamera, slide, sourceFor } from "../src/diorama/set";
+import { cut, playCamera, slide, sourceFor, viewFor } from "../src/diorama/set";
 import type { SetInfo } from "../src/diorama/set";
 
 const info = (n: number) => JSON.parse(fs.readFileSync(`public/diorama/set${n}.json`, "utf8")) as SetInfo;
@@ -55,5 +55,18 @@ describe("diorama set", () => {
   });
   it("small boards back the camera off no further than their bake", () => {
     for (const [w, h] of [[2, 2], [3, 3], [2, 3]]) expect(playCamera(info(3), w, h, 4 / 3).zoom).toBeGreaterThanOrEqual(info(3).camera.zoom);
+  });
+  it("sees a rectangle level bake from its own bake camera, a square from the play camera", () => {
+    const sq = info(5);
+    expect(viewFor(sq, 5, 5, 0.6)).toEqual(playCamera(sq, 5, 5, 0.6));
+    // a camera at (1, -20, 15) tipped 55 degrees from straight down: it looks along -Z of its matrix
+    const c = Math.cos(55 * Math.PI / 180), n = Math.sin(55 * Math.PI / 180);
+    const rect: SetInfo = { ...sq, nx: 5, ny: 12, camera: { ...sq.camera, lens: 50, sensor: 36,
+      matrixWorld: [[1, 0, 0, 1], [0, c, -n, -20], [0, n, c, 15], [0, 0, 0, 1]] } };
+    const v = viewFor(rect, 5, 12, 0.6);
+    expect(v.pos.toArray()).toEqual([1, -20, 15]);
+    const d = v.target.clone().sub(v.pos).normalize();
+    expect(d.x).toBeCloseTo(0); expect(d.y).toBeCloseTo(n); expect(d.z).toBeCloseTo(-c);
+    expect(v.hfov).toBeCloseTo(2 * Math.atan(18 / 50));
   });
 });

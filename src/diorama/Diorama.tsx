@@ -21,7 +21,7 @@ import { TrapdoorSprite } from "./TrapdoorSprite";
 import { trapSquare } from "./trapdoor";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
-import { cutSet, loadSet, loadSetAt, playCamera, slide, sourceFor } from "./set";
+import { cutSet, loadSet, loadSetAt, slide, sourceFor, viewFor } from "./set";
 import { bakeDir, bakeFor, bakedTrap, loadBakeIndex } from "./levelBake";
 import type { Layout } from "./levelBake";
 import type { SetData } from "./set";
@@ -166,7 +166,7 @@ function PlayCamera({ data, w, h }: { data: SetData; w: number; h: number }) {
   const { camera, size } = useThree();
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera, aspect = size.width / Math.max(1, size.height);
-    const v = playCamera(data.info, w, h, aspect);
+    const v = viewFor(data.info, w, h, aspect);
     cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(v.hfov / 2) / aspect));
     cam.near = 0.5; cam.far = 400;
     cam.position.copy(toThree(v.pos));

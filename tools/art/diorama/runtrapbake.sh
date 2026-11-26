@@ -8,17 +8,17 @@ source "$HERE/abspaths.sh"
 mkdir -p "$OUT"; OUT=$(abspath "$OUT")
 SQ=${2:-all}
 [ "$SQ" = all ] && SQ=$(for i in 0 1 2 3 4; do for j in 0 1 2 3 4; do echo -n "$i,$j "; done; done)
-cd ~/.dos/scratch/d84406ef/stage || exit 1
-source tools/base_r78.env
-P=~/.dos/scratch/d84406ef/paid/out
-export TILE_GLB=$P/tile/model_glb__model.glb,$P/tile2/model_glb__model.glb TILE_VAL=0.5 TILE_FILL=1.05 TILE_JIT=1.6 JOINT_MOSS=1.8
+# NX/NY set (bake_level.py): a level's own board, folders sq{i}_{j} (squares past 9 need the gap)
+BOARD=${NX:+--nx $NX --ny $NY}
+# the set's own look (look.env), so a trapdoor's stone matches the set it is pasted into
+source "$HERE/look.env"
 for s in $SQ; do
-  D="$OUT/sq${s/,/}"; mkdir -p "$D"
+  if [ -n "$NX" ]; then D="$OUT/sq${s/,/_}"; else D="$OUT/sq${s/,/}"; fi; mkdir -p "$D"
   [ -f "$D/drop.json" ] && { echo "$s done"; continue; }
   ok=0
   for try in 1 2 3 4 5 6 7 8; do
     "${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}" -b --python "$HERE/build_trapdoor_cycles.py" -- \
-      --out "$D" --res "${3:-2400}" --samples "${4:-128}" --square "$s" --bake $TRAP_ARGS > "$D/bake.log" 2>&1
+      --out "$D" --res "${3:-2400}" --samples "${4:-128}" --square "$s" --bake $BOARD $TRAP_ARGS > "$D/bake.log" 2>&1
     grep -qE "TRAP BAKE OK" "$D/bake.log" && { ok=1; break; }
     grep -q Traceback "$D/bake.log" && { grep -E "Error|Traceback|File .*py" "$D/bake.log" | tail -8; exit 1; }
     echo "$s crashed (try $try)"

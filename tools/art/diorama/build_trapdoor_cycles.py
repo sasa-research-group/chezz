@@ -27,7 +27,9 @@ ap.add_argument("--out", required=True)
 ap.add_argument("--res", type=int, default=1600)
 ap.add_argument("--samples", type=int, default=128)
 ap.add_argument("--states", default="shut,fallen")  # names, drop frames d0..dN, or degrees
-ap.add_argument("--square", default="3,1")   # board square (0..4 from the left, 0..4 from the front)
+ap.add_argument("--square", default="3,1")   # board square (i from the left, j = ny-1-y as trapdoor.ts)
+ap.add_argument("--nx", type=int, default=5)  # the level's board (bake_level.py): the set and camera it is pasted into
+ap.add_argument("--ny", type=int, default=5)
 ap.add_argument("--zoom", type=float, default=0.0)
 ap.add_argument("--open", type=float, default=0.80)  # the opening's width, share of a square
 ap.add_argument("--wood", default="1.85,2.9,5.6")  # WOOD_TINT for the door
@@ -42,19 +44,19 @@ random.seed(11)
 
 H = 1.7          # figure height (the set's unit)
 S = 1.2 * H      # one square
-EL, FOCAL, ZOOM5, LA, ASPECT = 35.0, 50.0, 0.255, 0.21, 4.0 / 3.0  # the game camera, as bake_king_sprites.py
-N = 5
+from level_camera import EL, FOCAL, ZOOM5, LA, ASPECT, set_camera  # the set's own camera (bake_set.py)
+NX, NY = a.nx, a.ny
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene
-objs = stage.build_stage(sc, H, center=(0, 0), board=N)
-cam = stage.build_camera(sc, H, aspect=ASPECT, zoom=ZOOM5, elevation=EL, look_ahead=LA, focal=FOCAL)
+objs = stage.build_stage(sc, H, center=(0, 0), board=NX if NX == NY else (NX, NY))
+cam, _ = set_camera(sc, H, NX, NY)
 cam.data.dof.use_dof = False
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
 bpy.context.view_layer.update()
 
 i, j = (int(v) for v in a.square.split(","))
-cx, cy = (i - (N - 1) / 2) * S, (j - (N - 1) / 2) * S
+cx, cy = (i - (NX - 1) / 2) * S, (j - (NY - 1) / 2) * S
 hw = a.open * S / 2
 slab = next(s_ for s_ in objs["slabs"] if s_.name == "Slab_%d_%d" % (i, j))
 slab.data = slab.data.copy()
