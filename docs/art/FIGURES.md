@@ -535,3 +535,5 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
 - Side strings hang half a figure lower (`FAIRY_SIDE_DZ=0.5`, set with SIDE_LIGHTS in look.env): the swags clear
   the top rail. At the game's frame size no fairy wire shows (the back wall's neither), so the judges' "no wire"
   tell is mostly a size effect; check wires on full-res crops.
+  Judged in-game with the lower strings: 87/86/90, the same as at the rail (86/91/88). At the game's size the wire
+  still doesn't show; the judges still call the bulbs floating dots (more often now: they sit further from the wall).
