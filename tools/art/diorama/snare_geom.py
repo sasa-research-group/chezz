@@ -44,12 +44,14 @@ def _root(S, alpha, rho0, z0, L, lean, curl, twist, r0, rng, hook=2.2, tip=0.2):
 
 
 def roots(S, t, n=12, seed=4):
-    """The ring's roots at grip t (0 set, 1 sprung; past 1 is the overshoot). Each root: pts (centre line), radii,
+    """The ring's roots at grip t (0 set, 1 sprung; past 1 is the overshoot; a list gives each root its own). Each root: pts (centre line), radii,
     thorns (at, dir, len, r: little cones sticking out of the bark), shoots (side forks: pts, radii). Every root keeps its seed-chosen place and
     character at any t, so the frames of the spring line up."""
     rng = random.Random(seed)
     out = []
+    ts = list(t) if isinstance(t, (list, tuple)) else [t] * n
     for k in range(n):
+        t = ts[k]
         alpha = 2 * math.pi * (k + rng.uniform(-0.3, 0.3)) / n
         # the square's corners are further out than its sides: a root there may stand a little further out
         corner = abs(math.cos(2 * alpha))
@@ -171,17 +173,33 @@ def cracks(S, seed=4, n=12):
 
 
 def grip(k, frames):
-    """The spring's grip at frame k of frames: the roots snap up in the first third (ease out), overshoot by 12%, then
-    settle with a small wobble, as a sprung trap. 0 at frame 0, 1 at the last."""
+    """The spring's grip at frame k of frames (Wesley 2026-11-26; reference pass in snare/ref/REFERENCE.md). A Venus
+    flytrap, timed from a slow-motion clip with an on-screen clock: a slow start, a snap in ~0.05 s, then the teeth
+    settle by ~0.25 s. That is ~6 frames, which would not read at game size, so the same shape is stretched the way a
+    game's root spell is (a ~0.4 s burst, then a hold). In the first 12% the roots draw back a little (-0.06). By 37%
+    they snap up to a 12% overshoot (ease out). Then they settle with a damped wobble. 0 at frame 0, 1 at the last."""
     if frames <= 1:
         return 1.0
     u = k / (frames - 1)
-    snap = 0.33
+    a_, snap = 0.12, 0.37
+    if u < a_:
+        return -0.06 * math.sin(0.5 * math.pi * u / a_)
     if u < snap:
-        v = u / snap
-        return 1.12 * (1 - (1 - v) ** 3)
+        v = (u - a_) / (snap - a_)
+        return -0.06 + 1.18 * (1 - (1 - v) ** 3)
     v = (u - snap) / (1 - snap)
     return 1 + 0.12 * math.exp(-4.5 * v) * math.cos(3 * math.pi * v) * (1 - v)
+
+
+def root_grips(k, frames, n=12, seed=4, spread=2):
+    """Each root's grip at frame k: the roots go off a frame or two apart, so the ring bursts as a game's root spell
+    does rather than as one machine part. Root 0 goes first; the rest wait 0..spread frames."""
+    rng = random.Random(seed * 31 + 7)
+    out = []
+    for i in range(n):
+        d = 0 if i == 0 else rng.randint(0, spread)
+        out.append(grip(min(max(k - d, 0), frames - 1), frames) if k < frames - 1 else 1.0)
+    return out
 
 
 def _cross(a, b):

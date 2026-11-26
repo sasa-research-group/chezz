@@ -44,7 +44,7 @@ def test_roots_wind_the_same_way_when_sprung():
 
 
 def test_never_leaves_its_square():
-    for t in (0.0, 0.5, 1.0, 1.12):
+    for t in (-0.06, 0.0, 0.5, 1.0, 1.12):
         for r in g.roots(S, t):
             for p, rad in [*zip(r["pts"], r["radii"])] + [q for sh in r["shoots"] for q in zip(sh["pts"], sh["radii"])]:
                 assert abs(p[0]) + rad <= g.RING_LEFT * S + 1e-9 and abs(p[1]) + rad <= g.RING_LEFT * S + 1e-9
@@ -104,8 +104,18 @@ def test_rim_goes_all_the_way_round():
 def test_grip_snaps_overshoots_settles():
     f = [g.grip(k, 20) for k in range(20)]
     assert f[0] == 0 and abs(f[-1] - 1) < 1e-9
-    assert max(f) > 1.05 and f.index(max(f)) < 10
+    assert min(f[:3]) < -0.03                     # draws back first (the flytrap's slow start)
+    assert max(f) > 1.05 and f.index(max(f)) <= 8  # snaps by ~0.3 s at 24 fps
+    assert f[3] < 0.5 < f[6]                       # the snap itself takes about 4 frames
     assert all(abs(v - 1) < 0.01 for v in f[-5:])
+
+
+def test_roots_go_off_a_frame_or_two_apart():
+    first = [next(k for k, t in enumerate(ts) if t > 0.5) for ts in zip(*[g.root_grips(k, 20) for k in range(20)])]
+    assert first[0] == min(first) and 1 <= max(first) - min(first) <= 2
+    assert g.root_grips(19, 20) == [1.0] * 12 and g.root_grips(0, 20) == [0.0] * 12
+    a = g.roots(S, g.root_grips(5, 20))
+    assert len(a) == 12 and a[0]["pts"][0] == g.roots(S, 0.0)[0]["pts"][0]
 
 
 if __name__ == "__main__":

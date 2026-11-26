@@ -306,7 +306,7 @@ for k, r in enumerate(sg.roots(S, 0.0, n=a.n)):
 def grip(name):
     if name == "set": return 0.0
     if name == "sprung": return 1.0
-    if name.startswith("g"): return sg.grip(int(name[1:]), a.frames)
+    if name.startswith("g"): return sg.root_grips(int(name[1:]), a.frames, n=a.n)
     return float(name)
 
 
