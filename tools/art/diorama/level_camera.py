@@ -41,3 +41,21 @@ def set_camera(sc, H, nx, ny, zoom_k=1.0):
     cam = stage.build_camera(sc, H, center=(0.0, cy), aspect=ASPECT, zoom=zoom, elevation=EL, look_ahead=LA, focal=FOCAL)
     print("CAMERA fit nx=%d ny=%d zoom=%.3f centre_y=%.2fS" % (nx, ny, zoom, cy / S_), flush=True)
     return cam, zoom
+
+
+def stop_camera(sc, H, nx, ny, stop=None, zoom_k=1.0):
+    """The camera for one panning stop of an nx x ny board (level_layout.stops): the camera a set the size of
+    the window would be baked from, slid (never turned) so the window centres on `stop` (squares, stage axes).
+    stop None: the whole board in one view (set_camera). Every stop shares one zoom and one rotation, so the game
+    pans between them by moving the camera alone."""
+    if stop is None:
+        return set_camera(sc, H, nx, ny, zoom_k)
+    from level_layout import window
+    mx, my = window(nx, ny)
+    cam, zoom = set_camera(sc, H, mx, my, zoom_k)
+    S_ = 1.2 * H
+    cam.location.x += stop[0] * S_
+    cam.location.y += stop[1] * S_
+    bpy.context.view_layer.update()
+    print("CAMERA stop %.2f,%.2f window %dx%d" % (stop[0], stop[1], mx, my), flush=True)
+    return cam, zoom

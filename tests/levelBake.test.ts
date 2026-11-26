@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Puzzle } from "../src/puzzle/engine";
-import { bakeFor, bakedTrap, layoutKey, layoutOfPuzzle, needsBake } from "../src/diorama/levelBake";
+import { bakeFor, bakedTrap, layoutKey, layoutOfPuzzle, needsBake, stopSet } from "../src/diorama/levelBake";
 
 const base: Puzzle = {
   width: 5, height: 12, moves: 3, goal: { type: "mate" }, holes: [{ x: 0, y: 0 }], walls: [{ x: 2, y: 3 }],
@@ -31,6 +31,10 @@ describe("level bake key", () => {
     expect(bakeFor({ [k]: { w: 12, h: 5, trapdoors: [] } }, l)).toBeNull();
     expect(bakeFor({}, l)).toBeNull();
     expect(bakedTrap(k, 3, 8)).toBe(`levels/${k}/trap-3-8`);
+    // a level that pans: one set and one sheet per stop (bake_level.py writes set-s{k}, trap-{x}-{y}-s{k})
+    expect(bakedTrap(k, 3, 8, 2)).toBe(`levels/${k}/trap-3-8-s2`);
+    expect(bakedTrap(k, 3, 8, 0)).toBe(`levels/${k}/trap-3-8-s0`);
+    expect(stopSet(k, 1)).toBe(`levels/${k}/set-s1`);
   });
 
   it("gives the same key as the bake script's Python twin (tools/art/diorama/level_layout.py)", () => {

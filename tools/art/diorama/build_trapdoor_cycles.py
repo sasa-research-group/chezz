@@ -30,6 +30,7 @@ ap.add_argument("--states", default="shut,fallen")  # names, drop frames d0..dN,
 ap.add_argument("--square", default="3,1")   # board square (i from the left, j = ny-1-y as trapdoor.ts)
 ap.add_argument("--nx", type=int, default=5)  # the level's board (bake_level.py): the set and camera it is pasted into
 ap.add_argument("--ny", type=int, default=5)
+ap.add_argument("--stop", default="")  # "x,y": the panning stop it is seen from (level_layout.stops), else the whole board
 ap.add_argument("--zoom", type=float, default=0.0)
 ap.add_argument("--open", type=float, default=0.80)  # the opening's width, share of a square
 ap.add_argument("--wood", default="1.85,2.9,5.6")  # WOOD_TINT for the door
@@ -44,13 +45,13 @@ random.seed(11)
 
 H = 1.7          # figure height (the set's unit)
 S = 1.2 * H      # one square
-from level_camera import EL, FOCAL, ZOOM5, LA, ASPECT, set_camera  # the set's own camera (bake_set.py)
+from level_camera import EL, FOCAL, ZOOM5, LA, ASPECT, stop_camera  # the set's own camera (bake_set.py)
 NX, NY = a.nx, a.ny
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene
 objs = stage.build_stage(sc, H, center=(0, 0), board=NX if NX == NY else (NX, NY))
-cam, _ = set_camera(sc, H, NX, NY)
+cam, _ = stop_camera(sc, H, NX, NY, tuple(float(v) for v in a.stop.split(",")) if a.stop else None)
 cam.data.dof.use_dof = False
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
 bpy.context.view_layer.update()

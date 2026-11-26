@@ -35,6 +35,7 @@ ap.add_argument("--samples", type=int, default=128)
 ap.add_argument("--stride", type=int, default=6)
 ap.add_argument("--out", default=os.path.join(STAGE, "out", "builder3d"))
 ap.add_argument("--zoom_k", type=float, default=1.0)  # <1 frames wider: set3 serves 2x2 and 3x3, whose play camera backs off
+ap.add_argument("--stops", action="store_true")  # a board past one view: one bake per panning stop (level_layout.stops)
 ap.add_argument("--glow_k", type=float, default=16.0)  # glow png stores (L - 1) / K
 a = ap.parse_args(argv)
 a.nx = a.nx or a.n
@@ -44,7 +45,9 @@ if SQUARE:
     a.n = a.nx
 NAME = "set%d" % a.n if SQUARE else "set%dx%d" % (a.nx, a.ny)  # set5 / set12x5
 
-from level_camera import EL, FOCAL, ZOOM5, LA, ASPECT, set_camera  # the locked play camera
+from level_camera import EL, FOCAL, ZOOM5, LA, ASPECT, set_camera, stop_camera  # the locked play camera
+from level_layout import stops as level_stops, window as level_window
+STOPS = level_stops(a.nx, a.ny) if a.stops else []
 KING = os.path.expanduser("~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -74,8 +77,15 @@ print("BUILD_SECONDS %.1f" % (time.time() - t0), flush=True)
 S = 1.2 * H
 
 
-cam, zoom = set_camera(sc, H, a.nx, a.ny, a.zoom_k)
-cam.data.dof.use_dof = False  # f/8 on a 5 cm king is near-sharp; the browser view stays sharp
+# with stops: one camera, the window's, slid to each stop in turn (place); every stop shares its zoom and turn
+cam, zoom = stop_camera(sc, H, a.nx, a.ny, (0.0, 0.0) if STOPS else None, a.zoom_k)
+cam.data.dof.use_dof = False
+HOME = cam.location.copy()
+
+
+def place(stop):
+    cam.location = HOME + Vector((stop[0] * S, stop[1] * S, 0.0))
+    bpy.context.view_layer.update()  # f/8 on a 5 cm king is near-sharp; the browser view stays sharp
 stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
 
 
@@ -143,106 +153,130 @@ def clear_bulbs(sc, cam, S):
 
 
 if os.environ.get("FAIRY_CLEAR", "1") == "1":
-    print("BULBS_MOVED", clear_bulbs(sc, cam, S), flush=True)
+    # every stop sees the same bulbs (the game fades from one stop to the next): clear them for all of them
+    for st in STOPS or [None]:
+        if st is not None:
+            place(st)
+        print("BULBS_MOVED", st, clear_bulbs(sc, cam, S), flush=True)
 sc.render.film_transparent = True
 vl = sc.view_layers[0]
 vl.use_pass_position = True
 haze = bpy.data.objects.get("HazeVolume")
 os.makedirs(a.out, exist_ok=True)
-exr = os.path.join(a.out, NAME + ".exr")
 sc.render.image_settings.media_type = "MULTI_LAYER_IMAGE"
 sc.render.image_settings.file_format = "OPEN_EXR_MULTILAYER"
 sc.render.image_settings.color_depth = "32"
 sc.render.image_settings.color_mode = "RGBA"
-sc.render.filepath = exr
-t = time.time()
-gpu_retry.render()
-print("RENDER_SECONDS %.1f" % (time.time() - t), flush=True)
-
 import OpenImageIO as oiio
-img = oiio.ImageInput.open(exr)
-chans = {}  # Blender 5 writes one EXR part per pass
-k = 0
-while img.seek_subimage(k, 0):
-    spec = img.spec()
-    px = np.asarray(img.read_image(k, 0, 0, spec.nchannels, "float")).reshape(spec.height, spec.width, spec.nchannels)
-    for j, nm in enumerate(spec.channelnames):
-        chans[nm] = px[:, :, j]
-    k += 1
-img.close()
-names = list(chans)
-def ch(suffix):
-    return next(v for nm, v in chans.items() if nm.endswith(suffix) and "Noisy" not in nm)
-print("CHANNELS", names, flush=True)
-R, G, B, A = ch("Combined.R"), ch("Combined.G"), ch("Combined.B"), ch("Combined.A")
-PX, PY, PZ = ch("Position.X"), ch("Position.Y"), ch("Position.Z")
-h_, w_ = R.shape
-# un-premultiply, Standard view: exposure then the sRGB curve
-lin = np.stack([R, G, B], -1)
-al = np.clip(A, 0, 1)[..., None]
-straight = np.where(al > 1e-4, lin / np.maximum(al, 1e-4), 0.0)
-expo = 2.0 ** float(os.environ.get("EXPO", 0))
-def srgb(x):
-    x = np.clip(x, 0, 1)
-    return np.where(x <= 0.0031308, 12.92 * x, 1.055 * np.power(x, 1 / 2.4) - 0.055)
-ldr = np.concatenate([srgb(straight * expo), al], -1)
-glow = np.clip((straight - 1.0) / a.glow_k, 0, 1)
-# image rows: EXR row 0 is the top
-out_png = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 4, "uint8"))
-out_png.set_pixels(oiio.ROI(), (ldr * 255 + 0.5).astype(np.uint8))
-out_png.write(os.path.join(a.out, NAME + ".png"))
-gb = oiio.ImageBuf(oiio.ImageSpec(w_ // 4, h_ // 4, 3, "uint8"))
-# glow at quarter res: keep the max so small bulbs survive
-gq = glow[: h_ // 4 * 4, : w_ // 4 * 4].reshape(h_ // 4, 4, w_ // 4, 4, 3).max(axis=(1, 3))
-gb.set_pixels(oiio.ROI(), (np.sqrt(gq) * 255 + 0.5).astype(np.uint8))
-gb.write(os.path.join(a.out, NAME + "-glow.png"))
 
-# depth grid: camera-space depth along the view axis at every STRIDE-th pixel centre
-M = cam.matrix_world
-cpos = M.translation
-fwd = -(M.to_3x3() @ Vector((0, 0, 1)))
-st = a.stride
-gx = np.arange(0, w_ + st - 1, st).clip(0, w_ - 1)
-gy = np.arange(0, h_ + st - 1, st).clip(0, h_ - 1)
-P = np.stack([PX, PY, PZ], -1)[np.ix_(gy, gx)]
-Ag = A[np.ix_(gy, gx)]
-d = (P - np.array(cpos)) @ np.array(fwd)
-valid = Ag > 0.02
-# fill invalid (background) cells from the nearest valid neighbour so silhouettes stay put; alpha cuts them
-from collections import deque
-dd = np.where(valid, d, 0.0)
-filled = valid.copy()
-q = deque(zip(*np.nonzero(valid)))
-gh, gw = d.shape
-while q:
-    y, x = q.popleft()
-    for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-        if 0 <= yy < gh and 0 <= xx < gw and not filled[yy, xx]:
-            filled[yy, xx] = True
-            dd[yy, xx] = dd[y, x]
-            q.append((yy, xx))
-near, far = float(dd[valid].min()) * 0.98, float(dd[valid].max()) * 1.02
-qd = np.round((dd - near) / (far - near) * 65534).astype(np.uint16) + 1
-qd[~valid] = np.where(qd[~valid] > 0, qd[~valid], 1)
-# mark "background" cells with the top bit clear? keep it simple: a separate validity is the alpha texture
-qd.astype("<u2").tofile(os.path.join(a.out, NAME + ".depth"))
 
-bulbs = []
-for o in bpy.data.objects:
-    if o.name.startswith("FairyBulb"):
-        bb = [o.matrix_world @ Vector(b) for b in o.bound_box]
-        c = sum(bb, Vector()) / 8
-        bulbs.append([round(v, 4) for v in c])
-cd = cam.data
-info = {
-    "n": a.n if SQUARE else min(a.nx, a.ny), "H": H, "S": S, "W": min(a.nx, a.ny) * S / 2 + 0.28 * S,
-    "res": [w_, h_], "stride": st, "grid": [gw, gh], "near": near, "far": far,
-    "camera": {"matrixWorld": [list(r) for r in M], "lens": cd.lens, "sensor": cd.sensor_width,
-               "fit": cd.sensor_fit, "zoom": zoom, "elevation": EL, "lookAhead": LA},
-    "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
-    "bulbs": bulbs,
-}
-if not SQUARE:  # a rectangle: the box's half extents per axis (W stays the short side's)
-    info.update({"nx": a.nx, "ny": a.ny, "Wx": a.nx * S / 2 + 0.28 * S, "Wy": a.ny * S / 2 + 0.28 * S})
-json.dump(info, open(os.path.join(a.out, NAME + ".json"), "w"), indent=1)
-print("DONE", NAME, w_, h_, gw, gh, near, far, len(bulbs), flush=True)
+def bake_view(NAME, stop):
+  """Renders the set from the camera as it stands and writes NAME .png, -glow.png, .depth and .json."""
+  exr = os.path.join(a.out, NAME + ".exr")
+  sc.render.filepath = exr
+  t = time.time()
+  gpu_retry.render()
+  print("RENDER_SECONDS %.1f" % (time.time() - t), flush=True)
+
+  img = oiio.ImageInput.open(exr)
+  chans = {}  # Blender 5 writes one EXR part per pass
+  k = 0
+  while img.seek_subimage(k, 0):
+      spec = img.spec()
+      px = np.asarray(img.read_image(k, 0, 0, spec.nchannels, "float")).reshape(spec.height, spec.width, spec.nchannels)
+      for j, nm in enumerate(spec.channelnames):
+          chans[nm] = px[:, :, j]
+      k += 1
+  img.close()
+  names = list(chans)
+  def ch(suffix):
+      return next(v for nm, v in chans.items() if nm.endswith(suffix) and "Noisy" not in nm)
+  print("CHANNELS", names, flush=True)
+  R, G, B, A = ch("Combined.R"), ch("Combined.G"), ch("Combined.B"), ch("Combined.A")
+  PX, PY, PZ = ch("Position.X"), ch("Position.Y"), ch("Position.Z")
+  h_, w_ = R.shape
+  # un-premultiply, Standard view: exposure then the sRGB curve
+  lin = np.stack([R, G, B], -1)
+  al = np.clip(A, 0, 1)[..., None]
+  straight = np.where(al > 1e-4, lin / np.maximum(al, 1e-4), 0.0)
+  expo = 2.0 ** float(os.environ.get("EXPO", 0))
+  def srgb(x):
+      x = np.clip(x, 0, 1)
+      return np.where(x <= 0.0031308, 12.92 * x, 1.055 * np.power(x, 1 / 2.4) - 0.055)
+  ldr = np.concatenate([srgb(straight * expo), al], -1)
+  glow = np.clip((straight - 1.0) / a.glow_k, 0, 1)
+  # image rows: EXR row 0 is the top
+  out_png = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 4, "uint8"))
+  out_png.set_pixels(oiio.ROI(), (ldr * 255 + 0.5).astype(np.uint8))
+  out_png.write(os.path.join(a.out, NAME + ".png"))
+  gb = oiio.ImageBuf(oiio.ImageSpec(w_ // 4, h_ // 4, 3, "uint8"))
+  # glow at quarter res: keep the max so small bulbs survive
+  gq = glow[: h_ // 4 * 4, : w_ // 4 * 4].reshape(h_ // 4, 4, w_ // 4, 4, 3).max(axis=(1, 3))
+  gb.set_pixels(oiio.ROI(), (np.sqrt(gq) * 255 + 0.5).astype(np.uint8))
+  gb.write(os.path.join(a.out, NAME + "-glow.png"))
+
+  # depth grid: camera-space depth along the view axis at every STRIDE-th pixel centre
+  M = cam.matrix_world
+  cpos = M.translation
+  fwd = -(M.to_3x3() @ Vector((0, 0, 1)))
+  st = a.stride
+  gx = np.arange(0, w_ + st - 1, st).clip(0, w_ - 1)
+  gy = np.arange(0, h_ + st - 1, st).clip(0, h_ - 1)
+  P = np.stack([PX, PY, PZ], -1)[np.ix_(gy, gx)]
+  Ag = A[np.ix_(gy, gx)]
+  d = (P - np.array(cpos)) @ np.array(fwd)
+  valid = Ag > 0.02
+  # fill invalid (background) cells from the nearest valid neighbour so silhouettes stay put; alpha cuts them
+  from collections import deque
+  dd = np.where(valid, d, 0.0)
+  filled = valid.copy()
+  q = deque(zip(*np.nonzero(valid)))
+  gh, gw = d.shape
+  while q:
+      y, x = q.popleft()
+      for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+          if 0 <= yy < gh and 0 <= xx < gw and not filled[yy, xx]:
+              filled[yy, xx] = True
+              dd[yy, xx] = dd[y, x]
+              q.append((yy, xx))
+  near, far = float(dd[valid].min()) * 0.98, float(dd[valid].max()) * 1.02
+  qd = np.round((dd - near) / (far - near) * 65534).astype(np.uint16) + 1
+  qd[~valid] = np.where(qd[~valid] > 0, qd[~valid], 1)
+  # mark "background" cells with the top bit clear? keep it simple: a separate validity is the alpha texture
+  qd.astype("<u2").tofile(os.path.join(a.out, NAME + ".depth"))
+
+  bulbs = []
+  for o in bpy.data.objects:
+      if o.name.startswith("FairyBulb"):
+          bb = [o.matrix_world @ Vector(b) for b in o.bound_box]
+          c = sum(bb, Vector()) / 8
+          bulbs.append([round(v, 4) for v in c])
+  cd = cam.data
+  info = {
+      "n": a.n if SQUARE else min(a.nx, a.ny), "H": H, "S": S, "W": min(a.nx, a.ny) * S / 2 + 0.28 * S,
+      "res": [w_, h_], "stride": st, "grid": [gw, gh], "near": near, "far": far,
+      "camera": {"matrixWorld": [list(r) for r in M], "lens": cd.lens, "sensor": cd.sensor_width,
+                 "fit": cd.sensor_fit, "zoom": zoom, "elevation": EL, "lookAhead": LA},
+      "exposure": float(os.environ.get("EXPO", 0)), "glowK": a.glow_k,
+      "bulbs": bulbs,
+  }
+  if not SQUARE:  # a rectangle: the box's half extents per axis (W stays the short side's)
+      info.update({"nx": a.nx, "ny": a.ny, "Wx": a.nx * S / 2 + 0.28 * S, "Wy": a.ny * S / 2 + 0.28 * S})
+  if stop is not None:  # one panning stop: where its window centres (squares) and the window's size
+    info.update({"stop": list(stop), "window": list(level_window(a.nx, a.ny))})
+  json.dump(info, open(os.path.join(a.out, NAME + ".json"), "w"), indent=1)
+  print("DONE", NAME, w_, h_, gw, gh, near, far, len(bulbs), flush=True)
+
+
+if STOPS:
+    for k, st in enumerate(STOPS):
+        if os.path.exists(os.path.join(a.out, "%s-s%d.json" % (NAME, k))):
+            print("STOP", k, "done", flush=True)
+            continue
+        place(st)
+        bake_view("%s-s%d" % (NAME, k), st)
+    json.dump({"window": list(level_window(a.nx, a.ny)), "stops": [list(t) for t in STOPS]},
+              open(os.path.join(a.out, NAME + "-stops.json"), "w"), indent=1)
+    print("DONE STOPS", NAME, len(STOPS), flush=True)
+else:
+    bake_view(NAME, None)

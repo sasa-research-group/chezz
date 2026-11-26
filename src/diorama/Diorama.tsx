@@ -21,9 +21,11 @@ import { TrapdoorSprite } from "./TrapdoorSprite";
 import { trapSquare } from "./trapdoor";
 import { LIE, SINK, TIP, deathSettles, faceTaker, takenFall } from "./death";
 import type { Facing } from "./facing";
-import { cutSet, loadSet, loadSetAt, slide, sourceFor, viewFor } from "./set";
-import { PREVIEW_MAX, bakeDir, bakeFor, bakedTrap, loadBakeIndex, needsBake } from "./levelBake";
-import type { BakeIndex, Layout } from "./levelBake";
+import { bakeCamera, cutSet, loadSet, loadSetAt, slide, sourceFor, viewFor } from "./set";
+import { PREVIEW_MAX, bakeDir, bakeFor, bakedTrap, loadBakeIndex, needsBake, stopSet } from "./levelBake";
+import type { BakeIndex, LevelBake, Layout } from "./levelBake";
+import { PAN_MS, SWIPE_PX, ease, nearestStop, stageOf, stepStop, swipeDir, trapStop } from "./pan";
+import type { Stop } from "./pan";
 import type { SetData } from "./set";
 
 const BASE = "diorama/";
@@ -34,17 +36,24 @@ const Blender = ({ children }: { children: ReactNode }) => <group rotation={[-Ma
 const toThree = (v: THREE.Vector3) => new THREE.Vector3(v.x, v.z, -v.y);
 
 const setVert = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+// keep < 1: a stop fading out as the camera pans to the next (pan.ts) drops that share of its pixels in an 8x8
+// Bayer pattern, and the next stop's picture, drawn just behind, shows through
 const setFrag = /* glsl */ `
-uniform sampler2D map; uniform sampler2D glow; uniform float invExpo; uniform float glowK; varying vec2 vUv;
+uniform sampler2D map; uniform sampler2D glow; uniform float invExpo; uniform float glowK; uniform float keep; varying vec2 vUv;
+float bayer2(vec2 a){ a = floor(a); return fract(a.x * 0.5 + a.y * a.y * 0.75); }
+float bayer8(vec2 a){ return bayer2(0.25 * a) * 0.0625 + bayer2(0.5 * a) * 0.25 + bayer2(a); }
 void main(){
+  if (keep < 1.0 && bayer8(gl_FragCoord.xy) >= keep) discard;
   vec4 c = texture2D(map, vUv);
   if (c.a < 0.5) discard;
   vec3 g = texture2D(glow, vUv).rgb;
   gl_FragColor = vec4(c.rgb * invExpo + g * g * glowK, 1.0);
 }`;
 
-/** The baked set, cut and slid for this board. */
-function SetMesh({ data, w, h }: { data: SetData; w: number; h: number }) {
+/** The baked set, cut and slid for this board. Panning (pan.ts): `fade` set, this stop is fading out (it keeps
+ * 1 - fade of its pixels); `back`, it is the stop fading in, drawn a hair behind the one going; `onReady` once its
+ * pictures are in. */
+function SetMesh({ data, w, h, fade, back, onReady }: { data: SetData; w: number; h: number; fade?: RefObject<number>; back?: boolean; onReady?: () => void }) {
   const [map, glow] = useLoader(THREE.TextureLoader, [`${data.at}.webp`, `${data.at}-glow.png`]);
   const gl = useThree(s => s.gl);
   const material = useMemo(() => {
@@ -52,9 +61,14 @@ function SetMesh({ data, w, h }: { data: SetData; w: number; h: number }) {
     glow.colorSpace = THREE.NoColorSpace;
     return new THREE.ShaderMaterial({
       vertexShader: setVert, fragmentShader: setFrag,
-      uniforms: { map: { value: map }, glow: { value: glow }, invExpo: { value: Math.pow(2, -data.info.exposure) }, glowK: { value: data.info.glowK } },
+      uniforms: { map: { value: map }, glow: { value: glow }, invExpo: { value: Math.pow(2, -data.info.exposure) }, glowK: { value: data.info.glowK }, keep: { value: 1 } },
     });
   }, [map, glow, gl, data]);
+  useEffect(() => { material.polygonOffset = !!back; material.polygonOffsetFactor = 2; material.polygonOffsetUnits = 8; }, [material, back]);
+  useEffect(() => () => material.dispose(), [material]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when its pictures are in
+  useEffect(() => { onReady?.(); }, []);
+  useFrame(() => { material.uniforms.keep.value = fade ? 1 - fade.current : 1; });
   const pieces = useMemo(() => cutSet(data, w, h), [data, w, h]);
   useEffect(() => () => pieces.forEach(p => p.geometry.dispose()), [pieces]);
   return <>{pieces.map((p, i) => <mesh key={i} geometry={p.geometry} material={material} position={[p.shift[0], p.shift[1], 0]} frustumCulled={false} />)}</>;
@@ -177,6 +191,37 @@ function PlayCamera({ data, w, h }: { data: SetData; w: number; h: number }) {
   return null;
 }
 
+/** A level that pans (pan.ts): its stops, each one's set, and which stops baked each trapdoor. */
+type Pan = { stops: Stop[]; datas: SetData[]; bake: LevelBake };
+/** Which stop the camera is going to, and the one it is leaving (null at rest). */
+type PanView = { to: number; from: number | null };
+
+/** The camera on a level that pans: each stop's own bake camera (they differ by a slide only). Moving to a new stop,
+ * it waits until that stop's pictures are in (`ready`), then slides there from wherever it is in PAN_MS, writing
+ * how far it has got to `fade` for the stop fading out; `done` once it is there. */
+function PanCamera({ pan, view, ready, fade, done }: { pan: Pan; view: PanView; ready: RefObject<Set<number>>; fade: RefObject<number>; done: () => void }) {
+  const { camera, size } = useThree();
+  const st = useRef<{ from: THREE.Vector3; at: THREE.Vector3; to: number; t0: number | null; done: boolean } | null>(null);
+  useFrame(() => {
+    const cam = camera as THREE.PerspectiveCamera, aspect = size.width / Math.max(1, size.height);
+    const v = bakeCamera(pan.datas[view.to].info);
+    const s = st.current ??= { from: v.pos.clone(), at: v.pos.clone(), to: view.to, t0: null, done: false };
+    if (s.to !== view.to) Object.assign(s, { from: s.at.clone(), to: view.to, t0: null, done: false });
+    if (s.t0 === null && ready.current.has(view.to)) s.t0 = performance.now();
+    const e = s.t0 === null ? 0 : ease((performance.now() - s.t0) / PAN_MS);
+    fade.current = e;
+    s.at.copy(s.from).lerp(v.pos, e);
+    cam.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(v.hfov / 2) / aspect));
+    cam.near = 0.5; cam.far = 400;
+    cam.position.copy(toThree(s.at));
+    cam.up.set(0, 1, 0);
+    cam.lookAt(toThree(s.at.clone().add(v.target).sub(v.pos)));
+    cam.updateProjectionMatrix();
+    if (e >= 1 && view.from !== null && !s.done) { s.done = true; done(); }
+  });
+  return null;
+}
+
 const shadowTex = (() => {
   let t: THREE.Texture | null = null;
   return () => {
@@ -235,8 +280,9 @@ useGLTF.preload(WALL_SEG_GLB);
 useGLTF.preload(WALL_HALF_GLB);
 useGLTF.preload(WALL_PIL_GLB);
 
-/** `bakeKey`: the level has its own bake (levelBake.ts), so its trapdoors are its own sheets. */
-function SquareMarks({ sq, S, H, arms, pos, bakeKey }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number]; bakeKey?: string }) {
+/** `trap`: a trapdoor's sheet (null: none, the flat stand-in) and, while the camera pans, the one it is leaving, shown
+ * until the new one is in. */
+function SquareMarks({ sq, S, H, arms, pos, trap }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; pos: [number, number]; trap?: { name: string | null; prev?: string | null } }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -257,10 +303,11 @@ function SquareMarks({ sq, S, H, arms, pos, bakeKey }: { sq: DioramaSquare; S: n
     case "trapdoor": case "fallen": {
       // the level's own baked door, else the 5x5 set's sheet for this spot (the preview); a flat stand-in
       // anywhere else (its own Suspense: while a sheet loads, or if one is missing, only this square shows it)
-      const name = bakeKey ? bakedTrap(bakeKey, sq.x, sq.y) : trapSquare(pos, S);
-      const flat = sq.kind === "fallen" ? plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")
+      const name = trap?.name ?? null, prev = trap?.prev ?? null, open = sq.kind === "fallen";
+      const flat = open ? plane(0.97, new THREE.Color(0.002, 0.002, 0.003), 1, 0, "hole")
         : <group key="tf">{plane(0.8, new THREE.Color(0.11, 0.06, 0.03), 1, 0, "td")}{ring(0.38, 0.42, new THREE.Color(0.25, 0.16, 0.08), 1, "tr")}</group>;
-      out.push(name ? <Suspense key="td" fallback={flat}><TrapdoorSprite name={name} pos={pos} open={sq.kind === "fallen"} /></Suspense> : flat);
+      const wait = prev && prev !== name ? <Suspense fallback={flat}><TrapdoorSprite name={prev} pos={pos} open={open} /></Suspense> : flat;
+      out.push(name ? <Suspense key="td" fallback={wait}><TrapdoorSprite name={name} pos={pos} open={open} /></Suspense> : flat);
       break;
     }
     case "snare": out.push(ring(0.24, 0.3, new THREE.Color(0.45, 0.28, 0.12), 1, "sn")); break;
@@ -359,8 +406,48 @@ function TakenFigure({ pc, figure, at, S, onClick }: { pc: DioramaPiece; figure:
   </Falling>;
 }
 
-function Scene({ data, w, h, squares, pieces, onSquare, fps, bakeKey }: { data: SetData; bakeKey?: string; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
+/** The stop to rest on: the one nearest the picked piece, else your king, else the middle of the board. */
+function focusOf(pieces: DioramaPiece[], w: number, h: number): Stop {
+  const p = pieces.find(q => q.picked) ?? pieces.find(q => q.kind === "king" && q.side === "white" && q.falling === undefined);
+  return p ? stageOf(w, h, p.x, p.y) : [0, 0];
+}
+
+function Scene({ data, w, h, squares, pieces, onSquare: tapped, fps, bakeKey, pan }: { data: SetData; bakeKey?: string; pan?: Pan; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
   const { S, H } = data.info;
+  // Panning: rest on the stop nearest the piece in play; a swipe moves one stop over until that piece moves again
+  const focus = focusOf(pieces, w, h), fk = focus.join(",");
+  const [view, setView] = useState<PanView>(() => ({ to: pan ? nearestStop(pan.stops, focus) : 0, from: null }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the piece in play moves (fk)
+  useEffect(() => { if (pan) setView(v => { const k = nearestStop(pan.stops, focus, v.to); return k === v.to ? v : { to: k, from: v.to }; }); }, [fk, pan]);
+  const ready = useRef(new Set<number>()), fade = useRef(0);
+  const gl = useThree(s => s.gl);
+  const drag = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
+  useEffect(() => {
+    if (!pan) return;
+    const el = gl.domElement, touch = el.style.touchAction;
+    el.style.touchAction = "none";  // a swipe pans the board instead of scrolling the page
+    const down = (e: PointerEvent) => { drag.current = { x: e.clientX, y: e.clientY, dx: 0, dy: 0 }; };
+    const move = (e: PointerEvent) => { const d = drag.current; if (d) { d.dx = e.clientX - d.x; d.dy = e.clientY - d.y; } };
+    const up = () => {
+      const d = drag.current, dir = d && swipeDir(d.dx, d.dy);
+      if (dir) setView(v => { const k = stepStop(pan.stops, v.to, dir); return k === v.to ? v : { to: k, from: v.to }; });
+      setTimeout(() => { drag.current = null; }, 0);  // after the tap handlers have seen it was a swipe
+    };
+    el.addEventListener("pointerdown", down); window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+    return () => { el.style.touchAction = touch; el.removeEventListener("pointerdown", down); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  }, [gl, pan]);
+  const onSquare = useCallback((x: number, y: number) => {
+    const d = drag.current;
+    if (!d || Math.hypot(d.dx, d.dy) < SWIPE_PX) tapped(x, y);
+  }, [tapped]);
+  const trapOf = (sq: DioramaSquare, pos: [number, number]) => {
+    if (sq.kind !== "trapdoor" && sq.kind !== "fallen") return undefined;
+    if (!bakeKey) return { name: trapSquare(pos, S) };
+    if (!pan) return { name: bakedTrap(bakeKey, sq.x, sq.y) };
+    const n = pan.bake.trapdoors.findIndex(([x, y]) => x === sq.x && y === sq.y);
+    const from = (k: number) => { const s = trapStop(pan.bake.trapStops?.[n], pan.stops, k); return s === null ? null : bakedTrap(bakeKey, sq.x, sq.y, s); };
+    return { name: from(view.to), prev: view.from === null ? null : from(view.from) };
+  };
   const at = (x: number, y: number) => [(x - (w - 1) / 2) * S, ((h - 1) / 2 - y) * S] as const;
   const frames = useRef({ n: 0, t: 0 });
   useFrame((_, dt) => {
@@ -375,14 +462,17 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps, bakeKey }: { data: 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only the square kinds matter, not the marks on them
   const arms = useMemo(() => wallArms(squares, w, h), [kinds, w, h]);
   return <>
-    <PlayCamera data={data} w={w} h={h} />
+    {pan ? <PanCamera pan={pan} view={view} ready={ready} fade={fade} done={() => setView(v => ({ ...v, from: null }))} /> : <PlayCamera data={data} w={w} h={h} />}
     <Blender>
-      <SetMesh data={data} w={w} h={h} />
+      {pan ? [view.to, view.from].filter((k): k is number => k !== null).map(k =>
+        <Suspense key={k} fallback={null}>
+          <SetMesh data={pan.datas[k]} w={w} h={h} back={k === view.to && view.from !== null} fade={k === view.from ? fade : undefined} onReady={() => ready.current.add(k)} />
+        </Suspense>) : <SetMesh data={data} w={w} h={h} />}
       <Lights data={data} w={w} h={h} />
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} bakeKey={bakeKey} />
+          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} trap={trapOf(sq, [x, y])} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
@@ -410,8 +500,25 @@ function Scene({ data, w, h, squares, pieces, onSquare, fps, bakeKey }: { data: 
 function Loaded({ n, layout, ...rest }: { n: number; layout?: Layout; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
   // a level with its own bake (levelBake.ts) shows that; any other the 3/5/8 set cut to size
   const baked = layout ? bakeFor(use(loadBakeIndex(BASE)), layout) : null;
+  if (baked?.bake.stops?.length) {
+    const datas = use(loadStops(baked.key, baked.bake.stops.length));
+    return <PanScene baked={baked as { key: string; bake: LevelBake & { stops: [number, number][] } }} datas={datas} {...rest} />;
+  }
   const data = use(baked ? loadSetAt(`${BASE}${bakeDir(baked.key)}set`) : loadSet(n, BASE));
   return <Scene data={data} bakeKey={baked?.key} {...rest} />;
+}
+
+const stopsP = new Map<string, Promise<SetData[]>>();
+/** Every stop's json and depth grid (small; their pictures load as the camera gets to them). */
+function loadStops(key: string, n: number) {
+  let p = stopsP.get(key);
+  if (!p) stopsP.set(key, p = Promise.all(Array.from({ length: n }, (_, k) => loadSetAt(`${BASE}${stopSet(key, k)}`))));
+  return p;
+}
+
+function PanScene({ baked, datas, ...rest }: { baked: { key: string; bake: LevelBake & { stops: [number, number][] } }; datas: SetData[]; w: number; h: number; squares: DioramaSquare[]; pieces: DioramaPiece[]; onSquare: (x: number, y: number) => void; fps?: (n: number) => void }) {
+  const pan = useMemo(() => ({ stops: baked.bake.stops, datas, bake: baked.bake }), [baked, datas]);
+  return <Scene data={datas[0]} bakeKey={baked.key} pan={pan} {...rest} />;
 }
 
 /** The diorama for a `w` x `h` board (2-24 a side; past 8 only a level bake draws it). Squares are puzzle coordinates: x left to right,

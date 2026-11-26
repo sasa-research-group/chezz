@@ -3,12 +3,14 @@
 # sheet for each of its trapdoors (runtrapbake.sh), packed into OUT/levels/{key}/ and listed in OUT/levels/index.json,
 # where src/diorama/levelBake.ts finds it. PUZZLE is a puzzle's name or its number in src/puzzle/puzzles.json.
 # The key is the layout's (level_layout.py), so two puzzles on the same squares share one bake.
+# A board past one view (level_layout.stops) is baked once per panning stop instead: set-s{k}.* for each stop, and each
+# trapdoor from every stop that frames it, trap-{x}-{y}-s{k}; the index lists the stops and which see which door.
 # Resumes: a finished set or trapdoor in WORK is not baked again.
 import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from level_layout import layout_key, layout_of_puzzle
+from level_layout import layout_key, layout_of_puzzle, sees, stops, window
 
 
 def stage_square(x, y, h):
@@ -20,8 +22,11 @@ def plan(pz):
     """What one puzzle's bake needs: its key, size and the builder squares of its trapdoors."""
     l = layout_of_puzzle(pz)
     traps = [(c[0], c[1]) for c in l["cells"] if c[2] == "trapdoor"]
-    return {"key": layout_key(l), "w": l["w"], "h": l["h"], "trapdoors": traps,
-            "squares": [stage_square(x, y, l["h"]) for x, y in traps]}
+    w, h = l["w"], l["h"]
+    sq = [stage_square(x, y, h) for x, y in traps]
+    st = stops(w, h)
+    return {"key": layout_key(l), "w": w, "h": h, "trapdoors": traps, "squares": sq, "stops": st,
+            "trapStops": [[k for k, s_ in enumerate(st) if sees(s_, q, w, h)] for q in sq] if st else []}
 
 
 def find_puzzle(puzzles, which):
@@ -56,27 +61,39 @@ def main():
     env = dict(os.environ, NX=str(w), NY=str(h))
     print("LEVEL %s %dx%d trapdoors %s" % (key, w, h, p["trapdoors"]), flush=True)
 
+    st = p["stops"]
+    views = [(k, "-s%d" % k) for k in range(len(st))] if st else [(None, "")]  # (stop, file suffix)
     if "set" in a.only:
         sd = os.path.join(work, "set")
-        name = "set%dx%d" % (w, h)
-        if not os.path.exists(os.path.join(sd, name + ".json")):
+        name = "set%d" % w if w == h else "set%dx%d" % (w, h)
+        done = name + ("-stops.json" if st else ".json")
+        if not os.path.exists(os.path.join(sd, done)):
             subprocess.run(["bash", os.path.join(HERE, "bake.sh"), str(max(w, h)), str(a.res), str(a.samples), sd],
-                           env=env, check=True)
-        to_webp(os.path.join(sd, name + ".png"), os.path.join(dest, "set.webp"))
-        for ext in (".json", ".depth", "-glow.png"):
-            shutil.copy(os.path.join(sd, name + ext), os.path.join(dest, "set" + ext))
+                           env=dict(env, STOPS="1") if st else env, check=True)
+        for _, suf in views:
+            to_webp(os.path.join(sd, name + suf + ".png"), os.path.join(dest, "set%s.webp" % suf))
+            for ext in (".json", ".depth", "-glow.png"):
+                shutil.copy(os.path.join(sd, name + suf + ext), os.path.join(dest, "set" + suf + ext))
 
     if "trap" in a.only and p["squares"]:
-        td = os.path.join(work, "trap")
-        sq = " ".join("%d,%d" % s for s in p["squares"])
-        subprocess.run(["bash", os.path.join(HERE, "runtrapbake.sh"), td, sq, str(a.res), str(a.samples)], env=env, check=True)
-        for (x, y), (i, j) in zip(p["trapdoors"], p["squares"]):
-            subprocess.run([sys.executable, "-I", os.path.join(HERE, "king_loop_atlas.py"), os.path.join(td, "sq%d_%d" % (i, j)),
-                            dest, "name=drop", "figure=trap-%d-%d" % (x, y), "rows=5", "scale=1", "q=88"], check=True)
+        for k, suf in views:
+            mine = [n for n in range(len(p["squares"])) if k is None or k in p["trapStops"][n]]
+            if not mine:
+                continue
+            td = os.path.join(work, "trap" + suf)
+            sq = " ".join("%d,%d" % p["squares"][n] for n in mine)
+            ev = dict(env, TRAP_ARGS=("--stop %g,%g" % tuple(st[k])) if k is not None else "")
+            subprocess.run(["bash", os.path.join(HERE, "runtrapbake.sh"), td, sq, str(a.res), str(a.samples)], env=ev, check=True)
+            for n in mine:
+                (x, y), (i, j) = p["trapdoors"][n], p["squares"][n]
+                subprocess.run([sys.executable, "-I", os.path.join(HERE, "king_loop_atlas.py"), os.path.join(td, "sq%d_%d" % (i, j)),
+                                dest, "name=drop", "figure=trap-%d-%d%s" % (x, y, suf), "rows=5", "scale=1", "q=88"], check=True)
 
     ip = os.path.join(a.out, "levels", "index.json")
     index = json.load(open(ip)) if os.path.exists(ip) else {}
     index[key] = {"w": w, "h": h, "trapdoors": [list(t) for t in p["trapdoors"]]}
+    if st:  # panning stops (squares from the board's middle, stage axes) and, per trapdoor, the stops with its sheet
+        index[key].update({"window": list(window(w, h)), "stops": [list(t) for t in st], "trapStops": p["trapStops"]})
     json.dump(dict(sorted(index.items())), open(ip, "w"), indent=1)
     print("LEVEL BAKE OK", dest, flush=True)
 

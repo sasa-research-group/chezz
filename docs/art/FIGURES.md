@@ -504,3 +504,19 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   both pinned to tests/level-key.txt). `bake_level.py PUZZLE` bakes set + every trapdoor into
   `public/diorama/levels/{key}/` and lists it in `levels/index.json`; no bake = the cut 3/5/8 set as a preview.
 - Run it with `uv run --no-project --with numpy --with pillow` (Homebrew python has no Pillow).
+
+## Long levels: a camera that pans between baked stops (2026-11-26)
+
+- A board bigger than one view (past 8 across or 6 deep, `level_layout.WINDOW`) is baked from several stops: one
+  camera slid along the board, never turned, each stop framing an 8x6 window. Stops sit at most 3 squares apart
+  (`STEP`) and reach both ends. A 5x12 hall gets 3 stops.
+- All stops render in one Blender run (`bake.sh` with `STOPS=1`), so fairy bulbs are cleared against every stop
+  camera and the lights match from stop to stop. Each stop writes `set-s{k}.*`; each trapdoor is baked from every
+  stop whose window holds it (`trap-{x}-{y}-s{k}`); `levels/index.json` lists the stops and which see which door.
+- In the game (`src/diorama/pan.ts`): the camera rests on the stop nearest the picked piece, else your king, with
+  0.75 squares of slack so it doesn't flick on a line. A 40 px swipe moves one stop over; the board follows the
+  finger. The slide takes 650 ms and dithers the old stop's picture out over the new one, only once the new one
+  has loaded. A door with no sheet from this stop borrows the nearest stop's.
+- Seen in the smoke bake: at 35 degrees even the front stop sees far down the hall, so panning mostly brings the far
+  rows closer rather than revealing them.
+- A square board past 8 now bakes `set12`, not `set12x12` (the name bake_set writes).

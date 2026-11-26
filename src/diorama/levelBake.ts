@@ -39,14 +39,19 @@ export function layoutKey(l: Layout): string {
   return h.toString(16).padStart(8, "0");
 }
 
-/** One baked level as levels/index.json lists it. */
-export type LevelBake = { w: number; h: number; trapdoors: [number, number][] };
+/** One baked level as levels/index.json lists it. A board past one view also has its panning stops (pan.ts):
+ * the window each shows, where each centres, and for each trapdoor (in `trapdoors` order) the stops that baked it. */
+export type LevelBake = { w: number; h: number; trapdoors: [number, number][]; window?: [number, number]; stops?: [number, number][]; trapStops?: number[][] };
 export type BakeIndex = Record<string, LevelBake>;
 
 /** Where a bake's files live, under the diorama folder. */
 export const bakeDir = (key: string) => `levels/${key}/`;
-/** A baked trapdoor's sheet name (TrapdoorSprite loads `${name}-drop.json` and its pictures). */
-export const bakedTrap = (key: string, x: number, y: number) => `${bakeDir(key)}trap-${x}-${y}`;
+/** A baked trapdoor's sheet name (TrapdoorSprite loads `${name}-drop.json` and its pictures); `stop`: the panning
+ * stop it was baked from, on a level that pans. */
+export const bakedTrap = (key: string, x: number, y: number, stop: number | null = null) =>
+  `${bakeDir(key)}trap-${x}-${y}${stop === null ? "" : `-s${stop}`}`;
+/** A panning level's set as seen from stop `k` (set.ts loadSetAt). */
+export const stopSet = (key: string, k: number) => `${bakeDir(key)}set-s${k}`;
 
 /** The bake for this layout, if there is one; null means preview (cut set, stand-ins). */
 export function bakeFor(index: BakeIndex, l: Layout): { key: string; bake: LevelBake } | null {

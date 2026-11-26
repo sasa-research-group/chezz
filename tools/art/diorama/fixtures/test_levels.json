@@ -1,5 +1,5 @@
 {"puzzles": [
- {"name": "Long hall", "width": 5, "height": 12, "moves": 6, "goal": {"type": "mate"},
+ {"name": "Long hall", "width": 5, "height": 12, "moves": 6, "goal": {"type": "mate"}, "holes": [], "walls": [],
   "trapdoors": [{"x": 2, "y": 6}],
   "pieces": [["king", "white", 2, 11], ["king", "black", 2, 0]]}
 ]}
