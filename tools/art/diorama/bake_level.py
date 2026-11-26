@@ -26,6 +26,7 @@ def plan(pz):
     sq = [stage_square(x, y, h) for x, y in traps]
     st = stops(w, h)
     return {"key": layout_key(l), "w": w, "h": h, "trapdoors": traps, "squares": sq, "stops": st,
+            "sideLights": bool(st),  # a board that pans: bulbs down the side walls too (look.env SIDE_LIGHTS)
             "trapStops": [[k for k, s_ in enumerate(st) if sees(s_, q, w, h)] for q in sq] if st else []}
 
 
@@ -59,6 +60,8 @@ def main():
     dest = os.path.join(a.out, "levels", key)
     os.makedirs(work, exist_ok=True); os.makedirs(dest, exist_ok=True)
     env = dict(os.environ, NX=str(w), NY=str(h))
+    if p["sideLights"]:  # so a stop that can't see the back wall still has warm light
+        env["SIDE_LIGHTS"] = "1"
     print("LEVEL %s %dx%d trapdoors %s" % (key, w, h, p["trapdoors"]), flush=True)
 
     st = p["stops"]

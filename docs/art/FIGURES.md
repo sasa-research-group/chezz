@@ -525,3 +525,8 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   same run, so the long hall is no worse. Judge the in-game frame, not the bare set webp: the bare bake has no
   glow layer, bulb halos, bloom or grade, and the judge then calls the fairy lights missing (89, round 1).
   From the front stop of a long hall the back wall's fairy lights are out of frame, so that stop loses the warm glow.
+- Side-wall lights (Wesley 2026-11-26): a board that pans bakes with `SIDE_LIGHTS=1` (bake_level sets it; look.env
+  turns on `FAIRY_SIDES`), 5 bulbs down each side of a 5x12 hall, so the front stop, which can't see the back wall,
+  still gets warm light on the birches. Boards that fit one view keep back-wall lights only. `clear_bulbs` now slides
+  a hidden side bulb along its own wall (it used to slide every bulb across, pushing a side bulb 0.8 into the room).
+  The frame's top rail hides some side bulbs from the camera; their light on the trunks still shows.

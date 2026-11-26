@@ -91,7 +91,8 @@ stage.setup_render(sc, res=a.res, samples=a.samples, aspect=ASPECT)
 
 def clear_bulbs(sc, cam, S):
     """Slides any fairy bulb a birch trunk (or a solid hank of moss) hides from the play camera sideways until the camera sees all of it.
-    Moves the bulb, its light and the bottom of its drop wire together. Returns (name, dx) for each move."""
+    Moves the bulb, its light and the bottom of its drop wire together, along the wall it hangs on (across for the
+    back wall, front-to-back for a side wall, SIDE_LIGHTS), so it never leaves the wall. Returns (name, shift) per move."""
     dg = bpy.context.evaluated_depsgraph_get()
     eye = cam.matrix_world.translation.copy()
     wire = bpy.data.objects.get("FairyWire2")
@@ -121,15 +122,18 @@ def clear_bulbs(sc, cam, S):
             return True
         return sum(blocked(c + o_, r, True) for o_ in offs) >= 3
     moved = []
+    bulbs_ = [o for o in bpy.data.objects if o.name.startswith("FairyBulb2_")]
+    y_back = max((centre(o)[0].y for o in bulbs_), default=0.0)
     for o in sorted((o for o in bpy.data.objects if o.name.startswith("FairyBulb2_")), key=lambda o: o.name):
         c, r = centre(o)
         if not hidden(c, r):
             continue
+        ax = Vector((0, 1, 0)) if c.y < y_back - 0.8 * S else Vector((1, 0, 0))  # side-wall bulb: slide along y
         dx = None
         for k in range(1, 40):  # nearest clear spot, either side, plus a bulb's width of margin
             for sg in (1, -1):
                 t = sg * k * 0.02 * S
-                if not hidden(c + Vector((t, 0, 0)), r) and not hidden(c + Vector((t + sg * 2 * r, 0, 0)), r):
+                if not hidden(c + ax * t, r) and not hidden(c + ax * (t + sg * 2 * r), r):
                     dx = t + sg * 2 * r
                     break
             if dx is not None:
@@ -137,17 +141,18 @@ def clear_bulbs(sc, cam, S):
         if dx is None:
             print("BULB_STILL_HIDDEN", o.name, flush=True)
             continue
-        o.data.transform(Matrix.Translation((dx, 0, 0)))
+        o.data.transform(Matrix.Translation(ax * dx))
         lo = bpy.data.objects.get("fairy2_" + o.name.split("_")[-1])
         if lo:
-            lo.location.x += dx
+            lo.location += ax * dx
         if wire:
             for sp in wire.data.splines:
                 if len(sp.points) == 2:
                     q = Vector(sp.points[1].co[:3])
                     if abs(q.x - c.x) < 1e-3 and abs(q.y - c.y) < 1e-3 and 0 < q.z - c.z < 4 * r:
-                        sp.points[1].co = (q.x + dx, q.y, q.z, 1.0)
-        moved.append((o.name, round(dx, 4)))
+                        q += ax * dx
+                        sp.points[1].co = (q.x, q.y, q.z, 1.0)
+        moved.append((o.name, "xy"[int(ax.y)], round(dx, 4)))
         dg = bpy.context.evaluated_depsgraph_get()
     return moved
 

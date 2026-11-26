@@ -59,6 +59,13 @@ def test_plan_lists_stops_and_who_sees_each_door():
     assert small["stops"] == [] and small["trapStops"] == []
 
 
+
+def test_side_lights_only_on_boards_that_pan():
+    from bake_level import plan
+    assert plan(PINNED)["sideLights"]  # 5x12: past one view
+    small = dict(PINNED, height=5, holes=[], walls=[], trapdoors=[])
+    assert not plan(small)["sideLights"]  # fits one view: the shipped look, back-wall lights only
+
 if __name__ == "__main__":
     for f in [v for k, v in dict(globals()).items() if k.startswith("test_")]:
         f()
