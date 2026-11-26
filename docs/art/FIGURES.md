@@ -530,3 +530,5 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   still gets warm light on the birches. Boards that fit one view keep back-wall lights only. `clear_bulbs` now slides
   a hidden side bulb along its own wall (it used to slide every bulb across, pushing a side bulb 0.8 into the room).
   The frame's top rail hides some side bulbs from the camera; their light on the trunks still shows.
+  Full-quality, in-game: judge 86/91/88 with side lights against 86/88/84 without (noise is about +-3). The judges'
+  new tell: side bulbs read as floating dots, because the top rail hides their wire.
