@@ -520,3 +520,8 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
 - Seen in the smoke bake: at 35 degrees even the front stop sees far down the hall, so panning mostly brings the far
   rows closer rather than revealing them.
 - A square board past 8 now bakes `set12`, not `set12x12` (the name bake_set writes).
+- Full-quality 5x12 hall (2400 px, 128 samples), judged in-game (Playwright canvas grabs, `judge2.py` vs
+  `d4-front-lit`): caught 36/36 at confidence 86/88/84 for the three stops, against 92 for the shipped 5x5 in the
+  same run, so the long hall is no worse. Judge the in-game frame, not the bare set webp: the bare bake has no
+  glow layer, bulb halos, bloom or grade, and the judge then calls the fairy lights missing (89, round 1).
+  From the front stop of a long hall the back wall's fairy lights are out of frame, so that stop loses the warm glow.
