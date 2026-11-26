@@ -68,5 +68,11 @@ check(2 <= tg.fall_curve(L_m=0.05).index(91.0) <= 3, "a 5 cm model door drops in
 check(len(fc) <= 40, "the whole drop fits in under 2 s (%d frames)" % len(fc))
 check(tg.inside(0.1, -0.1, 0.2) and not tg.inside(0.3, 0.0, 0.2), "inside() is a square test")
 
+# the bake mask: a pinhole inside the outline is filled, a notch open to the edge is not
+grid = [[c == "#" for c in r] for r in ("......", ".####.", ".#.##.", ".####.", ".##...", "......")]
+holes = tg.enclosed_holes(grid)
+check(holes == [(2, 2)], "only the enclosed pinhole is filled (%s)" % holes)
+check(tg.enclosed_holes([[True]]) == [] and tg.enclosed_holes([[False]]) == [], "1-pixel images have no holes")
+
 print("%d failed" % len(fails) if fails else "all ok")
 sys.exit(1 if fails else 0)

@@ -139,3 +139,20 @@ def fall_curve(L_m=DOOR_M, fps=24, wall=91.0, rest=FALLEN_DEG, g=9.81):
 def inside(dx, dy, h):
     """Whether a point (dx, dy) from the square's centre is within h of it on both axes."""
     return abs(dx) < h and abs(dy) < h
+
+
+def enclosed_holes(solid):
+    """Pixels that are not solid and cannot reach the image border through other non-solid pixels (4-connected).
+    solid is a list of rows of bools. A bake mask only gives a sprite's outline, so these pinholes get filled."""
+    h, w = len(solid), len(solid[0])
+    seen = [[False] * w for _ in range(h)]
+    stack = [(y, x) for y in range(h) for x in (0, w - 1)] + [(y, x) for x in range(w) for y in (0, h - 1)]
+    while stack:
+        y, x = stack.pop()
+        if seen[y][x] or solid[y][x]:
+            continue
+        seen[y][x] = True
+        for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+            if 0 <= yy < h and 0 <= xx < w and not seen[yy][xx]:
+                stack.append((yy, xx))
+    return [(y, x) for y in range(h) for x in range(w) if not solid[y][x] and not seen[y][x]]

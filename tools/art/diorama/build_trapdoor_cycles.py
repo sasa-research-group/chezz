@@ -34,6 +34,8 @@ ap.add_argument("--wood", default="1.85,2.9,5.6")  # WOOD_TINT for the door
 ap.add_argument("--dim", type=float, default=0.3)  # share of the set's light the pit gets
 ap.add_argument("--depth", type=float, default=1.6)  # the pit's depth, share of a square (past the hanging door)
 ap.add_argument("--glow", type=float, default=6.0)   # the faint cool light at the pit's bottom (W)
+ap.add_argument("--bake", action="store_true")  # the drop's sprite frames for this square instead of the stills
+ap.add_argument("--glow-k", type=float, default=16.0)  # as the eye: light over 1.0 that goes to the glow sheet
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
 random.seed(11)
@@ -253,6 +255,7 @@ glow.color = (0.55, 0.75, 1.0)
 gl = bpy.data.objects.new("trap_glow", glow); sc.collection.objects.link(gl)
 gl.location = (cx, cy, top - a.depth * S + 0.03 * S)
 gl.rotation_euler = (math.pi, 0, 0)  # an area light faces -z: turned to shine up
+gl.visible_camera = False  # its face would show as a cyan speck through the gaps of the hung door
 
 # ---------- the door: planks on a hinge at the back edge ----------
 door = bpy.data.objects.new("trap_door", None); sc.collection.objects.link(door)
@@ -339,6 +342,126 @@ if a.zoom:
     r_.use_border = True; r_.use_crop_to_border = True
     r_.border_min_x, r_.border_max_x = max(0, cx_ - hwz), min(1, cx_ + hwz)
     r_.border_min_y, r_.border_max_y = max(0, cy_ - hh), min(1, cy_ + hh)
+if os.environ.get("TRAP_PROBE"):  # "px,py px,py ...": what the camera sees through those pixels (full frame)
+    door.rotation_euler = (math.radians(tg.FALLEN_DEG), 0, 0)
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    M = cam.matrix_world; cpos = M.translation.copy()
+    fwd_ = -(M.to_3x3() @ Vector((0, 0, 1))); rt_ = M.to_3x3() @ Vector((1, 0, 0)); up_ = M.to_3x3() @ Vector((0, 1, 0))
+    tx_ = 18.0 / FOCAL; ty_ = tx_ / ASPECT
+    for pp in os.environ["TRAP_PROBE"].split():
+        px, py = (float(v) for v in pp.split(","))
+        u_, v_ = (px + 0.5) / rx, 1 - (py + 0.5) / ry
+        d_ = (fwd_ + (2 * u_ - 1) * tx_ * rt_ + (2 * v_ - 1) * ty_ * up_).normalized()
+        o_, hits = cpos.copy(), []
+        for _ in range(5):
+            ok_, loc_, nrm_, _i, ob_, _m = sc.ray_cast(dg, o_, d_)
+            if not ok_:
+                hits.append("nothing"); break
+            hits.append("%s@%.2fS%s" % (ob_.name, (loc_.z - top) / S, "" if ob_.visible_camera else "(unseen)"))
+            o_ = loc_ + d_ * 0.001 * S
+        print("PROBE", pp, " > ".join(hits), flush=True)
+    sys.exit(0)
+if a.bake:
+    # The square's sprite: the slab with its hole, the pit and the door, cropped to the slab's box on screen, every
+    # drop frame. Each frame is the whole set as the set picture was rendered (haze and all: without it the stone
+    # comes out browner than its neighbours), and its alpha is the square's outline from one pass where the rest of
+    # the set is a holdout (still lighting, shadowing and hiding the pit's outsides, its pixels left clear). The door
+    # stays inside its hole, so that outline is the same on every frame. The moss joints come from the set picture.
+    import json, time
+    import gpu_retry
+    import OpenImageIO as oiio
+    import numpy as np
+    mine = {slab, door, *door.children_recursive} | {o for o in sc.objects if o.name in ("trap_pit", "trap_pit_floor")}
+    masked = [o for o in sc.objects if o not in mine and o.type not in ("LIGHT", "CAMERA") and o.visible_camera]
+    pts = [slab.matrix_world @ Vector(c) for c in slab.bound_box]
+    M = cam.matrix_world; cpos = M.translation.copy()
+    fwd = -(M.to_3x3() @ Vector((0, 0, 1))); right = M.to_3x3() @ Vector((1, 0, 0)); up = M.to_3x3() @ Vector((0, 1, 0))
+    uv_ = [world_to_camera_view(sc, cam, p) for p in pts]
+    u0, u1 = math.floor(min(q.x for q in uv_) * rx) / rx, math.ceil(max(q.x for q in uv_) * rx) / rx
+    v0, v1 = math.floor(min(q.y for q in uv_) * ry) / ry, math.ceil(max(q.y for q in uv_) * ry) / ry
+    r_ = sc.render
+    r_.use_border = True; r_.use_crop_to_border = True
+    r_.border_min_x, r_.border_max_x, r_.border_min_y, r_.border_max_y = u0, u1, v0, v1
+    r_.film_transparent = True
+    print("CROP", u0, u1, v0, v1, "px", round((u1 - u0) * rx), round((v1 - v0) * ry), flush=True)
+    F0 = Vector((cx, cy, 0.0))  # the square's centre: the game slides the quad from here, so baked per square it lands exact
+    d0 = (F0 - cpos).dot(fwd)
+    dq = min((p - cpos).dot(fwd) for p in pts) - 0.03 * H
+    tanX = 18.0 / FOCAL; tanY = tanX / ASPECT
+    at_plane = lambda u_, v_: cpos + (fwd + (2 * u_ - 1) * tanX * right + (2 * v_ - 1) * tanY * up) * dq
+    P0 = cpos + (F0 - cpos) * (dq / d0)
+    cn = [at_plane(u_, v_) - P0 for u_, v_ in ((u0, v0), (u1, v0), (u1, v1), (u0, v1))]
+    quad = {"x0": cn[0].dot(right), "x1": cn[1].dot(right), "y0": cn[0].dot(up), "y1": cn[2].dot(up)}
+    im_ = sc.render.image_settings
+    im_.media_type = "MULTI_LAYER_IMAGE"; im_.file_format = "OPEN_EXR_MULTILAYER"; im_.color_depth = "32"; im_.color_mode = "RGBA"
+
+    def srgb(x):
+        x = np.clip(x, 0, 1)
+        return np.where(x <= 0.0031308, 12.92 * x, 1.055 * np.power(x, 1 / 2.4) - 0.055)
+
+    def read_exr(exr):
+        img = oiio.ImageInput.open(exr); chans, j_ = {}, 0
+        while img.seek_subimage(j_, 0):
+            sp_ = img.spec()
+            px_ = np.asarray(img.read_image(j_, 0, 0, sp_.nchannels, "float")).reshape(sp_.height, sp_.width, sp_.nchannels)
+            for q, nm in enumerate(sp_.channelnames):
+                chans[nm] = px_[:, :, q]
+            j_ += 1
+        img.close()
+        os.remove(exr)
+        ch = lambda s_: next(v for nm, v in chans.items() if nm.endswith(s_) and "Noisy" not in nm)
+        return np.stack([ch("Combined.R"), ch("Combined.G"), ch("Combined.B")], -1), np.clip(ch("Combined.A"), 0, 1)[..., None]
+
+    mpath = os.path.join(a.out, "mask.npy")
+    if not os.path.exists(mpath):
+        haze_cam = {o.name: o.visible_camera for o in masked}
+        for o in masked:
+            if o.name.startswith("Haze"):
+                o.visible_camera = False
+            else:
+                o.is_holdout = True
+        door.rotation_euler = (0, 0, 0)
+        sc.render.filepath = os.path.join(a.out, "mask.exr")
+        gpu_retry.render()
+        np.save(mpath, read_exr(sc.render.filepath)[1])
+        for o in masked:
+            o.is_holdout = False; o.visible_camera = haze_cam[o.name]
+    # The colour pass renders the whole set, so the mask only has to give the outline. Rays through the plank
+    # gaps and under neighbouring moss tufts hit held-out objects and punch pinholes; fill every enclosed hole.
+    mask = np.load(mpath)
+    for y_, x_ in tg.enclosed_holes((mask[..., 0] > 0.98).tolist()):
+        mask[y_, x_] = 1.0
+
+    def shoot(k):
+        tag = "drop0_%02d" % k
+        png = os.path.join(a.out, tag + ".png")
+        if os.path.exists(png):  # resumes after a Metal crash
+            return
+        door.rotation_euler = (math.radians(DROP[k]), 0, 0)
+        exr = os.path.join(a.out, tag + ".exr"); sc.render.filepath = exr
+        t0 = time.time(); gpu_retry.render()
+        # the whole set covers these pixels; where a crack shows the empty world behind (alpha under 1), black is
+        # right (it is the dark pit), so keep the colour over black rather than un-premultiplying it to white
+        straight, _ = read_exr(exr)
+        al = mask
+        h_, w_ = al.shape[:2]
+        sp = oiio.ImageSpec(w_, h_, 4, "uint8"); sp.attribute("oiio:UnassociatedAlpha", 1)
+        ob = oiio.ImageBuf(sp); ob.set_pixels(oiio.ROI(), (np.concatenate([srgb(straight), al], -1) * 255 + 0.5).astype(np.uint8)); ob.write(png)
+        glow = np.clip((straight - 1.0) / a.glow_k, 0, 1) * (al > 0.02)
+        gb = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 3, "uint8")); gb.set_pixels(oiio.ROI(), (np.sqrt(glow) * 255 + 0.5).astype(np.uint8))
+        gb.write(os.path.join(a.out, tag + "-glow.png"))
+        print("RENDER_SECONDS %s %.1f" % (tag, time.time() - t0), flush=True)
+
+    for k in range(len(DROP)):
+        shoot(k)
+    json.dump({"H": H, "S": S, "res": [rx, ry], "crop": [u0, v0, u1, v1], "right": list(right), "up": list(up),
+               "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq, "anchor": list(P0), "quad": quad,
+               "exposure": 0.0, "glowK": a.glow_k, "headings": 1, "samples": a.samples, "square": [i, j],
+               "centre": [cx, cy], "frames": len(DROP), "fps": 24, "angles": DROP},
+              open(os.path.join(a.out, "drop.json"), "w"), indent=1)
+    print("TRAP BAKE OK", flush=True)
+    sys.exit(0)
 for name in a.states.split(","):
     pose(name)
     sc.render.filepath = os.path.join(a.out, "trap-%s.png" % name)
