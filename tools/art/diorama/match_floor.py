@@ -1,7 +1,7 @@
 # /// script
 # dependencies = ["numpy", "pillow"]
 # ///
-"""match_floor.py BAKE SET [glob=throw0_*.png]: colour-match a square's baked frames to the set picture under them.
+"""match_floor.py BAKE SET [LAYER ...=throw]: colour-match a square's baked frames to the set picture under them.
 
 Why (2026-11-27): the set picture the game draws (public/diorama/set5.webp) was baked on 2026-11-20; the builder has
 since moved into the repo (stage.py + look.env) and renders the same floor a little warmer (blue about 8/255 lower on
@@ -11,7 +11,9 @@ to the set instead: one gain per colour channel, in linear light, from the frame
 set's own pixels at the same spot (its exposure undone; sprites are baked at exposure 0). The median ratio ignores
 the prop itself (handle, plate), which the set never had.
 
-BAKE: a runner's square folders (sq{i}{j}/ with throw.json: its crop and res), or one such folder. SET: the set's
+BAKE: a runner's square folders (sq{i}{j}/ with LAYER.json: its crop and res), or one such folder. LAYERs: the
+sprite layers, frames LAYER0_NN.png; the first gives the gain (it has the floor), every layer gets it (the gate's
+front layer has no floor of its own: `match_floor.py OUT SET swing front`). SET: the set's
 picture and json without the extension (public/diorama/set5). Rewrites the frames in place; writes match.json
 (the gains) so a second run is a no-op."""
 import glob, json, os, sys
@@ -31,16 +33,32 @@ def to_srgb(x):
 
 
 def gains(sprite_rgba, under_rgb, set_exposure):
+    return floor_gain(sprite_rgba, under_rgb, set_exposure)[0]
+
+
+def floor_gain(sprite_rgba, under_rgb, set_exposure):
     """Per-channel gain that brings the sprite's floor to the set's colour. sprite_rgba: HxWx4 uint8 (exposure 0);
-    under_rgb: the set's HxWx3 uint8 pixels at the same spot (baked at set_exposure)."""
+    under_rgb: the set's HxWx3 uint8 pixels at the same spot (baked at set_exposure).
+    The floor is the one thing the sprite and the set share, so its pixels all want about the same gain while the
+    prop's (doors, handle) scatter: take the densest cluster of per-pixel log gains, not a median over everything
+    (the gate's closed doors cover most of its frame and pulled a plain median to blue 2.2). Also returns how many
+    pixels agree with it, so the caller can pick the frame that shows the most floor."""
     a = sprite_rgba[..., 3] >= 250
     s = to_lin(sprite_rgba[..., :3])[a]
     u = to_lin(under_rgb)[a] * 2.0 ** -set_exposure
     ls, lu = s.mean(1), u.mean(1)
-    ok = (lu > 0.01) & (ls > 0.01) & (ls / np.maximum(lu, 1e-6) > 0.6) & (ls / np.maximum(lu, 1e-6) < 1.6)
+    ok = ((s.min(1) > 0.004) & (u.min(1) > 0.004) & (ls / np.maximum(lu, 1e-6) > 0.6)
+          & (ls / np.maximum(lu, 1e-6) < 1.6))
     if ok.sum() < 200:
-        return np.ones(3)
-    return np.median(u[ok] / s[ok], axis=0)
+        return np.ones(3), 0
+    r = np.log(u[ok] / s[ok])
+    q = np.floor(r / 0.04).astype(int)                       # 3D histogram of log gains, bins 4% wide
+    keys, counts = np.unique(q, axis=0, return_counts=True)
+    c = (keys[counts.argmax()] + 0.5) * 0.04
+    for _ in range(8):                                       # refine: median of the pixels near the peak
+        near = np.abs(r - c).max(1) < 0.08
+        c = np.median(r[near], axis=0)
+    return np.exp(c), int((np.abs(r - c).max(1) < 0.08).sum())
 
 
 def apply(sprite_rgba, g):
@@ -49,33 +67,41 @@ def apply(sprite_rgba, g):
     return out
 
 
-def match_square(d, set_img, set_info, pattern):
+def layer_frames(d, layer):
+    return [f for f in sorted(glob.glob(os.path.join(d, layer + "0_*.png"))) if not f.endswith("-glow.png")]
+
+
+def match_square(d, set_img, set_info, layers=("throw",)):
     if os.path.exists(os.path.join(d, "match.json")):
         print(d, "already matched"); return
-    info = json.load(open(os.path.join(d, "throw.json")))
+    info = json.load(open(os.path.join(d, layers[0] + ".json")))
     rx, ry = info["res"]; u0, v0, u1, v1 = info["crop"]
     if set_img.size != (rx, ry):
         sys.exit("set picture is %s, the bake %s" % (set_img.size, (rx, ry)))
     x0, y0 = round(u0 * rx), round((1 - v1) * ry)
-    frames = sorted(glob.glob(os.path.join(d, pattern)))
-    frames = [f for f in frames if not f.endswith("-glow.png")]
-    first = np.asarray(Image.open(frames[0]).convert("RGBA"))
-    h, w = first.shape[:2]
-    under = np.asarray(set_img)[y0:y0 + h, x0:x0 + w]
-    g = gains(first, under, set_info["exposure"])   # one gain for the whole clip: the floor never changes
+    frames = layer_frames(d, layers[0])
+    best = (np.ones(3), 0, None)
+    for f in frames:   # one gain for the whole clip (the floor never changes), from the frame showing the most floor
+        im = np.asarray(Image.open(f).convert("RGBA"))
+        h, w = im.shape[:2]
+        g, n = floor_gain(im, np.asarray(set_img)[y0:y0 + h, x0:x0 + w], set_info["exposure"])
+        if n > best[1]:
+            best = (g, n, os.path.basename(f))
+    g, n, src = best
+    frames = [f for layer in layers for f in layer_frames(d, layer)]
     for f in frames:
         Image.fromarray(apply(np.asarray(Image.open(f).convert("RGBA")), g)).save(f)
-    json.dump({"gain": list(map(float, g)), "set": set_info.get("at", ""), "frames": len(frames)},
+    json.dump({"gain": list(map(float, g)), "from": src, "floor_px": n, "set": set_info.get("at", ""), "frames": len(frames)},
               open(os.path.join(d, "match.json"), "w"))
-    print(d, "gain %.3f %.3f %.3f" % tuple(g), len(frames), "frames")
+    print(d, "gain %.3f %.3f %.3f" % tuple(g), "from", src, len(frames), "frames")
 
 
 if __name__ == "__main__":
     bake, setp = sys.argv[1], sys.argv[2]
-    pattern = sys.argv[3] if len(sys.argv) > 3 else "throw0_*.png"
+    layers = tuple(sys.argv[3:]) or ("throw",)
     set_img = Image.open(setp + ".webp").convert("RGB")
     set_info = json.load(open(setp + ".json"))
-    dirs = [bake] if os.path.exists(os.path.join(bake, "throw.json")) else sorted(
-        p for p in glob.glob(os.path.join(bake, "sq*")) if os.path.exists(os.path.join(p, "throw.json")))
+    dirs = [bake] if os.path.exists(os.path.join(bake, layers[0] + ".json")) else sorted(
+        p for p in glob.glob(os.path.join(bake, "sq*")) if os.path.exists(os.path.join(p, layers[0] + ".json")))
     for d in dirs:
-        match_square(d, set_img, set_info, pattern)
+        match_square(d, set_img, set_info, layers)
