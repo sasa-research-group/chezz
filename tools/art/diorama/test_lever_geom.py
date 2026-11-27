@@ -18,81 +18,62 @@ def test_throw_runs_left_to_right_through_upright():
 
 
 def test_everything_stays_inside_the_square_at_every_angle():
+    # as the game draws it (SIZE about the centre): the knob leans out past the plate, never off the square
     for a in ANGLES:
-        x0, x1, y0, y1, z0, z1 = lg.handle_box(a)
+        x0, x1, y0, y1, z0, z1 = (v * lg.SIZE for v in lg.handle_box(a))
         assert -lg.HALF + 0.03 < x0 and x1 < lg.HALF - 0.03
         assert -lg.HALF < y0 and y1 < lg.HALF
-    bx0, bx1, by0, by1, _, _ = lg.block_box()
-    assert -lg.HALF < bx0 and bx1 < lg.HALF and -lg.HALF < by0 and by1 < lg.HALF - 0.05
-    for p in lg.hole_outline():
-        assert abs(p[0]) < lg.HALF - 0.05 and abs(p[1]) < lg.HALF - 0.05
-    for c in lg.cracks():
-        assert all(abs(x) < lg.HALF and abs(y) < lg.HALF for x, y in c["pts"])
+    px0, px1, py0, py1, _, _ = lg.plate_box()
+    assert -lg.HALF < px0 and px1 < lg.HALF and -lg.HALF < py0 and py1 < lg.HALF
 
 
-def test_block_sits_in_the_back_half_centred():
-    x0, x1, y0, y1, z0, z1 = lg.block_box()
-    assert abs(x0 + x1) < 1e-9
-    assert y0 > 0.08            # a figure at the centre stands in front of it
-    assert z0 < 0 < z1          # sunk into the floor, never floating
+def test_no_base_the_handle_comes_out_of_the_floor_at_the_centre():
+    # Wesley 2026-11-27: no block; the plate lies flat in the floor, centred, and nothing else stands on the square
+    x0, x1, y0, y1, z0, z1 = lg.plate_box()
+    assert abs(x0 + x1) < 1e-9 and abs(y0 + y1) < 1e-9
+    assert z0 < 0 < z1 < 0.03
+    assert lg.PIVOT[0] == 0 and lg.PIVOT[1] == 0 and lg.PIVOT[2] < 0
+    assert not hasattr(lg, "block_box") and not hasattr(lg, "chain_links")
 
 
-def test_handle_runs_in_the_slot_and_the_knob_clears_the_block():
+def test_handle_runs_in_the_slot_and_stops_at_its_ends():
+    s0, s1, w0, w1, d0, d1 = lg.slot_box()
     for a in ANGLES:
         # through the slot's mouth with room to spare at every angle
-        x, hw = lg.slot_span(a, lg.BLOCK_H)
-        assert abs(x) + hw < lg.SLOT_L / 2 - 0.005
-        assert lg.HANDLE_R < lg.SLOT_W / 2 - 0.01
+        x, hw = lg.slot_span(a, lg.PLATE_T)
+        assert abs(x) + hw < lg.SLOT_L / 2
+        assert lg.HANDLE_R < lg.SLOT_W / 2 - 0.005
         # the butt stays above the slot's floor
         bx, by, bz = lg.axis_point(-lg.BUTT, a)
-        assert bz - lg.HANDLE_R * abs(math.sin(a)) > lg.SLOT_FLOOR
-        # the ball is well clear of the block's top
-        kx, ky, kz = lg.knob_centre(a)
-        assert kz - lg.KNOB_R > lg.BLOCK_H + 0.2
-    # the pivot pin is inside the block, above the slot's floor and under its mouth
-    assert lg.SLOT_FLOOR < lg.PIVOT[2] - lg.PIN_R and lg.PIVOT[2] + lg.PIN_R < lg.BLOCK_H
+        assert bz - lg.HANDLE_R > d0
+    # at the full throw the handle comes up against the slot's end (the stop the throw's timing hits)
+    x, hw = lg.slot_span(math.radians(lg.THROW_DEG), lg.PLATE_T)
+    assert lg.SLOT_L / 2 - (x + hw) < 0.03
+    # the pin is under the floor, its ends in the slot's walls, and the slot inside the plate
+    assert lg.PIVOT[2] + lg.PIN_R < 0 and lg.PIVOT[2] - lg.PIN_R > d0
+    assert lg.SLOT_L < lg.PLATE_L - 0.06 and lg.SLOT_W < lg.PLATE_W - 0.06
+    # every rivet sits whole on the rim, off the slot's mouth and inside the plate's edge
+    for rx, ry in lg.RIVETS:
+        on_slot = abs(rx) < lg.SLOT_L / 2 + lg.RIVET_R and abs(ry) < lg.SLOT_W / 2 + lg.RIVET_R
+        assert not on_slot, (rx, ry)
+        assert abs(rx) + lg.RIVET_R < lg.PLATE_L / 2 and abs(ry) + lg.RIVET_R < lg.PLATE_W / 2, (rx, ry)
+    for rx, ry in lg.RIVETS:
+        assert abs(rx) + lg.RIVET_R < lg.PLATE_L / 2 and abs(ry) + lg.RIVET_R < lg.PLATE_W / 2
+        assert abs(rx) > lg.SLOT_L / 2 + lg.RIVET_R or abs(ry) > lg.SLOT_W / 2 + lg.RIVET_R
 
 
-def test_knob_reads_above_a_figures_head_on_screen_when_thrown():
-    head = lg.screen_up(0, 0, lg.H)
+def test_knob_at_rest_is_at_a_pullers_shoulder_and_out_to_the_side():
+    # the king's shoulders are 0.71 stage units up (guard_pose POS), a square is 2.04: a hand reaches it level
+    shoulder = 0.71 / 2.04
     for t in (0.0, 1.0):
-        kx, ky, kz = lg.knob_centre(lg.throw(t))
-        assert lg.screen_up(kx, ky, kz + lg.KNOB_R) > head
-        assert abs(kx) > 0.25   # out to the side, not straight over the figure
-
-
-def test_chain_runs_from_the_block_into_the_floor():
-    links = lg.chain_links()
-    assert len(links) >= 7
-    first, last = links[0], links[-1]
-    # starts at the eye on the block's front face
-    assert math.dist(first["c"], lg.ANCHOR) < lg.LINK_L
-    # ends below the floor, inside the hole
-    assert last["c"][2] < -lg.LINK_L / 2
-    assert math.dist(last["c"][:2], lg.HOLE) < lg.HOLE_R
-    # every link inside the square, never through the block, never under the floor before the hole
-    bx0, bx1, by0, by1, _, _ = lg.block_box()
-    for L in links:
-        x, y, z = L["c"]
-        assert abs(x) < lg.HALF - 0.03 and abs(y) < lg.HALF - 0.03
-        assert not (bx0 < x < bx1 and by0 < y < by1)
-        if math.dist((x, y), lg.HOLE) > lg.HOLE_R * 0.9:
-            assert z > 0
-    # each link a pitch from the last, turning a quarter about its length each time
-    for a, b in zip(links, links[1:]):
-        # (over the lip and down into the hole the step along the floor shortens)
-        assert abs(math.dist(a["c"][:2], b["c"][:2]) - lg.PITCH) < 0.02 or math.dist(b["c"][:2], lg.HOLE) < lg.HOLE_R
-        assert a["roll"] != b["roll"]
-
-
-def test_chain_stays_clear_of_a_figure_at_the_centre():
-    for L in lg.chain_links():
-        assert math.hypot(*L["c"][:2]) > 0.15
+        kx, ky, kz = (v * lg.SIZE for v in lg.knob_centre(lg.throw(t)))
+        assert abs(kz - shoulder) < 0.08
+        assert abs(kx) > 0.25   # leaning out over the plate, toward the far side of the square
 
 
 def _trunk(x0, r):
     """A tree trunk standing at x0 on the square's back-right, radius r: a signed distance."""
-    return lambda x, y, z: math.hypot(x - x0, y - lg.BLOCK_Y) - r
+    return lambda x, y, z: math.hypot(x - x0, y - lg.PIVOT[1]) - r
 
 
 def test_open_square_keeps_the_full_throw():
@@ -112,9 +93,9 @@ def test_a_trunk_in_the_way_shortens_that_side_only_and_never_touches():
     assert abs(lg.throw(0.5, (left, right))) < 1e-9
 
 
-def test_knob_rust_is_lighter_than_the_chain_and_full_rust_is_unchanged():
+def test_knob_rust_is_lighter_than_full_rust():
     full = (0.46, 0.6)
-    assert lg.rust_band(full, 1.0) == full  # the chain keeps its look
+    assert lg.rust_band(full, 1.0) == full
     lo, hi = lg.rust_band(full, lg.KNOB_RUST)
     assert lo > full[0] and hi > full[1] and abs((hi - lo) - (full[1] - full[0])) < 1e-12  # less rust, same softness
     assert 0 < lg.KNOB_RUST < 1

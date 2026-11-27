@@ -1,8 +1,9 @@
-# The lever's meshes for Cycles (Wesley 2026-11-26, look A): the chipped, slotted stone block, the oak handle with its
-# iron ball knob, the pivot pin, the rusty chain and the crack it runs into, from lever_geom.py, on the set's own
-# materials (prop_mats.py) as the gate. build_lever_cycles.py places it in the set.
+# The lever's meshes for Cycles (Wesley 2026-11-26, look A; no base 2026-11-27): the oak handle with its iron ball
+# knob, coming up out of a slot in the middle of the square, the slot lined by a riveted iron plate set into the
+# slab, the pivot pin across the slot under the floor, moss in the seam round the plate; from lever_geom.py, on the
+# set's own materials (prop_mats.py) as the gate. build_lever_cycles.py places it in the set and cuts the slab.
 #
-# build(coll, mats, S, stage, floor) -> {"block", "handle", "pin", "chain", "crack", "moss": [objs]}
+# build(coll, mats, S, stage, floor) -> {"plate", "handle", "slot", "moss": [objs]}
 #   mats: {"oak", "iron", "knob", "rust", "stone", "moss", "crack"}; S: one square in set units; floor(x, y): the
 #   slab's height above the lever's origin at (x, y), square units (0 on a flat floor). Every mesh is built in square
 #   units and scaled by S about the lever's origin (the square's centre on the floor): parent them to an empty to
@@ -56,236 +57,90 @@ class Part:
         return o
 
 
-def _chip(c, r, rng):
-    """A faceted lump to cut out of the stone: a chisel chip or a broken corner."""
-    g = bmesh.new()
-    bmesh.ops.create_icosphere(g, subdivisions=1, radius=r)
-    for v in g.verts:
-        v.co *= rng.uniform(0.75, 1.2)
-    bmesh.ops.rotate(g, verts=g.verts, cent=(0, 0, 0),
-                     matrix=Matrix.Rotation(rng.uniform(0, 6.3), 3, "Z") @ Matrix.Rotation(rng.uniform(0, 6.3), 3, "X"))
-    bmesh.ops.translate(g, vec=c, verts=g.verts)
+def _ring(g, outer, inner, z0, z1):
+    """A flat frame: the quad ring between two rectangles (x0, x1, y0, y1), z0 to z1, walls in and out; one
+    manifold mesh, so displacement has no seams (four boxes would show theirs)."""
+    def rect(r, z):
+        x0, x1, y0, y1 = r
+        return [g.verts.new((x, y, z)) for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
+    ot, it, ob, ib = rect(outer, z1), rect(inner, z1), rect(outer, z0), rect(inner, z0)
+    for k in range(4):
+        k1 = (k + 1) % 4
+        g.faces.new([ot[k], ot[k1], it[k1], it[k]])          # top
+        g.faces.new([ob[k], ib[k], ib[k1], ob[k1]])          # bottom
+        g.faces.new([ob[k], ob[k1], ot[k1], ot[k]])          # outside wall
+        g.faces.new([ib[k], it[k], it[k1], ib[k1]])          # the slot's wall
+    bmesh.ops.recalc_face_normals(g, faces=g.faces)
     return g
 
 
-def _groove(pts, face_y, w, d):
-    """A thin crack cut into a face at y = face_y: thin boxes along the (x, z) polyline, d deep into the stone."""
-    g = bmesh.new()
-    for (x0, z0), (x1, z1) in zip(pts, pts[1:]):
-        L = math.hypot(x1 - x0, z1 - z0)
-        b = gp.box(-L / 2 - w / 2, L / 2 + w / 2, -d, d, -w / 2, w / 2)
-        bmesh.ops.rotate(b, verts=b.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(-math.atan2(z1 - z0, x1 - x0), 3, "Y"))
-        bmesh.ops.translate(b, vec=((x0 + x1) / 2, face_y, (z0 + z1) / 2), verts=b.verts)
-        me = bpy.data.meshes.new("tmp"); b.to_mesh(me); b.free(); g.from_mesh(me); bpy.data.meshes.remove(me)
-    return g
+PLATE_DENT = 0.0025  # hammered: the plate's top a little uneven, square units
 
 
-def _block(mats, coll, rng):
-    """The block: a lumpy hand-cut box, the slot cut through its top, chips knocked off its corners and edges, two
-    hairline cracks down its front; bevelled, flat-shaded (smooth shading on bevelled boxes reads as pillows)."""
-    x0, x1, y0, y1, z0, z1 = lg.block_box()
-    g = gp.box(x0, x1, y0, y1, z0, z1)
-    bmesh.ops.subdivide_edges(g, edges=g.edges[:], cuts=5, use_grid_fill=True)
+def plate_heights(floor):
+    """The plate's bottom and top (square units): sunk PLATE_SINK below the lowest slab under it, PLATE_T over the
+    highest, so an uneven slab never shows a gap or swallows an edge."""
+    x0, x1, y0, y1, _, _ = lg.plate_box()
+    hs = [floor(x, y) for x in (x0, 0.0, x1) for y in (y0, 0.0, y1)]
+    return min(hs) - lg.PLATE_SINK, max(hs) + lg.PLATE_T
+
+
+def _plate(mats, rng, floor):
+    """The plate round the slot: a flat hand-forged iron frame, its top hammered uneven, its outer edges worn round,
+    eight domed rivets; and the pin across the slot under the floor."""
+    x0, x1, y0, y1, _, _ = lg.plate_box()
+    s0, s1, w0, w1, _, _ = lg.slot_box()
+    zb, zt = plate_heights(floor)
+    p = Part("lever_plate", mats)
+    g = _ring(bmesh.new(), (x0, x1, y0, y1), (s0, s1, w0, w1), zb, zt)
+    bmesh.ops.bevel(g, geom=g.edges[:], offset=0.004, segments=2, affect="EDGES", clamp_overlap=True)
+    bmesh.ops.subdivide_edges(g, edges=g.edges[:], cuts=4, use_grid_fill=True)
+    ph = [rng.uniform(0, 6.3) for _ in range(3)]
     for v in g.verts:
-        v.co.x *= 1 - 0.04 * max(0, v.co.z) / z1           # a little narrower at the top: a cut block, not a crate
-        v.co += Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1))) * 0.003
-        # broad hand-cut lumps, not an even jitter
-        v.co += Vector((math.sin(v.co.z * 31 + v.co.y * 17), math.sin(v.co.x * 23 + v.co.z * 29), math.sin(v.co.x * 19 + v.co.y * 27))) * 0.010
-    me = bpy.data.meshes.new("lever_block_raw"); g.to_mesh(me); g.free()
-    blk = bpy.data.objects.new("lever_block_raw", me); coll.objects.link(blk)
-
-    cut = bmesh.new()
-
-    def into(gg):
-        m_ = bpy.data.meshes.new("tmp"); gg.to_mesh(m_); gg.free(); cut.from_mesh(m_); bpy.data.meshes.remove(m_)
-
-    sl = gp.box(-lg.SLOT_L / 2, lg.SLOT_L / 2, lg.BLOCK_Y - lg.SLOT_W / 2, lg.BLOCK_Y + lg.SLOT_W / 2, lg.SLOT_FLOOR, z1 + 0.1)
-    into(sl)
-    for c, r in (((x1, y0, z1), 0.06), ((x0, y1, z1), 0.05), ((x0, y0, 0.035), 0.04), ((0.07, y0, z1), 0.028),
-                 ((x1, lg.BLOCK_Y + 0.06, 0.13), 0.025), ((-lg.SLOT_L / 2 - 0.005, lg.BLOCK_Y - lg.SLOT_W / 2, z1), 0.025),
-                 ((x0 + 0.08, y0, z1), 0.022), ((x1, y1, 0.05), 0.04)):
-        into(_chip(c, r, rng))
-    for k in range(14):  # small knocks all along the edges: a handled, old block
-        e = rng.choice(("top_front", "top_side", "vert"))
-        if e == "top_front":
-            c = (rng.uniform(x0, x1), y0, z1)
-        elif e == "top_side":
-            c = (rng.choice((x0, x1)), rng.uniform(y0, y1), z1)
-        else:
-            c = (rng.choice((x0, x1)), y0, rng.uniform(0.02, z1))
-        into(_chip(c, rng.uniform(0.012, 0.022), rng))
-    into(_groove([(0.11, z1), (0.125, 0.19), (0.105, 0.15), (0.13, 0.1), (0.12, 0.06)], y0, 0.006, 0.012))
-    into(_groove([(-0.2, 0.09), (-0.15, 0.1), (-0.12, 0.075), (-0.07, 0.085)], y0, 0.005, 0.01))
-    cme = bpy.data.meshes.new("lever_cut"); cut.to_mesh(cme); cut.free()
-    co = bpy.data.objects.new("lever_cut", cme); coll.objects.link(co); co.hide_render = True
-    bo = blk.modifiers.new("cut", "BOOLEAN"); bo.operation = "DIFFERENCE"; bo.object = co; bo.solver = "EXACT"
-    bo.use_self = True
-    bv = blk.modifiers.new("bevel", "BEVEL"); bv.width = 0.006; bv.segments = 2; bv.limit_method = "ANGLE"
-    bv.angle_limit = math.radians(35); bv.harden_normals = False
-    bpy.context.view_layer.update()
-    ev = blk.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    g = bmesh.new(); g.from_mesh(ev.to_mesh()); ev.to_mesh_clear()
-    bpy.data.objects.remove(blk); bpy.data.meshes.remove(me)
-    bpy.data.objects.remove(co); bpy.data.meshes.remove(cme)
-    p = Part("lever_block", mats)
-    p.add(g, "stone", smooth=False)
-    return p
-
-
-def _pin(p, rng):
-    """The pivot pin through the block, front to back, a domed head on each face."""
-    x0, x1, y0, y1, _, _ = lg.block_box()
+        if v.co.z > zt - 0.003:  # hammered, not rolled flat
+            v.co.z += PLATE_DENT * (math.sin(v.co.x * 41 + ph[0]) * math.sin(v.co.y * 37 + ph[1]) + 0.5 * math.sin((v.co.x + v.co.y) * 73 + ph[2]))
+        v.co.x += rng.uniform(-1, 1) * 0.0012; v.co.y += rng.uniform(-1, 1) * 0.0012
+    p.add(g, "iron", smooth=False)
+    for rx, ry in lg.RIVETS:
+        p.add(gp.dome((rx, ry, zt), lg.RIVET_R, rng), "iron")
+    # the pin across the slot, its ends into the slot's walls
     px, py, pz = lg.PIVOT
     g = bmesh.new()
-    bmesh.ops.create_cone(g, cap_ends=True, segments=16, radius1=lg.PIN_R, radius2=lg.PIN_R, depth=y1 - y0 + 0.016)
+    bmesh.ops.create_cone(g, cap_ends=True, segments=16, radius1=lg.PIN_R, radius2=lg.PIN_R, depth=lg.SLOT_W + 0.01)
     bmesh.ops.rotate(g, verts=g.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(math.pi / 2, 3, "X"))
     bmesh.ops.translate(g, vec=(px, py, pz), verts=g.verts)
     p.add(g, "iron")
-    for y in (y0 - 0.008, y1 + 0.008):
-        p.add(gp.dome((px, y, pz), lg.PIN_R * 1.5, rng, flat=0.5), "iron")
-    # the chain's eye: a square iron plate on the front face, a staple ring standing out of it
-    ax, ay, az = lg.ANCHOR
-    g = gp.box(ax - 0.028, ax + 0.028, y0 - 0.008, y0 + 0.004, az - 0.022, az + 0.022)
-    bmesh.ops.bevel(g, geom=g.edges[:], offset=0.002, segments=1, affect="EDGES", clamp_overlap=True)
-    p.add(g, "iron", smooth=False)
-    for dx in (-0.018, 0.018):
-        for dz in (-0.013, 0.013):
-            p.add(gp.dome((ax + dx, y0 - 0.008, az + dz), 0.005, rng, flat=0.6), "iron")
-    p.add(_link((ax, ay, az), (0, -1, 0), math.pi / 2, r_wire=0.007, L=0.04, W=0.036), "rust")
+    return p
 
 
-def _link(c, d, roll, r_wire=lg.WIRE, L=lg.LINK_L, W=lg.LINK_W, segs=12, n=48, rng=None):
-    """One chain link: a round wire swept round a stadium, LINK_L long along d, its ring flat (roll 0) or standing
-    on edge (roll pi / 2). rng: hand-forged, the wire thicker and thinner round the link (judges called even
-    toruses machine-made); dense enough for the iron's true displacement."""
-    ph = (rng.uniform(0, 6.283), rng.uniform(0, 6.283)) if rng else None
-    rc = W / 2 - r_wire
-    a = (L - W) / 2
-    per = 4 * a + 2 * math.pi * rc
-    path = []
-    for k in range(n):  # the stadium's centre line in its own plane: x along the link, y across
-        s = per * k / n
-        if s < 2 * a:
-            path.append((-a + s, -rc, (1, 0)))
-        elif s < 2 * a + math.pi * rc:
-            t = (s - 2 * a) / rc - math.pi / 2
-            path.append((a + rc * math.cos(t), rc * math.sin(t), (-math.sin(t), math.cos(t))))
-        elif s < 4 * a + math.pi * rc:
-            path.append((a - (s - 2 * a - math.pi * rc), rc, (-1, 0)))
-        else:
-            t = (s - 4 * a - math.pi * rc) / rc + math.pi / 2
-            path.append((-a + rc * math.cos(t), rc * math.sin(t), (-math.sin(t), math.cos(t))))
-    u = Vector(d).normalized()
-    up = Vector((0, 0, 1))
-    s_ = up.cross(u)
-    if s_.length < 1e-6:
-        s_ = Vector((0, 1, 0)).cross(u)
-    s_.normalize(); w_ = u.cross(s_)
-    s2 = s_ * math.cos(roll) + w_ * math.sin(roll)
-    w2 = u.cross(s2)
-    g = bmesh.new()
-    rings = []
-    for k, (x, y, (tx, ty)) in enumerate(path):
-        cen = u * x + s2 * y
-        nrm = (u * ty - s2 * tx).normalized()  # in plane, across the wire
-        rw = r_wire * (1 + 0.14 * math.sin(4 * math.pi * k / n + ph[0]) + 0.06 * math.sin(10 * math.pi * k / n + ph[1])) if ph else r_wire
-        rings.append([g.verts.new(Vector(c) + cen + rw * (math.cos(2 * math.pi * q / segs) * nrm + math.sin(2 * math.pi * q / segs) * w2))
-                      for q in range(segs)])
-    for r0, r1 in zip(rings, rings[1:] + rings[:1]):
-        for q in range(segs):
-            g.faces.new([r0[q], r0[(q + 1) % segs], r1[(q + 1) % segs], r1[q]])
-    bmesh.ops.recalc_face_normals(g, faces=g.faces)
-    return g
-
-
-def _chain(mats, coll, rng, floor):
-    p = Part("lever_chain", mats)
-    for L in lg.chain_links():
-        x, y, z = L["c"]
-        jit = rng.uniform(-0.12, 0.12)  # a dropped chain's links never lie quite square
-        p.add(_link((x, y, z + floor(x, y)), L["d"], L["roll"] + jit, rng=rng), "rust")
+def _slot(mats, coll, floor):
+    """The slot under the plate: its walls down to a black floor SLOT_DEPTH under the floor (the builder cuts the
+    slab open; the set's slab is non-manifold, so the cut leaves no walls of its own). Rusty iron where the light
+    reaches just under the plate, near-black below (stone-coloured walls read as a pale dish)."""
+    s0, s1, w0, w1, d0, _ = lg.slot_box()
+    zb, _ = plate_heights(floor)
+    p = Part("lever_slot", mats)
+    band = zb - 0.035
+    for kind, (za, zz) in (("rust", (band, zb + 0.002)), ("crack", (d0, band))):
+        g = bmesh.new()
+        lo = [g.verts.new((x, y, za)) for x, y in ((s0, w0), (s1, w0), (s1, w1), (s0, w1))]
+        hi = [g.verts.new((x, y, zz)) for x, y in ((s0, w0), (s1, w0), (s1, w1), (s0, w1))]
+        for k in range(4):
+            k1 = (k + 1) % 4
+            g.faces.new([lo[k], hi[k], hi[k1], lo[k1]])  # facing into the slot
+        if kind == "crack":
+            g.faces.new(lo[::-1])
+        bmesh.ops.subdivide_edges(g, edges=g.edges[:], cuts=3, use_grid_fill=True)
+        p.add(g, kind, smooth=False)
     return p.obj(coll, 1.0)
 
 
-CAVITY = 0.07   # the hole cut into the slab, square units deep (a flat decal read as "drawn on")
-
-
-def crack_cutter(floor):
-    """The cut the builder takes out of the slab (boolean difference): the hole's jagged mouth down CAVITY, a
-    little wider at the top (broken edges). Square units, a bmesh. (V grooves for the hairline cracks came out uncut:
-    the set's slab is non-manifold; they stay decals.)"""
-    hx, hy = lg.HOLE
-    g = bmesh.new()
-    out = lg.hole_outline()
-    top = [g.verts.new((x, y, floor(x, y) + 0.03)) for x, y in out]
-    lip = [g.verts.new((x, y, floor(x, y) - 0.012)) for x, y in out]
-    bot = [g.verts.new((hx + (x - hx) * 0.8, hy + (y - hy) * 0.8, floor(x, y) - CAVITY)) for x, y in out]
-    n = len(out)
-    g.faces.new(top); g.faces.new(bot[::-1])
-    for k in range(n):
-        k1 = (k + 1) % n
-        g.faces.new([top[k], top[k1], lip[k1], lip[k]][::-1])
-        g.faces.new([lip[k], lip[k1], bot[k1], bot[k]][::-1])
-    bmesh.ops.recalc_face_normals(g, faces=g.faces)
-    return g
-
-
-def _crack(mats, coll, rng, floor):
-    """The hole the chain runs into: a jagged mouth cut CAVITY into the slab (crack_cutter, by the builder) with a
-    black floor, broken stone shards tipped in round its lip, hairline cracks (decals) running off across the slab."""
-    p = Part("lever_crack", mats)
-    hx, hy = lg.HOLE
-    out = lg.hole_outline()
-    g = bmesh.new()
-    cen = g.verts.new((hx, hy, floor(hx, hy) - CAVITY + 0.002))
-    rim = [g.verts.new((x * 1.05 - hx * 0.05, y * 1.05 - hy * 0.05, floor(x, y) - CAVITY + 0.0025)) for x, y in out]
-    for k in range(len(rim)):
-        g.faces.new([cen, rim[k], rim[(k + 1) % len(rim)]])
-    p.add(g, "crack")
-    # the hole's walls: broken stone down to the black floor (the slab is non-manifold, so the builder's cut opens
-    # it without walls of its own)
-    g = bmesh.new()
-    lip = [g.verts.new((x, y, floor(x, y) - 0.012)) for x, y in out]
-    bot = [g.verts.new((hx + (x - hx) * 0.8, hy + (y - hy) * 0.8, floor(x, y) - CAVITY)) for x, y in out]
-    for k in range(len(out)):
-        k1 = (k + 1) % len(out)
-        g.faces.new([lip[k], bot[k], bot[k1], lip[k1]])
-    bmesh.ops.subdivide_edges(g, edges=g.edges[:], cuts=2, use_grid_fill=True)
-    for v in g.verts:  # rough-broken, not a smooth funnel
-        v.co += Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-1, 1))) * 0.004
-    p.add(g, "crack", smooth=False)  # in shadow down there: stone-coloured walls read as a pale dish
-    for c in lg.cracks():
-        g = bmesh.new()
-        pts, ws = c["pts"], c["w"]
-        left, right = [], []
-        for k, (x, y) in enumerate(pts):
-            a_ = pts[max(0, k - 1)]; b_ = pts[min(len(pts) - 1, k + 1)]
-            tx, ty = b_[0] - a_[0], b_[1] - a_[1]; n = math.hypot(tx, ty) or 1
-            nx, ny = -ty / n * ws[k] / 2, tx / n * ws[k] / 2
-            left.append(g.verts.new((x + nx, y + ny, floor(x, y) + 0.0015)))
-            right.append(g.verts.new((x - nx, y - ny, floor(x, y) + 0.0015)))
-        for k in range(len(pts) - 1):
-            g.faces.new([left[k], right[k], right[k + 1], left[k + 1]])
-        p.add(g, "crack")
-    for k in range(7):  # broken slab shards round the lip, tipped down into the hole (12 small ones read as teeth)
-        a_ = 2 * math.pi * k / 7 + rng.uniform(-0.3, 0.3)
-        r = lg.HOLE_R * rng.uniform(1.0, 1.25)
-        x, y = hx + r * math.cos(a_), hy + r * math.sin(a_) * 0.85
-        w = rng.uniform(0.03, 0.05)
-        sh = [(rng.uniform(0.6, 1.0) * w * math.cos(b), rng.uniform(0.6, 1.0) * w * 0.7 * math.sin(b)) for b in
-              [2 * math.pi * q / 5 + rng.uniform(-0.3, 0.3) for q in range(5)]]
-        g = bmesh.new()
-        lo = [g.verts.new((sx, sy, -0.008)) for sx, sy in sh]
-        hi = [g.verts.new((sx * 0.92, sy * 0.92, 0.004)) for sx, sy in sh]
-        g.faces.new(lo[::-1]); g.faces.new(hi)
-        for q in range(5):
-            g.faces.new([lo[q], lo[(q + 1) % 5], hi[(q + 1) % 5], hi[q]])
-        bmesh.ops.recalc_face_normals(g, faces=g.faces)
-        bmesh.ops.rotate(g, verts=g.verts, cent=(0, 0, 0),
-                         matrix=Matrix.Rotation(a_ + math.pi / 2, 3, "Z") @ Matrix.Rotation(-0.6, 3, "X"))
-        bmesh.ops.translate(g, vec=(x, y, floor(x, y) + 0.002), verts=g.verts)
-        p.add(g, "stone", smooth=False)
-    return p.obj(coll, 1.0)
+def slot_cutter(floor):
+    """The cut the builder takes out of the slab (boolean difference, square units, a bmesh): the slot, a hair wider
+    than its walls so the slab never shows inside, from below the slot's floor to above the slab."""
+    s0, s1, w0, w1, d0, _ = lg.slot_box()
+    e = 0.004
+    return gp.box(s0 - e, s1 + e, w0 - e, w1 + e, d0 - 0.02, max(floor(x, y) for x in (s0, s1) for y in (w0, w1)) + 0.05)
 
 
 HANDLE_CARVE = 0.010  # grain relief round the handle, square units (0.004 and 0.007 read smooth to the judges)
@@ -350,80 +205,47 @@ def _handle(mats, coll, rng):
 
 
 def _moss(mats, coll, rng, stage, S, floor):
-    """The set's moss on the block: a cushion along the top's edges (clear of the slot), a ring round its foot, and
-    streaks down its front corners, with the set's fuzz. Set units, about the lever's origin."""
-    x0, x1, y0, y1, z0, z1 = lg.block_box()
-    top, side_y, side_x = [], [], []
-    # the top: a few thick patches, not an even border (the judges read a neat ring as "mathematical")
-    centres = [(x1 - 0.03, y1 - 0.04, 0.09), (x0 + 0.04, y1 - 0.03, 0.07), (x1 - 0.02, y0 + 0.05, 0.06),
-               (-0.02, y1 - 0.02, 0.05), (x0 + 0.02, y0 + 0.03, 0.04)]
-    for cx_, cy_, cr in centres:
-        for k in range(int(900 * cr * cr / 0.0081) + 6):
-            ang, rr = rng.uniform(0, 6.283), cr * math.sqrt(rng.random())
-            x, y = cx_ + rr * math.cos(ang), cy_ + rr * math.sin(ang)
-            if not (x0 + 0.01 < x < x1 - 0.01 and y0 + 0.01 < y < y1 - 0.01):
-                continue
-            if abs(x) < lg.SLOT_L / 2 + 0.02 and abs(y - lg.BLOCK_Y) < lg.SLOT_W / 2 + 0.02:
-                continue
-            top.append((x * S, y * S, (z1 - 0.004) * S, rng.uniform(0.016, 0.032) * S * (1.1 - 0.5 * rr / cr)))
-    for k in range(90):  # round the foot
-        t = rng.uniform(0, 1)
-        per = 2 * (lg.BLOCK_W + lg.BLOCK_D)
-        s = t * per
-        if s < lg.BLOCK_W:
-            x, y = x0 + s, y0 - 0.006
-        elif s < lg.BLOCK_W + lg.BLOCK_D:
-            x, y = x1 + 0.006, y0 + s - lg.BLOCK_W
-        elif s < 2 * lg.BLOCK_W + lg.BLOCK_D:
-            x, y = x1 - (s - lg.BLOCK_W - lg.BLOCK_D), y1 + 0.006
+    """The set's moss in the seam round the plate: tufts along its outer edge on the slab, thicker in two corners
+    and along the back, gaps here and there (an even ring read as "mathematical" on the block); the set's fuzz.
+    Set units, about the lever's origin."""
+    x0, x1, y0, y1, _, _ = lg.plate_box()
+    pts = []
+    per = 2 * (lg.PLATE_L + lg.PLATE_W)
+    thick = [(x1, y1, 0.12), (x0, y0, 0.08), (0.05, y1, 0.08)]
+    for k in range(20):
+        s = rng.uniform(0, per)
+        if s < lg.PLATE_L:
+            x, y = x0 + s, y0 - 0.007
+        elif s < lg.PLATE_L + lg.PLATE_W:
+            x, y = x1 + 0.007, y0 + s - lg.PLATE_L
+        elif s < 2 * lg.PLATE_L + lg.PLATE_W:
+            x, y = x1 - (s - lg.PLATE_L - lg.PLATE_W), y1 + 0.007
         else:
-            x, y = x0 - 0.006, y1 - (s - 2 * lg.BLOCK_W - lg.BLOCK_D)
-        if y < y0 and rng.random() < 0.45:  # lighter on the front, where the chain's eye is
+            x, y = x0 - 0.007, y1 - (s - 2 * lg.PLATE_L - lg.PLATE_W)
+        near = max(max(0.0, 1 - math.hypot(x - cx_, y - cy_) / r_) for cx_, cy_, r_ in thick)
+        if rng.random() > 0.3 + 0.7 * near:
             continue
-        top.append((x * S, y * S, floor(x, y) * S, rng.uniform(0.018, 0.036) * S))
-    for sx in (-1, 1):  # streaks down the front corners and over the side faces
-        for k in range(26):
-            z = z1 * (1 - rng.random() ** 1.6)
-            x = sx * (lg.BLOCK_W / 2 - rng.uniform(0.005, 0.06) * (1.2 - z / z1))
-            side_y.append((x * S, (y0 - 0.002) * S, z * S, rng.uniform(0.014, 0.024) * S))
-        for k in range(22):
-            z = z1 * (1 - rng.random() ** 1.3)
-            y = rng.uniform(y0 + 0.01, y1 - 0.01)
-            if rng.random() > 0.35 + 0.6 * (y - y0) / lg.BLOCK_D:
-                continue
-            side_x.append(((sx * (lg.BLOCK_W / 2 + 0.002)) * S, y * S, z * S, rng.uniform(0.014, 0.026) * S, sx))
-    out = []
-    mo = stage._build_moss("lever_moss", top, mats["moss"], coll, rng, squash=(0.6, 0.95))
-    stage._add_fuzz(mo, 30000, 0.014 * S, 0, 21, radius=0.0018 * S, rand=0.6, tip=0.3)
-    out.append(mo)
-    mf = stage._build_moss("lever_moss_front", side_y, mats["moss"], coll, rng, axis="y", sign=-1.0, squash=(0.5, 0.8))
-    stage._add_fuzz(mf, 9000, 0.01 * S, 0, 22, radius=0.0016 * S, rand=0.6, tip=0.3)
-    out.append(mf)
-    for sx in (-1, 1):
-        pts = [q[:4] for q in side_x if q[4] == sx]
-        if pts:
-            ms = stage._build_moss("lever_moss_side%d" % sx, pts, mats["moss"], coll, rng, axis="x", sign=float(sx), squash=(0.5, 0.8))
-            stage._add_fuzz(ms, 6000, 0.01 * S, 0, 23 + sx, radius=0.0016 * S, rand=0.6, tip=0.3)
-            out.append(ms)
-    return out
+        out = rng.uniform(0, 0.02 + 0.04 * near)  # spreads out onto the slab where it is thick
+        x += math.copysign(out, x) if abs(abs(x) - lg.PLATE_L / 2) < 0.01 else 0
+        y += math.copysign(out, y) if abs(abs(y) - lg.PLATE_W / 2) < 0.01 else 0
+        pts.append((x * S, y * S, floor(x, y) * S, rng.uniform(0.016, 0.03 + 0.012 * near) * S))
+    mo = stage._build_moss("lever_moss", pts, mats["moss"], coll, rng, squash=(0.6, 0.95))
+    stage._add_fuzz(mo, 3000, 0.012 * S, 0, 21, radius=0.0017 * S, rand=0.6, tip=0.3)
+    return [mo]
 
 
 def build(coll, mats, S, stage, floor=lambda x, y: 0.0, seed=6):
     rng = random.Random(seed)
-    bp = _block(mats, coll, rng)
-    _pin(bp, rng)
-    block = bp.obj(coll, S)
+    plate = _plate(mats, rng, floor).obj(coll, S)
     handle = _handle(mats, coll, rng)
     for v in handle.data.vertices:
         v.co *= S
     handle.location = Vector(lg.PIVOT) * S
-    chain = _chain(mats, coll, rng, floor)
-    crack = _crack(mats, coll, rng, floor)
-    for o in (chain, crack):
-        for v in o.data.vertices:
-            v.co *= S
+    slot = _slot(mats, coll, floor)
+    for v in slot.data.vertices:
+        v.co *= S
     moss = _moss(mats, coll, rng, stage, S, floor)
-    return {"block": block, "handle": handle, "chain": chain, "crack": crack, "moss": moss}
+    return {"plate": plate, "handle": handle, "slot": slot, "moss": moss}
 
 
 def set_throw(parts, t, limits=None):

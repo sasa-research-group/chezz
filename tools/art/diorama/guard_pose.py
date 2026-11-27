@@ -19,13 +19,26 @@ argv = sys.argv[sys.argv.index("--") + 1:]
 OUT = argv[0]
 K = dict(hips=0.07, lean=14.0, chin=12.0, stance=0.27, stagger=0.13, gx=-0.02, gy=-0.36, gz=0.50,
          tilt=40.0, fwd=35.0, length=0.72, gap=0.075, shoulder=28.0, wrist=0.05, mitt=0.3, fist=0.05, twist=0.0, roll=0.0,
-         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spear=0.0, plen=2.0, pgrip=0.3, slide=0.0, flen=0.10, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, slay=17.5, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1)
+         air=0.0, ahead=0.0, tuck=0.0, step=0.0, look=0.0, nervous=0.0, fall=0.0, let=0.0, lx=0.62, ly=0.10, lz=0.92, spear=0.0, plen=2.0, pgrip=0.3, slide=0.0, flen=0.10, spin=0.0, drop=0.0, clat=0.0, sdx=-0.52, sdy=-0.02, slay=17.5, hx=0.0, hy=0.0, hz=0.0, hqw=0.0, hqx=0.0, hqy=0.0, hqz=0.0, floor=-0.062, render=1,
+         rfree=0.0, rtx=0.0, rty=0.0, rtz=0.0, rax=0.0, ray=0.0, raz=1.0, lfree=0.0, ltx=0.0, lty=0.0, ltz=0.0, lax=0.0,
+         lay=0.0, laz=1.0, fgr=0.0, aside=0.0, lever=0.0, lvx=0.0, lvy=0.0, lvz=0.0, lkx=0.0, lky=0.0, lkz=0.0,
+         lbx=0.0, lby=0.0, lbw=0.0, lbd=0.0, lbh=0.0, lhr=0.0, lkr=0.0, cam_az=0.0, cam_tx=0.0, cam_ty=0.0, cam_d=4.2,
+         lfx=0.0, lfy=0.0, lfz=0.0, rfx=0.0, rfy=0.0, rfz=0.0, bank=0.0)
 for kv in argv[1:]:
     k, v = kv.split("="); K[k] = float(v)
 # spear=1 (the patrol guard's lunge, 2026-11-21): the held prop is a spear (CHAR_GLB / PROP_GLB: the guard's rig and
 # spear), long axis X with its head toward +X. It is plen world units long; its point pgrip along it (from the butt)
 # sits at the grip centre G moved `slide` along the shaft toward the head; the right hand is the rear one (toward
 # the butt), the left the front one, gap apart; each clay fist is flen long. Everything else works as for the sword.
+# Lever pull (pull_pose.py, Wesley 2026-11-27): rfree / lfree (0..1) take that hand off the sword grip toward a free
+# target (rtx, rty, rtz / ltx, lty, ltz, in his frame before `ahead` / `aside` move him), where its fist closes round
+# a handle running along (rax, ray, raz / lax, lay, laz), fgr thick (0: the sword grip's). With both hands free the
+# sword stays where gx..fwd put it (planted in the floor). aside: like `ahead`, a sideways move (+x, his left).
+# lever=1 adds a plain stand-in lever to the previews: pivot (lvx, lvy, lvz), knob centre (lkx, lky, lkz), the
+# block's centre (lbx, lby) and size (lbw across x, lbd along y, lbh high), handle and knob radii lhr, lkr, all in
+# the world after the moves. render=2 renders only the game view, from cam_az degrees (90: the camera at +x), and a low view from behind (cam_az + 150)
+# aimed at (cam_tx, cam_ty) from cam_d away. lfx, lfy, lfz / rfx, rfy, rfz: added to each foot's target (his frame
+# before the moves), so a foot can stay planted in the world while `ahead` moves the body, then step (pull_pose).
 SPEAR = bool(K["spear"])
 KING = os.path.expanduser(os.environ.get("CHAR_GLB") or "~/.dos/scratch/d84406ef/paid/out/rig/rigged_character_glb__rigged_character.glb")
 SWORD = os.path.expanduser(os.environ.get("PROP_GLB") or "~/.dos/scratch/d84406ef/sword/royal_blade.glb")
@@ -77,6 +90,14 @@ for b, share in (("Spine02", 0.45), ("Spine01", 0.35), ("Spine", 0.2)):
     rot_world(b, "X", -K["lean"] * share)
     if W("Head").y > before:  # wrong way: undo twice
         rot_world(b, "X", 2 * K["lean"] * share)
+# bank (degrees, lever pull 2026-11-27): the spine leans sideways, + toward his left (+x), so his upper body can go
+# over the lever's low base while his feet and robe stay clear of it
+if K["bank"]:
+    for b_, share in (("Spine02", 0.45), ("Spine01", 0.35), ("Spine", 0.2)):
+        before = W("Head").x
+        rot_world(b_, "Y", K["bank"] * share)
+        if (W("Head").x - before) * K["bank"] < 0:
+            rot_world(b_, "Y", -2 * K["bank"] * share)
 rot_world("Head", "X", 0)  # placeholder so the head is updated
 before = W("head_end").y
 rot_world("Head", "X", K["chin"] * 0.5); rot_world("neck", "X", K["chin"] * 0.5)
@@ -134,6 +155,8 @@ for s, sx, dy in (("Left", 1, -K["stagger"]), ("Right", -1, K["stagger"] * 0.4))
     # reaches further forward, a lunge
     T = Vector((sx * K["stance"], foot0[s].y + dy - (K["step"] if s == "Left" else 0) + K["tuck"] * 0.5,
                 foot0[s].z + K["tuck"]))
+    c_ = "l" if s == "Left" else "r"
+    T += Vector((K[c_ + "fx"], K[c_ + "fy"], K[c_ + "fz"]))
     print("LEG %s miss %.3f" % (s, ik2(s + "UpLeg", s + "Leg", s + "Foot", T, Vector((sx * (K["stance"] + 0.3), -1.5, 0.25)))), flush=True)
     # keep the foot flat and pointing forward-out: undo the shin's rotation on the foot
     aim(s + "Foot", s + "ToeBase", W(s + "Foot") + Vector((sx * 0.25, -1.0, -0.6)).normalized() * (W(s + "ToeBase") - W(s + "Foot")).length)
@@ -166,8 +189,19 @@ if w:
 # standing frame, so once `fall` tips him onto his back they lie spread on the floor
 # (lx, ly, lz: where the open hands go; the stumble raises and flails them)
 LET = {"Left": Vector((K["lx"], K["ly"], K["lz"])), "Right": Vector((-K["lx"], K["ly"], K["lz"]))}
+FREE = {s: K[c + "free"] for s, c in (("Left", "l"), ("Right", "r"))}
+FT = {s: Vector((K[c + "tx"], K[c + "ty"], K[c + "tz"])) for s, c in (("Left", "l"), ("Right", "r"))}
+FA = {s: Vector((K[c + "ax"], K[c + "ay"], K[c + "az"])).normalized() for s, c in (("Left", "l"), ("Right", "r"))}
+grip_at = dict(hands)
+for s_ in FREE:
+    if FREE[s_]:
+        hands[s_] = hands[s_].lerp(FT[s_], FREE[s_])
 for s, sx in (("Left", 1), ("Right", -1)):
     wrist = hands[s] + side * sx * K["wrist"] + Vector((0, 0.02, 0))
+    if FREE[s]:  # the wrist sits on the shoulder's side of the handle, the fist wrapped round it
+        sh = W(s + "Arm")
+        back = (sh - hands[s]); back = (back - FA[s] * back.dot(FA[s])).normalized()
+        wrist = wrist.lerp(hands[s] + back * K["wrist"], FREE[s])
     wrist = wrist.lerp(LET[s], K["let"])
     print("ARM %s miss %.3f" % (s, ik2(s + "Arm", s + "ForeArm", s + "Hand", wrist, Vector((sx * 1.2, 0.4, 0.2)))), flush=True)
     if K["let"] < 0.5:
@@ -220,6 +254,11 @@ for s_ in ("Left", "Right"):
     fz = flat(up)
     fy = fz.cross(up)
     F = Matrix((up, fy, fz)).transposed().to_4x4(); F.translation = hands[s_]
+    gr_ = 0.0115 * PLEN if SPEAR else 0.0215 / 1.018 * K["length"] * H
+    if FREE[s_] >= 0.5:  # round the lever's handle
+        ax_ = FA[s_]; fz2 = (W(s_ + "Hand") - hands[s_]); fz2 = (fz2 - ax_ * fz2.dot(ax_)).normalized()
+        F = Matrix((ax_, fz2.cross(ax_), fz2)).transposed().to_4x4(); F.translation = hands[s_]
+        gr_ = K["fgr"] or gr_
     if K["let"]:  # an open-handed fist off the grip: along the forearm, just past the wrist
         fa = (W(s_ + "Hand") - W(s_ + "ForeArm")).normalized()
         fy2 = fa.cross(Vector((0, 0, 1))).normalized() if abs(fa.z) < 0.99 else Vector((0, 1, 0))
@@ -227,11 +266,11 @@ for s_ in ("Left", "Right"):
         F = F if K["let"] < 0.5 else F2
     wl = F.inverted() @ W(s_ + "Hand")  # the forearm's end, in the fist frame
     fists.append(dict(side=s_, m=[list(r) for r in HB @ F], r=K["fist"], len=K["flen"] if SPEAR else K["gap"] * 0.98,
-                      gr=0.0115 * PLEN if SPEAR else 0.0215 / 1.018 * K["length"] * H, wrist=list(wl)))
+                      gr=gr_, wrist=list(wl)))
 # a jump or lunge: the whole body (and the sword and fists with it, as they hang off the forearm) rises by `air`
 # and travels forward by `ahead`, moved at the root bone after everything above is solved
-if K["air"] or K["ahead"]:
-    m = hips.matrix.copy(); m.translation += MW.to_3x3().inverted() @ Vector((0, -K["ahead"], K["air"])); hips.matrix = m
+if K["air"] or K["ahead"] or K["aside"]:
+    m = hips.matrix.copy(); m.translation += MW.to_3x3().inverted() @ Vector((K["aside"], -K["ahead"], K["air"])); hips.matrix = m
     bpy.context.view_layer.update()
     pose = {pb.name: [list(pb.location), list(pb.rotation_quaternion), list(pb.scale)] for pb in arm.pose.bones}
 # fall (degrees): the whole body tips back about his back heel (the death), then is lifted so nothing sinks
@@ -308,7 +347,36 @@ dg = bpy.context.evaluated_depsgraph_get()
 e = body.evaluated_get(dg); m2 = e.to_mesh()
 zs = [(e.matrix_world @ v.co).z for v in m2.vertices]; e.to_mesh_clear()
 print("FLOOR body min z %.3f (was 0)" % min(zs), flush=True)
-arm.location.z -= min(zs) if not (K["air"] or K["tuck"]) else -0.062  # off the ground: keep the standing floor
+DZ = -min(zs) if not (K["air"] or K["tuck"]) else 0.062  # off the ground: keep the standing floor
+if K["lever"]:  # CLIP: how deep his body goes into the stand-in lever (block, handle, knob), hands left out
+    e = body.evaluated_get(dg); m3 = e.to_mesh(); fl = K["floor"]  # before the DZ lift
+    hands = [W(s_ + "Hand") for s_ in ("Left", "Right")]
+    pv, kb = Vector((K["lvx"], K["lvy"], K["lvz"] + fl)), Vector((K["lkx"], K["lky"], K["lkz"] + fl))
+    ax_ = kb - pv; L_ = ax_.length; ax_ /= L_
+    dep = {"block": 0.0, "handle": 0.0, "knob": 0.0}
+    for v_ in m3.vertices:
+        q = e.matrix_world @ v_.co
+        if min((q - h_).length for h_ in hands) < 0.16:
+            continue
+        dx, dy, dz = K["lbw"] / 2 - abs(q.x - K["lbx"]), K["lbd"] / 2 - abs(q.y - K["lby"]), K["lbh"] + fl - q.z
+        if min(dx, dy, dz) > 0 and q.z > fl and min(dx, dy, dz) > dep["block"]:
+            dep["block"] = min(dx, dy, dz); worst = q
+            wg = max(v_.groups, key=lambda g_: g_.weight) if len(v_.groups) else None
+            worstg = body.vertex_groups[wg.group].name if wg else "-"
+        t = max(0.0, min(L_, (q - pv).dot(ax_)))
+        dh_ = K["lhr"] - (q - (pv + ax_ * t)).length
+        if dh_ > dep["handle"]:
+            dep["handle"] = dh_; hwg = max(v_.groups, key=lambda g_: g_.weight) if len(v_.groups) else None
+            hworst = (body.vertex_groups[hwg.group].name if hwg else "-", tuple(round(c_, 3) for c_ in q), round(t / L_, 2))
+        dep["knob"] = max(dep["knob"], K["lkr"] - (q - kb).length)
+    e.to_mesh_clear()
+    print("CLIP block %.3f handle %.3f knob %.3f" % tuple(dep[k_] for k_ in ("block", "handle", "knob")), flush=True)
+    if dep["handle"] > 0:
+        print("CLIPAT handle", *hworst, flush=True)  # body part, where, how far up the handle (0 pin, 1 knob)
+    if dep["block"] > 0:
+        print("CLIPAT block", worstg, tuple(round(c_, 3) for c_ in worst), "block x %.3f..%.3f y %.3f..%.3f" % (
+            K["lbx"] - K["lbw"] / 2, K["lbx"] + K["lbw"] / 2, K["lby"] - K["lbd"] / 2, K["lby"] + K["lbd"] / 2), flush=True)
+arm.location.z += DZ
 if not K["render"]:
     sys.exit()
 sc = bpy.context.scene
@@ -322,14 +390,30 @@ sun.data.energy = 3; sun.rotation_euler = (math.radians(50), 0, math.radians(-30
 cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam")); sc.collection.objects.link(cam); sc.camera = cam
 cam.data.lens = 50
 tgt = Vector((0, 0, 0.8))
-for name, el, az in (("game", 35, 0), ("front", 5, 0), ("side", 5, 90)):
-    d = 4.2
+VIEWS = (("game", 35, 0), ("front", 5, 0), ("side", 5, 90))
+if K["lever"]:  # a plain stand-in: grey block, wooden handle, dark knob, and the floor
+    def solid(o, col):
+        mt = bpy.data.materials.new(o.name); mt.diffuse_color = (*col, 1); mt.use_nodes = True
+        mt.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*col, 1); o.data.materials.append(mt)
+    bpy.ops.mesh.primitive_plane_add(size=12, location=(0, 0, K["floor"] + DZ)); solid(bpy.context.object, (0.25, 0.22, 0.18))
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(K["lbx"], K["lby"], K["lbh"] / 2 + K["floor"] + DZ))
+    bpy.context.object.scale = (K["lbw"], K["lbd"], K["lbh"]); solid(bpy.context.object, (0.45, 0.45, 0.43))
+    pv, kb = Vector((K["lvx"], K["lvy"], K["lvz"] + K["floor"] + DZ)), Vector((K["lkx"], K["lky"], K["lkz"] + K["floor"] + DZ))
+    bpy.ops.mesh.primitive_cylinder_add(radius=K["lhr"], depth=(kb - pv).length, location=(pv + kb) / 2)
+    bpy.context.object.rotation_euler = (kb - pv).to_track_quat("Z", "Y").to_euler(); solid(bpy.context.object, (0.5, 0.32, 0.15))
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=K["lkr"], location=kb); solid(bpy.context.object, (0.12, 0.1, 0.1))
+if K["render"] == 2:
+    tgt = Vector((K["cam_tx"], K["cam_ty"], 0.6)); VIEWS = (("view", 35, K["cam_az"]), ("back", 20, K["cam_az"] + 150))
+for name, el, az in VIEWS:
+    d = K["cam_d"]
     dirv = Vector((math.sin(math.radians(az)) * math.cos(math.radians(el)), -math.cos(math.radians(az)) * math.cos(math.radians(el)),
                    math.sin(math.radians(el))))
     cam.location = tgt + dirv * d
     cam.rotation_euler = (-dirv).to_track_quat("-Z", "Y").to_euler()
     sc.render.filepath = os.path.join(OUT, "guard-%s.png" % name)
     gpu_retry.render()
+if K["render"] == 2:
+    sys.exit()
 # close-up of the hands on the grip, from the game camera and from the front
 fc = sum((o.matrix_world.translation for o in bpy.data.objects if o.name.startswith("fist_")), Vector()) / 2
 for name, el in (("hands", 35), ("hands-front", 8)):

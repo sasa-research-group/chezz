@@ -1,6 +1,6 @@
 # The lever square, for Cycles (Wesley 2026-11-26, look A, ~/.dos/scratch/d84406ef/lever/a-up.png): a big chunky floor
-# lever, a stout oak handle with an iron ball knob in a slotted, chipped, mossy stone block at the back of the square,
-# a rusty chain from the block's foot into a crack in the floor. Rendered in the set like the gate (build_gate_cycles.py):
+# lever, a stout oak handle with an iron ball knob coming up out of a slot in the middle of the square, the slot
+# lined by a riveted iron plate set into the slab (no base block: Wesley 2026-11-27). Rendered in the set like the gate (build_gate_cycles.py):
 # a browser-lit lever looked "GameCube" next to the baked set. Shapes from lever_parts.py / lever_geom.py, materials
 # from prop_mats.py (the gate's iron and photo oak), the set's stone and moss.
 #
@@ -36,7 +36,7 @@ ap.add_argument("--stop", default="")
 ap.add_argument("--zoom", type=float, default=0.0)
 ap.add_argument("--wood_sat", type=float, default=0.7)
 ap.add_argument("--handle_sat", type=float, default=0.9)  # the handle: the draft's golden polished oak, warmer than the gate's weathered doors
-ap.add_argument("--knob_rust", type=float, default=lg.KNOB_RUST)  # the knob's rust (damp_iron amount): a hand still grips it, so less than the chain
+ap.add_argument("--knob_rust", type=float, default=lg.KNOB_RUST)  # the knob's rust (damp_iron amount): a hand still grips it, so less than full
 ap.add_argument("--oak_val", type=float, default=0.42)
 ap.add_argument("--bake", action="store_true")        # the throw's sprite frames for this square (one layer) instead of the stills
 ap.add_argument("--glow-k", type=float, default=16.0)  # as the gate: light over 1.0 that goes to the glow sheet
@@ -68,7 +68,7 @@ uv_c = world_to_camera_view(sc, cam, Vector((cx, cy, top)))
 print("CHECK square %d,%d centre %.3f %.3f top %.4f on screen %.2f %.2f" % (i, j, cx, cy, top, uv_c.x, uv_c.y), flush=True)
 coll = bpy.data.collections.new("Lever"); sc.collection.children.link(coll)
 
-# the slab's height under a point of the square (square units above `top`): the chain and the crack lie on it
+# the slab's height under a point of the square (square units above `top`): the plate and its moss lie on it
 inv = slab.matrix_world.inverted()
 
 
@@ -82,7 +82,7 @@ def floor(x, y):
 # ---------------- materials: the gate's and the set's own ----------------
 MATS = {"oak": pm.photo_oak("lever_oak", S, wood_sat=a.handle_sat, oak_val=a.oak_val, foot=False),
         # old dungeon iron (prop_mats.damp_iron): the gate keeps its baked, lighter iron
-        "iron": pm.iron_mat(0.05 * S, name="lever_iron", rust="damp", rust_at=(0.42, 0.58), worn="edges", disp=0.03),
+        "iron": pm.iron_mat(0.05 * S, name="lever_iron", rust="damp", rust_at=(0.42, 0.58), worn="edges", disp=0.03, amount=0.3),   # dark iron, rust in blooms (judge: read as all rust)
         "knob": pm.iron_mat(0.06 * S, name="lever_knob", rust="damp", rust_at=(0.46, 0.6), rough=0.62, worn="top", disp=0.025, amount=a.knob_rust),   # hand-worn on top
         "rust": pm.iron_mat(0.035 * S, name="lever_rust", rust="damp", rust_at=(0.42, 0.55), rough=0.6, worn="edges", disp=0.035),
         "stone": stage._stone_mat(), "moss": pm.set_moss(sc, stage)}
@@ -96,26 +96,41 @@ print("CHECK moss material %s" % MATS["moss"].name, flush=True)
 root = bpy.data.objects.new("lever_root", None); coll.objects.link(root)
 root.location = (cx, cy, top)
 root.scale = (a.size,) * 3   # Wesley 2026-11-27: "just a little too big"
-HOLE = (lg.HOLE[0] * a.size, lg.HOLE[1] * a.size)
+HOLE = (lg.PIVOT[0] * a.size, lg.PIVOT[1] * a.size)   # the slot's middle
 def floor_l(x, y):
     """floor() for the scaled lever: lever_parts builds in the unscaled lever's units, the root scales it by --size."""
     return floor(x * a.size, y * a.size) / a.size
 
 
 parts = lp.build(coll, MATS, S, stage, floor_l)
-for k in ("block", "handle", "chain", "crack"):
+for k in ("plate", "handle", "slot"):
     parts[k].parent = root
 for m_ in parts["moss"]:
     m_.parent = root
-# the crack: a real cut in the slab (a decal read as drawn on), its walls the slab's own stone
+# the slot: a real cut in the slab, lined by the lever's own walls and floor
 import bmesh
-cg = lp.crack_cutter(floor_l)
+cg = lp.slot_cutter(floor_l)
 for v in cg.verts:
     v.co = Vector((cx, cy, top)) + v.co * S * a.size
 cme = bpy.data.meshes.new("lever_slab_cut"); cg.to_mesh(cme); cg.free()
 cut = bpy.data.objects.new("lever_slab_cut", cme); coll.objects.link(cut); cut.hide_render = True; cut.hide_viewport = True
-bo = slab.modifiers.new("lever_crack", "BOOLEAN"); bo.operation = "DIFFERENCE"; bo.object = cut; bo.solver = "FLOAT"  # EXACT leaves the set's non-manifold slab uncut
-print("CHECK floor under the hole %.4f, under the block %.4f" % (floor(*HOLE), floor(0, lg.BLOCK_Y * a.size)), flush=True)
+# no boolean: on the set's non-manifold slab EXACT cuts nothing and FLOAT took 8 of its 21857 vertices (the slot
+# showed the slab's top, 2026-11-27). Instead the slab's faces over the slot's outline go; the hole's ragged edge
+# sits under the iron plate, which overlaps the slot by 0.04 a side and more.
+cwb = [cut.matrix_world @ v.co for v in cme.vertices]
+kx0, kx1 = min(p_.x for p_ in cwb), max(p_.x for p_ in cwb)
+ky0, ky1 = min(p_.y for p_ in cwb), max(p_.y for p_ in cwb)
+slab.data = slab.data.copy()   # the cut is this square's alone
+sg_ = bmesh.new(); sg_.from_mesh(slab.data); mw_ = slab.matrix_world
+sg_.transform(mw_)   # cut in world space (the slab's matrix flips and squashes its axes)
+for co_, no_ in (((kx0, 0, 0), (1, 0, 0)), ((kx1, 0, 0), (1, 0, 0)), ((0, ky0, 0), (0, 1, 0)), ((0, ky1, 0), (0, 1, 0))):
+    # slice along the slot's sides first: some of the slab's faces span the whole slot with no corner inside it
+    bmesh.ops.bisect_plane(sg_, geom=sg_.verts[:] + sg_.edges[:] + sg_.faces[:], plane_co=co_, plane_no=no_)
+gone_ = [f_ for f_ in sg_.faces if kx0 < f_.calc_center_median().x < kx1 and ky0 < f_.calc_center_median().y < ky1]
+bmesh.ops.delete(sg_, geom=gone_, context="FACES"); sg_.transform(mw_.inverted())
+sg_.to_mesh(slab.data); sg_.free()
+print("CHECK slot cut %d slab faces" % len(gone_), flush=True)
+print("CHECK floor under the slot %.4f, plate bottom/top %.4f %.4f" % ((floor(*HOLE),) + lp.plate_heights(floor_l)), flush=True)
 
 bpy.context.view_layer.update()
 # the set in the way: the near-right corner's birch trunk stands inside square 4,0, and a full 35 degree throw right
@@ -177,9 +192,9 @@ if a.zoom:
 if a.bake:
     # The square's sprite, one layer per throw frame (the gate's bake, build_gate_cycles.py --bake, with only its back
     # layer): each frame is the whole set rendered with the lever in it, and a value pass (an AOV, filtered like the
-    # picture, so edges are soft) cuts out the lever (block, handle, chain, moss) and its own floor slab with the
-    # lever's shadow on it. One layer, drawn under figures: the block stands in the square's back half, so a figure on
-    # the square stands in front of it, and its knob stays below the feet of a figure on the square behind.
+    # picture, so edges are soft) cuts out the lever (plate, slot, handle, moss) and its own floor slab with the
+    # lever's shadow on it. One layer, drawn under figures: nobody stands on the lever's square, and its knob stays below the
+    # feet of a figure on the square behind.
     import time
     import gpu_retry
     import OpenImageIO as oiio
@@ -203,7 +218,7 @@ if a.bake:
         nt.links.new(am.outputs["Fac"], om.inputs["Value"])
 
     def tag_hole(mat, r):
-        """The set's ground, seen through the crack where the cut opens the slab's underside: in the layer only within
+        """The set's ground, seen through the slot where the cut opens the slab's underside: in the layer only within
         r of the hole (a position test in the shader), so the game's uncut floor does not show in it."""
         nt = mat.node_tree
         ge = nt.nodes.new("ShaderNodeNewGeometry")
@@ -222,19 +237,19 @@ if a.bake:
         if o.type == "MESH" and o.name.startswith("Ground"):
             for ms in o.material_slots:
                 if ms.material is not None and ms.material.use_nodes and ms.material.name not in tagged:
-                    tagged.add(ms.material.name); tag_hole(ms.material, 1.6 * lg.HOLE_R * a.size * S)
+                    tagged.add(ms.material.name); tag_hole(ms.material, 0.6 * lg.SLOT_L * a.size * S)
     for o in lever_objs + [slab]:
         o["lever_mine"] = 1
         for ms in o.material_slots:
             tag(ms.material)
     print("CHECK lever objects %d" % len(lever_objs), flush=True)
-    # what the camera sees down the crack: it must be the lever's own (its black floor, the slab's cut walls), or the
+    # what the camera sees down the slot: it must be the lever's own (its walls and black floor), or the
     # layer is see-through there and the game's uncut floor shows in the hole
     seen = {}
-    cw_ = [parts["crack"].matrix_world @ v.co for v in parts["crack"].data.vertices]
-    zf_ = min(p_.z for p_ in cw_)   # the crack's black floor
+    cw_ = [parts["slot"].matrix_world @ v.co for v in parts["slot"].data.vertices]
+    zf_ = min(p_.z for p_ in cw_)   # the slot's black floor
     cen_ = Vector((cx + HOLE[0] * S, cy + HOLE[1] * S, zf_ + 0.005 * S))
-    for p_ in [cen_] + [cen_ + Vector((0.05 * a.size * S * math.cos(q_), 0.05 * a.size * S * math.sin(q_), 0)) for q_ in range(6)]:
+    for p_ in [cen_] + [cen_ + Vector((0.4 * lg.SLOT_L * a.size * S * math.cos(q_), 0.3 * lg.SLOT_W * a.size * S * math.sin(q_), 0)) for q_ in range(6)]:
         o_, d_, nm_ = cpos.copy(), (p_ - cpos).normalized(), "nothing"
         for _ in range(8):  # through the haze (a volume: its box is no surface)
             hit_, loc_, _, _, ob_, _ = sc.ray_cast(bpy.context.evaluated_depsgraph_get(), o_, d_)
@@ -244,7 +259,7 @@ if a.bake:
                 o_ = loc_ + d_ * 1e-3; continue
             nm_ = ob_.name; break
         seen[nm_] = seen.get(nm_, 0) + 1
-    print("CHECK seen in the crack: %s" % ", ".join("%s x%d" % kv for kv in seen.items()), flush=True)
+    print("CHECK seen in the slot: %s" % ", ".join("%s x%d" % kv for kv in seen.items()), flush=True)
     TS = lg.sheet_t()
 
     # crop: the slab and the lever at every angle it reaches, snapped to whole pixels

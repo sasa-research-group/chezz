@@ -1,6 +1,6 @@
 // The lever square as Cycles drew it (lever.ts has the timing, build_lever_cycles.py --bake the frames): one layer,
 // placed like the gate's back layer (SnareSprite's useLayer / placeLayer) and drawn before the figures (renderOrder 1):
-// the stone block stands in the square's back half, so a figure on the square stands in front of it.
+// the handle rises from a slot in the middle of its square, and no figure stands on a lever square.
 // It is thrown once the move that stopped on it has landed; its gates wait for the throw (leversBusy).
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";

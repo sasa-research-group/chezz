@@ -1,6 +1,7 @@
 #!/bin/bash
 # runleverbake.sh OUT [SQUARES=all] [RES=2400] [SAMPLES=128]: the lever's throw sprites, one layer (build_lever_cycles.py
-# --bake), one folder per square, OUT/sq{i}{j}/throw0_NN.png (right, then left; under figures) + throw.json. Per
+# --bake), one folder per square, OUT/sq{i}{j}/throw0_NN.png (right, then left; under figures) + throw.json. Then
+# match_floor.py OUT public/diorama/set5 before pack_lever.py (the set picture is older than the builder). Per
 # square: the fixed camera sees each square from its own angle, and the set's trees shorten some throws
 # (lever_geom.throw_limits). SQUARES is "all" or "3,1 0,4 ...". Resumes: a finished frame is skipped.
 OUT=${1:?out dir}

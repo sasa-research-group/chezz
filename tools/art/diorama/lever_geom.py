@@ -1,50 +1,42 @@
-# The lever square's shapes (Wesley 2026-11-26, look A from ~/.dos/scratch/d84406ef/lever/a-up.png): a big chunky
-# floor lever, a stout round oak handle with a dark iron ball knob, pivoting in the slot of a chipped, mossy grey stone
-# block; a rusty iron chain runs from the block's foot into a crack in the floor. Pure geometry here (no bpy);
-# lever_parts.py builds the meshes, build_lever_cycles.py renders them in the set.
+# The lever square's shapes. Look A (Wesley 2026-11-26, ~/.dos/scratch/d84406ef/lever/a-up.png): a big chunky floor
+# lever, a stout round oak handle with a dark iron ball knob. Base (Wesley 2026-11-27): no stone block. The handle
+# comes straight up out of a slot in the middle of the square's own floor, lined by a riveted iron plate; its pin
+# runs across the slot just under the floor. (The block's base was why a king pulling it sank his robe into it, and
+# the chain and crack hung off the block.) Pure geometry here (no bpy); lever_parts.py builds the meshes,
+# build_lever_cycles.py renders them in the set.
 #
 # Units as gate_geom: one square = 1, the square's centre at x = y = 0 on the floor (z = 0). x runs left to right on
 # screen, y away from the camera (the back), z up. A figure is H = 1 / 1.2 squares tall and stands at the centre.
 #
-# The block sits in the BACK half of the square, centred left-right, so a figure on the square stands in front of it
-# (one sprite layer under the figures will do). The handle pivots on a pin running front to back through the block
-# and tips left or right (along x), THROW_DEG from upright; the knob then hangs out to the side, above the figure's
-# head on screen.
+# Nobody stands on the lever's square: a piece on the square beside it pulls it (docs/puzzles.md). The handle pivots
+# on a pin running front to back and tips left or right (along x), THROW_DEG from upright.
 import math, random
 
 H = 1 / 1.2
 HALF = 0.5                    # the square's edges
 EL = math.radians(35.0)       # the play camera's elevation (level_camera.EL): for the on-screen checks
 
-# the stone block
-BLOCK_W = 0.46                # along x (the throw)
-BLOCK_D = 0.32                # front to back
-BLOCK_H = 0.28                # its top above the floor
-BLOCK_Y = 0.27                # its centre: the back half; its front face at y = 0.11, its back 0.07 off the edge
-BLOCK_SINK = 0.02             # sunk this far into the floor, so it never floats on an uneven slab
-SLOT_L = 0.35                 # the slot along x
-SLOT_W = 0.16                 # the slot across (y)
-SLOT_FLOOR = 0.08             # the slot's bottom above the floor
+# the slot in the floor and its iron plate, centred on the square
+SLOT_L = 0.30                 # along x (the throw): the handle meets its ends at the full throw (the stop)
+SLOT_W = 0.15                 # across (y)
+SLOT_DEPTH = 0.20             # its black floor below the floor
+PLATE_L = 0.40   # a thin frame round the slot (blind judge 2026-11-27: the 0.50 x 0.30 plate read as a rusty patch)
+PLATE_W = 0.23
+PLATE_T = 0.022               # how far it stands proud of the floor
+PLATE_SINK = 0.02             # how far its edges go down into the slab (an uneven slab never shows a gap under it)
+RIVETS = ([(x, sy * (PLATE_W / 2 - 0.02)) for x in (-0.13, 0.0, 0.13) for sy in (-1, 1)]
+          + [(sx * (PLATE_L / 2 - 0.025), 0.0) for sx in (-1, 1)])   # eight, on the rim's middle
+RIVET_R = 0.018
 
 # the handle, on its pivot pin
-PIVOT = (0.0, BLOCK_Y, 0.16)  # the pin's middle: inside the block, under the slot
+PIVOT = (0.0, 0.0, -0.06)     # the pin's middle: across the slot, a little under the floor
 PIN_R = 0.024
-HANDLE_R = 0.065              # stout: a dowel about an eighth of the square across (the draft's is chunkier still)
-HANDLE_LEN = 0.52             # pivot to the handle's top end (under the knob)
+HANDLE_R = 0.065              # stout: a dowel about an eighth of the square across
+HANDLE_LEN = 0.62             # pivot to the handle's top end (under the knob): at rest the knob is at a chibi king's shoulder
 BUTT = 0.05                   # the handle runs on below the pivot, into the slot
 KNOB_R = 0.115
 KNOB_SINK = 0.25              # the handle's end sits this far (of KNOB_R) into the ball
 THROW_DEG = 35.0
-
-# the chain
-LINK_L = 0.110                # a link's outside length
-LINK_W = 0.090                # its outside width
-WIRE = 0.015                  # its wire radius
-PITCH = LINK_L - 2 * WIRE     # link to link (each passes through the next's end)
-ANCHOR = (-0.15, BLOCK_Y - BLOCK_D / 2 - 0.02, 0.06)  # the eye on the block's front face, low on the left
-HOLE = (-0.26, -0.22)         # the crack the chain runs into
-HOLE_R = 0.095
-HOLE_DEPTH = 0.19             # how far under the floor the last link goes
 
 STATES = {"left": 0.0, "right": 1.0}
 SIZE = 0.75                   # the game draws all of the above at this scale, about the square's centre (Wesley 2026-11-27:
@@ -112,94 +104,18 @@ def slot_span(ang, z):
     return PIVOT[0] + (z - PIVOT[2]) * math.tan(ang), HANDLE_R / math.cos(ang)
 
 
-def block_box():
-    return (-BLOCK_W / 2, BLOCK_W / 2, BLOCK_Y - BLOCK_D / 2, BLOCK_Y + BLOCK_D / 2, -BLOCK_SINK, BLOCK_H)
+def plate_box():
+    return (-PLATE_L / 2, PLATE_L / 2, -PLATE_W / 2, PLATE_W / 2, -PLATE_SINK, PLATE_T)
+
+
+def slot_box():
+    return (-SLOT_L / 2, SLOT_L / 2, -SLOT_W / 2, SLOT_W / 2, -SLOT_DEPTH, PLATE_T)
 
 
 def screen_up(x, y, z):
     """How high a point sits on screen (along the camera's up, in square units, up to a constant): the camera looks
     down EL toward +y, so further back and higher both read higher."""
     return z * math.cos(EL) + y * math.sin(EL)
-
-
-def _path():
-    """The chain's centre line, as a polyline of (x, y, z) in square units, z above the local floor: out of the eye
-    on the block, down onto the floor, a slack curve out to the left (across the screen, so the links show their
-    holes from above, as the draft's), then forward and down into the crack."""
-    ax, ay, az = ANCHOR
-    hx, hy = HOLE
-    pts = [(ax, ay - 0.012, az), (ax - 0.012, ay - 0.04, 0.035), (ax - 0.035, ay - 0.06, WIRE * 1.2)]
-    p0, c, e = (ax - 0.035, ay - 0.06), (-0.47, 0.06), (hx - HOLE_R * 0.1, hy + HOLE_R * 0.5)
-    n = 16
-    for k in range(1, n + 1):  # a quadratic curve: the slack of a chain dropped on the floor
-        u = k / n
-        x = (1 - u) ** 2 * p0[0] + 2 * u * (1 - u) * c[0] + u * u * e[0]
-        y = (1 - u) ** 2 * p0[1] + 2 * u * (1 - u) * c[1] + u * u * e[1]
-        pts.append((x, y, WIRE * 1.2))
-    for k in range(1, 5):  # over the lip and down
-        u = k / 4
-        pts.append((hx + (e[0] - hx) * (1 - u), hy + (e[1] - hy) * (1 - u), WIRE * 1.2 - HOLE_DEPTH * u * u))
-    return pts
-
-
-def chain_links():
-    """The chain's links from the eye to the crack: [{"c": (x, y, z), "d": (dx, dy, dz) unit, "roll": 0 | pi/2}],
-    z above the local floor (the builder adds the slab's height under each link). Each link is PITCH from the last
-    and turned a quarter about its length from its neighbours; roll 0 lies flat (ring in the floor's plane), pi/2
-    stands up, lifted onto its edge where it lies on the floor."""
-    pts = _path()
-    seg = [(pts[k], pts[k + 1]) for k in range(len(pts) - 1)]
-    lens = [math.dist(a, b) for a, b in seg]
-    total = sum(lens)
-
-    def at(s):
-        for (a, b), L in zip(seg, lens):
-            if s <= L:
-                f = s / L
-                return tuple(a[q] + (b[q] - a[q]) * f for q in range(3))
-            s -= L
-        return pts[-1]
-
-    out, s, k = [], 0.0, 0
-    while s + PITCH <= total + 1e-9:
-        p0, p1 = at(s), at(s + PITCH)
-        c = tuple((p0[q] + p1[q]) / 2 for q in range(3))
-        d = tuple(p1[q] - p0[q] for q in range(3)); n = math.sqrt(sum(v * v for v in d)) or 1.0
-        roll = 0.0 if k % 2 == 0 else math.pi / 2
-        z = c[2]
-        if z > 0 and roll:  # an upright link on the floor rests on its edge
-            z = max(z, LINK_W / 2)
-        out.append({"c": (c[0], c[1], z), "d": tuple(v / n for v in d), "roll": roll})
-        s += PITCH; k += 1
-    return out
-
-
-def hole_outline(seed=11, n=14):
-    """The crack's jagged mouth round HOLE: [(x, y)] counter-clockwise, radius HOLE_R give or take a third."""
-    rng = random.Random(seed)
-    out = []
-    for k in range(n):
-        a = 2 * math.pi * k / n + rng.uniform(-0.15, 0.15)
-        r = HOLE_R * rng.uniform(0.7, 1.3) * (1.25 if k % 4 == 0 else 1.0)
-        out.append((HOLE[0] + r * math.cos(a), HOLE[1] + r * math.sin(a) * 0.85))
-    return out
-
-
-def cracks(seed=12):
-    """Hairline cracks running out of the hole across the slab: [{"pts": [(x, y)], "w": [width]}], tapering."""
-    rng = random.Random(seed)
-    out = []
-    for ang, L in ((2.6, 0.2), (-2.2, 0.16), (0.5, 0.24), (-0.9, 0.14), (1.7, 0.12)):
-        x, y = HOLE[0] + HOLE_R * math.cos(ang), HOLE[1] + HOLE_R * 0.8 * math.sin(ang)
-        pts, ws = [(x, y)], [0.04]
-        n = 7
-        for q in range(1, n + 1):
-            ang += rng.uniform(-0.45, 0.45)
-            x += math.cos(ang) * L / n; y += math.sin(ang) * L / n
-            x = max(-HALF + 0.02, min(HALF - 0.02, x)); y = max(-HALF + 0.02, min(HALF - 0.02, y))
-            pts.append((x, y)); ws.append(0.04 * (1 - q / (n + 1)) + 0.006)
-        out.append({"pts": pts, "w": ws})
-    return out
 
 
 KNOB_RUST = 0.6  # the knob's rust amount (Wesley 2026-11-26: the chain's full rust was "a little too rusty" on the ball)

@@ -1,6 +1,6 @@
-// The lever square, as Cycles drew it (tools/art/diorama/build_lever_cycles.py --bake, Wesley 2026-11-26, look A): a
-// stout oak handle with an iron ball knob in a slotted, mossy stone block at the back of the square, a rusty chain
-// into a crack in the floor. A piece on the square beside it, opposite its lean, pulls it (the engine flips its gates);
+// The lever square, as Cycles drew it (tools/art/diorama/build_lever_cycles.py --bake, Wesley 2026-11-26, look A;
+// no base since 2026-11-27): a stout oak handle with an iron ball knob, rising from a slot in the middle of the square
+// framed by a riveted iron plate and moss. A piece on the square beside it, opposite its lean, pulls it (the engine flips its gates);
 // the throw is timed from a real signal-box lever (lever_geom.py: slow unstick, gathering swing, hard stop, small
 // rebound). Each pull throws it the other way. The gates it works wait for the throw to end (leversBusy, read by GateSprite). Pure placing and timing
 // here; LeverSprite.tsx draws it.
