@@ -1,5 +1,8 @@
 # king_atlas.py DIR OUTDIR [FIGURE=king] [NAME=king]: NAME is the bake's file prefix (eye: eye{k}.png, eye.json); pack bake_king_sprites.py's 8 headings into public/diorama/king8.webp (4 x 2 tiles,
 # straight alpha, colours bled under the transparent pixels), king8-glow.png (same layout) and king8.json (king.json + the tile grid).
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import json, sys
 import numpy as np
 from PIL import Image
