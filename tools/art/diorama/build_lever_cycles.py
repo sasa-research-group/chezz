@@ -40,6 +40,7 @@ ap.add_argument("--knob_rust", type=float, default=lg.KNOB_RUST)  # the knob's r
 ap.add_argument("--oak_val", type=float, default=0.42)
 ap.add_argument("--bake", action="store_true")        # the throw's sprite frames for this square (one layer) instead of the stills
 ap.add_argument("--glow-k", type=float, default=16.0)  # as the gate: light over 1.0 that goes to the glow sheet
+ap.add_argument("--size", type=float, default=lg.SIZE)  # the whole lever, scaled about the square's centre
 ap.add_argument("--save", default="")                  # also save the scene as a .blend (for a look round)
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
@@ -94,20 +95,27 @@ print("CHECK moss material %s" % MATS["moss"].name, flush=True)
 # ---------------- the lever ----------------
 root = bpy.data.objects.new("lever_root", None); coll.objects.link(root)
 root.location = (cx, cy, top)
-parts = lp.build(coll, MATS, S, stage, floor)
+root.scale = (a.size,) * 3   # Wesley 2026-11-27: "just a little too big"
+HOLE = (lg.HOLE[0] * a.size, lg.HOLE[1] * a.size)
+def floor_l(x, y):
+    """floor() for the scaled lever: lever_parts builds in the unscaled lever's units, the root scales it by --size."""
+    return floor(x * a.size, y * a.size) / a.size
+
+
+parts = lp.build(coll, MATS, S, stage, floor_l)
 for k in ("block", "handle", "chain", "crack"):
     parts[k].parent = root
 for m_ in parts["moss"]:
     m_.parent = root
 # the crack: a real cut in the slab (a decal read as drawn on), its walls the slab's own stone
 import bmesh
-cg = lp.crack_cutter(floor)
+cg = lp.crack_cutter(floor_l)
 for v in cg.verts:
-    v.co = Vector((cx, cy, top)) + v.co * S
+    v.co = Vector((cx, cy, top)) + v.co * S * a.size
 cme = bpy.data.meshes.new("lever_slab_cut"); cg.to_mesh(cme); cg.free()
 cut = bpy.data.objects.new("lever_slab_cut", cme); coll.objects.link(cut); cut.hide_render = True; cut.hide_viewport = True
 bo = slab.modifiers.new("lever_crack", "BOOLEAN"); bo.operation = "DIFFERENCE"; bo.object = cut; bo.solver = "FLOAT"  # EXACT leaves the set's non-manifold slab uncut
-print("CHECK floor under the hole %.4f, under the block %.4f" % (floor(*lg.HOLE), floor(0, lg.BLOCK_Y)), flush=True)
+print("CHECK floor under the hole %.4f, under the block %.4f" % (floor(*HOLE), floor(0, lg.BLOCK_Y * a.size)), flush=True)
 
 bpy.context.view_layer.update()
 # the set in the way: the near-right corner's birch trunk stands inside square 4,0, and a full 35 degree throw right
@@ -141,10 +149,15 @@ def set_dist(x, y, z):
     return best
 
 
-LIMITS = lg.throw_limits(set_dist)
+def set_dist_l(x, y, z):
+    """set_dist in the unscaled lever's units (throw_limits and handle_gap measure the lever as lever_geom draws it)."""
+    return set_dist(x * a.size, y * a.size, z * a.size) / a.size
+
+
+LIMITS = lg.throw_limits(set_dist_l)
 print("CHECK set near the square: %s" % ", ".join(n for n, *_ in near_trees), flush=True)
 print("CHECK throw limits left %.1f right %.1f deg (gap at them %.3f %.3f squares)" % (
-    LIMITS + (lg.handle_gap(-math.radians(LIMITS[0]), set_dist), lg.handle_gap(math.radians(LIMITS[1]), set_dist))), flush=True)
+    LIMITS + (lg.handle_gap(-math.radians(LIMITS[0]), set_dist_l), lg.handle_gap(math.radians(LIMITS[1]), set_dist_l))), flush=True)
 root["throw_limits"] = list(LIMITS)
 import json
 with open(os.path.join(a.out, "lever-limits.json"), "w") as f_:
@@ -195,7 +208,7 @@ if a.bake:
         nt = mat.node_tree
         ge = nt.nodes.new("ShaderNodeNewGeometry")
         sub = nt.nodes.new("ShaderNodeVectorMath"); sub.operation = "SUBTRACT"
-        sub.inputs[1].default_value = (cx + lg.HOLE[0] * S, cy + lg.HOLE[1] * S, 0.0)
+        sub.inputs[1].default_value = (cx + HOLE[0] * S, cy + HOLE[1] * S, 0.0)
         mul = nt.nodes.new("ShaderNodeVectorMath"); mul.operation = "MULTIPLY"; mul.inputs[1].default_value = (1, 1, 0)
         ln = nt.nodes.new("ShaderNodeVectorMath"); ln.operation = "LENGTH"
         lt = nt.nodes.new("ShaderNodeMath"); lt.operation = "LESS_THAN"; lt.inputs[1].default_value = r
@@ -209,7 +222,7 @@ if a.bake:
         if o.type == "MESH" and o.name.startswith("Ground"):
             for ms in o.material_slots:
                 if ms.material is not None and ms.material.use_nodes and ms.material.name not in tagged:
-                    tagged.add(ms.material.name); tag_hole(ms.material, 1.6 * lg.HOLE_R * S)
+                    tagged.add(ms.material.name); tag_hole(ms.material, 1.6 * lg.HOLE_R * a.size * S)
     for o in lever_objs + [slab]:
         o["lever_mine"] = 1
         for ms in o.material_slots:
@@ -220,8 +233,8 @@ if a.bake:
     seen = {}
     cw_ = [parts["crack"].matrix_world @ v.co for v in parts["crack"].data.vertices]
     zf_ = min(p_.z for p_ in cw_)   # the crack's black floor
-    cen_ = Vector((cx + lg.HOLE[0] * S, cy + lg.HOLE[1] * S, zf_ + 0.005 * S))
-    for p_ in [cen_] + [cen_ + Vector((0.05 * S * math.cos(q_), 0.05 * S * math.sin(q_), 0)) for q_ in range(6)]:
+    cen_ = Vector((cx + HOLE[0] * S, cy + HOLE[1] * S, zf_ + 0.005 * S))
+    for p_ in [cen_] + [cen_ + Vector((0.05 * a.size * S * math.cos(q_), 0.05 * a.size * S * math.sin(q_), 0)) for q_ in range(6)]:
         o_, d_, nm_ = cpos.copy(), (p_ - cpos).normalized(), "nothing"
         for _ in range(8):  # through the haze (a volume: its box is no surface)
             hit_, loc_, _, _, ob_, _ = sc.ray_cast(bpy.context.evaluated_depsgraph_get(), o_, d_)

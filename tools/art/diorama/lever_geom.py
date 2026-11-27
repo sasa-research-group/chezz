@@ -47,6 +47,8 @@ HOLE_R = 0.095
 HOLE_DEPTH = 0.19             # how far under the floor the last link goes
 
 STATES = {"left": 0.0, "right": 1.0}
+SIZE = 0.75                   # the game draws all of the above at this scale, about the square's centre (Wesley 2026-11-27:
+                              # "just a little too big"); build_lever_cycles --size
 
 
 CLEARANCE = 0.03              # the handle and knob keep this far (square units) from the set's trees, walls, stones

@@ -1,13 +1,13 @@
 // The lever square, as Cycles drew it (tools/art/diorama/build_lever_cycles.py --bake, Wesley 2026-11-26, look A): a
 // stout oak handle with an iron ball knob in a slotted, mossy stone block at the back of the square, a rusty chain
-// into a crack in the floor. Each time a piece stops on it, it is thrown the other way (the engine flips its gates);
+// into a crack in the floor. A piece on the square beside it, opposite its lean, pulls it (the engine flips its gates);
 // the throw is timed from a real signal-box lever (lever_geom.py: slow unstick, gathering swing, hard stop, small
-// rebound). The gates it works wait for the throw to end (leversBusy, read by GateSprite). Pure placing and timing
+// rebound). Each pull throws it the other way. The gates it works wait for the throw to end (leversBusy, read by GateSprite). Pure placing and timing
 // here; LeverSprite.tsx draws it.
 //
 // The sheets (public/diorama/): one layer per square of the 5x5 set, because the fixed camera sees each square from its
 // own angle and the set's trees shorten some throws. lever{i}{j}-throw0.webp (+ -glow) and -throw.json: the lever and
-// its floor, drawn under figures. Frames 0..LEVER_THROW-1 throw it right (from resting left), the next LEVER_THROW
+// its floor, drawn under figures. Its square is solid: a piece beside it pulls it with its turn (engine pullFrom). Frames 0..LEVER_THROW-1 throw it right (from resting left), the next LEVER_THROW
 // throw it left. i counts squares from the left, j from the back, as gate.ts.
 
 export const LEVER_N = 5;
@@ -26,7 +26,7 @@ export function leverSquare(pos: readonly [number, number], S: number): string |
   return i >= 0 && i < LEVER_N && j >= 0 && j < LEVER_N ? `lever${i}${j}` : null;
 }
 
-/** How many times the lever at `p` has been thrown: every move that stopped on it (a pass is null). Odd: it rests
+/** How many times the lever at `p` has been thrown: every pull (a move aimed at it; a pass is null). Odd: it rests
  *  thrown right. */
 export const leverThrows = (moves: readonly ({ to: Pos } | null)[], p: Pos) =>
   moves.reduce((n, m) => n + (m && m.to.x === p.x && m.to.y === p.y ? 1 : 0), 0);

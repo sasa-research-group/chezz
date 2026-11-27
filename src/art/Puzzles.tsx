@@ -384,7 +384,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
         {tool === "statue" && <p className="level-hint">Click an enemy to turn it to stone or back. A statue never moves: it strikes any of your pieces in its reach (as that piece) without leaving its square.</p>}
         {tool === "sleep" && <p className="level-hint">Click an enemy to put it to sleep or wake it. Sleepers can't move, capture or give check until an eye sees one of your pieces.</p>}
         {tool === "gate" && <p className="level-hint">Click: closed gate. Again: open gate. Again: remove. Wire gates to a switch on the right.</p>}
-        {tool === "switch" && <p className="level-hint">Click: lever (flips each time a piece stops on it). Again: pressure plate (works only while pressed). Again: remove. Set what it does on the right.</p>}
+        {tool === "switch" && <p className="level-hint">Click: lever (fills its square; a piece beside it, opposite its lean, pulls it with its turn and flips it). Again: pressure plate (works only while pressed). Again: remove. Set what it does on the right.</p>}
         {tool === "trapdoor" && <p className="level-hint">Trapdoor: floor until a piece standing on it moves off, then a hole for good. Pieces can start on one.</p>}
         {tool === "snare" && <p className="level-hint">Snare: a piece that stops on it can never move again, but still blocks and still attacks. Pieces can start on one.</p>}
         {tool === "sludge" && <p className="level-hint">Toxic sludge: no piece may stop in it. Sliders cross it safely. A flood switch turns squares to sludge, and a piece standing there dies (an enemy counts as captured).</p>}
