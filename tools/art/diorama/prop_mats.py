@@ -197,3 +197,69 @@ def set_moss(sc, stage):
     """The set's moss material (the floor's "Moss" object wears it), or a fresh stage moss when the set has none."""
     mo = sc.objects.get("Moss")
     return mo.active_material if mo is not None else stage._moss_mat()
+
+
+def bronze_mat(u, name="plate_bronze", attr="wear"):
+    """Worn bronze for the pressure plate: metal, warm and a little rough, bright where hands and feet have rubbed
+    (the high points and the rim) and dark brown-green patina in the cavities and the flats. `attr`: a colour attribute
+    on the mesh, 0 in a cavity .. 1 on a high point, written by plate_parts (no AO or Pointiness: AO stalls Metal and
+    the relief is a height field the builder already knows). u: the hammer-dent size (set units)."""
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree; b = nt.nodes["Principled BSDF"]; L_ = nt.links.new
+    N = nt.nodes.new
+
+    def math_(op, a_, b_=None, c_=None):
+        n_ = N("ShaderNodeMath"); n_.operation = op
+        for k, v in enumerate((a_, b_, c_)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n_.inputs[k].default_value = v
+            else:
+                L_(v, n_.inputs[k])
+        return n_.outputs[0]
+
+    def ramp(src, lo, hi):
+        r_ = N("ShaderNodeMapRange"); r_.clamp = True
+        L_(src, r_.inputs["Value"]); r_.inputs["From Min"].default_value = lo; r_.inputs["From Max"].default_value = hi
+        return r_.outputs[0]
+
+    def mix(fac, c0, c1):
+        n_ = N("ShaderNodeMix"); n_.data_type = "RGBA"
+        L_(fac, n_.inputs["Factor"])
+        for sock, c in ((n_.inputs[6], c0), (n_.inputs[7], c1)):
+            if isinstance(c, tuple):
+                sock.default_value = c + (1,)
+            else:
+                L_(c, sock)
+        return n_.outputs[2]
+
+    tc = N("ShaderNodeTexCoord")
+
+    def noise(scale, detail=5, rough_=0.55, dist=0.0):
+        n_ = N("ShaderNodeTexNoise"); n_.inputs["Scale"].default_value = scale; n_.inputs["Detail"].default_value = detail
+        n_.inputs["Roughness"].default_value = rough_; n_.inputs["Distortion"].default_value = dist
+        L_(tc.outputs["Object"], n_.inputs["Vector"])
+        return n_.outputs["Fac"]
+
+    at = N("ShaderNodeAttribute"); at.attribute_type = "GEOMETRY"; at.attribute_name = attr
+    sep = N("ShaderNodeSeparateColor"); L_(at.outputs["Color"], sep.inputs["Color"])
+    wear = sep.outputs["Red"]
+    # rubbed spots are patchy: streaks and blotches shift where the bright turns to patina
+    patch = noise(3.2 / u, 6, 0.6, 0.4)
+    grit = noise(40 / u, 3, 0.6)
+    w = math_("ADD", wear, math_("MULTIPLY", math_("SUBTRACT", patch, 0.5), 0.8))
+    w = math_("ADD", w, math_("MULTIPLY", math_("SUBTRACT", grit, 0.5), 0.18))
+    bright = ramp(w, 0.38, 0.78)             # worn bright bronze
+    deep = ramp(w, 0.05, 0.38)               # 0 in the cavities: the darkest patina
+    patina = mix(ramp(noise(9 / u, 4, 0.6, 0.5), 0.4, 0.58), (0.05, 0.036, 0.02), (0.04, 0.075, 0.05))   # brown, with a green-grey bloom
+    mid = mix(ramp(noise(5 / u, 4, 0.55), 0.3, 0.7), (0.11, 0.075, 0.048), (0.17, 0.115, 0.07))               # the body: dull orange-brown bronze
+    col = mix(deep, patina, mid)
+    col = mix(bright, col, (0.40, 0.29, 0.19))                                                             # polished high points
+    L_(col, b.inputs["Base Color"])
+    L_(math_("MULTIPLY_ADD", deep, 0.35, 0.6), b.inputs["Metallic"])
+    L_(math_("MULTIPLY_ADD", bright, -0.1, math_("MULTIPLY_ADD", deep, -0.1, 0.7)), b.inputs["Roughness"])   # cavities 0.70, the body 0.60, polish 0.50
+    hgt = math_("ADD", math_("MULTIPLY", noise(60 / u, 3, 0.6), 0.25), math_("MULTIPLY", patch, 0.3))        # hammered, pitted
+    bump = N("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.35; bump.inputs["Distance"].default_value = u * 0.02
+    L_(hgt, bump.inputs["Height"]); L_(bump.outputs["Normal"], b.inputs["Normal"])
+    return m
