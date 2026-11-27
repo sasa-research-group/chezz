@@ -19,7 +19,8 @@ import { useJson } from "./TrapdoorSprite";
 
 type Spring = KingSheet & { frames: number; fps: number };
 
-function useLayer(name: string, layer: "spring" | "front") {
+/** One layer's sheet ("spring", "front", the gate's "swing"): its json, pictures, quad and camera basis. */
+export function useLayer(name: string, layer: string) {
   const sh = useJson<Spring>(`${BASE}${name}-${layer}.json`);
   const tx = useLoader(THREE.TextureLoader, [`${BASE}${name}-${layer}0.webp`, `${BASE}${name}-${layer}0-glow.webp`]);
   const m = useMemo(() => {
@@ -31,6 +32,18 @@ function useLayer(name: string, layer: "spring" | "front") {
   }, [tx, sh]);
   useEffect(() => () => { m.me.geometry.dispose(); m.me.material.dispose(); m.me.onCards.dispose(); }, [m]);
   return m;
+}
+
+/** Put a layer's quad (in group `g`, placed at the square's centre F) where the camera at `cam` sees the bake: at the
+ * depth it sorts at, `gap` in front of the square's centre along the ray (null: the bake's own), scaled so sliding it
+ * along the ray leaves the picture where it was. P is scratch. */
+export function placeLayer(g: THREE.Group, L: ReturnType<typeof useLayer>, cam: THREE.Vector3, F: THREE.Vector3, P: THREE.Vector3, gap: number | null) {
+  const own = L.sh.d0 - L.sh.dq, dF = P.copy(F).sub(cam).dot(L.fwd);
+  const q = dF - (gap ?? own);
+  g.position.copy(cam).addScaledVector(P.copy(F).sub(cam), q / dF).sub(F);
+  g.quaternion.copy(L.basis);
+  const sc = q * L.sh.d0 / (L.sh.dq * dF);
+  g.scale.set(sc, sc, sc);
 }
 
 /** `name`: snareSquare()'s sheet name (or a level's baked one); `pos`: the square's centre on the stage; `holds`: who
@@ -50,13 +63,7 @@ export function SnareSprite({ name, pos, holds }: { name: string; pos: [number, 
       const [ttx, tty] = L.sh.tiles;
       (L.me.material.uniforms.tile.value as THREE.Vector2).set(i % ttx, tty - 1 - Math.floor(i / ttx));
       if (!g) continue;
-      // q: the depth the quad sits (and sorts) at, along the ray to the square's centre; the back layer at the bake's own
-      const own = L.sh.d0 - L.sh.dq, dF = P.copy(F).sub(cam).dot(L.fwd);
-      const q = dF - (L === front ? frontGap(gap, own) : own);
-      g.position.copy(cam).addScaledVector(P.copy(F).sub(cam), q / dF).sub(F);
-      g.quaternion.copy(L.basis);
-      const sc = q * L.sh.d0 / (L.sh.dq * dF);
-      g.scale.set(sc, sc, sc);
+      placeLayer(g, L, cam, F, P, L === front ? frontGap(gap, L.sh.d0 - L.sh.dq) : null);
     }
   });
   return <>

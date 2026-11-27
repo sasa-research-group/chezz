@@ -580,3 +580,12 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
   its taker when he steps on. Flat cards have no run, so they are held at once.
 - Letting go plays the spring backward. Level bakes (bake_level.py) bake snares per square and per panning stop like
   trapdoors: levels/{key}/snare-{x}-{y}[-s{k}]-spring/front.
+
+## Gate wood (2026-11-26)
+
+- Real-looking wood came from a photo texture (`tools/art/diorama/tex/gate_oak.png`, a generated straight-on oak board) on per-plank UVs, not from procedural grain.
+- Carve the grain into the mesh: bisect each plank's front face into a fine grid and press the vertices in by the photo's darkness (`gate_parts.CARVE`). Bump alone reads flat.
+- Put a dark backing board behind the planks so the seams read as gaps, not holes.
+- Flat-shade beveled boxes (planks, straps). Smooth shading makes them look like pipes or pillows.
+- Tone the photo down (`--wood_sat 0.7 --oak_val 0.42`): the warm set lights push it orange.
+- Don't use an Ambient Occlusion shader node: it stalls the Metal kernel. Don't use Pointiness for edge wear on low-poly meshes: every vertex reads as an edge.
