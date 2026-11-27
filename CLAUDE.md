@@ -34,6 +34,13 @@ before a push, or when a change touches screens or input flow. Run browser work
 along; `--out DIR` brings files back). Never run `playwright install`; with a
 preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_PATH`.
 
+## Dev server
+Other chats run their own Chezz dev servers on this Mac, so a port in use is
+usually another chat's, not yours: never stop or kill it. Start yours with
+`npm run dev` and no `--port`/`--strictPort`: Vite moves to the next free port
+and prints `Local: http://127.0.0.1:NNNN/`. Read that line from the server's
+output and use that address. (Vite ignores `--port 0`.)
+
 ## The art harness lives in this repo
 Someone else must be able to clone this repo and generate the same art, so what
 the art depends on is committed here, not in agent memory or a scratch folder:
