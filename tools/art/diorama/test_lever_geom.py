@@ -134,3 +134,12 @@ def test_throw_left_mirrors_throw_right():
     for k in range(lg.THROW_FRAMES):
         assert abs(lg.throw_frame(k, True) + lg.throw_frame(k, False) - 1) < 1e-12
     assert lg.throw_frame(0, False) == 1 and lg.throw_frame(lg.THROW_FRAMES - 1, False) == 0
+
+
+def test_sheet_throws_right_then_left_and_each_ends_where_the_other_starts():
+    ts = lg.sheet_t()
+    n = lg.THROW_FRAMES
+    assert len(ts) == 2 * n
+    assert ts[0] == 0.0 and ts[n - 1] == 1.0          # right: from resting left to resting right
+    assert ts[n] == 1.0 and ts[2 * n - 1] == 0.0      # left: back again
+    assert ts[n:] == [1 - t for t in ts[:n]]

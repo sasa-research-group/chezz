@@ -247,3 +247,10 @@ def throw_t(k):
 def throw_frame(k, to_right):
     """The throw's t (0 thrown left .. 1 thrown right, as throw()) on frame k, throwing right or left."""
     return throw_t(k) if to_right else 1 - throw_t(k)
+
+
+def sheet_t():
+    """The baked sheet's frames (build_lever_cycles.py --bake): the throw right (frames 0..THROW_FRAMES-1, from
+    resting left), then the throw left (from resting right). Frame 0 shows it resting left, frame THROW_FRAMES resting
+    right, so the game shows a lever at rest on its first frame of the way it will next be thrown."""
+    return [throw_frame(k, True) for k in range(THROW_FRAMES)] + [throw_frame(k, False) for k in range(THROW_FRAMES)]

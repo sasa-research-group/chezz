@@ -7,7 +7,9 @@
 #   Blender -b --python build_lever_cycles.py -- --out DIR [--res 1600 --samples 128 --states left,right
 #       --square 4,0 --zoom 0]
 # writes DIR/lever-{state}.png (states: left, right, or a fraction of the throw like 0.5) and DIR/lever-limits.json
-# (the square's throw angles: shorter where the set is in the way, lever_geom.throw_limits).
+# (the square's throw angles: shorter where the set is in the way, lever_geom.throw_limits). With --bake (runs from
+# runleverbake.sh): the throw's sprite frames instead, DIR/throw0_NN.png (lever_geom.sheet_t: right, then left) +
+# throw.json.
 import bpy, sys, os, math, argparse
 from mathutils import Vector
 
@@ -36,13 +38,15 @@ ap.add_argument("--wood_sat", type=float, default=0.7)
 ap.add_argument("--handle_sat", type=float, default=0.9)  # the handle: the draft's golden polished oak, warmer than the gate's weathered doors
 ap.add_argument("--knob_rust", type=float, default=lg.KNOB_RUST)  # the knob's rust (damp_iron amount): a hand still grips it, so less than the chain
 ap.add_argument("--oak_val", type=float, default=0.42)
+ap.add_argument("--bake", action="store_true")        # the throw's sprite frames for this square (one layer) instead of the stills
+ap.add_argument("--glow-k", type=float, default=16.0)  # as the gate: light over 1.0 that goes to the glow sheet
 ap.add_argument("--save", default="")                  # also save the scene as a .blend (for a look round)
 a = ap.parse_args(argv)
 os.makedirs(a.out, exist_ok=True)
 
 H = 1.7
 S = 1.2 * H
-from level_camera import ASPECT, stop_camera
+from level_camera import ASPECT, FOCAL, stop_camera
 NX, NY = a.nx, a.ny
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -157,6 +161,150 @@ if a.zoom:
     r_.use_border = True; r_.use_crop_to_border = True
     r_.border_min_x, r_.border_max_x = max(0, cx_ - hwz), min(1, cx_ + hwz)
     r_.border_min_y, r_.border_max_y = max(0, cy_ - hh), min(1, cy_ + hh)
+if a.bake:
+    # The square's sprite, one layer per throw frame (the gate's bake, build_gate_cycles.py --bake, with only its back
+    # layer): each frame is the whole set rendered with the lever in it, and a value pass (an AOV, filtered like the
+    # picture, so edges are soft) cuts out the lever (block, handle, chain, moss) and its own floor slab with the
+    # lever's shadow on it. One layer, drawn under figures: the block stands in the square's back half, so a figure on
+    # the square stands in front of it, and its knob stays below the feet of a figure on the square behind.
+    import time
+    import gpu_retry
+    import OpenImageIO as oiio
+    import numpy as np
+    vl = bpy.context.view_layer
+    if "mine" not in vl.aovs:
+        ao = vl.aovs.add(); ao.name = "mine"; ao.type = "VALUE"
+    M = cam.matrix_world; cpos = M.translation.copy()
+    fwd = -(M.to_3x3() @ Vector((0, 0, 1))); right = M.to_3x3() @ Vector((1, 0, 0)); up = M.to_3x3() @ Vector((0, 1, 0))
+    tagged = set()
+
+    def tag(mat):
+        """Write the value pass from this material. Shared ones (the stone, the moss) are used all over the set: the
+        object's own lever_mine property (0 when missing) keeps the rest of the set out."""
+        if mat is None or mat.name in tagged or not mat.use_nodes:
+            return
+        tagged.add(mat.name)
+        nt = mat.node_tree
+        am = nt.nodes.new("ShaderNodeAttribute"); am.attribute_type = "OBJECT"; am.attribute_name = "lever_mine"
+        om = nt.nodes.new("ShaderNodeOutputAOV"); om.aov_name = "mine"
+        nt.links.new(am.outputs["Fac"], om.inputs["Value"])
+
+    def tag_hole(mat, r):
+        """The set's ground, seen through the crack where the cut opens the slab's underside: in the layer only within
+        r of the hole (a position test in the shader), so the game's uncut floor does not show in it."""
+        nt = mat.node_tree
+        ge = nt.nodes.new("ShaderNodeNewGeometry")
+        sub = nt.nodes.new("ShaderNodeVectorMath"); sub.operation = "SUBTRACT"
+        sub.inputs[1].default_value = (cx + lg.HOLE[0] * S, cy + lg.HOLE[1] * S, 0.0)
+        mul = nt.nodes.new("ShaderNodeVectorMath"); mul.operation = "MULTIPLY"; mul.inputs[1].default_value = (1, 1, 0)
+        ln = nt.nodes.new("ShaderNodeVectorMath"); ln.operation = "LENGTH"
+        lt = nt.nodes.new("ShaderNodeMath"); lt.operation = "LESS_THAN"; lt.inputs[1].default_value = r
+        om = nt.nodes.new("ShaderNodeOutputAOV"); om.aov_name = "mine"
+        nt.links.new(ge.outputs["Position"], sub.inputs[0]); nt.links.new(sub.outputs["Vector"], mul.inputs[0])
+        nt.links.new(mul.outputs["Vector"], ln.inputs[0]); nt.links.new(ln.outputs["Value"], lt.inputs[0])
+        nt.links.new(lt.outputs["Value"], om.inputs["Value"])
+
+    lever_objs = [o for o in coll.all_objects if o.type == "MESH" and not o.hide_render]
+    for o in sc.objects:
+        if o.type == "MESH" and o.name.startswith("Ground"):
+            for ms in o.material_slots:
+                if ms.material is not None and ms.material.use_nodes and ms.material.name not in tagged:
+                    tagged.add(ms.material.name); tag_hole(ms.material, 1.6 * lg.HOLE_R * S)
+    for o in lever_objs + [slab]:
+        o["lever_mine"] = 1
+        for ms in o.material_slots:
+            tag(ms.material)
+    print("CHECK lever objects %d" % len(lever_objs), flush=True)
+    # what the camera sees down the crack: it must be the lever's own (its black floor, the slab's cut walls), or the
+    # layer is see-through there and the game's uncut floor shows in the hole
+    seen = {}
+    cw_ = [parts["crack"].matrix_world @ v.co for v in parts["crack"].data.vertices]
+    zf_ = min(p_.z for p_ in cw_)   # the crack's black floor
+    cen_ = Vector((cx + lg.HOLE[0] * S, cy + lg.HOLE[1] * S, zf_ + 0.005 * S))
+    for p_ in [cen_] + [cen_ + Vector((0.05 * S * math.cos(q_), 0.05 * S * math.sin(q_), 0)) for q_ in range(6)]:
+        o_, d_, nm_ = cpos.copy(), (p_ - cpos).normalized(), "nothing"
+        for _ in range(8):  # through the haze (a volume: its box is no surface)
+            hit_, loc_, _, _, ob_, _ = sc.ray_cast(bpy.context.evaluated_depsgraph_get(), o_, d_)
+            if not hit_:
+                break
+            if ob_.name.startswith("HazeVolume"):
+                o_ = loc_ + d_ * 1e-3; continue
+            nm_ = ob_.name; break
+        seen[nm_] = seen.get(nm_, 0) + 1
+    print("CHECK seen in the crack: %s" % ", ".join("%s x%d" % kv for kv in seen.items()), flush=True)
+    TS = lg.sheet_t()
+
+    # crop: the slab and the lever at every angle it reaches, snapped to whole pixels
+    rx, ry = sc.render.resolution_x, sc.render.resolution_y
+    pts = [slab.matrix_world @ Vector(c) for c in slab.bound_box]
+    for t_ in (0.0, 0.25, 0.5, 0.75, 1.0):
+        lp.set_throw(parts, t_, LIMITS); bpy.context.view_layer.update()
+        for o in lever_objs:
+            pts += [o.matrix_world @ Vector(c) for c in o.bound_box]
+    uv_ = [world_to_camera_view(sc, cam, p) for p in pts]
+    u0, u1 = math.floor(max(0, min(q.x for q in uv_)) * rx) / rx, math.ceil(min(1, max(q.x for q in uv_)) * rx) / rx
+    v0, v1 = math.floor(max(0, min(q.y for q in uv_)) * ry) / ry, math.ceil(min(1, max(q.y for q in uv_)) * ry) / ry
+    r_ = sc.render
+    r_.use_border = True; r_.use_crop_to_border = True
+    r_.border_min_x, r_.border_max_x, r_.border_min_y, r_.border_max_y = u0, u1, v0, v1
+    r_.film_transparent = True
+    print("CROP", u0, u1, v0, v1, "px", round((u1 - u0) * rx), round((v1 - v0) * ry), flush=True)
+    F0 = Vector((cx, cy, 0.0))  # the square's centre: the game slides the quad from here (as the gate's)
+    d0 = (F0 - cpos).dot(fwd)
+    dq = min((p - cpos).dot(fwd) for p in pts) - 0.03 * H
+    tanX = 18.0 / FOCAL; tanY = tanX / ASPECT
+    at_plane = lambda u_, v_: cpos + (fwd + (2 * u_ - 1) * tanX * right + (2 * v_ - 1) * tanY * up) * dq
+    P0 = cpos + (F0 - cpos) * (dq / d0)
+    cn = [at_plane(u_, v_) - P0 for u_, v_ in ((u0, v0), (u1, v0), (u1, v1), (u0, v1))]
+    quad = {"x0": cn[0].dot(right), "x1": cn[1].dot(right), "y0": cn[0].dot(up), "y1": cn[2].dot(up)}
+    im_ = sc.render.image_settings
+    im_.media_type = "MULTI_LAYER_IMAGE"; im_.file_format = "OPEN_EXR_MULTILAYER"; im_.color_depth = "32"; im_.color_mode = "RGBA"
+
+    def srgb(x):
+        x = np.clip(x, 0, 1)
+        return np.where(x <= 0.0031308, 12.92 * x, 1.055 * np.power(x, 1 / 2.4) - 0.055)
+
+    def read_exr(exr):
+        img = oiio.ImageInput.open(exr); chans, j_ = {}, 0
+        while img.seek_subimage(j_, 0):
+            sp_ = img.spec()
+            px_ = np.asarray(img.read_image(j_, 0, 0, sp_.nchannels, "float")).reshape(sp_.height, sp_.width, sp_.nchannels)
+            for q, nm in enumerate(sp_.channelnames):
+                chans[nm] = px_[:, :, q]
+            j_ += 1
+        img.close()
+        os.remove(exr)
+        ch = lambda s_: next(v for nm, v in chans.items() if nm.endswith(s_) and "Noisy" not in nm)
+        val = lambda s_: np.clip(next(v for nm, v in chans.items() if (nm.endswith("." + s_ + ".X") or nm.endswith("." + s_ + ".V")
+                                                                         or nm.endswith("." + s_)) and "Noisy" not in nm), 0, 1)
+        return np.stack([ch("Combined.R"), ch("Combined.G"), ch("Combined.B")], -1), val("mine")
+
+    def write(png, rgb, al):
+        h_, w_ = al.shape
+        sp = oiio.ImageSpec(w_, h_, 4, "uint8"); sp.attribute("oiio:UnassociatedAlpha", 1)
+        ob = oiio.ImageBuf(sp); ob.set_pixels(oiio.ROI(), (np.concatenate([srgb(rgb), al[..., None]], -1) * 255 + 0.5).astype(np.uint8)); ob.write(png)
+        glow = np.clip((rgb - 1.0) / a.glow_k, 0, 1) * (al[..., None] > 0.02)  # no glow on the lever: kept for the sheet's shape
+        gb = oiio.ImageBuf(oiio.ImageSpec(w_, h_, 3, "uint8")); gb.set_pixels(oiio.ROI(), (np.sqrt(glow) * 255 + 0.5).astype(np.uint8))
+        gb.write(png[:-4] + "-glow.png")
+
+    for k, t_ in enumerate(TS):
+        png = os.path.join(a.out, "throw0_%02d.png" % k)
+        if os.path.exists(png):  # resumes after a Metal crash
+            continue
+        lp.set_throw(parts, t_, LIMITS); bpy.context.view_layer.update()
+        exr = os.path.join(a.out, "f%02d.exr" % k); sc.render.filepath = exr
+        t0 = time.time(); gpu_retry.render()
+        rgb, mine_ = read_exr(exr)
+        write(png, rgb, mine_)
+        print("RENDER_SECONDS %02d %.1f t %.3f" % (k, time.time() - t0, t_), flush=True)
+    info = {"H": H, "S": S, "res": [rx, ry], "crop": [u0, v0, u1, v1], "right": list(right), "up": list(up),
+            "fwd": list(fwd), "camera": list(cpos), "d0": d0, "dq": dq, "anchor": list(P0), "quad": quad,
+            "exposure": 0.0, "glowK": a.glow_k, "headings": 1, "samples": a.samples, "square": [i, j],
+            "centre": [cx, cy], "frames": len(TS), "fps": lg.THROW_FPS, "throwFrames": lg.THROW_FRAMES,
+            "limits": list(LIMITS), "t": TS}
+    json.dump(info, open(os.path.join(a.out, "throw.json"), "w"), indent=1)
+    print("LEVER BAKE OK", flush=True)
+    sys.exit(0)
 if a.save:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(a.save))
 

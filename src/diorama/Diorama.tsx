@@ -21,6 +21,8 @@ import { EyeSprite } from "./EyeSprite";
 import { TrapdoorSprite } from "./TrapdoorSprite";
 import { trapSquare } from "./trapdoor";
 import { GateSprite } from "./GateSprite";
+import { LeverSprite } from "./LeverSprite";
+import { leverSquare } from "./lever";
 import { gateSquare, gateTurn as turnOfGate } from "./gate";
 import { SnareSprite } from "./SnareSprite";
 import { snareSquare } from "./snare";
@@ -258,6 +260,8 @@ export type DioramaSquare = {
   goal?: "star" | "exit"; watched?: boolean; picked?: boolean; target?: "move" | "capture"; last?: boolean; flag?: boolean; wired?: boolean;
   /** An eye: the square of your piece it sees (it wakes and stares at it); null or missing, it dozes. */
   stare?: { x: number; y: number } | null;
+  /** A lever: how many times it has been thrown (lever.ts leverThrows); odd, it rests thrown right. */
+  throws?: number;
   label: string;
 };
 export type DioramaPiece = { id: string; kind: string; side: "white" | "black"; x: number; y: number;
@@ -292,7 +296,7 @@ useGLTF.preload(WALL_PIL_GLB);
 
 /** `trap`: a trapdoor's sheet (null: none, the flat stand-in) and, while the camera pans, the one it is leaving, shown
  * until the new one is in. `snare`: the same for a snare, and who stands on it. */
-function SquareMarks({ sq, S, H, arms, pos, trap, snare, gateTurn, gate }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; gateTurn?: number; gate?: string | null; pos: [number, number]; trap?: { name: string | null; prev?: string | null }; snare?: { name: string | null; prev?: string | null; holds: SnareHolds } }) {
+function SquareMarks({ sq, S, H, arms, pos, trap, snare, gateTurn, gate, lever }: { sq: DioramaSquare; S: number; H: number; arms?: Arms; gateTurn?: number; gate?: string | null; lever?: string | null; pos: [number, number]; trap?: { name: string | null; prev?: string | null }; snare?: { name: string | null; prev?: string | null; holds: SnareHolds } }) {
   const z = 0.05;
   const plane = (size: number, color: THREE.ColorRepresentation, opacity = 1, emissive = 0, key = "p") =>
     <mesh key={key} position={[0, 0, z]} renderOrder={1}>
@@ -335,9 +339,15 @@ function SquareMarks({ sq, S, H, arms, pos, trap, snare, gateTurn, gate }: { sq:
       out.push(name ? <Suspense key="gt" fallback={shut}><GateSprite name={name} pos={pos} open={sq.kind === "gate-open"} /></Suspense> : shut);
       break;
     }
-    case "lever": out.push(
-      <mesh key="lb" position={[0, 0, 0.04 * H]}><boxGeometry args={[0.3 * S, 0.18 * S, 0.08 * H]} /><meshStandardMaterial color={new THREE.Color(0.25, 0.2, 0.15)} /></mesh>,
-      <mesh key="ls" position={[0.05 * S, 0, 0.25 * H]} rotation={[0, 0.5, 0]}><cylinderGeometry args={[0.02 * S, 0.02 * S, 0.45 * H]} /><meshStandardMaterial color={new THREE.Color(0.55, 0.4, 0.2)} /></mesh>); break;
+    case "lever": {
+      // its sheet (Scene's leverOf), else (and while it loads) the old block and stick
+      const stub = <group key="lv">
+        <mesh position={[0, 0, 0.04 * H]}><boxGeometry args={[0.3 * S, 0.18 * S, 0.08 * H]} /><meshStandardMaterial color={new THREE.Color(0.25, 0.2, 0.15)} /></mesh>
+        <mesh position={[0.05 * S, 0, 0.25 * H]} rotation={[0, 0.5, 0]}><cylinderGeometry args={[0.02 * S, 0.02 * S, 0.45 * H]} /><meshStandardMaterial color={new THREE.Color(0.55, 0.4, 0.2)} /></mesh>
+      </group>;
+      out.push(lever ? <Suspense key="lv" fallback={stub}><LeverSprite name={lever} pos={pos} throws={sq.throws ?? 0} /></Suspense> : stub);
+      break;
+    }
     case "plate": out.push(<mesh key="pl" position={[0, 0, 0.03]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.32 * S, 0.34 * S, 0.06, 32]} /><meshStandardMaterial color={new THREE.Color(0.35, 0.3, 0.22)} metalness={0.3} /></mesh>); break;
   }
   if (sq.watched) out.push(plane(0.96, new THREE.Color(0.6, 0.05, 0.05), 0.22, 0, "wa"));
@@ -470,6 +480,8 @@ function Scene({ data, w, h, squares, pieces, onSquare: tapped, fps, bakeKey, pa
     const from = (k: number) => { const s = trapStop(pan.bake.trapStops?.[n], pan.stops, k); return s === null ? null : bakedTrap(bakeKey, sq.x, sq.y, s); };
     return { name: from(view.to), prev: view.from === null ? null : from(view.from) };
   };
+  // A lever: the 5x5 set's sheet for its spot; none yet on a level's own bake (the stand-in block and stick).
+  const leverOf = (sq: DioramaSquare, pos: [number, number]) => sq.kind === "lever" && !bakeKey ? leverSquare(pos, S) : null;
   // A gate: the 5x5 set's sheet for its spot and the way it faces; none yet on a level's own bake (the bars stand in).
   const gateOf = (sq: DioramaSquare, pos: [number, number]) =>
     (sq.kind === "gate" || sq.kind === "gate-open") && !bakeKey ? gateSquare(pos, S, turnOfGate(squares, sq.x, sq.y)) : null;
@@ -508,7 +520,7 @@ function Scene({ data, w, h, squares, pieces, onSquare: tapped, fps, bakeKey, pa
       {squares.map(sq => {
         const [x, y] = at(sq.x, sq.y);
         return <group key={`${sq.x},${sq.y}`} position={[x, y, 0]}>
-          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} gateTurn={sq.kind === "gate" || sq.kind === "gate-open" ? turnOfGate(squares, sq.x, sq.y) : undefined} gate={gateOf(sq, [x, y])} trap={trapOf(sq, [x, y])} snare={snareOf(sq, [x, y])} />
+          <SquareMarks sq={sq} S={S} H={H} pos={[x, y]} arms={arms.get(`${sq.x},${sq.y}`)} gateTurn={sq.kind === "gate" || sq.kind === "gate-open" ? turnOfGate(squares, sq.x, sq.y) : undefined} gate={gateOf(sq, [x, y])} lever={leverOf(sq, [x, y])} trap={trapOf(sq, [x, y])} snare={snareOf(sq, [x, y])} />
           <mesh position={[0, 0, 0.04]} onClick={click(sq.x, sq.y)} onPointerOver={() => setHover(true)} onPointerOut={() => setHover(false)} name={sq.label}>
             <planeGeometry args={[S, S]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />

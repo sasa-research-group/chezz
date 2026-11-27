@@ -14,6 +14,7 @@ import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
 import { lastCapture, snapDir, track } from "../diorama/facing";
 import { keepsTaken, playsStrike } from "../diorama/figures";
 import { layoutOfPuzzle } from "../diorama/levelBake";
+import { leverThrows } from "../diorama/lever";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -110,7 +111,8 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
     const kind: DioramaSquare["kind"] = has(pz.holes) ? "hole" : has(eyes) ? "eye" : has(pz.walls) ? "wall" : door ? (fallen(bd, state, p) ? "fallen" : "trapdoor")
       : gi >= 0 ? (gateOpen(bd, state, gi) ? "gate-open" : "gate") : sw ? sw.kind : toxic(bd, state, i) ? "sludge" : has(pz.snares) ? "snare" : undefined;
     return { ...p, kind, label: squareName(pz, p), goal: has(goals) ? (pz.goal.type === "escort" ? "exit" : "star") : undefined, watched: has(seen),
-      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired), stare: kind === "eye" ? stareOf(bd, state, p) : undefined };
+      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired), stare: kind === "eye" ? stareOf(bd, state, p) : undefined,
+      throws: kind === "lever" && history ? leverThrows(history.moves, p) : undefined };
   });
   // In play each piece keeps an id and faces its last move; in the editor everything faces the camera.
   const seen3d = history ? track(history.states, history.moves) : null;
