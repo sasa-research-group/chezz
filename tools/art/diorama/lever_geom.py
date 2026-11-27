@@ -208,3 +208,42 @@ def rust_band(rust_at, amount):
     the noise ramp move up, 0.12 per unit taken off)."""
     less = 1.0 - amount
     return (rust_at[0] + 0.12 * less, rust_at[1] + 0.12 * less)
+
+
+# ---------------- the throw, as baked ----------------
+# Reference pass (2026-11-26, scratch refclips/lever): "Pulling levers, Ropley signal box" (YouTube 9KoCm06IIEo,
+# handheld, 30 fps; a signalman pulls a heavy frame lever toward him, s 30.0-31.3). A second clip (Banbury north
+# interlocking, ElMxCLxROiw) shows only the locking bars under the floor: no use. Measured by eye on cropped sheets,
+# the camera pans, so the times are rough:
+#
+# | key            | ref (s, 30 fps)   | ours (24 fps)  | lever                               |
+# |----------------|-------------------|----------------|-------------------------------------|
+# | grip, catch    | 0.0-0.4 (f 0-11)  | f 0-3          | barely moves; ours unsticks 1.5%     |
+# | heave          | 0.4-0.6 (f 12-17) | f 3-6          | starts to tip, slow                  |
+# | travel         | 0.6-0.95 (f 18-28)| f 6-12         | gathers speed as his weight goes back|
+# | stop           | ~0.95 (f 28-30)   | f 12           | hard stop at the end of the slot     |
+# | settle         | (still)           | f 13-15        | ours rebounds 4% and settles         |
+#
+# Ours is about 0.65 s against the clip's 1 s: the catch is shortened (no hand on our lever yet) and the gate it
+# works waits for it. Either way of throwing has the same shape: throw_t(k) runs 0 -> 1 from the side it rests on.
+THROW_FRAMES = 16
+THROW_FPS = 24
+THROW_COCK = (0.0, 0.0, 0.006, 0.015)     # frames 0-3: the catch frees and the handle unsticks (it rests against the
+                                          # end of the slot, so it cannot cock back)
+THROW_STOP = 12                           # the frame it hits the end of the slot
+THROW_SETTLE = (0.96, 0.98, 1.0)          # frames 13-15
+
+
+def throw_t(k):
+    """How far through its throw (0 where it rested, 1 at the far end of the slot) the handle is on frame k."""
+    if k < len(THROW_COCK):
+        return THROW_COCK[k]
+    if k >= THROW_STOP:
+        return THROW_SETTLE[k - THROW_STOP - 1] if k > THROW_STOP else 1.0
+    u = (k - (len(THROW_COCK) - 1)) / (THROW_STOP - (len(THROW_COCK) - 1))   # 0 at the cock's last frame .. 1 at the stop
+    return THROW_COCK[-1] + (1 - THROW_COCK[-1]) * u * u * (1.6 - 0.6 * u)
+
+
+def throw_frame(k, to_right):
+    """The throw's t (0 thrown left .. 1 thrown right, as throw()) on frame k, throwing right or left."""
+    return throw_t(k) if to_right else 1 - throw_t(k)

@@ -118,3 +118,19 @@ def test_knob_rust_is_lighter_than_the_chain_and_full_rust_is_unchanged():
     lo, hi = lg.rust_band(full, lg.KNOB_RUST)
     assert lo > full[0] and hi > full[1] and abs((hi - lo) - (full[1] - full[0])) < 1e-12  # less rust, same softness
     assert 0 < lg.KNOB_RUST < 1
+
+
+def test_throw_unsticks_gathers_speed_stops_hard_and_settles():
+    ts = [lg.throw_t(k) for k in range(lg.THROW_FRAMES)]
+    assert ts[0] == 0 and ts[-1] == 1 and ts[lg.THROW_STOP] == 1
+    assert min(ts) >= 0 and max(ts[:4]) < 0.02                      # never past the slot's end; a slow start
+    travel = ts[3:lg.THROW_STOP + 1]
+    steps = [b - a for a, b in zip(travel, travel[1:])]
+    assert all(s > 0 for s in steps) and steps[-1] > 2 * steps[0]   # speeds up into the stop
+    assert all(0.9 < t <= 1 for t in ts[lg.THROW_STOP + 1:])         # rebound off the stop, then rest
+
+
+def test_throw_left_mirrors_throw_right():
+    for k in range(lg.THROW_FRAMES):
+        assert abs(lg.throw_frame(k, True) + lg.throw_frame(k, False) - 1) < 1e-12
+    assert lg.throw_frame(0, False) == 1 and lg.throw_frame(lg.THROW_FRAMES - 1, False) == 0
