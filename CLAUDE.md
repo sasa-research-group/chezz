@@ -51,6 +51,14 @@ the art depends on is committed here, not in agent memory or a scratch folder:
 - A prompt or rule that produced art the owner kept goes into these files in the
   same change.
 
+## Python scripts
+Homebrew's `python3` on the Mac has no numpy or Pillow. Run the scripts in
+`tools/` with `uv run tools/art/diorama/king_atlas.py ...`: each lists its
+packages in a `# /// script` block at the top, and uv installs them. A script
+that starts another with `sys.executable` lists the other's packages too.
+Scripts that `import bpy` run inside Blender and need none of this.
+`tests/python-deps.test.ts` checks the blocks.
+
 ## Workflow
 - No PRs. Agents commit on a local `claude/*` branch; the lead merges into local
   `main` and pushes `main` after each playable change, which deploys to GitHub

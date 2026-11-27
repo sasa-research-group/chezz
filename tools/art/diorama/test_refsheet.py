@@ -1,5 +1,8 @@
 # Check of refsheet.py with a generated 2 s test clip (ffmpeg's testsrc; no download):
-#   python3 tools/art/diorama/test_refsheet.py
+#   uv run tools/art/diorama/test_refsheet.py
+# /// script
+# dependencies = ["pillow"]
+# ///
 import os, subprocess, sys, tempfile
 from PIL import Image
 

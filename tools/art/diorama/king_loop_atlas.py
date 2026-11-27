@@ -4,6 +4,9 @@
 # lossy with exact alpha, colours bled under the transparent pixels), king-{name}{k}-glow.webp (same layout) and
 # king-{name}.json ({name}.json + the grid, the headings that have a sheet, cps: loops per second at the game's
 # pace). The game moves him at cycle * cps stage units a second, so the feet stay planted.
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import glob, json, os, re, sys
 from PIL import Image
 import numpy as np

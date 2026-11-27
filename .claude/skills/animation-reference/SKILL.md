@@ -31,7 +31,7 @@ Download small: `yt-dlp -f "bv*[height<=720]" --download-sections "*0:05-0:12" -
 folder, never in the repo (licences: study only, ship nothing from them).
 
 ## C. Contact sheets
-`python3 tools/art/diorama/refsheet.py clip.mp4 OUT --start 5.2 --end 6.4` writes OUT/f_###.png at 24 fps and
+`uv run tools/art/diorama/refsheet.py clip.mp4 OUT --start 5.2 --end 6.4` writes OUT/f_###.png at 24 fps and
 OUT/sheet.png with frame numbers. Read the sheet, then open single frames around each key pose.
 
 ## D. Key-pose and timing table
