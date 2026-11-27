@@ -70,93 +70,22 @@ print("CHECK square %d,%d centre %.3f %.3f top %.4f" % (i, j, cx, cy, top), flus
 coll = bpy.data.collections.new("Gate"); sc.collection.children.link(coll)
 
 
-# ---------------- materials: the set's own ----------------
+# ---------------- materials: the set's own (prop_mats.py, shared with the lever) ----------------
+import prop_mats as pm
+
+
 def iron_mat(u):
-    """Hand-forged iron as the trapdoor's: dark, hammer-dented, rust blooming in patches, worn bright on the edges."""
-    m = bpy.data.materials.new("gate_iron"); m.use_nodes = True
-    nt = m.node_tree; b = nt.nodes["Principled BSDF"]; L_ = nt.links.new
-    tc = nt.nodes.new("ShaderNodeTexCoord")
-    vor = nt.nodes.new("ShaderNodeTexVoronoi"); vor.inputs["Scale"].default_value = 9 / u
-    L_(tc.outputs["Object"], vor.inputs["Vector"])
-    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.35; bump.inputs["Distance"].default_value = u * 0.02
-    L_(vor.outputs["Distance"], bump.inputs["Height"])
-    nz = nt.nodes.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 2.2 / u; nz.inputs["Detail"].default_value = 6
-    L_(tc.outputs["Object"], nz.inputs["Vector"])
-    rust = nt.nodes.new("ShaderNodeValToRGB")
-    rust.color_ramp.elements[0].position = 0.48; rust.color_ramp.elements[1].position = 0.66
-    L_(nz.outputs["Fac"], rust.inputs["Fac"])
-    geo = nt.nodes.new("ShaderNodeNewGeometry")
-    wear = nt.nodes.new("ShaderNodeValToRGB")
-    wear.color_ramp.elements[0].position = 0.97; wear.color_ramp.elements[1].position = 0.995  # flat-shaded straps: high pointiness everywhere
-    L_(geo.outputs["Pointiness"], wear.inputs["Fac"])
-    mix1 = nt.nodes.new("ShaderNodeMix"); mix1.data_type = "RGBA"
-    mix1.inputs[6].default_value = (0.075, 0.072, 0.07, 1); mix1.inputs[7].default_value = (0.07, 0.03, 0.015, 1)
-    L_(rust.outputs["Color"], mix1.inputs["Factor"])
-    mix2 = nt.nodes.new("ShaderNodeMix"); mix2.data_type = "RGBA"
-    L_(mix1.outputs[2], mix2.inputs[6]); mix2.inputs[7].default_value = (0.2, 0.17, 0.14, 1)
-    L_(wear.outputs["Color"], mix2.inputs["Factor"])
-    L_(mix2.outputs[2], b.inputs["Base Color"])
-    met = nt.nodes.new("ShaderNodeMath"); met.operation = "MULTIPLY_ADD"
-    met.inputs[1].default_value = -0.5; met.inputs[2].default_value = 0.6
-    L_(rust.outputs["Color"], met.inputs[0]); L_(met.outputs[0], b.inputs["Metallic"])
-    rough = nt.nodes.new("ShaderNodeMath"); rough.operation = "MULTIPLY_ADD"
-    rough.inputs[1].default_value = 0.15; rough.inputs[2].default_value = 0.78
-    L_(rust.outputs["Color"], rough.inputs[0]); L_(rough.outputs[0], b.inputs["Roughness"])
-    L_(bump.outputs["Normal"], b.inputs["Normal"])
-    return m
+    return pm.iron_mat(u)
 
 
 def oak(name, val):
-    """The set's oak, lifted to the trapdoor door's weathered grey-brown; val darkens it (vines)."""
-    os.environ["WOOD_TINT"] = a.wood
-    m = stage._wood_mat(); m.name = name
-    bsdf = m.node_tree.nodes["Principled BSDF"]
-    lk = bsdf.inputs["Base Color"].links[0]
-    hs = m.node_tree.nodes.new("ShaderNodeHueSaturation")
-    hs.inputs["Saturation"].default_value = a.wood_sat; hs.inputs["Value"].default_value = 1.15 * val
-    m.node_tree.links.new(lk.from_socket, hs.inputs["Color"]); m.node_tree.links.new(hs.outputs["Color"], bsdf.inputs["Base Color"])
-    for n_ in m.node_tree.nodes:  # deeper, rougher grain than the set's polished frame
-        if n_.type == "BUMP":
-            n_.inputs["Strength"].default_value = 1.0
-    return m
+    return pm.oak(stage, name, val, wood=a.wood, wood_sat=a.wood_sat)
 
 
 def door_oak(name):
-    """The doors' oak: a photo of weathered oak (tex/gate_oak.png, made with Gemini 2026-11-26: grain, knots, checks)
-    on per-plank UVs from gate_parts (each plank its own strip, its own tone), its light and dark also the relief, the
-    foot weathered grey. Hand-built grain (the set's _wood_mat, wave bands, a scan zoomed in) read as cardboard."""
-    m = bpy.data.materials.new(name); m.use_nodes = True
-    nt = m.node_tree; b = nt.nodes["Principled BSDF"]; L_ = nt.links.new
-    uvn = nt.nodes.new("ShaderNodeUVMap"); uvn.uv_map = "UVMap"
-    tone = nt.nodes.new("ShaderNodeUVMap"); tone.uv_map = "tone"
-    sep = nt.nodes.new("ShaderNodeSeparateXYZ"); L_(tone.outputs["UV"], sep.inputs[0])
-    dif = nt.nodes.new("ShaderNodeTexImage"); dif.extension = "REPEAT"
-    dif.image = bpy.data.images.load(os.path.join(HERE, "tex", "gate_oak.png"), check_existing=True)
-    L_(uvn.outputs["UV"], dif.inputs["Vector"])
-    hs = nt.nodes.new("ShaderNodeHueSaturation"); L_(dif.outputs["Color"], hs.inputs["Color"])
-    hs.inputs["Saturation"].default_value = a.wood_sat
-    val = nt.nodes.new("ShaderNodeMath"); val.operation = "MULTIPLY_ADD"  # each plank a little lighter or darker
-    val.inputs[1].default_value = 0.35 * a.oak_val; val.inputs[2].default_value = 0.8 * a.oak_val
-    L_(sep.outputs["X"], val.inputs[0]); L_(val.outputs[0], hs.inputs["Value"])
-    hue = nt.nodes.new("ShaderNodeMath"); hue.operation = "MULTIPLY_ADD"
-    hue.inputs[1].default_value = 0.03; hue.inputs[2].default_value = 0.485
-    L_(sep.outputs["Y"], hue.inputs[0]); L_(hue.outputs[0], hs.inputs["Hue"])
-    # the foot: weathered grey where rain splashes (object z is height above the sill on each leaf)
-    tc = nt.nodes.new("ShaderNodeTexCoord"); sz = nt.nodes.new("ShaderNodeSeparateXYZ"); L_(tc.outputs["Object"], sz.inputs[0])
-    nz = nt.nodes.new("ShaderNodeTexNoise"); nz.inputs["Scale"].default_value = 14 / S; L_(tc.outputs["Object"], nz.inputs["Vector"])
-    hgt = nt.nodes.new("ShaderNodeMath"); hgt.operation = "MULTIPLY_ADD"
-    hgt.inputs[1].default_value = 0.12 * S; L_(nz.outputs["Fac"], hgt.inputs[0]); L_(sz.outputs["Z"], hgt.inputs[2])
-    foot = nt.nodes.new("ShaderNodeMapRange"); L_(hgt.outputs[0], foot.inputs["Value"])
-    foot.inputs["From Min"].default_value = 0.06 * S; foot.inputs["From Max"].default_value = 0.2 * S
-    foot.inputs["To Min"].default_value = 0.5; foot.inputs["To Max"].default_value = 0.0
-    grey = nt.nodes.new("ShaderNodeMix"); grey.data_type = "RGBA"
-    L_(foot.outputs[0], grey.inputs["Factor"]); L_(hs.outputs["Color"], grey.inputs[6]); grey.inputs[7].default_value = (0.11, 0.1, 0.085, 1)
-    L_(grey.outputs[2], b.inputs["Base Color"])
-    b.inputs["Roughness"].default_value = 0.82
-    bw = nt.nodes.new("ShaderNodeRGBToBW"); L_(dif.outputs["Color"], bw.inputs["Color"])  # dark grain and checks sit low
-    bump = nt.nodes.new("ShaderNodeBump"); bump.inputs["Strength"].default_value = 1.0; bump.inputs["Distance"].default_value = 0.012 * S  # deep, carved miniature grain
-    L_(bw.outputs[0], bump.inputs["Height"]); L_(bump.outputs["Normal"], b.inputs["Normal"])
-    return m
+    """The doors' oak: the photo oak (prop_mats.photo_oak) on per-plank UVs from gate_parts (each plank its own
+    strip, its own tone), the foot weathered grey."""
+    return pm.photo_oak(name, S, wood_sat=a.wood_sat, oak_val=a.oak_val)
 
 
 _moss = sc.objects.get("Moss")

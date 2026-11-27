@@ -589,3 +589,20 @@ Wesley wants levels of any shape (long, multi-story, areas joined by travel), so
 - Flat-shade beveled boxes (planks, straps). Smooth shading makes them look like pipes or pillows.
 - Tone the photo down (`--wood_sat 0.7 --oak_val 0.42`): the warm set lights push it orange.
 - Don't use an Ambient Occlusion shader node: it stalls the Metal kernel. Don't use Pointiness for edge wear on low-poly meshes: every vertex reads as an edge.
+
+## Lever (2026-11-26)
+
+- Shapes in `tools/art/diorama/lever_geom.py` (tested by `test_lever_geom.py`), meshes in `lever_parts.py`, stills from `runlever.sh OUT [RES SAMPLES STATES]` (`LEVER_ARGS="--square 2,2 --zoom 1"`). States are `left` and `right`; `throw(t)` is a placeholder smoothstep.
+- The gate's iron, photo oak and the set's moss now live in `prop_mats.py`. The gate renders the same as before.
+- The draft's lever is about twice the size one square allows. Make the parts chunky (handle radius 0.065, knob 0.115 of a square) and keep the whole throw inside the square.
+- Run the chain across the screen, not toward the camera. Seen end-on, the links read as a twisted rope. Big links with thick wire (0.11 long, 0.09 wide, 0.015 wire, radius varied a little per link so they look hand-forged) read as a chain; small orange ones read as beads. Keep the link's hole open: the width must stay well over four wire radii, or displacement closes it.
+- Cut the block with one boolean (slot, chips, grooves), then bevel it and flat-shade it. Add broad lumps before the cut so the edges aren't straight.
+- Moss in a few thick patches. An even border round the top looks computed.
+- The set's slabs are non-manifold. An EXACT boolean leaves them uncut. FLOAT opens the hole but leaves no walls, so the lever adds its own dark walls and floor. Hairline cracks stay decals.
+- Whittle the handle: nine soft flats plus grain carved 0.01 deep. At 0.004 the judges called it a smooth tube.
+- Gemini judges caught the render 6 of 6, then 6 of 6, then 5 of 6. What they still ask for: deeper handle grain, chunkier moss clumps, a less perfect knob, crustier chain, stronger light from the top-left. The light belongs to the set; leave it.
+- Measure the throw against the set at build time. A centred block on 4,0 swung its knob 0.074 of a square into the corner birch at the full 35°. `lever_geom.throw_limits` steps out from upright on each side with the set's BVH (unsigned distance: walls and hanging moss are open sheets) and stops 0.03 short of touching; never below 15°. On 4,0 that gives left 35°, right 22° (gap 0.035 of a square); 2,2 keeps 35/35. The limits are stored on the lever root and in `lever-limits.json`.
+- Lever iron is `prop_mats.iron_mat(..., rust="damp")`: charcoal base, orange-brown blooms, a flaky raised crust, pits, bare metal only where worn (top of the knob, edges of the links), rough everywhere else, with true displacement kept small (0.025 to 0.035 of the size). The default path is the gate's iron and renders the same as before.
+- Iron judges caught the rusty iron 33% then 42% of 12 trials. Round 2 asked for less scabby knob displacement, desaturated ochre and pits in the rust; those went into the last pass, which was not judged again.
+- The knob wears less rust than the chain (`damp_iron(amount=0.6)`, `--knob_rust`): the owner found it too rusty. amount below 1 shrinks the rust patches, thins the orange blooms and widens the hand-polished top; 0.6 halves the orange on the knob (55% to about 28% of its face). The chain stays at 1.
+- About 16 s a still at 1600 px and 128 samples on the full frame; 5 s for a `--zoom 1` crop; about 10 s for a `--zoom 0.7` iron close-up.
