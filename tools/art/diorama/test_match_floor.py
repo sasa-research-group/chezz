@@ -64,3 +64,18 @@ def test_a_prop_covering_most_of_the_frame_does_not_pull_the_gain():
     door = rng.integers((70, 60, 40), (140, 110, 80), (60, 40, 3))   # oak doors over two thirds, grain all over
     sprite[:, :40, :3] = door
     assert np.allclose(mf.gains(sprite, under, 0.0), g_true, atol=0.03)
+
+
+def test_like_takes_the_gain_from_another_bake(tmp_path):
+    import json
+    from PIL import Image
+    set_img = Image.fromarray(_floor((108, 106, 103), 40, 40))
+    other = tmp_path / "lever" / "sq31"; other.mkdir(parents=True)
+    json.dump({"gain": [1.0, 1.0, 1.5]}, open(other / "match.json", "w"))
+    d = tmp_path / "snare" / "sq31"; d.mkdir(parents=True)
+    json.dump({"res": [40, 40], "crop": [0.25, 0.25, 0.75, 0.75]}, open(d / "spring.json", "w"))
+    px = np.concatenate([_floor((100, 100, 100), 20, 20), np.full((20, 20, 1), 255, np.uint8)], -1)
+    Image.fromarray(px).save(d / "spring0_00.png")
+    mf.match_square(str(d), set_img, {"exposure": 0.0}, ("spring",), like=str(tmp_path / "lever"))
+    got = np.asarray(Image.open(d / "spring0_00.png"))[0, 0, :3]
+    assert np.allclose(got, np.round(mf.to_srgb(mf.to_lin(100) * np.array([1, 1, 1.5]))), atol=1)

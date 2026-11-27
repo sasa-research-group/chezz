@@ -13,7 +13,10 @@ the prop itself (handle, plate), which the set never had.
 
 BAKE: a runner's square folders (sq{i}{j}/ with LAYER.json: its crop and res), or one such folder. LAYERs: the
 sprite layers, frames LAYER0_NN.png; the first gives the gain (it has the floor), every layer gets it (the gate's
-front layer has no floor of its own: `match_floor.py OUT SET swing front`). SET: the set's
+front layer has no floor of its own: `match_floor.py OUT SET swing front`). --like OTHER: take each square's gain
+from another bake's match.json (OTHER/sq{i}{j}) instead of measuring it, for a prop that hides its floor (the snare's
+roots and glow leave a few hundred noisy floor pixels; the lever's bare slot floor is the clean measurement, and
+both were baked with the same builder). SET: the set's
 picture and json without the extension (public/diorama/set5). Rewrites the frames in place; writes match.json
 (the gains) so a second run is a no-op."""
 import glob, json, os, sys
@@ -71,7 +74,7 @@ def layer_frames(d, layer):
     return [f for f in sorted(glob.glob(os.path.join(d, layer + "0_*.png"))) if not f.endswith("-glow.png")]
 
 
-def match_square(d, set_img, set_info, layers=("throw",)):
+def match_square(d, set_img, set_info, layers=("throw",), like=None):
     if os.path.exists(os.path.join(d, "match.json")):
         print(d, "already matched"); return
     info = json.load(open(os.path.join(d, layers[0] + ".json")))
@@ -81,7 +84,10 @@ def match_square(d, set_img, set_info, layers=("throw",)):
     x0, y0 = round(u0 * rx), round((1 - v1) * ry)
     frames = layer_frames(d, layers[0])
     best = (np.ones(3), 0, None)
-    for f in frames:   # one gain for the whole clip (the floor never changes), from the frame showing the most floor
+    if like:
+        best = (np.array(json.load(open(os.path.join(like, os.path.basename(d.rstrip("/")), "match.json")))["gain"]),
+                0, like)
+    for f in ([] if like else frames):   # one gain for the whole clip (the floor never changes), from the frame showing the most floor
         im = np.asarray(Image.open(f).convert("RGBA"))
         h, w = im.shape[:2]
         g, n = floor_gain(im, np.asarray(set_img)[y0:y0 + h, x0:x0 + w], set_info["exposure"])
@@ -97,11 +103,15 @@ def match_square(d, set_img, set_info, layers=("throw",)):
 
 
 if __name__ == "__main__":
-    bake, setp = sys.argv[1], sys.argv[2]
-    layers = tuple(sys.argv[3:]) or ("throw",)
+    args = sys.argv[1:]
+    like = None
+    if "--like" in args:
+        i = args.index("--like"); like = args[i + 1]; del args[i:i + 2]
+    bake, setp = args[0], args[1]
+    layers = tuple(args[2:]) or ("throw",)
     set_img = Image.open(setp + ".webp").convert("RGB")
     set_info = json.load(open(setp + ".json"))
     dirs = [bake] if os.path.exists(os.path.join(bake, layers[0] + ".json")) else sorted(
         p for p in glob.glob(os.path.join(bake, "sq*")) if os.path.exists(os.path.join(p, layers[0] + ".json")))
     for d in dirs:
-        match_square(d, set_img, set_info, layers)
+        match_square(d, set_img, set_info, layers, like)
