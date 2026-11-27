@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'fs'
-import { GATE_FPS, GATE_N, gateFrame, gateSquare, gateStart, gateTick, gateTurn } from '../src/diorama/gate'
+import { GATE_FPS, GATE_GRACE_MS, GATE_N, gateFrame, gateSquare, gateStart, gateTick, gateTurn, gateWait, gateWaitStart } from '../src/diorama/gate'
 
 const S = 2.04
 // Diorama's at(): board (x, y) on a 5x5 board to the stage
@@ -67,5 +67,32 @@ describe('gate swing timing', () => {
     expect(gateFrame(s, N)).toBe(0)
     s = gateTick(gateTick(gateStart(true), false, 8 / GATE_FPS, N), true, 2 / GATE_FPS, N)
     expect(gateFrame(s, N)).toBe(N - 1 - 8 + 2)
+  })
+})
+
+describe('gateWait', () => {
+  it('holds the doors until the move that flipped the gate has landed', () => {
+    let w = gateWaitStart(false, 0)
+    w = gateWait(w, true, 10, 0) // the board flips it as the rook sets off; his frame hasn't said yet
+    expect(w.shown).toBe(false)
+    w = gateWait(w, true, 50, 900) // the rook is walking to the plate
+    expect(w.shown).toBe(false)
+    w = gateWait(w, true, 900, 30)
+    expect(w.shown).toBe(false)
+    w = gateWait(w, true, 960, 0) // he lands: the doors swing
+    expect(w.shown).toBe(true)
+  })
+  it('waits out the grace even when nothing reports a move yet', () => {
+    let w = gateWait(gateWaitStart(true, 0), false, 1000, 0)
+    expect(w.shown).toBe(true)
+    w = gateWait(w, false, 1000 + GATE_GRACE_MS, 0)
+    expect(w.shown).toBe(false)
+  })
+  it('starts as the board says, and a flip back before landing never moves the doors', () => {
+    expect(gateWaitStart(true, 0).shown).toBe(true)
+    let w = gateWait(gateWaitStart(false, 0), true, 10, 500)
+    w = gateWait(w, false, 200, 300)
+    w = gateWait(w, false, 2000, 0)
+    expect(w.shown).toBe(false)
   })
 })

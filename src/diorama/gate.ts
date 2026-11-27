@@ -47,3 +47,19 @@ export function gateTick(s: GateAnim, open: boolean, dt: number, frames: number)
 
 /** The frame to show: 0 shut, the last once open. */
 export const gateFrame = (s: GateAnim, frames: number) => Math.max(0, Math.min(frames - 1, Math.floor(s.t * GATE_FPS + 1e-6)));
+
+/** How long after the board flips a gate before it trusts motionLeft(): the moving figure says when it lands from its
+ *  own frame, which may run just after the gate's. */
+export const GATE_GRACE_MS = 120;
+
+/** What the gate shows, open or shut, as against what the board says (`want`, flipped at `since`). The board flips a
+ *  gate as the move is made; the doors wait for the move to land (the rook on the plate, the hand on the lever). */
+export type GateWait = { want: boolean; since: number; shown: boolean };
+
+export const gateWaitStart = (open: boolean, now: number): GateWait => ({ want: open, since: now, shown: open });
+
+/** `left`: milliseconds until the figures' moves land (motion.ts motionLeft). */
+export function gateWait(w: GateWait, open: boolean, now: number, left: number): GateWait {
+  if (open !== w.want) w = { want: open, since: now, shown: w.shown };
+  return w.shown !== w.want && now - w.since >= GATE_GRACE_MS && left <= 0 ? { ...w, shown: w.want } : w;
+}
