@@ -7,7 +7,7 @@ import plate_geom as pg
 def test_disc_sits_inside_the_square_with_room_for_the_ring():
     assert 0.62 <= 2 * pg.DISC_R <= 0.70                   # about two thirds of a square across
     assert pg.R_OUT == pg.DISC_R + pg.GAP + pg.RING_W
-    assert 0.07 <= pg.RING_W <= 0.09
+    assert 0.07 <= pg.RING_W <= 0.13                    # broad, as the concept; R_OUT still inside the square
     assert pg.R_OUT < 0.5
     assert 0.5 - pg.R_OUT > 0.05                           # a margin of slab round the ring
 
@@ -61,6 +61,6 @@ def test_relief_is_raised_on_the_sun_and_level_between():
     between = pg.relief(0.2, 2 * math.pi / pg.RAYS * 0.5 + 0.0)
     assert between < 0.003                                   # between two rays the flat shows
     assert pg.relief(pg.DISC_R - 0.02, 1.0) > 0.005          # the rim
-    assert pg.relief(pg.SCRIBE_R, 0.1) < -0.002              # the scribed circle is cut into the flat
+    assert min(pg.relief(pg.SCRIBE_R + d / 1000, 0.1) for d in range(-8, 9)) < -0.002   # the scribed circle is cut in (it wobbles a little)
     hs = [pg.relief(r / 400, th / 50) for r in range(0, 133) for th in range(0, 315, 7)]
     assert max(hs) < 0.02 and min(hs) >= -pg.EDGE_DROP - 1e-9   # shallow: never a tall plug

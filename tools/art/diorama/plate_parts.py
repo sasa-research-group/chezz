@@ -59,7 +59,8 @@ def _disc(mats, rng):
         row = []
         for j in range(NA):
             th = 2 * math.pi * j / NA
-            row.append(g.verts.new((r * math.cos(th), r * math.sin(th), pg.relief(r, th))))
+            oor = 1 + (r / pg.DISC_R) * (0.006 * math.sin(2 * th + 1.0) + 0.003 * math.sin(5 * th + 0.3))   # a little out of round, cast by hand
+            row.append(g.verts.new((r * oor * math.cos(th), r * oor * math.sin(th), pg.relief(r, th))))
         top.append(row)
     for j in range(NA):
         g.faces.new([top[0][0], top[1][j], top[1][(j + 1) % NA]])
@@ -96,9 +97,9 @@ def _stone_piece(i, a0, a1, zb, floor, rng, zref):
     g = bmesh.new()
     rm = (pg.R_IN + pg.R_OUT) / 2
     L = (a1 - a0) * rm
-    b = 0.006
-    prof = [(pg.R_IN, None), (pg.R_IN, -0.007), (pg.R_IN + 0.0025, -0.003), (pg.R_IN + b, 0.0),
-            (pg.R_OUT - 0.009, 0.0), (pg.R_OUT - 0.004, -0.003), (pg.R_OUT, -0.008), (pg.R_OUT, None)]
+    b = 0.014   # rounded tops, as the concept's pebble-like blocks
+    prof = [(pg.R_IN, None), (pg.R_IN, -0.016), (pg.R_IN + 0.004, -0.007), (pg.R_IN + b, 0.0),
+            (pg.R_OUT - 0.016, 0.0), (pg.R_OUT - 0.005, -0.007), (pg.R_OUT, -0.018), (pg.R_OUT, None)]
     inner = [0.0, 0.0025, 0.005, 0.0085, 0.0125]
     ss = inner + [L * k / 10 for k in range(1, 10) if 0.0125 < L * k / 10 < L - 0.0125] + [L - s for s in inner[::-1]]
     h_i = pg.RING_H * rng.uniform(0.85, 1.2)
@@ -107,7 +108,7 @@ def _stone_piece(i, a0, a1, zb, floor, rng, zref):
     grid = []
     for s in ss:
         a = a0 + s / rm
-        drop = 0.009 * (1 - _sm(min(s, L - s) / 0.011))   # the ends rolled over
+        drop = 0.016 * (1 - _sm(min(s, L - s) / 0.018))   # the ends rolled over
         row = []
         for r, dz in prof:
             rr = r + rng.uniform(-0.0012, 0.0012)
@@ -115,7 +116,7 @@ def _stone_piece(i, a0, a1, zb, floor, rng, zref):
             if dz is None:
                 z = zb
             else:
-                z = floor(x, y) + h_i + dz - drop + tilt * (s / L - 0.5) / 0.5 + 0.0016 * math.sin(x * 61 + ph[0]) * math.sin(y * 53 + ph[1]) + rng.uniform(-0.0006, 0.0006)
+                z = floor(x, y) + h_i + dz - drop + tilt * (s / L - 0.5) / 0.5 + 0.003 * math.sin(x * 61 + ph[0]) * math.sin(y * 53 + ph[1]) + rng.uniform(-0.0006, 0.0006)
                 z = max(z, zb + 0.01)
             row.append(g.verts.new((x, y, z)))
         grid.append(row)
@@ -128,13 +129,17 @@ def _stone_piece(i, a0, a1, zb, floor, rng, zref):
     return g
 
 
+_JOINTS = []
+
+
 def _ring(mats, rng, floor, zref, S, coll):
     g_all = bmesh.new()
     zb = min(floor(m * math.cos(a), m * math.sin(a)) for m in (pg.R_IN, pg.R_OUT) for a in (2 * math.pi * k / 48 for k in range(48))) - 0.03
     cuts = [2 * math.pi * (k + rng.uniform(-0.22, 0.22)) / pg.STONES + 0.37 for k in range(pg.STONES)]
+    _JOINTS[:] = cuts   # _moss tucks its tufts into these
     rm = (pg.R_IN + pg.R_OUT) / 2
     for k in range(pg.STONES):
-        a0, a1 = cuts[k] + 0.004 / rm, cuts[(k + 1) % pg.STONES] + (2 * math.pi if k == pg.STONES - 1 else 0.0) - 0.004 / rm
+        a0, a1 = cuts[k] + 0.009 / rm, cuts[(k + 1) % pg.STONES] + (2 * math.pi if k == pg.STONES - 1 else 0.0) - 0.009 / rm   # joints wide enough to read from the game camera
         g = _stone_piece(k, a0, a1, zb, floor, rng, zref)
         uvl = g.loops.layers.uv.new("UVMap")
         lo = [min(v.co[q] for v in g.verts) for q in range(3)]
@@ -179,16 +184,23 @@ def _obj(name, g, mat, coll, S):
 def _moss(mats, coll, rng, stage, S, floor):
     """The set's moss in a few tufts on the ring, not a collar: three patches (thicker on the far side and to the
     right, where the set's moss runs on), a couple of clumps spilling onto the slab, gaps between; the set's fuzz."""
-    patches = [(math.radians(35), 0.6, 10), (math.radians(150), 0.45, 7), (math.radians(255), 0.45, 7), (math.radians(325), 0.35, 5)]
+    # as the concept: moss grows in the joints between the stones and along the ring's outer foot; the stone tops show
     pts = []
-    for centre, spread, n in patches:
-        for _ in range(n):
-            a = centre + rng.uniform(-spread, spread) * 0.8
-            r = rng.uniform(pg.R_IN + 0.012, pg.R_OUT + 0.012)
-            x, y = r * math.cos(a), r * math.sin(a)
-            pts.append((x * S, y * S, (floor(x, y) + pg.RING_H * 0.9) * S, rng.uniform(0.018, 0.034) * S))
+    rm = (pg.R_IN + pg.R_OUT) / 2
+
+    def put(a, r, z_off, size):
+        x, y = r * math.cos(a), r * math.sin(a)
+        pts.append((x * S, y * S, (floor(x, y) + z_off) * S, size * S))
+    for c in _JOINTS:
+        for _ in range(rng.randint(16, 24)):   # a tuft packed into the joint, spilling a little onto both stones
+            put(c + rng.gauss(0, 0.012 / rm), rng.uniform(pg.R_IN + 0.01, pg.R_OUT), pg.RING_H * 0.75, rng.uniform(0.010, 0.018))
+    for _ in range(240):                       # a fuzzy line along the outer foot, thicker on the far side
+        a = rng.uniform(0, 2 * math.pi)
+        if math.sin(a) < -0.3 and rng.random() < 0.6:
+            continue
+        put(a, pg.R_OUT + rng.uniform(-0.006, 0.012), pg.RING_H * 0.25, rng.uniform(0.009, 0.016))
     mo = stage._build_moss("plate_moss", pts, mats["moss"], coll, rng, squash=(0.6, 0.95))
-    stage._add_fuzz(mo, 2400, 0.012 * S, 0, 17, radius=0.0017 * S, rand=0.6, tip=0.3)
+    stage._add_fuzz(mo, 9000, 0.012 * S, 0, 17, radius=0.0017 * S, rand=0.6, tip=0.3)
     return [mo]
 
 

@@ -10,10 +10,10 @@ import math
 
 DISC_R = 0.315                 # the disc's radius: 0.63 of a square across, centred
 GAP = 0.015                    # the dark gap between the disc and the stone ring
-RING_W = 0.085                 # the stone ring's width
-RING_H = 0.032                 # how far the ring stands proud of the slab
+RING_W = 0.115                 # the stone ring's width (the concept's ring is broad)
+RING_H = 0.045                 # how far the ring stands proud of the slab
 R_IN = DISC_R + GAP            # the ring's inner edge
-R_OUT = R_IN + RING_W          # its outer edge (0.415: 0.085 of a square left to the square's edge)
+R_OUT = R_IN + RING_W          # its outer edge (0.445: 0.055 of a square left to the square's edge)
 RISE = 0.03                    # up: the disc's flat top this far over the ring's top
 SINK = 0.03                    # pressed: it sinks this far, to about flush with the ring
 DISC_T = 0.12                  # the disc's thickness (its underside is in the well)
@@ -25,8 +25,8 @@ STATES = {"up": 0.0, "down": 1.0}
 RIM_W = 0.035                  # the raised rim: from DISC_R - RIM_W to the edge
 RIM_H = 0.011
 EDGE_DROP = 0.004              # the outer edge rolls down this far below the flat
-BOSS_R = 0.095                 # the domed central boss (the sun's face)
-BOSS_H = 0.017
+BOSS_R = 0.115                 # the domed central boss (the sun's face)
+BOSS_H = 0.019
 FACE_R = 0.066                 # a scribed line round the boss's face
 SUN_RING_R0, SUN_RING_R1 = 0.125, 0.142   # the thin raised ring round the boss
 SUN_RING_H = 0.007
@@ -38,7 +38,7 @@ RAY_H = 0.009
 SCRIBE_R = 0.262               # a scribed circle between the rays and the rim
 SCRIBE_W = 0.004
 SCRIBE_D = 0.0035
-SOFT = 0.003                   # relief edges roll over this far
+SOFT = 0.007                   # relief edges roll over this far
 
 
 def disc_z(t):
@@ -112,6 +112,11 @@ def relief(r, th):
         h = RIM_H * _smooth(u / 0.25) * (1 - 0.35 * _smooth((u - 0.5) / 0.5))
         e = max(0.0, (r - (DISC_R - 0.008)) / 0.008)
         return h * (1 - e * e) - EDGE_DROP * e * e
+    # hand-sculpted, not turned on a lathe (judge 2026-11-27: "razor-sharp, mathematically perfect"): a slow wobble
+    # scaled by r, so the boss stays round (a fixed wobble made it an octagon)
+    w_ = min(1.0, r / DISC_R) ** 2
+    r = r + w_ * (0.0035 * math.sin(3 * th + 0.7) + 0.0025 * math.sin(7 * th + 2.1))
+    th = th + w_ * 0.02 * math.sin(31 * r + 0.4)
     h = -SCRIBE_D * (1 - _smooth(abs(r - SCRIBE_R) / SCRIBE_W))   # the scribed circle
     k0 = int(round(th / (2 * math.pi / RAYS)))
     best = 0.0
@@ -121,12 +126,12 @@ def relief(r, th):
         if hw <= 0:
             continue
         d = _wrap(th - 2 * math.pi * kk / RAYS) * r - _centre_off(kk, r)
-        best = max(best, RAY_H * _smooth((hw - abs(d)) / SOFT) * (0.8 + 0.2 * min(1.0, (r - RAY_R0) / 0.03)))
+        best = max(best, RAY_H * _smooth((hw - abs(d)) / (1.8 * SOFT)) * (0.8 + 0.2 * min(1.0, (r - RAY_R0) / 0.03)))   # rays rounded over, not razor-cut
     h += best
     if SUN_RING_R0 < r < SUN_RING_R1:   # the thin ring round the boss
         m = (SUN_RING_R0 + SUN_RING_R1) / 2
         h += SUN_RING_H * math.sqrt(max(0.0, 1 - ((r - m) / ((SUN_RING_R1 - SUN_RING_R0) / 2)) ** 2))
     if r < BOSS_R + SOFT:   # the boss: a dome with a scribed face line
         d = math.sqrt(max(0.0, 1 - (r / (BOSS_R + SOFT)) ** 2))
-        h += BOSS_H * d ** 0.6 * _smooth((BOSS_R + SOFT - r) / SOFT) - 0.0025 * (1 - _smooth(abs(r - FACE_R) / 0.0035))
+        h += BOSS_H * d * _smooth((BOSS_R + SOFT - r) / SOFT) - 0.001 * (1 - _smooth(abs(r - FACE_R) / 0.005))   # a true dome (d ** 0.6 read as a flat cylinder), the face line only a hint
     return h

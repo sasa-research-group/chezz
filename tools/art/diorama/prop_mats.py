@@ -250,15 +250,15 @@ def bronze_mat(u, name="plate_bronze", attr="wear"):
     grit = noise(40 / u, 3, 0.6)
     w = math_("ADD", wear, math_("MULTIPLY", math_("SUBTRACT", patch, 0.5), 0.8))
     w = math_("ADD", w, math_("MULTIPLY", math_("SUBTRACT", grit, 0.5), 0.18))
-    bright = ramp(w, 0.38, 0.78)             # worn bright bronze
-    deep = ramp(w, 0.05, 0.38)               # 0 in the cavities: the darkest patina
-    patina = mix(ramp(noise(9 / u, 4, 0.6, 0.5), 0.4, 0.58), (0.05, 0.036, 0.02), (0.04, 0.075, 0.05))   # brown, with a green-grey bloom
-    mid = mix(ramp(noise(5 / u, 4, 0.55), 0.3, 0.7), (0.11, 0.075, 0.048), (0.17, 0.115, 0.07))               # the body: dull orange-brown bronze
+    bright = ramp(w, 0.5, 0.8)             # worn bright bronze
+    deep = ramp(w, 0.05, 0.42)             # 0 in the cavities: the darkest patina
+    patina = mix(ramp(noise(9 / u, 4, 0.6, 0.5), 0.4, 0.58), (0.035, 0.02, 0.013), (0.03, 0.04, 0.03))   # brown, with a green-grey bloom
+    mid = mix(ramp(noise(5 / u, 4, 0.55), 0.3, 0.7), (0.17, 0.11, 0.09), (0.22, 0.145, 0.115))               # the body: dull orange-brown bronze
     col = mix(deep, patina, mid)
-    col = mix(bright, col, (0.40, 0.29, 0.19))                                                             # polished high points
+    col = mix(bright, col, (0.52, 0.37, 0.29))                                                             # polished high points
     L_(col, b.inputs["Base Color"])
-    L_(math_("MULTIPLY_ADD", deep, 0.35, 0.6), b.inputs["Metallic"])
-    L_(math_("MULTIPLY_ADD", bright, -0.1, math_("MULTIPLY_ADD", deep, -0.1, 0.7)), b.inputs["Roughness"])   # cavities 0.70, the body 0.60, polish 0.50
+    L_(math_("MULTIPLY_ADD", deep, 0.15, 0.25), b.inputs["Metallic"])   # satin, half metal: full metal mirrored the warm lights to orange
+    L_(math_("MULTIPLY_ADD", bright, -0.12, math_("MULTIPLY_ADD", deep, -0.05, 0.74)), b.inputs["Roughness"])   # cavities 0.70, the body 0.60, polish 0.50
     hgt = math_("ADD", math_("MULTIPLY", noise(60 / u, 3, 0.6), 0.25), math_("MULTIPLY", patch, 0.3))        # hammered, pitted
     bump = N("ShaderNodeBump"); bump.inputs["Strength"].default_value = 0.35; bump.inputs["Distance"].default_value = u * 0.02
     L_(hgt, bump.inputs["Height"]); L_(bump.outputs["Normal"], b.inputs["Normal"])
