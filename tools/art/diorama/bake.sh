@@ -6,12 +6,16 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 STAGE=${STAGE_DIR:-~/.dos/scratch/d84406ef/stage}
 P=${PAID_DIR:-~/.dos/scratch/d84406ef/paid/out}
 cd "$STAGE"
-source tools/base_r78.env
+source "$HERE/look.env"
 export FAIRY_TUCK=${FAIRY_TUCK-1} BULB_EVEN=${BULB_EVEN-1}  # every bulb just inside the moss and equally bright (stage.py); bake_set.py also slides bulbs out from behind trunks and thick moss
 export TILE_GLB=${TILE_GLB:-$P/tile/model_glb__model.glb,$P/tile2/model_glb__model.glb}
 export TILE_VAL=${TILE_VAL:-0.5} TILE_FILL=${TILE_FILL:-1.05} TILE_JIT=${TILE_JIT:-1.6} JOINT_MOSS=${JOINT_MOSS:-1.8}
+# NX/NY (bake_level.py): a rectangle, written as set{NX}x{NY}. STOPS=1: a board past one view, one bake per panning
+# stop (set{..}-s{k}.*) and the list of them (set{..}-stops.json)
+NAME=set$1; [ -n "$NX" ] && [ "$NX" != "$NY" ] && NAME=set${NX}x${NY}
+DONE=$NAME.json; [ -n "$STOPS" ] && DONE=$NAME-stops.json
 for try in 1 2 3; do  # Metal crashes now and then: retry
-  /Applications/Blender.app/Contents/MacOS/Blender -b --python "$HERE/bake_set.py" -- --n "$1" --res "$2" --samples "$3" --out "$4" --zoom_k "${ZOOM_K:-1}" 2>&1 \
-    | grep -E "Error|Traceback|_SECONDS|CHANNELS|BULB|DONE" && [ -s "$4/set$1.json" ] && break
+  /Applications/Blender.app/Contents/MacOS/Blender -b --python "$HERE/bake_set.py" -- --n "$1" --res "$2" --samples "$3" --out "$4" --zoom_k "${ZOOM_K:-1}" ${NX:+--nx $NX --ny $NY} ${STOPS:+--stops} 2>&1 \
+    | grep -E "Error|Traceback|_SECONDS|CHANNELS|BULB|CAMERA|DONE|STOP" && [ -s "$4/$DONE" ] && break
   echo "retry $try"
 done

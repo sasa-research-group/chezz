@@ -4,7 +4,7 @@
 
 export type Facing = readonly [number, number] | null;
 type At = { x: number; y: number };
-type Step = { from: At; to: At; strike?: true } | null;
+type Step = { from: At; to: At; strike?: true; pull?: true } | null;
 
 /** A board step (puzzle y grows toward the camera) as the nearest of the 8 directions, in Blender axes. */
 export function snapDir(dx: number, dy: number): Facing {
@@ -29,7 +29,7 @@ export function lastCapture(states: { pieces: At[] }[], moves: Step[]): { by: nu
 
 /** Stable ids and facings for the pieces of the last state, replaying `moves` from `states[0]`.
  * states[i + 1] is states[i] after moves[i] (null: a pass). Pieces keep their id from the start position;
- * a piece that appears from nowhere gets a fresh one. A statue's strike turns it toward its target. */
+ * a piece that appears from nowhere gets a fresh one. A statue's strike or a lever pull turns it toward its target. */
 export function track(states: { pieces: At[] }[], moves: Step[]): { id: string; facing: Facing }[] {
   const key = (p: At) => `${p.x},${p.y}`;
   let at = new Map<string, { id: string; facing: Facing }>(states[0].pieces.map((p, i) => [key(p), { id: `p${i}`, facing: null }]));
@@ -38,7 +38,7 @@ export function track(states: { pieces: At[] }[], moves: Step[]): { id: string; 
     if (m) {
       const who = at.get(key(m.from)), dir = snapDir(m.to.x - m.from.x, m.to.y - m.from.y);
       at.delete(key(m.to));
-      if (who && m.strike) who.facing = dir;
+      if (who && (m.strike || m.pull)) who.facing = dir;
       else if (who) { at.delete(key(m.from)); at.set(key(m.to), { ...who, facing: dir }); }
     }
     // Keep only what the engine says is still there (sludge, falls); anything new gets its own id.

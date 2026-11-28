@@ -41,6 +41,10 @@ describe('track', () => {
     const r = track([st([2, 2], [2, 0]), st([2, 2])], [{ from: at(2, 2), to: at(2, 0), strike: true }])
     expect(r).toEqual([{ id: 'p0', facing: [0, 1] }])
   })
+  it('turns a piece pulling a lever toward it, and leaves it on its square', () => {
+    const r = track([st([3, 2]), st([3, 2])], [{ from: at(3, 2), to: at(2, 2), pull: true }])
+    expect(r).toEqual([{ id: 'p0', facing: [-1, 0] }])
+  })
   it('treats a pass as no turn', () => {
     expect(track([st([1, 1]), st([1, 1])], [null])).toEqual([{ id: 'p0', facing: null }])
   })

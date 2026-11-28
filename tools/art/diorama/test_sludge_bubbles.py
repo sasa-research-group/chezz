@@ -1,0 +1,210 @@
+"""Tests for sludge_bubbles.py: the loop is seamless, the timing follows the mudpot table, and no two bubbles act alike.
+Run: python3 tools/art/diorama/test_sludge_bubbles.py"""
+import math
+import os
+import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sludge_bubbles as sb
+
+
+def vents_for(n_squares, rng):
+    out = []
+    for k in range(n_squares):
+        out.append((k * 1.0, 0.0, 0.12, True))
+        out += [(k * 1.0 + rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), 0.06, False) for _ in range(2)]
+    return out
+
+
+def test_timing_matches_table():
+    s, b, z = sb.stage_times(0.0)
+    assert 0.1 <= s <= 0.4 and b < 0.15 and z <= 0.25, (s, b, z)
+    s, b, z = sb.stage_times(1.0)
+    assert 0.8 <= s <= 0.9 and 0.5 <= b <= 0.6 and 0.7 <= z <= 0.9, (s, b, z)
+    for k in range(11):  # bigger is slower in every stage
+        a_, c_ = sb.stage_times(k / 10), sb.stage_times(min(1, k / 10 + 0.1))
+        assert all(x <= y for x, y in zip(a_, c_))
+
+
+def test_every_event_fits_the_loop():
+    rng = random.Random(1)
+    ev = sb.schedule(vents_for(4, rng), 4, rng)
+    assert all(e.length() < sb.LOOP for e in ev)
+
+
+def test_rate_and_mix():
+    rng = random.Random(2)
+    ev = sb.schedule(vents_for(1, rng), 1, rng)
+    assert 7 <= len(ev) <= 11, len(ev)   # about 1.1 a second over the 8 s loop
+    ev = [e for s in range(40) for e in sb.schedule(vents_for(1, random.Random(s)), 1, random.Random(s + 100))]
+    share = sum(e.bursts for e in ev) / len(ev)
+    assert 0.65 < share < 0.92, share
+    assert any(e.sz > 0.55 for e in ev) and any(e.sz < 0.3 for e in ev)
+    assert len({round(e.ts, 4) for e in ev}) > len(ev) * 0.8   # not one timing for all
+
+
+def test_loop_is_seamless():
+    rng = random.Random(3)
+    ev = sb.schedule(vents_for(2, rng), 2, rng)
+    for e in ev:
+        for t in (0.0, 0.37, 1.9, 3.99):
+            for x, y in ((e.x, e.y), (e.x + 0.5 * e.r, e.y), (e.x, e.y + 1.4 * e.r)):
+                assert abs(sb.event_height(e, x, y, t) - sb.event_height(e, x, y, t + sb.LOOP)) < 1e-12
+
+
+def test_height_is_continuous_across_stages():
+    rng = random.Random(4)
+    for e in sb.schedule(vents_for(3, rng), 3, rng):
+        for x, y in ((e.x, e.y), (e.x + 0.8 * e.r, e.y), (e.x, e.y + 1.5 * e.r)):
+            prev = sb.event_height(e, x, y, e.t0)
+            n = 400
+            for i in range(1, n + 1):
+                h = sb.event_height(e, x, y, e.t0 + e.length() * i / n)
+                assert abs(h - prev) < 0.25 * e.dome * e.r, (e.sz, i, prev, h)
+                prev = h
+            assert abs(sb.event_height(e, x, y, e.t0 + e.length() - 1e-6)) < 0.02 * e.dome * e.r
+
+
+def test_stages_in_order():
+    rng = random.Random(5)
+    e = next(e for e in sb.schedule(vents_for(2, rng), 2, rng) if e.bursts)
+    seen = []
+    for i in range(200):
+        s = sb.stage_of(e, e.t0 + sb.LOOP * i / 200)
+        if s and (not seen or seen[-1] != s):
+            seen.append(s)
+    assert seen == ["swell", "burst", "settle"], seen
+    peak = sb.event_height(e, e.x, e.y, e.t0 + e.ts - 1e-6)
+    assert peak > 0.4 * e.dome * e.r
+    dip = min(sb.event_height(e, e.x, e.y, e.t0 + e.ts + e.tb * f) for f in (0.8, 0.9, 1.0, 1.1))
+    assert dip < 0, "a burst leaves a crater"
+
+
+def test_stays_local():
+    rng = random.Random(6)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for t in (e.t0 + e.ts * 0.9, e.t0 + e.ts + e.tb * 0.5):
+            assert sb.event_height(e, e.x + sb.FAR * e.r, e.y, t) == 0.0
+
+
+def test_no_groove_at_the_reach():
+    """The height fades smoothly to zero toward the event's reach: no step anywhere along a line out from it."""
+    rng = random.Random(8)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for f in (0.2, 0.6, 0.95, 1.05, 1.3, 1.8):
+            t = e.t0 + e.ts + (e.tb + e.tz if e.bursts else e.ts) * f / 2
+            n = 300
+            prev = sb.event_height(e, e.x, e.y, t)
+            for i in range(1, n + 1):
+                h = sb.event_height(e, e.x + sb.FAR * e.r * 1.1 * i / n, e.y, t)
+                assert abs(h - prev) < 0.06 * e.dome * e.r, (f, i, prev, h)
+                prev = h
+            assert sb.event_height(e, e.x + (sb.FAR - 0.02) * e.r, e.y, t) < 1e-3 * e.dome * e.r
+
+
+def test_surface_is_smooth_everywhere():
+    """Bubbles merged into a rolling base surface: no step anywhere along lines across the pool."""
+    rng = random.Random(9)
+    ev = sb.schedule(vents_for(2, rng), 2, rng)
+    sp = sb.splatter([(rng.uniform(-0.3, 1.3), rng.uniform(-0.3, 0.3), 0.02) for _ in range(40)], rng, 10, 2)
+    base = lambda x, y: 0.01 * math.sin(7 * x) * math.cos(5 * y)
+    for time in (0.3, 1.7, 2.2, 4.9, 7.6):
+        for y in (-0.2, -0.05, 0.0, 0.1, 0.25):
+            n = 1200
+            prev = None
+            for i in range(n + 1):
+                x = -0.4 + 1.8 * i / n
+                h = sb.surface_height(base(x, y), ev, sp, x, y, time)
+                if prev is not None:
+                    assert abs(h - prev) < 0.004, (time, y, x, prev, h)
+                prev = h
+
+
+def test_splatter():
+    rng = random.Random(7)
+    spots = [(i * 0.1, 0.0, 0.02) for i in range(50)]
+    sp = sb.splatter(spots, rng, 12, 2)
+    assert len(sp) == 24
+    s = sp[0]
+    assert sb.splatter_height(s, s[0], s[1], 0.3) > 0 and sb.splatter_height(s, s[0] + s[2], s[1], 0.3) == 0
+    assert abs(sb.splatter_height(s, s[0], s[1], 1.0) - sb.splatter_height(s, s[0], s[1], 1.0 + sb.LOOP)) < 1e-12
+
+
+def test_bigger_bursts_fling_a_few_blobs():
+    ev = [e for s in range(30) for e in sb.schedule(vents_for(2, random.Random(s)), 2, random.Random(s + 50))]
+    for e in ev:
+        if not e.bursts or e.sz < sb.DROP_MIN_SZ:
+            assert e.drops == []
+        else:
+            assert 2 <= len(e.drops) <= 4
+    assert any(len(e.drops) >= 3 for e in ev) and any(len(e.drops) == 2 for e in ev)
+
+
+def test_blobs_fly_low_arcs_and_land_round_the_bubble():
+    rng = random.Random(11)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for d in e.drops:
+            top = max(sb.drop_in_air(d, d.t0 + d.tf * i / 50)[2] for i in range(50))
+            assert 0 < top <= 1.3 * e.dome * e.r, top   # low: no higher than about the bubble
+            out = math.hypot(d.x1 - e.x, d.y1 - e.y)
+            assert 1.2 * e.r < out < 2.2 * e.r
+            assert sb.drop_in_air(d, d.t0 + d.tf + sb.MERGE + 0.01) is None
+
+
+def test_landed_blob_melts_in_smoothly():
+    rng = random.Random(12)
+    for e in sb.schedule(vents_for(2, rng), 2, rng):
+        for d in e.drops:
+            prev = 0.0
+            for i in range(1, 401):
+                h = sb.drop_height(d, d.x1, d.y1, d.t0 + d.end() * i / 400)
+                assert abs(h - prev) < 0.06 * d.r, (i, prev, h)
+                prev = h
+            assert prev < 1e-9
+            assert abs(sb.drop_height(d, d.x1, d.y1, d.t0 + d.tf + 0.2)
+                       - sb.drop_height(d, d.x1, d.y1, d.t0 + d.tf + 0.2 + sb.LOOP)) < 1e-12
+
+
+def test_the_tear_is_a_dark_hole_only_while_bursting():
+    rng = random.Random(13)
+    e = next(e for e in sb.schedule(vents_for(2, rng), 2, rng) if e.bursts)
+    assert sb.tear(e, e.x, e.y, e.t0 + 0.5 * e.ts) == 0          # still swelling: no hole
+    assert sb.tear(e, e.x, e.y, e.t0 + e.ts + 0.8 * e.tb) > 0.9  # torn open
+    assert sb.tear(e, e.x + 1.5 * e.r, e.y, e.t0 + e.ts + 0.8 * e.tb) == 0  # only in the middle
+    assert sb.tear(e, e.x, e.y, e.t0 + e.ts + e.tb + 0.6 * e.tz) == 0       # closed as it fills
+    prev = 0.0
+    for i in range(1, 401):  # opens and closes without a jump
+        v = sb.tear(e, e.x, e.y, e.t0 + e.length() * i / 400)
+        assert 0 <= v <= 1 and abs(v - prev) < 0.12, (i, prev, v)
+        prev = v
+
+
+def test_bubbles_never_stack():
+    """Two bubbles never swell or burst on the same spot at once: stacked domes read as a pointed cone."""
+    for seed in range(20):
+        rng = random.Random(seed)
+        ev = sb.schedule(vents_for(3, rng), 3, rng)
+        for i, a_ in enumerate(ev):
+            for b_ in ev[i + 1:]:
+                if math.hypot(a_.x - b_.x, a_.y - b_.y) < a_.r + b_.r:
+                    for k in range(200):
+                        t = sb.LOOP * k / 200
+                        on = lambda e: (t - e.t0) % sb.LOOP < sb.busy_time(e)
+                        assert not (on(a_) and on(b_)), (seed, a_.t0, b_.t0)
+
+
+def test_thicker_ooze_settles_slower():
+    s1, b1, z1 = sb.stage_times(0.5)
+    s2, b2, z2 = sb.stage_times(0.5, 1.6)
+    assert s2 == s1 and abs(b2 - 1.6 * b1) < 1e-12 and abs(z2 - 1.6 * z1) < 1e-12
+    rng = random.Random(14)
+    ev = sb.schedule(vents_for(2, rng), 2, rng, thick=1.6)
+    assert all(e.length() < sb.LOOP for e in ev) and len(ev) == round(sb.RATE * 2 * sb.LOOP)
+
+
+if __name__ == "__main__":
+    for name, fn in list(globals().items()):
+        if name.startswith("test_"):
+            fn()
+    print("SLUDGE BUBBLE TESTS OK")

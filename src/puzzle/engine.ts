@@ -31,9 +31,9 @@ export type GoalType = Goal["type"];
 
 /** A gate: a wall that switches can open (or, if it starts open, close). It can't close on a piece. */
 export type Gate = Pos & { open?: true };
-/** What a switch does when a piece stops on it. */
+/** What a switch does when it is used: a plate when a piece stops on it, a lever when a piece pulls it. */
 export type SwitchEffect =
-  /** Flip these gates (by square). A lever flips them each time; a plate holds them flipped while pressed. */
+  /** Flip these gates (by square). A lever flips them on each pull; a plate holds them flipped while pressed. */
   | { type: "gates"; gates: Pos[] }
   /** Drop every trapdoor open. */
   | { type: "trapdoors" }
@@ -41,6 +41,10 @@ export type SwitchEffect =
   | { type: "wake" }
   /** Flood these squares with sludge for good; whatever stands there dies. */
   | { type: "sludge"; squares: Pos[] };
+/** A lever fills its square (nothing stands on it or slides past it; knights leap over, as a wall) and leans west at the
+ * start. A piece on the square it leans away from (east of it, at the start) pulls it with its turn, without moving;
+ * it then leans the other way, so the next pull comes from the west (Wesley 2026-11-27). A plate is floor: stepping
+ * on it presses it. */
 export type SwitchKind = "lever" | "plate";
 export type Switch = Pos & { kind: SwitchKind; effect: SwitchEffect };
 
@@ -94,9 +98,12 @@ export type State = {
   levers: number;
   /** Sludge switches that have flooded: bit i is switch i. */
   flood: number;
+  /** Levers pulled an odd number of times (they lean east): bit i is switch i. */
+  pulls: number;
 };
-/** `strike`: a statue's capture: the victim on `to` dies, the statue stays on `from`. */
-export type Move = { from: Pos; to: Pos; promo?: PKind; strike?: true };
+/** `strike`: a statue's capture: the victim on `to` dies, the statue stays on `from`. `pull`: the piece on `from` pulls
+ * the lever on `to` and stays put. */
+export type Move = { from: Pos; to: Pos; promo?: PKind; strike?: true; pull?: true };
 export type Outcome = "win" | "lose" | null;
 
 export const VALUE: Record<PKind, number> = { king: 0, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1, peasant: 0, coward: 3 };
@@ -118,7 +125,8 @@ export type Board = { width: number; height: number; open: boolean[]; solid: boo
 export function boardOf(p: Puzzle): Board {
   const eyes = p.eyes ?? [];
   const squares = Array.from({ length: p.width * p.height }, (_, i) => ({ x: i % p.width, y: Math.floor(i / p.width) }));
-  const solid = squares.map(q => has(p.walls, q) || has(eyes, q));
+  const levers = (p.switches ?? []).filter(w => w.kind === "lever");
+  const solid = squares.map(q => has(p.walls, q) || has(eyes, q) || has(levers, q));
   const open = squares.map((q, i) => !solid[i] && !has(p.holes, q));
   const sludge = squares.map(q => has(p.sludge ?? [], q));
   const door = squares.map(q => (p.trapdoors ?? []).findIndex(d => same(d, q)));
@@ -185,7 +193,7 @@ export const fallen = (b: Board, s: State, p: Pos) => { const d = b.door[p.y * b
 
 export function start(p: Puzzle): State {
   const pieces = p.pieces.map(([kind, side, x, y, z]): Piece => ({ kind, side, x, y, ...(z === "asleep" ? { asleep: true as const } : z === "statue" ? { statue: true as const } : {}) }));
-  return alarm(boardOf(p), { pieces, turn: "white", played: 0, taken: 0, material: 0, saved: 0, lost: false, doors: 0, levers: 0, flood: 0 });
+  return alarm(boardOf(p), { pieces, turn: "white", played: 0, taken: 0, material: 0, saved: 0, lost: false, doors: 0, levers: 0, flood: 0, pulls: 0 });
 }
 export const pieceAt = (s: State, p: Pos) => s.pieces.find(q => same(q, p));
 
@@ -236,9 +244,20 @@ export function inCheck(b: Board, s: State, side: Side): boolean {
 }
 
 /** Moves the piece on `p` may legally make: it can't leave its own king in check. */
+/** The square a piece must stand on to pull lever `w` now: east of it while it leans west, west of it after a pull. */
+export function pullFrom(b: Board, s: State, w: number): Pos {
+  const lv = b.switches[w];
+  return { x: lv.x + (s.pulls & (1 << w) ? -1 : 1), y: lv.y };
+}
+/** The levers the piece on `p` could pull now (asleep, snared and statue pieces can't). */
+function pullsFrom(b: Board, s: State, pc: Piece): Move[] {
+  if (pc.asleep || pc.statue || b.snare[pc.y * b.width + pc.x]) return [];
+  return b.switches.flatMap((w, i) => (w.kind === "lever" && same(pullFrom(b, s, i), pc) ? [{ from: { x: pc.x, y: pc.y }, to: { x: w.x, y: w.y }, pull: true as const }] : []));
+}
 export function movesFrom(pz: Puzzle, b: Board, s: State, p: Pos): Move[] {
   const pc = pieceAt(s, p);
   if (!pc || pc.side !== s.turn) return [];
+  const pulls = pullsFrom(b, s, pc).filter(m => !s.pieces.some(q => q.kind === "king" && q.side === pc.side) || !inCheck(b, apply(pz, s, m), pc.side));
   const last = pc.side === "white" ? 0 : b.height - 1;
   const guarded = s.pieces.some(q => q.kind === "king" && q.side === pc.side);
   // A statue only strikes; a coward never stops where the other side attacks.
@@ -246,16 +265,41 @@ export function movesFrom(pz: Puzzle, b: Board, s: State, p: Pos): Move[] {
     .filter(m => !guarded || !inCheck(b, apply(pz, s, m), pc.side));
   return reach(b, s, pc)
     .filter(to => pc.kind !== "coward" || !attacked(b, { ...s, pieces: s.pieces.filter(q => q !== pc) }, to, other(pc.side)))
-    .map(to => ({ from: { x: pc.x, y: pc.y }, to, ...(pc.kind === "pawn" && to.y === last ? { promo: "queen" as const } : {}) }))
-    .filter(m => !toxic(b, s, m.to.y * b.width + m.to.x) && (!guarded || !inCheck(b, apply(pz, s, m), pc.side)));
+    .map((to): Move => ({ from: { x: pc.x, y: pc.y }, to, ...(pc.kind === "pawn" && to.y === last ? { promo: "queen" as const } : {}) }))
+    .filter(m => !toxic(b, s, m.to.y * b.width + m.to.x) && (!guarded || !inCheck(b, apply(pz, s, m), pc.side)))
+    .concat(pulls);
 }
 export function legalMoves(pz: Puzzle, b: Board, s: State): Move[] {
   return s.pieces.filter(q => q.side === s.turn).flatMap(q => movesFrom(pz, b, s, q));
 }
 
 /** Plays a move and hands the turn over. Doesn't check legality. */
+/** Fires switch `w`'s effect (a lever's on a pull, a plate's when stepped on). `kill` scores what the sludge takes. */
+function fire(b: Board, w: number, pieces: Piece[], doors: number, levers: number, flood: number, kill: (q: Piece) => void) {
+  const sw = b.switches[w], e = sw.effect;
+  if (e.type === "gates" && sw.kind === "lever") for (const g of e.gates) { const i = b.gates.findIndex(q => same(q, g)); if (i >= 0) levers ^= 1 << i; }
+  if (e.type === "trapdoors") doors = (1 << b.door.filter(x => x >= 0).length) - 1;
+  if (e.type === "wake") pieces = pieces.map(q => (q.asleep ? { kind: q.kind, side: q.side, x: q.x, y: q.y } : q));
+  if (e.type === "sludge" && !(flood & (1 << w))) {
+    flood |= 1 << w;
+    for (const q of pieces) if (has(e.squares, q)) kill(q);
+    pieces = pieces.filter(q => !has(e.squares, q));
+  }
+  return { pieces, doors, levers, flood };
+}
 export function apply(pz: Puzzle, s: State, m: Move): State {
   const mover = pieceAt(s, m.from)!;
+  if (m.pull) {
+    // A lever pull: the piece stays put, the lever leans the other way, its effect fires.
+    const b = boardFor(pz), w = b.switchAt[m.to.y * b.width + m.to.x];
+    let { taken, material, lost } = s;
+    const kill = (q: Piece) => {
+      if (q.side === "black") { taken++; material += VALUE[q.kind]; }
+      else if (q.kind === "king" || q.kind === "peasant") lost = true;
+    };
+    const f = fire(b, w, s.pieces, s.doors, s.levers, s.flood, kill);
+    return alarm(b, { ...s, ...f, pulls: s.pulls ^ (1 << w), turn: other(s.turn), played: s.played + (s.turn === "white" ? 1 : 0), taken, material, lost });
+  }
   const victim = pieceAt(s, m.to);
   if (m.strike) {
     // A statue's strike: the victim dies where it stands; nothing moves.
@@ -287,21 +331,11 @@ export function apply(pz: Puzzle, s: State, m: Move): State {
   } else if (moved.kind === "peasant" && moved.side === "white" && has(exits, moved)) saved++;
   else {
     pieces = [...pieces, moved];
-    // Stopped on a switch: it fires.
+    // Stopped on a plate: it fires. (A lever's square is solid; a lever fires on a pull.)
     const w = b.switchAt[moved.y * b.width + moved.x];
-    if (w >= 0) {
-      const e = b.switches[w].effect;
-      if (e.type === "gates" && b.switches[w].kind === "lever") for (const g of e.gates) { const i = b.gates.findIndex(q => same(q, g)); if (i >= 0) levers ^= 1 << i; }
-      if (e.type === "trapdoors") doors = (1 << b.door.filter(x => x >= 0).length) - 1;
-      if (e.type === "wake") pieces = pieces.map(q => (q.asleep ? { kind: q.kind, side: q.side, x: q.x, y: q.y } : q));
-      if (e.type === "sludge" && !(flood & (1 << w))) {
-        flood |= 1 << w;
-        for (const q of pieces) if (has(e.squares, q)) kill(q);
-        pieces = pieces.filter(q => !has(e.squares, q));
-      }
-    }
+    if (w >= 0 && b.switches[w].kind === "plate") ({ pieces, doors, levers, flood } = fire(b, w, pieces, doors, levers, flood, kill));
   }
-  return alarm(b, { pieces, turn: other(s.turn), played: s.played + (s.turn === "white" ? 1 : 0), taken, material, saved, lost, doors, levers, flood });
+  return alarm(b, { pieces, turn: other(s.turn), played: s.played + (s.turn === "white" ? 1 : 0), taken, material, saved, lost, doors, levers, flood, pulls: s.pulls });
 }
 const boards = new WeakMap<Puzzle, Board>();
 const boardFor = (pz: Puzzle) => boards.get(pz) ?? boards.set(pz, boardOf(pz)).get(pz)!;
@@ -349,11 +383,12 @@ export function moveName(pz: Puzzle, s: State, m: Move): string {
   if (!pc) return "?";
   const from = pc.kind === "pawn" && cap ? squareName(pz, m.from)[0] : "";
   if (m.strike) return `${LETTER[pc.kind] || "P"}(statue)x${squareName(pz, m.to)}`;
+  if (m.pull) return `${LETTER[pc.kind] || "P"}${squareName(pz, m.from)} pulls ${squareName(pz, m.to)}`;
   return `${LETTER[pc.kind]}${from}${cap ? "x" : ""}${squareName(pz, m.to)}${m.promo ? "=Q" : ""}`;
 }
 const KEY: Record<PKind, string> = { king: "K", queen: "Q", rook: "R", bishop: "B", knight: "N", pawn: "p", peasant: "P", coward: "C" };
 /** A compact key for a position (who's where, whose turn, progress), for the solver's memo. */
 export function keyOf(s: State): string {
   const ps = s.pieces.map(q => `${KEY[q.kind]}${q.side[0]}${q.x}.${q.y}${q.asleep ? "z" : ""}${q.statue ? "s" : ""}`).sort().join("");
-  return `${s.turn[0]}${s.doors},${s.levers},${s.flood},${s.taken},${s.material},${s.saved},${s.lost ? 1 : 0}|${ps}`;
+  return `${s.turn[0]}${s.doors},${s.levers},${s.flood},${s.pulls},${s.taken},${s.material},${s.saved},${s.lost ? 1 : 0}|${ps}`;
 }

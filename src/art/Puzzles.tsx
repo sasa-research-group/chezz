@@ -13,6 +13,8 @@ import type { DioramaPiece, DioramaSquare } from "../diorama/Diorama";
 import { gameSpeed, motionLeft, setGameSpeed } from "../diorama/motion";
 import { lastCapture, snapDir, track } from "../diorama/facing";
 import { keepsTaken, playsStrike } from "../diorama/figures";
+import { layoutOfPuzzle } from "../diorama/levelBake";
+import { leverThrows } from "../diorama/lever";
 import "./puzzles.css";
 
 const ENDPOINT = "/__studio/puzzles";
@@ -109,7 +111,8 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
     const kind: DioramaSquare["kind"] = has(pz.holes) ? "hole" : has(eyes) ? "eye" : has(pz.walls) ? "wall" : door ? (fallen(bd, state, p) ? "fallen" : "trapdoor")
       : gi >= 0 ? (gateOpen(bd, state, gi) ? "gate-open" : "gate") : sw ? sw.kind : toxic(bd, state, i) ? "sludge" : has(pz.snares) ? "snare" : undefined;
     return { ...p, kind, label: squareName(pz, p), goal: has(goals) ? (pz.goal.type === "escort" ? "exit" : "star") : undefined, watched: has(seen),
-      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired), stare: kind === "eye" ? stareOf(bd, state, p) : undefined };
+      picked: !!picked && same(picked, p), target: has(targets) ? (pc ? "capture" : "move") : undefined, last: !!last && (same(last.from, p) || same(last.to, p)), flag: has(flags), wired: has(wired), stare: kind === "eye" ? stareOf(bd, state, p) : undefined,
+      throws: kind === "lever" && history ? leverThrows(history.moves, p) : undefined };
   });
   // In play each piece keeps an id and faces its last move; in the editor everything faces the camera.
   const seen3d = history ? track(history.states, history.moves) : null;
@@ -137,7 +140,7 @@ function PuzzleBoard3D({ pz, state, picked, targets, last, flags, wired = [], on
   }
   return <No3D fallback={<PuzzleBoard pz={pz} state={state} picked={picked} targets={targets} last={last} flags={flags} wired={wired} onSquare={onSquare} />}>
     <Suspense fallback={<div className="diorama diorama-loading">Loading 3D…</div>}>
-      <Diorama w={pz.width} h={pz.height} squares={squares} pieces={pieces} onSquare={(x, y) => onSquare({ x, y })} showFps={new URLSearchParams(location.search).has("fps")} />
+      <Diorama w={pz.width} h={pz.height} layout={layoutOfPuzzle(pz)} squares={squares} pieces={pieces} onSquare={(x, y) => onSquare({ x, y })} showFps={new URLSearchParams(location.search).has("fps")} />
     </Suspense>
   </No3D>;
 }
@@ -381,7 +384,7 @@ export function Puzzles({ index, onPick }: { index: number; onPick: (i: number) 
         {tool === "statue" && <p className="level-hint">Click an enemy to turn it to stone or back. A statue never moves: it strikes any of your pieces in its reach (as that piece) without leaving its square.</p>}
         {tool === "sleep" && <p className="level-hint">Click an enemy to put it to sleep or wake it. Sleepers can't move, capture or give check until an eye sees one of your pieces.</p>}
         {tool === "gate" && <p className="level-hint">Click: closed gate. Again: open gate. Again: remove. Wire gates to a switch on the right.</p>}
-        {tool === "switch" && <p className="level-hint">Click: lever (flips each time a piece stops on it). Again: pressure plate (works only while pressed). Again: remove. Set what it does on the right.</p>}
+        {tool === "switch" && <p className="level-hint">Click: lever (fills its square; a piece beside it, opposite its lean, pulls it with its turn and flips it). Again: pressure plate (works only while pressed). Again: remove. Set what it does on the right.</p>}
         {tool === "trapdoor" && <p className="level-hint">Trapdoor: floor until a piece standing on it moves off, then a hole for good. Pieces can start on one.</p>}
         {tool === "snare" && <p className="level-hint">Snare: a piece that stops on it can never move again, but still blocks and still attacks. Pieces can start on one.</p>}
         {tool === "sludge" && <p className="level-hint">Toxic sludge: no piece may stop in it. Sliders cross it safely. A flood switch turns squares to sludge, and a piece standing there dies (an enemy counts as captured).</p>}

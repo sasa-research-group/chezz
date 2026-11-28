@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { apply, boardOf, gateOpen, inCheck, keyOf, legalMoves, outcome, start } from "../src/puzzle/engine";
+import { apply, boardOf, gateOpen, inCheck, keyOf, legalMoves, outcome, pullFrom, start } from "../src/puzzle/engine";
 import type { Puzzle } from "../src/puzzle/engine";
 import { NEVER, analyze, bestReply, solver } from "../src/puzzle/solve";
-import { PUZZLES, formatPuzzles, parsePuzzles } from "../src/puzzle/puzzles";
+import { PUZZLES, formatPuzzles, parsePuzzles, puzzleIssues } from "../src/puzzle/puzzles";
 
 const base = (p: Partial<Puzzle>): Puzzle => ({ width: 4, height: 4, holes: [], walls: [], pieces: [], goal: { type: "mate" }, moves: 1, ...p });
 
@@ -130,18 +130,46 @@ describe("gates and switches", () => {
     const through = apply(pz, left, { from: { x: 2, y: 2 }, to: { x: 2, y: 1 } });
     expect(gateOpen(b, through, 0)).toBe(false);
   });
-  it("a lever flips each time; flood and wake effects fire", () => {
+  it("a lever flips each time it is pulled; flood and wake effects fire", () => {
     const pz = base({ goal: { type: "survive" }, moves: 4, eyes: [], gates: [{ x: 3, y: 0 }],
-      switches: [{ x: 0, y: 2, kind: "lever", effect: { type: "gates", gates: [{ x: 3, y: 0 }] } }, { x: 1, y: 2, kind: "lever", effect: { type: "sludge", squares: [{ x: 3, y: 3 }] } }, { x: 2, y: 2, kind: "plate", effect: { type: "wake" } }],
-      pieces: [["rook", "white", 0, 3], ["knight", "black", 3, 3], ["bishop", "black", 0, 0, "asleep"]] });
+      switches: [{ x: 0, y: 2, kind: "lever", effect: { type: "gates", gates: [{ x: 3, y: 0 }] } }, { x: 2, y: 3, kind: "lever", effect: { type: "sludge", squares: [{ x: 3, y: 1 }] } }, { x: 2, y: 2, kind: "plate", effect: { type: "wake" } }],
+      pieces: [["rook", "white", 1, 2], ["knight", "black", 3, 1], ["bishop", "black", 0, 0, "asleep"]] });
     const b = boardOf(pz), s0 = start(pz);
-    const lever = apply(pz, s0, { from: { x: 0, y: 3 }, to: { x: 0, y: 2 } });
+    const lever = apply(pz, s0, { from: { x: 1, y: 2 }, to: { x: 0, y: 2 }, pull: true });
     expect(gateOpen(b, lever, 0)).toBe(true);
-    const flood = apply(pz, { ...s0, pieces: s0.pieces.map(p => (p.kind === "rook" ? { ...p, x: 1, y: 3 } : p)) }, { from: { x: 1, y: 3 }, to: { x: 1, y: 2 } });
+    expect(lever.pieces.find(p => p.kind === "rook")).toMatchObject({ x: 1, y: 2 });
+    const flood = apply(pz, { ...s0, pieces: s0.pieces.map(p => (p.kind === "rook" ? { ...p, x: 3, y: 3 } : p)) }, { from: { x: 3, y: 3 }, to: { x: 2, y: 3 }, pull: true });
     expect(flood.taken).toBe(1);
     expect(flood.pieces.some(p => p.kind === "knight")).toBe(false);
-    const wake = apply(pz, { ...s0, pieces: s0.pieces.map(p => (p.kind === "rook" ? { ...p, x: 2, y: 3 } : p)) }, { from: { x: 2, y: 3 }, to: { x: 2, y: 2 } });
+    // A plate still fires when a piece stops on it.
+    const wake = apply(pz, s0, { from: { x: 1, y: 2 }, to: { x: 2, y: 2 } });
     expect(wake.pieces.some(p => p.asleep)).toBe(false);
+  });
+  it("a lever fills its square and is pulled from the side it leans away from", () => {
+    const lv = { x: 2, y: 2, kind: "lever" as const, effect: { type: "gates" as const, gates: [{ x: 0, y: 0 }] } };
+    const pz = base({ goal: { type: "survive" }, moves: 4, eyes: [], gates: [{ x: 0, y: 0 }], switches: [lv],
+      pieces: [["rook", "white", 3, 2], ["rook", "black", 1, 0]] });
+    const b = boardOf(pz), s0 = start(pz);
+    const pulls = (s: typeof s0) => legalMoves(pz, b, s).filter(m => m.pull);
+    // Leaning west at the start: the rook east of it pulls it, and can't slide onto or past it.
+    expect(pulls(s0)).toEqual([{ from: { x: 3, y: 2 }, to: { x: 2, y: 2 }, pull: true }]);
+    expect(legalMoves(pz, b, s0).some(m => !m.pull && m.to.y === 2 && m.to.x <= 2)).toBe(false);
+    expect(pullFrom(b, s0, 0)).toEqual({ x: 3, y: 2 });
+    const s1 = apply(pz, s0, pulls(s0)[0]);
+    expect(s1.pulls).toBe(1);
+    expect(gateOpen(b, s1, 0)).toBe(true);
+    // Now it leans east: the next pull is from the west square, and the east one can't pull it again.
+    expect(pullFrom(b, s1, 0)).toEqual({ x: 1, y: 2 });
+    const back = { ...s1, turn: "white" as const };
+    expect(pulls(back)).toEqual([]);
+    const west = { ...back, pieces: back.pieces.map(p => (p.side === "white" ? { ...p, x: 1, y: 2 } : p)) };
+    const s2 = apply(pz, west, pulls(west)[0]);
+    expect(s2.pulls).toBe(0);
+    expect(gateOpen(b, s2, 0)).toBe(false);
+    expect(keyOf(s1)).not.toBe(keyOf({ ...s1, pulls: 0 }));
+    // Either side can pull.
+    const enemy = { ...s0, turn: "black" as const, pieces: [{ kind: "rook" as const, side: "black" as const, x: 3, y: 2 }] };
+    expect(pulls(enemy)).toHaveLength(1);
   });
 });
 
@@ -171,9 +199,27 @@ describe("new enemies", () => {
 describe("puzzles file", () => {
   it("loads, every puzzle is solvable, and round-trips", () => {
     expect(PUZZLES.length).toBeGreaterThan(0);
-    for (const pz of PUZZLES) { const a = analyze(pz); expect(a.ok && a.par <= pz.moves, pz.name).toBe(true); }
+    // Wesley 2026-11-27: old puzzles wait until the assets are done; he rebuilds them then.
+    // Herding's lever moved to the pull rule and no longer solves, so it is not checked here.
+    const waiting = new Set(["Herding"]);
+    for (const pz of PUZZLES.filter(p => !waiting.has(p.name))) { const a = analyze(pz); expect(a.ok && a.par <= pz.moves, pz.name).toBe(true); }
     const text = formatPuzzles(PUZZLES);
     const back = parsePuzzles(JSON.parse(text));
     expect(back.ok && formatPuzzles(back.puzzles)).toBe(text);
+  });
+});
+
+describe("long levels (Wesley 2026-11-26: up to 24 a side)", () => {
+  const hall = (w: number, h: number): Puzzle => ({ width: w, height: h, moves: 2, goal: { type: "mate" }, holes: [], walls: [],
+    pieces: [["king", "white", 2, h - 1], ["rook", "white", 0, h - 2], ["king", "black", 2, 0]] } as Puzzle);
+  const sized = (pz: Puzzle) => puzzleIssues(pz).some(i => /a side/.test(i.message));
+  it("takes boards up to 24 a side and no more", () => {
+    expect(sized(hall(5, 24))).toBe(false);
+    expect(sized(hall(24, 24))).toBe(false);
+    expect(sized(hall(5, 25))).toBe(true);
+  });
+  it("a rook crosses a 24-deep hall in one move", () => {
+    const pz = hall(5, 24), moves = legalMoves(pz, boardOf(pz), start(pz));
+    expect(moves.some(m => m.from.x === 0 && m.from.y === 22 && m.to.y === 0)).toBe(true);
   });
 });

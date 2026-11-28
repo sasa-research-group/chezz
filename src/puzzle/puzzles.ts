@@ -18,7 +18,7 @@ export function switchText(w: Switch): string {
     case "sludge": return `${verb}: floods ${e.squares.length} square${e.squares.length === 1 ? "" : "s"} with sludge`;
   }
 }
-export const MIN_SIDE = 2, MAX_SIDE = 8, MAX_MOVES = 12;
+export const MIN_SIDE = 2, MAX_SIDE = 24, MAX_MOVES = 12;
 export const P_KINDS: PKind[] = ["king", "queen", "rook", "bishop", "knight", "pawn", "peasant", "coward"];
 export const GOALS: [GoalType, string][] = [["mate", "Checkmate"], ["capture", "Capture pieces"], ["material", "Win material"], ["escort", "Escort peasants"], ["reach", "Reach a square"], ["survive", "Survive"]];
 /** A fresh goal of a type, carrying over target squares where it can. */

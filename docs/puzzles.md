@@ -5,7 +5,7 @@ Lives beside the battle game; nothing in `src/game/` changes.
 
 ## Rules (`src/puzzle/engine.ts`)
 - Chess moves and captures; every piece has one life. You (white, bottom) move first.
-- Board 2–8 a side. **Holes** aren't board: nothing stands on or slides across them.
+- Board 2–24 a side (Wesley 2026-11-26: long levels). **Holes** aren't board: nothing stands on or slides across them.
   **Walls** block standing and sliding; knights leap both.
 - **Peasant** (yours only): steps one square any way, never captures. Losing one fails.
 - Goals: checkmate · capture N pieces · win N material (P1 N3 B3 R5 Q9) · escort
@@ -31,9 +31,12 @@ Lives beside the battle game; nothing in `src/game/` changes.
 - **Snare** (`snares`): a piece that stops on it never moves again, but still
   blocks and attacks (gives check).
 - **Gate** (`gates`, optional `open`): a wall switches can flip. Can't close on a piece.
-- **Switch** (`switches`: `kind` lever | plate, `effect`): fires when any piece
-  stops on it (the dungeon uses them too). Lever: flips its gates each time.
-  Plate: holds its gates flipped while pressed. Other effects: drop every
+- **Switch** (`switches`: `kind` lever | plate, `effect`): either side can use
+  them. Plate: floor; fires when a piece stops on it and holds its gates flipped
+  while pressed. Lever (Wesley 2026-11-27): fills its square like a wall (knights
+  leap it). It leans west at the start; a piece on the square it leans away from
+  (east of it) pulls it with its turn and stays put. It then leans east, so the
+  next pull comes from the west. Each pull fires it: gates flip every time. Other effects: drop every
   trapdoor, wake the sleepers, flood listed squares with sludge (kills what's there).
 - **Statue** (5th piece field `"statue"`, enemy rook/bishop/queen/knight/pawn):
   never moves; on its turn it strikes one of your pieces in its reach (as that

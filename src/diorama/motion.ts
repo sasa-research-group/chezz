@@ -41,3 +41,17 @@ export const clearTime = (x: number, y: number, since: number) => {
   const c = clears.get(hitKey(x, y));
   return c && c.set >= since ? c.at : null;
 };
+
+// Who is standing still on a square, so a snare there springs as the figure arrives (not when the move is made) and
+// sorts its front roots just in front of it. KingSprite says so every frame it stands; a figure struck down stops.
+const stands = new Map<string, { at: number; gap: number }>();
+/** How long a stand counts after it was last said: a few frames, so the order of useFrame calls doesn't matter. */
+export const STAND_FRESH_MS = 250;
+/** KingSprite: a figure stands on the square at stage (x, y); `gap`: its sheet's d0 - dq, how far in front of its feet
+ * its quad sorts. */
+export const standing = (x: number, y: number, gap: number) => { stands.set(hitKey(x, y), { at: performance.now(), gap }); };
+/** The gap of the figure standing on (x, y), or null when none has said so in the last STAND_FRESH_MS. */
+export const standGap = (x: number, y: number) => {
+  const e = stands.get(hitKey(x, y));
+  return e && performance.now() - e.at <= STAND_FRESH_MS ? e.gap : null;
+};
