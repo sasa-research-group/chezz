@@ -1,8 +1,11 @@
 # Reference video -> numbered frames and a contact sheet, for the reference pass before keying a new animation
 # (.claude/skills/animation-reference). The agent looks at the sheet to find key poses and their timing.
-#   python3 refsheet.py CLIP.mp4 OUT [--start 1.2] [--end 2.6] [--fps 24] [--cols 6] [--max 36]
+#   uv run refsheet.py CLIP.mp4 OUT [--start 1.2] [--end 2.6] [--fps 24] [--cols 6] [--max 36]
 # writes OUT/f_001.png ... (360 px high, at --fps, so frame numbers are the game's 24 fps frames) and
 # OUT/sheet.png: every Nth frame in a grid (at most --max tiles), each stamped with its frame number.
+# /// script
+# dependencies = ["pillow"]
+# ///
 import argparse, glob, os, subprocess
 from PIL import Image, ImageDraw
 

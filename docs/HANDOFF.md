@@ -34,7 +34,7 @@
   instead. Rebake: `bake_king_sprites.py` with `KING_RIM=1100
   KING_RIM_FIBONLY=1 RIM_PLAY=1 CROWN_RIM=2500 CROWN_EL=8.5` (rim behind
   him for the play camera on the felt only, plus a crown-only spot; the
-  haze must stay in), then `king_atlas.py`. The shader lifts
+  haze must stay in), then `uv run king_atlas.py`. The shader lifts
   saturation (`TRIM` in KingSprite; dev `?ksat= ?klow= ?kexp= ?kcon=`). The set's depth mesh puts
   floating leaves in front of the back wall, so the sprite is depth-tested
   2 units nearer than it is, except over cards (stencil), where true depth
@@ -49,7 +49,7 @@
   up over the walk's hips and legs. 16-frame loops, all 8 headings, baked with
   `GUARD=king_guard.json PROP=royal_blade.glb tools/art/diorama/runbake.sh
   walk OUT 3600 256 0,1,2,3,4,5,6,7` (Metal crashes several times a bake;
-  rerun the same line, it resumes), packed by `king_loop_atlas.py DIR
+  rerun the same line, it resumes), packed by `uv run king_loop_atlas.py DIR
   public/diorama name=walk cps=2`. He moves at the loop's own ground speed
   (`cycle` x `cps`, frame from distance, so the feet stay planted): about
   1.4 s a square. Players can toggle **fast forward (2x)** on the play bar
