@@ -3,6 +3,9 @@
 # (+ -glow) and -swing.json, the gate and its floor, drawn under figures; OUT/gate{i}{j}{SUFFIX}-front0.webp (+ -glow)
 # and -front.json, the gate's parts nearer the camera than a figure in the doorway, drawn over it. SUFFIX "q" for a
 # TURN=q bake (the quarter-turned gate). The square comes from the folder name, as pack_snare.py.
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import os, re, subprocess, sys
 
 bake = sys.argv[1]

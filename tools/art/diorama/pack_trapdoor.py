@@ -2,6 +2,9 @@
 # OUT/trap{i}{j}-drop0.webp (+ -glow) and trap{i}{j}-drop.json, with king_loop_atlas.py (35 frames on 7 x 5, at
 # the bake's own size: the set is 2400 px wide too). The square comes from the folder name (bakes before ded182a's
 # follow-up wrote a wrong j into drop.json).
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import json, os, re, subprocess, sys
 
 bake = sys.argv[1]

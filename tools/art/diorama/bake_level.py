@@ -6,6 +6,9 @@
 # A board past one view (level_layout.stops) is baked once per panning stop instead: set-s{k}.* for each stop, and each
 # trapdoor from every stop that frames it, trap-{x}-{y}-s{k}; the index lists the stops and which see which door.
 # Resumes: a finished set or trapdoor in WORK is not baked again.
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))

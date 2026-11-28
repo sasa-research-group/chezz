@@ -2,6 +2,9 @@
 # king_loop_atlas.py (the throw's frames, right then left, on 4 rows, at the bake's own size): OUT/lever{i}{j}-throw0.webp
 # (+ -glow) and -throw.json, the lever and its floor, drawn under figures. The square comes from the folder name, as
 # pack_gate.py.
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import os, re, subprocess, sys
 
 bake = sys.argv[1]

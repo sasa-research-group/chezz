@@ -1,3 +1,6 @@
+# /// script
+# dependencies = ["numpy", "pillow", "pytest"]
+# ///
 """match_floor: the gain brings a warm-tinted floor back to the set's colour and leaves the prop out of the sum.
 Run: uv run --no-project --with pytest --with numpy --with pillow python -m pytest test_match_floor.py"""
 import numpy as np

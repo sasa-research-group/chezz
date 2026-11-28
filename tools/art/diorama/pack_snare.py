@@ -3,6 +3,9 @@
 # snare{i}{j}-spring.json, the whole square, drawn under figures; OUT/snare{i}{j}-front0.webp (+ -glow) and
 # snare{i}{j}-front.json, the roots nearer the camera than the legs of the figure on it, drawn over that figure.
 # The square comes from the folder name, as pack_trapdoor.py.
+# /// script
+# dependencies = ["numpy", "pillow"]
+# ///
 import os, re, subprocess, sys
 
 bake = sys.argv[1]
